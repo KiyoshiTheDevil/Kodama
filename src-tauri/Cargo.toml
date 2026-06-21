@@ -29,10 +29,11 @@ discord-rich-presence = "0.2"
 rodio      = { version = "0.20", features = ["symphonia-all"] }
 symphonia  = { version = "0.5",  features = ["all"] }
 rustfft    = "6"
-xcap       = "0.0.14"
 base64     = "0.22"
 
 [target.'cfg(windows)'.dependencies]
+# xcap (bug-report screenshot) doesn't compile on macOS (xcap 0.0.14 macos backend) — Windows only.
+xcap = "0.0.14"
 windows = { version = "0.58", features = [
     "Win32_Media_Audio",
     "Win32_System_Com",

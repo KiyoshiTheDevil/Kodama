@@ -39,6 +39,9 @@ fn quit_app(app: tauri::AppHandle) {
 // Native capture keeps backdrop-filter/blur intact, which HTML-based capture cannot. The
 // window is located via Tauri's own geometry (not by name) and cropped out of its monitor —
 // robust against unrelated windows that happen to contain "Kodama" in their title.
+// Windows-only: xcap (the capture crate) doesn't compile on macOS. On other platforms this
+// returns an error and the frontend simply sends the report without a screenshot.
+#[cfg(windows)]
 #[tauri::command]
 fn capture_screenshot(app: tauri::AppHandle) -> Result<String, String> {
     use base64::Engine;
@@ -65,6 +68,12 @@ fn capture_screenshot(app: tauri::AppHandle) -> Result<String, String> {
         .write_to(&mut cursor, xcap::image::ImageFormat::Png)
         .map_err(|e| e.to_string())?;
     Ok(base64::engine::general_purpose::STANDARD.encode(cursor.get_ref()))
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+fn capture_screenshot(_app: tauri::AppHandle) -> Result<String, String> {
+    Err("screenshot not supported on this platform".to_string())
 }
 
 #[tauri::command]
