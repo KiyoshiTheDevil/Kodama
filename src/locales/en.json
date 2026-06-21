@@ -260,6 +260,7 @@
   "ffmpegNeededDesc": "FFmpeg was not found and will be downloaded once (~130 MB). It is required for MP3 export.",
   "ffmpegSkip": "Skip",
   "ffmpegDownload": "Download FFmpeg",
+  "ffmpegNotInstalled": "Not installed",
   "ffmpegStartAnyway": "Start anyway",
   "ffmpegConnectionLost": "Connection to the backend was lost.",
   "ffmpegUnknownError": "Unknown error",
