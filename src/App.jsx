@@ -187,7 +187,7 @@ const _MAX_FRONTEND_LOGS = 500;
 })();
 
 // ─── App Version ─────────────────────────────────────────────────────────────
-const APP_VERSION = "1.0.0-alpha.6";
+const APP_VERSION = "1.0.0-alpha.7";
 
 // Published news feed (edit + commit this file to publish — same host as the updater).
 const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama-dist/master/updates/news.json";
@@ -776,9 +776,10 @@ function TitleBar() {
       position: "fixed", top: 4, left: 0, right: 0, zIndex: 9998,
       pointerEvents: "none",
     }}>
-      <div data-tauri-drag-region style={{
+      {/* DIAG: data-tauri-drag-region removed to test if it swallows mouseup on macOS */}
+      <div style={{
         position: "absolute", top: 0, left: 80, right: 80, bottom: 0,
-        pointerEvents: "all",
+        pointerEvents: "none",
       }} />
       <div style={{ display: "flex", gap: 2, position: "relative", pointerEvents: "all" }}>
         {buttons.map(btn => (
