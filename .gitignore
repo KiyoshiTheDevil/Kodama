@@ -28,6 +28,7 @@ python-backend/*.spec
 # Ausnahme: Build-Specs die GitHub Actions braucht
 !python-backend/kodama-server-x86_64-pc-windows-msvc.spec
 !python-backend/kodama-server-x86_64-unknown-linux-gnu.spec
+!python-backend/kodama-server-aarch64-apple-darwin.spec
 
 # Lokale Caches (werden zur Laufzeit befüllt)
 python-backend/album_cache/

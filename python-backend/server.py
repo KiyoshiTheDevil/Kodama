@@ -357,13 +357,18 @@ def _ensure_node_in_path():
     parent = os.path.dirname(exe_dir)
     if parent and parent != exe_dir:
         candidates.append(parent)
+    node_name = "node.exe" if sys.platform == "win32" else "node"
+    # On macOS the app bundles node under Contents/Resources; also probe there.
+    if sys.platform == "darwin":
+        candidates.append(os.path.join(parent, "Resources"))
+        candidates.append(os.path.join(exe_dir, "..", "Resources"))
     for candidate in candidates:
-        bundled = os.path.join(candidate, "node.exe")
+        bundled = os.path.join(candidate, node_name)
         if os.path.isfile(bundled):
             os.environ["PATH"] = candidate + os.pathsep + os.environ.get("PATH", "")
-            print(f"[ydl] added bundled node.exe to PATH: {bundled}", flush=True)
+            print(f"[ydl] added bundled {node_name} to PATH: {bundled}", flush=True)
             return
-    print("[ydl] node.exe not found — nsig decryption may fail for some tracks", flush=True)
+    print(f"[ydl] {node_name} not found — nsig decryption may fail for some tracks", flush=True)
 
 _ensure_node_in_path()
 
@@ -3888,6 +3893,14 @@ def _find_ffmpeg():
     else:
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), bin_name))
 
+    # macOS: also probe the app bundle's Resources and the common Homebrew locations
+    # (most Mac users get ffmpeg via `brew install ffmpeg`).
+    if sys.platform == "darwin":
+        if getattr(sys, 'frozen', False):
+            candidates.append(os.path.join(os.path.dirname(sys.executable), "..", "Resources", bin_name))
+        candidates.append("/opt/homebrew/bin/ffmpeg")   # Apple Silicon brew
+        candidates.append("/usr/local/bin/ffmpeg")       # Intel brew
+
     for bundled in candidates:
         if os.path.exists(bundled):
             return os.path.dirname(bundled)
@@ -4288,6 +4301,11 @@ def ffmpeg_download():
     force = request.args.get("force") == "1"  # read here — request ctx isn't live inside the generator
 
     def _stream():
+        # macOS: no stable auto-download source — point the user at Homebrew instead.
+        if sys.platform == "darwin":
+            yield "data: " + json.dumps({"status": "error",
+                "message": "Auf macOS bitte FFmpeg via Homebrew installieren — im Terminal: brew install ffmpeg, dann Kodama neu starten."}) + "\n\n"
+            return
         # Only runs when frozen (installed); in dev just report done.
         if not getattr(sys, 'frozen', False):
             yield "data: {\"status\": \"done\"}\n\n"

@@ -1,8 +1,8 @@
 name: Release
 
-# Source lives in this (private) repo; the build is published to the PUBLIC
-# KiyoshiTheDevil/Kodama-dist repo (updater manifest + news + installer downloads),
-# so the auto-updater works while the source stays private (closed beta).
+# Source is private; builds are published to the PUBLIC KiyoshiTheDevil/Kodama-dist repo
+# (updater manifest + news + installer downloads). Windows and macOS (Apple Silicon) are
+# built on their own runners, then a single publish job writes a combined latest.json.
 
 on:
   push:
@@ -14,36 +14,27 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      # The vendored Composer must be built BEFORE the Python server: PyInstaller bundles
-      # composer/dist into the backend exe (see the .spec files + _composer_dist_dir).
       - name: Build vendored Composer
         working-directory: composer
         run: |
           npm install -g pnpm@9
           pnpm install --frozen-lockfile
           pnpm build
-
       - name: Create build directories
         run: |
           New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
           New-Item -ItemType Directory -Force src-tauri/resources | Out-Null
-
       - name: Install Python dependencies
         working-directory: python-backend
         run: pip install -r requirements.txt pyinstaller
-
-      # Inject the Discord feedback webhook from a repo secret so PyInstaller bundles it.
       - name: Configure feedback webhook
         working-directory: python-backend
         env:
@@ -51,33 +42,24 @@ jobs:
         run: |
           $cfg = @{ webhook = "$env:WEBHOOK" } | ConvertTo-Json -Compress
           Set-Content -Path feedback_config.json -Value $cfg -Encoding utf8
-
       - name: Build Python server (Windows)
         working-directory: python-backend
         run: |
           pyinstaller kodama-server-x86_64-pc-windows-msvc.spec `
             --distpath ../src-tauri/binaries `
             --workpath build_tmp/kodama-server-x86_64-pc-windows-msvc
-
       - name: Download node.exe
         run: |
-          Invoke-WebRequest `
-            -Uri "https://nodejs.org/dist/v20.11.0/win-x64/node.exe" `
-            -OutFile "src-tauri/resources/node.exe"
-
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v20.11.0/win-x64/node.exe" -OutFile "src-tauri/resources/node.exe"
       - name: Install frontend dependencies
         run: npm install
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-
-      # Build + sign only (no GitHub release here). createUpdaterArtifacts:true in
-      # tauri.conf makes this produce the .nsis installer AND its .sig signature.
+          key: windows
       - name: Build signed Tauri installer
         uses: tauri-apps/tauri-action@v0
         env:
@@ -85,10 +67,93 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --target x86_64-pc-windows-msvc --bundles nsis
+      - name: Collect Windows artifacts
+        shell: bash
+        run: |
+          mkdir -p out
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*_x64-setup.exe out/
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*_x64-setup.exe.sig out/
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
 
-      # Publish installer + signature to the PUBLIC dist repo, then write its latest.json
-      # (the auto-updater manifest). Needs DIST_REPO_TOKEN = a PAT with Contents:write on
-      # KiyoshiTheDevil/Kodama-dist.
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build vendored Composer
+        working-directory: composer
+        run: |
+          npm install -g pnpm@9
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Create build directories
+        run: mkdir -p src-tauri/binaries src-tauri/resources
+      - name: Install Python dependencies
+        working-directory: python-backend
+        run: pip install -r requirements.txt pyinstaller
+      - name: Configure feedback webhook
+        working-directory: python-backend
+        env:
+          WEBHOOK: ${{ secrets.KODAMA_FEEDBACK_WEBHOOK }}
+        run: |
+          printf '{"webhook":"%s"}' "$WEBHOOK" > feedback_config.json
+      - name: Build Python server (macOS arm64)
+        working-directory: python-backend
+        run: |
+          pyinstaller kodama-server-aarch64-apple-darwin.spec \
+            --distpath ../src-tauri/binaries \
+            --workpath build_tmp/kodama-server-aarch64-apple-darwin
+          chmod +x ../src-tauri/binaries/kodama-server-aarch64-apple-darwin
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: macos
+      - name: Build signed Tauri app (.dmg + updater)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: --target aarch64-apple-darwin --bundles app,dmg
+      - name: Collect macOS artifacts
+        run: |
+          mkdir -p out
+          BASE=src-tauri/target/aarch64-apple-darwin/release/bundle
+          cp "$BASE"/dmg/*.dmg out/ || { echo "::error::dmg not found"; ls -R "$BASE" || true; exit 1; }
+          cp "$BASE"/macos/*.app.tar.gz out/ || { echo "::error::updater tar.gz not found"; ls -R "$BASE/macos" || true; exit 1; }
+          cp "$BASE"/macos/*.app.tar.gz.sig out/
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*
+
+  publish:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
       - name: Publish to public dist repo
         shell: bash
         env:
@@ -100,16 +165,16 @@ jobs:
           DIST="KiyoshiTheDevil/Kodama-dist"
           PRE=""
           case "$TAG" in *alpha*|*beta*|*rc*) PRE="--prerelease";; esac
-
-          BUNDLE="src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
-          EXE=$(ls "$BUNDLE"/*_x64-setup.exe | head -1)
-          SIG="$EXE.sig"
-          if [ ! -f "$EXE" ] || [ ! -f "$SIG" ]; then
-            echo "::error::installer or signature not found"; ls -R "$BUNDLE" || true; exit 1
-          fi
-          EXE_NAME=$(basename "$EXE")
-
           export GH_TOKEN="$DIST_TOKEN"
+
+          WIN_EXE=$(ls dl/windows/*_x64-setup.exe | head -1)
+          WIN_SIG="$WIN_EXE.sig"
+          DMG=$(ls dl/macos/*.dmg | head -1)
+          MAC_TGZ=$(ls dl/macos/*.app.tar.gz | head -1)
+          MAC_SIG="$MAC_TGZ.sig"
+          for f in "$WIN_EXE" "$WIN_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG"; do
+            [ -f "$f" ] || { echo "::error::missing artifact $f"; ls -R dl; exit 1; }
+          done
 
           NOTES=""
           if [ -f CHANGELOG.md ]; then
@@ -119,18 +184,20 @@ jobs:
 
           gh release view "$TAG" --repo "$DIST" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$DIST" --title "Kodama $TAG" --notes "$NOTES" $PRE
-          gh release upload "$TAG" "$EXE" "$SIG" --repo "$DIST" --clobber
+          gh release upload "$TAG" "$WIN_EXE" "$WIN_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG" --repo "$DIST" --clobber
 
-          URL="https://github.com/$DIST/releases/download/$TAG/$EXE_NAME"
-          SIG_CONTENT=$(cat "$SIG")
+          base_url="https://github.com/$DIST/releases/download/$TAG"
           jq -n \
             --arg version "v${VERSION}" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg url "$URL" \
-            --arg sig "$SIG_CONTENT" \
             --arg notes "$NOTES" \
-            '{version:$version, pub_date:$pub_date, notes:$notes, platforms:{"windows-x86_64":{url:$url, signature:$sig}}}' \
-            > latest.json
+            --arg wurl "$base_url/$(basename "$WIN_EXE")" --arg wsig "$(cat "$WIN_SIG")" \
+            --arg murl "$base_url/$(basename "$MAC_TGZ")" --arg msig "$(cat "$MAC_SIG")" \
+            '{version:$version, pub_date:$pub_date, notes:$notes,
+              platforms:{
+                "windows-x86_64":{url:$wurl, signature:$wsig},
+                "darwin-aarch64":{url:$murl, signature:$msig}
+              }}' > latest.json
           echo "latest.json:"; cat latest.json
 
           git clone --depth 1 "https://x-access-token:${DIST_TOKEN}@github.com/${DIST}.git" dist_repo
@@ -142,7 +209,4 @@ jobs:
           git add updates/latest.json
           git diff --cached --quiet && echo "latest.json unchanged" || git commit -m "release: $TAG"
           git push
-
-          echo "═══════════════════════════════════════════════════════"
-          echo "  $TAG published to $DIST. Updater manifest updated."
-          echo "═══════════════════════════════════════════════════════"
+          echo "Published $TAG (windows-x86_64 + darwin-aarch64) to $DIST."

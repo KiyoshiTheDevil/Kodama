@@ -77,7 +77,7 @@ pub fn kill_existing_server(child: &mut Option<Child>) {
 
 #[allow(dead_code)]
 pub fn start_server(app: &tauri::AppHandle) {
-    let server_bin = "kodama-server.exe";
+    let server_bin = if cfg!(windows) { "kodama-server.exe" } else { "kodama-server" };
 
     let exe_dir = std::env::current_exe()
         .ok()
@@ -102,12 +102,13 @@ pub fn start_server(app: &tauri::AppHandle) {
         }
     };
 
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    match std::process::Command::new(&server_exe)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
+    let mut cmd = std::process::Command::new(&server_exe);
+    #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    match cmd.spawn() {
         Ok(child) => { *app.state::<ServerProcess>().0.lock().unwrap() = Some(child); }
         Err(e) => { eprintln!("[server] Failed to spawn {}: {}", server_exe.display(), e); return; }
     }
