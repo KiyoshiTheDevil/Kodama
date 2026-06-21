@@ -11397,7 +11397,9 @@ export default function App() {
     setFeedbackOpen(true);
   }, []);
   useEffect(() => {
-    (async () => {
+    let cancelled = false, lastLoad = 0;
+    const loadNews = async () => {
+      lastLoad = Date.now();
       // Prefer the remote feed (live publishing); fall back to the backend's bundled copy
       // (dev/offline) so news still shows when the remote isn't reachable.
       let items = null;
@@ -11405,12 +11407,19 @@ export default function App() {
       if (!Array.isArray(items) || items.length === 0) {
         try { const r2 = await fetch(`${API}/news`); if (r2.ok) items = await r2.json(); } catch {}
       }
-      if (!Array.isArray(items)) return;
+      if (cancelled || !Array.isArray(items)) return;
       // Keep only entries whose version range covers this build (min_version / max_version).
       setNewsItems(items.filter(n => n && n.id
         && (!n.min_version || cmpVersion(APP_VERSION, n.min_version) >= 0)
         && (!n.max_version || cmpVersion(APP_VERSION, n.max_version) <= 0)));
-    })();
+    };
+    loadNews();
+    // Re-check periodically + when the window regains focus, so newly published news shows up
+    // without restarting the app (the raw GitHub feed is CDN-cached ~5 min anyway).
+    const interval = setInterval(loadNews, 15 * 60 * 1000);
+    const onFocus = () => { if (Date.now() - lastLoad > 5 * 60 * 1000) loadNews(); };
+    window.addEventListener("focus", onFocus);
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("focus", onFocus); };
   }, []);
   const newsUnreadCount = newsItems.reduce((n, it) => n + (newsSeenIds.has(it.id) ? 0 : 1), 0);
   // Auto-open once on startup if there's an unread entry flagged important.

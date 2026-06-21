@@ -130,6 +130,25 @@
       <button id="downloadBtn">news.json herunterladen</button>
     </div>
   </div>
+
+  <div class="card">
+    <h2>Direkt veröffentlichen (GitHub)</h2>
+    <p class="hint" style="margin:0 0 12px">Pusht die obige news.json in einem Klick nach <code>updates/news.json</code> auf <code>master</code> — kein manuelles Editieren. Der Token bleibt <b>nur lokal</b> in diesem Tool. Empfohlen: ein <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">Fine-grained PAT</a>, nur für das Repo <code>Kodama</code>, Berechtigung <b>Contents: Read and write</b>.</p>
+    <div class="field"><label>GitHub Token</label><input id="gh_token" type="password" placeholder="github_pat_…" autocomplete="off" /></div>
+    <div class="grid">
+      <div class="field"><label>Repo</label><input id="gh_repo" value="KiyoshiTheDevil/Kodama" /></div>
+      <div class="field"><label>Branch</label><input id="gh_branch" value="master" /></div>
+    </div>
+    <div class="grid">
+      <div class="field"><label>Pfad</label><input id="gh_path" value="updates/news.json" /></div>
+      <div class="field"><label>Commit-Nachricht</label><input id="gh_msg" value="news: update" /></div>
+    </div>
+    <div class="row">
+      <button class="primary" id="publishBtn">Veröffentlichen</button>
+      <label class="check" style="margin:0;text-transform:none;letter-spacing:0;color:var(--muted)"><input id="gh_remember" type="checkbox" checked /> Token merken</label>
+    </div>
+    <div class="err" id="publishStatus"></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -258,6 +277,42 @@ $("downloadBtn").onclick=()=>{
 };
 let toastT;
 function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1600); }
+
+// ── Direct publish via the GitHub Contents API ──
+const GH_TOKEN_KEY="kodama-news-gh-token";
+$("gh_token").value = localStorage.getItem(GH_TOKEN_KEY) || "";
+$("publishBtn").onclick = async () => {
+  const token=$("gh_token").value.trim();
+  const repo=$("gh_repo").value.trim(), branch=$("gh_branch").value.trim(), path=$("gh_path").value.trim();
+  const msg=$("gh_msg").value.trim() || "news: update";
+  const st=$("publishStatus");
+  const show=(m,ok)=>{ st.style.color = ok===true?"var(--teal)":ok===false?"#ff7070":"var(--muted)"; st.textContent=m; };
+  if(!token){ show("Token fehlt.",false); return; }
+  if(!entries.length && !confirm("news.json ist leer — wirklich eine leere Liste veröffentlichen?")) return;
+  if($("gh_remember").checked) localStorage.setItem(GH_TOKEN_KEY,token); else localStorage.removeItem(GH_TOKEN_KEY);
+  const api=`https://api.github.com/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const headers={ "Authorization":"Bearer "+token, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28" };
+  $("publishBtn").disabled=true;
+  try{
+    show("Hole aktuellen Stand…");
+    let sha=null;
+    const g=await fetch(`${api}?ref=${encodeURIComponent(branch)}`,{headers});
+    if(g.status===200) sha=(await g.json()).sha;
+    else if(g.status===401||g.status===403){ throw new Error("Token ungültig oder ohne Contents-Schreibrecht ("+g.status+")"); }
+    else if(g.status!==404){ throw new Error("GET "+g.status+": "+(await g.text()).slice(0,120)); }
+    show("Committe…");
+    const content=$("output").value;
+    const b64=btoa(unescape(encodeURIComponent(content)));
+    const body={ message:msg, content:b64, branch }; if(sha) body.sha=sha;
+    const p=await fetch(api,{method:"PUT",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(p.status===200||p.status===201){ const d=await p.json(); show("Veröffentlicht ✓  commit "+((d.commit&&d.commit.sha)||"").slice(0,7)+" — live in ~paar Minuten.",true); toast("Veröffentlicht ✓"); }
+    else if(p.status===409){ show("Konflikt: Repo wurde inzwischen geändert. Oben „Live news.json laden", Änderungen neu einbauen, erneut veröffentlichen.",false); }
+    else { throw new Error("PUT "+p.status+": "+(await p.text()).slice(0,200)); }
+  }catch(e){
+    const cors=/Failed to fetch|NetworkError/i.test(e.message);
+    show("Fehler: "+e.message+(cors?" — evtl. CORS: Tool über einen lokalen Server / GitHub Pages öffnen statt per Doppelklick (file://).":""),false);
+  }finally{ $("publishBtn").disabled=false; }
+};
 
 resetForm(); refresh();
 </script>
