@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kodama · News Editor</title>
+<style>
+  :root{
+    --bg:#0d0d0d; --surface:#161616; --elevated:#1e1e1e; --border:#2a2a2a;
+    --text:#f0f0f0; --muted:#9a9a9a; --accent:#e040fb; --accent-dim:rgba(224,64,251,0.15);
+    --amber:#f4b840; --teal:#3ec79a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,'Segoe UI',sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--accent)}
+  h2{font-size:15px;margin:0 0 12px;font-weight:600}
+  .hint{color:var(--muted);font-size:13px;margin:0 0 22px}
+  .hint code{background:var(--elevated);padding:1px 5px;border-radius:4px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 5px;font-weight:600}
+  input,select,textarea{width:100%;background:var(--elevated);border:1px solid var(--border);border-radius:9px;color:var(--text);
+    padding:9px 11px;font:inherit;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  textarea{resize:vertical;min-height:90px;font-family:inherit}
+  .field{margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:9px;
+    padding:9px 14px;font:inherit;cursor:pointer;transition:.12s}
+  button:hover{border-color:#444}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{filter:brightness(1.08)}
+  button.ghost{background:transparent}
+  button.sm{padding:5px 9px;font-size:12px}
+  .check{display:flex;align-items:center;gap:8px}
+  .check input{width:auto}
+  details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:8px}
+  .entry{display:flex;gap:10px;align-items:flex-start;background:var(--elevated);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .entry .meta{flex:1;min-width:0}
+  .entry .t{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .entry .sub{color:var(--muted);font-size:11px;margin-top:2px}
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;margin-right:6px;vertical-align:1px}
+  .b-update{background:var(--accent-dim);color:var(--accent)}
+  .b-beta{background:rgba(244,184,64,.18);color:var(--amber)}
+  .b-fix{background:rgba(62,199,154,.18);color:var(--teal)}
+  .b-note{background:rgba(255,255,255,.08);color:var(--muted)}
+  .pv-card{background:var(--elevated);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .pv-card img{width:100%;max-height:170px;object-fit:cover;display:block}
+  .pv-body{padding:12px 14px}
+  .pv-body h3{margin:.6em 0 .2em;font-size:14px}
+  .pv-body p{margin:.5em 0}
+  .pv-body ul{margin:.4em 0;padding-left:20px}
+  .pv-body a{color:var(--accent)}
+  .pv-body code{background:var(--surface);padding:1px 5px;border-radius:4px;font-size:.92em}
+  .pv-title{font-weight:600;font-size:15px;margin:2px 0 4px}
+  .pv-sub{color:var(--muted);font-size:12px}
+  .pv-body-text{color:#cfcfcf;font-size:13px}
+  .star{color:var(--accent)}
+  #output{min-height:140px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;
+    padding:8px 16px;border-radius:10px;font-weight:600;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .err{color:#ff7070;font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="dot"></span> Kodama · News Editor</h1>
+  <p class="hint">Erstellt die <code>updates/news.json</code> für „What's new". Standalone — speichert nichts hoch.
+    Am Ende kopieren/herunterladen und auf <code>master</code> committen.</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="loadLive">Live news.json laden</button>
+      <button class="ghost" id="startFresh">Leer starten</button>
+    </div>
+    <details style="margin-top:12px">
+      <summary>… oder vorhandenes JSON einfügen</summary>
+      <textarea id="pasteJson" placeholder="[ … ]"></textarea>
+      <div class="row" style="margin-top:8px"><button class="sm" id="loadPaste">Übernehmen</button></div>
+      <div class="err" id="pasteErr"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Einträge (<span id="count">0</span>) <span style="color:var(--muted);font-weight:400;font-size:12px">— oberster = neuester</span></h2>
+    <div id="entries"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">Neuer Eintrag</h2>
+    <div class="grid">
+      <div class="field"><label>Typ</label>
+        <select id="f_type"><option value="update">update</option><option value="beta">beta</option>
+          <option value="fix">fix</option><option value="note">note</option></select></div>
+      <div class="field"><label>Datum</label><input id="f_date" type="date" /></div>
+    </div>
+    <div class="field"><label>Titel</label><input id="f_title" placeholder="Kurzer Titel" /></div>
+    <div class="field"><label>ID (auto, eindeutig)</label><input id="f_id" placeholder="wird aus Datum+Titel erzeugt" /></div>
+    <div class="field"><label>Text (Markdown: **fett** *kursiv* `code` [Link](url) ## H - Liste)</label>
+      <textarea id="f_body" placeholder="Beschreibung …"></textarea></div>
+    <details>
+      <summary>Optionen (Bild, wichtig, Versionsfilter)</summary>
+      <div class="field check"><input id="f_important" type="checkbox" /><label style="margin:0;text-transform:none;letter-spacing:0">Wichtig (Stern + öffnet News automatisch)</label></div>
+      <div class="field"><label>Bild-URL (optional)</label><input id="f_image" placeholder="https://…" /></div>
+      <div class="grid">
+        <div class="field"><label>min_version (optional)</label><input id="f_min" placeholder="1.0.0-beta.1" /></div>
+        <div class="field"><label>max_version (optional)</label><input id="f_max" placeholder="" /></div>
+      </div>
+    </details>
+    <div class="row">
+      <button class="primary" id="saveEntry">Hinzufügen</button>
+      <button class="ghost" id="resetForm">Formular leeren</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Vorschau</h2>
+    <div id="preview"></div>
+  </div>
+
+  <div class="card">
+    <h2>Export — fertige news.json</h2>
+    <textarea id="output" readonly></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="copyBtn">In Zwischenablage kopieren</button>
+      <button id="downloadBtn">news.json herunterladen</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/news.json";
+let entries = [];
+let editingIndex = null;
+
+const $ = id => document.getElementById(id);
+const F = { type:$("f_type"), date:$("f_date"), title:$("f_title"), id:$("f_id"),
+  body:$("f_body"), important:$("f_important"), image:$("f_image"), min:$("f_min"), max:$("f_max") };
+
+function today(){ return new Date().toISOString().slice(0,10); }
+function slug(s){ return (s||"").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40); }
+function esc(s){ return (s||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+// Markdown — matches the app (renderInline + block headings/lists)
+function inline(t){
+  t = esc(t);
+  t = t.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+       .replace(/\*([^*]+)\*/g,"<em>$1</em>")
+       .replace(/`([^`]+)`/g,"<code>$1</code>")
+       .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return t;
+}
+function md(body){
+  if(!body) return "";
+  const out=[]; let list=null;
+  const flush=()=>{ if(list){ out.push("<ul>"+list.join("")+"</ul>"); list=null; } };
+  body.split("\n").forEach(line=>{
+    const s=line.trim();
+    if(!s){ flush(); return; }
+    if(s.startsWith("## ")){ flush(); out.push("<h3>"+inline(s.slice(3))+"</h3>"); return; }
+    if(s.startsWith("- ")){ if(!list) list=[]; list.push("<li>"+inline(s.slice(2))+"</li>"); return; }
+    flush(); out.push("<p>"+inline(s)+"</p>");
+  });
+  flush(); return out.join("");
+}
+const BADGE={update:["b-update","Update"],beta:["b-beta","Closed Beta"],fix:["b-fix","Fix"],note:["b-note","Hinweis"]};
+function cardHtml(e){
+  const [cls,lbl]=BADGE[e.type]||BADGE.update;
+  return `<div class="pv-card">${e.image?`<img src="${esc(e.image)}" alt="">`:""}
+    <div class="pv-body">
+      <div><span class="badge ${cls}">${lbl}</span>${e.important?'<span class="star">★</span> ':""}<span class="pv-sub">${esc(e.date||"")}</span></div>
+      <div class="pv-title">${esc(e.title||"(ohne Titel)")}</div>
+      <div class="pv-body-text">${md(e.body)}</div>
+    </div></div>`;
+}
+
+function readForm(){
+  const e={ id:F.id.value.trim(), type:F.type.value, date:F.date.value, title:F.title.value.trim(), body:F.body.value };
+  if(F.important.checked) e.important=true;
+  if(F.image.value.trim()) e.image=F.image.value.trim();
+  if(F.min.value.trim()) e.min_version=F.min.value.trim();
+  if(F.max.value.trim()) e.max_version=F.max.value.trim();
+  if(!e.id) e.id=(e.date||today())+"-"+(slug(e.title)||"news");
+  return e;
+}
+function fillForm(e){
+  F.type.value=e.type||"update"; F.date.value=e.date||today(); F.title.value=e.title||"";
+  F.id.value=e.id||""; F.body.value=e.body||""; F.important.checked=!!e.important;
+  F.image.value=e.image||""; F.min.value=e.min_version||""; F.max.value=e.max_version||"";
+}
+function resetForm(){ editingIndex=null; fillForm({date:today(),type:"update"}); $("formTitle").textContent="Neuer Eintrag"; $("saveEntry").textContent="Hinzufügen"; renderPreview(); }
+
+function renderEntries(){
+  $("count").textContent=entries.length;
+  $("entries").innerHTML = entries.length? entries.map((e,i)=>{
+    const [cls,lbl]=BADGE[e.type]||BADGE.update;
+    return `<div class="entry">
+      <div class="meta"><div class="t"><span class="badge ${cls}">${lbl}</span>${e.important?"★ ":""}${esc(e.title||"(ohne Titel)")}</div>
+        <div class="sub">${esc(e.id)} · ${esc(e.date||"")}</div></div>
+      <div class="row">
+        <button class="sm ghost" data-act="up" data-i="${i}" ${i===0?"disabled":""}>▲</button>
+        <button class="sm ghost" data-act="down" data-i="${i}" ${i===entries.length-1?"disabled":""}>▼</button>
+        <button class="sm" data-act="edit" data-i="${i}">Bearb.</button>
+        <button class="sm ghost" data-act="del" data-i="${i}">✕</button>
+      </div></div>`;
+  }).join("") : '<div style="color:var(--muted);font-size:13px">Noch keine Einträge.</div>';
+  $("entries").querySelectorAll("button[data-act]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i, a=b.dataset.act;
+    if(a==="del"){ if(confirm("Eintrag löschen?")){ entries.splice(i,1); if(editingIndex===i) resetForm(); refresh(); } }
+    else if(a==="up"&&i>0){ [entries[i-1],entries[i]]=[entries[i],entries[i-1]]; refresh(); }
+    else if(a==="down"&&i<entries.length-1){ [entries[i+1],entries[i]]=[entries[i],entries[i+1]]; refresh(); }
+    else if(a==="edit"){ editingIndex=i; fillForm(entries[i]); $("formTitle").textContent="Eintrag bearbeiten"; $("saveEntry").textContent="Speichern"; renderPreview(); window.scrollTo({top:document.querySelector('#formTitle').offsetTop-20,behavior:'smooth'}); }
+  });
+}
+function renderPreview(){ $("preview").innerHTML=cardHtml(readForm()); }
+function renderOutput(){ $("output").value=JSON.stringify(entries,null,2)+"\n"; }
+function refresh(){ renderEntries(); renderOutput(); }
+
+$("saveEntry").onclick=()=>{
+  const e=readForm();
+  if(!e.title && !e.body){ toast("Titel oder Text angeben"); return; }
+  if(editingIndex===null){
+    if(entries.some(x=>x.id===e.id)){ toast("ID existiert bereits — Titel/ID ändern"); return; }
+    entries.unshift(e);
+  } else { entries[editingIndex]=e; }
+  resetForm(); refresh(); toast(editingIndex===null?"Hinzugefügt":"Gespeichert");
+};
+$("resetForm").onclick=resetForm;
+[F.type,F.date,F.title,F.body,F.important,F.image].forEach(el=>el.addEventListener("input",()=>{
+  if(editingIndex===null && !F.id.value) {} renderPreview();
+}));
+F.title.addEventListener("input",()=>{ if(!F.id.dataset.touched) F.id.value=(F.date.value||today())+"-"+(slug(F.title.value)||"news"); });
+F.id.addEventListener("input",()=>{ F.id.dataset.touched="1"; });
+
+function loadEntries(arr){
+  if(!Array.isArray(arr)) throw new Error("Kein Array");
+  entries=arr.filter(x=>x&&x.id); refresh(); resetForm();
+}
+$("loadLive").onclick=async()=>{
+  try{ const r=await fetch(NEWS_URL,{cache:"no-cache"}); loadEntries(await r.json()); toast("Live geladen ("+entries.length+")"); }
+  catch(e){ toast("Konnte Live-Feed nicht laden"); }
+};
+$("startFresh").onclick=()=>{ entries=[]; refresh(); resetForm(); };
+$("loadPaste").onclick=()=>{
+  $("pasteErr").textContent="";
+  try{ loadEntries(JSON.parse($("pasteJson").value)); toast("Übernommen ("+entries.length+")"); }
+  catch(e){ $("pasteErr").textContent="Ungültiges JSON: "+e.message; }
+};
+$("copyBtn").onclick=async()=>{ try{ await navigator.clipboard.writeText($("output").value); toast("Kopiert ✓"); }catch{ $("output").select(); document.execCommand("copy"); toast("Kopiert ✓"); } };
+$("downloadBtn").onclick=()=>{
+  const blob=new Blob([$("output").value],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="news.json"; a.click();
+};
+let toastT;
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1600); }
+
+resetForm(); refresh();
+</script>
+</body>
+</html>
