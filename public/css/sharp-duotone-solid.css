@@ -1,0 +1,64 @@
+/*!
+ * Font Awesome Pro 6.7.2 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license (Commercial License)
+ * Copyright 2024 Fonticons, Inc.
+ */
+:root, :host {
+  --fa-style-family-sharp-duotone: 'Font Awesome 6 Sharp Duotone';
+  --fa-font-sharp-duotone-solid: normal 900 1em/1 'Font Awesome 6 Sharp Duotone'; }
+
+@font-face {
+  font-family: 'Font Awesome 6 Sharp Duotone';
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("../webfonts/fa-sharp-duotone-solid-900.woff2") format("woff2"), url("../webfonts/fa-sharp-duotone-solid-900.ttf") format("truetype"); }
+
+.fasds,
+.fa-sharp-duotone,
+.fa-sharp-duotone.fa-solid {
+  position: relative;
+  font-weight: 900;
+  letter-spacing: normal; }
+
+.fasds::before,
+.fa-sharp-duotone::before,
+.fa-sharp-duotone.fa-solid::before {
+  position: absolute;
+  color: var(--fa-primary-color, inherit);
+  opacity: var(--fa-primary-opacity, 1); }
+
+.fasds::after,
+.fa-sharp-duotone::after,
+.fa-sharp-duotone.fa-solid::after {
+  color: var(--fa-secondary-color, inherit);
+  opacity: var(--fa-secondary-opacity, 0.4); }
+
+.fa-swap-opacity .fasds::before,
+.fa-swap-opacity .fa-sharp-duotone::before,
+.fa-swap-opacity .fa-sharp-duotone.fa-solid::before,
+.fasds.fa-swap-opacity::before,
+.fa-sharp-duotone.fa-swap-opacity::before,
+.fa-sharp-duotone.fa-solid.fa-swap-opacity::before {
+  opacity: var(--fa-secondary-opacity, 0.4); }
+
+.fa-swap-opacity .fasds::after,
+.fa-swap-opacity .fa-sharp-duotone::after,
+.fa-swap-opacity .fa-sharp-duotone.fa-solid::after,
+.fasds.fa-swap-opacity::after,
+.fa-sharp-duotone.fa-swap-opacity::after,
+.fa-sharp-duotone.fa-solid.fa-swap-opacity::after {
+  opacity: var(--fa-primary-opacity, 1); }
+
+.fasds.fa-inverse,
+.fa-sharp-duotone.fa-inverse,
+.fa-sharp-duotone.fa-solid.fa-inverse {
+  color: var(--fa-inverse, #fff); }
+
+.fasds.fa-stack-1x,
+.fasds.fa-stack-2x,
+.fa-sharp-duotone.fa-stack-1x,
+.fa-sharp-duotone.fa-solid.fa-stack-1x,
+.fa-sharp-duotone.fa-stack-2x,
+.fa-sharp-duotone.fa-solid.fa-stack-2x {
+  position: absolute; }

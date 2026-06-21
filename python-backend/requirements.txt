@@ -1,0 +1,8 @@
+ytmusicapi==1.12.1
+flask
+flask-cors
+requests
+yt-dlp
+mutagen
+Pillow
+pykakasi

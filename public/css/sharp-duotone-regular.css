@@ -1,0 +1,56 @@
+/*!
+ * Font Awesome Pro 6.7.2 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license (Commercial License)
+ * Copyright 2024 Fonticons, Inc.
+ */
+:root, :host {
+  --fa-style-family-sharp-duotone: 'Font Awesome 6 Sharp Duotone';
+  --fa-font-sharp-duotone-regular: normal 400 1em/1 'Font Awesome 6 Sharp Duotone'; }
+
+@font-face {
+  font-family: 'Font Awesome 6 Sharp Duotone';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../webfonts/fa-sharp-duotone-regular-400.woff2") format("woff2"), url("../webfonts/fa-sharp-duotone-regular-400.ttf") format("truetype"); }
+
+.fasdr,
+.fa-sharp-duotone.fa-regular {
+  position: relative;
+  font-weight: 400;
+  letter-spacing: normal; }
+
+.fasdr::before,
+.fa-sharp-duotone.fa-regular::before {
+  position: absolute;
+  color: var(--fa-primary-color, inherit);
+  opacity: var(--fa-primary-opacity, 1); }
+
+.fasdr::after,
+.fa-sharp-duotone.fa-regular::after {
+  color: var(--fa-secondary-color, inherit);
+  opacity: var(--fa-secondary-opacity, 0.4); }
+
+.fa-swap-opacity .fasdr::before,
+.fa-swap-opacity .fa-sharp-duotone.fa-regular::before,
+.fasdr.fa-swap-opacity::before,
+.fa-sharp-duotone.fa-swap-opacity::before,
+.fa-sharp-duotone.fa-regular.fa-swap-opacity::before {
+  opacity: var(--fa-secondary-opacity, 0.4); }
+
+.fa-swap-opacity .fasdr::after,
+.fa-swap-opacity .fa-sharp-duotone.fa-regular::after,
+.fasdr.fa-swap-opacity::after,
+.fa-sharp-duotone.fa-swap-opacity::after,
+.fa-sharp-duotone.fa-regular.fa-swap-opacity::after {
+  opacity: var(--fa-primary-opacity, 1); }
+
+.fasdr.fa-inverse,
+.fa-sharp-duotone.fa-regular.fa-inverse {
+  color: var(--fa-inverse, #fff); }
+
+.fasdr.fa-stack-1x,
+.fasdr.fa-stack-2x,
+.fa-sharp-duotone.fa-regular.fa-stack-1x,
+.fa-sharp-duotone.fa-regular.fa-stack-2x {
+  position: absolute; }

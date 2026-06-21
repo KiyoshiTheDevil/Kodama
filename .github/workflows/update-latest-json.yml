@@ -1,0 +1,104 @@
+name: Update latest.json
+
+# Run AFTER manually publishing a draft release in the GitHub UI.
+# Generates updates/latest.json so the in-app auto-updater picks up the new
+# version. Trigger from: Actions tab → "Update latest.json" → "Run workflow".
+# The tag input is REQUIRED to prevent accidentally picking a wrongly-named
+# release (e.g. "untagged-...") via an ambiguous "latest" lookup.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.9.33-beta). Required.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "ERROR: Tag '$TAG' does not look like a valid version (expected v0.9.x or similar)." >&2
+            exit 1
+          fi
+          echo "Tag: $TAG"
+
+      - name: Generate latest.json from published release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+
+          # Fetch release info by tag (must already be PUBLISHED, not draft)
+          RELEASE=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" 2>/dev/null || echo "NOT_FOUND")
+          if [ "$RELEASE" = "NOT_FOUND" ]; then
+            echo "ERROR: No published release found for tag $TAG." >&2
+            echo "Make sure the release is published (not a draft) before running this workflow." >&2
+            exit 1
+          fi
+
+          IS_DRAFT=$(echo "$RELEASE" | jq -r '.draft')
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "ERROR: Release $TAG is still a draft. Publish it first in the GitHub UI." >&2
+            exit 1
+          fi
+
+          ASSETS=$(echo "$RELEASE" | jq '.assets')
+          EXE_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe")) | .browser_download_url' | head -1)
+          SIG_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe.sig")) | .browser_download_url' | head -1)
+
+          echo "EXE URL: $EXE_URL"
+          echo "SIG URL: $SIG_URL"
+
+          if [ -z "$EXE_URL" ] || [ "$EXE_URL" = "null" ]; then
+            echo "ERROR: .exe asset not found in release $TAG." >&2
+            exit 1
+          fi
+
+          SIG_CONTENT=""
+          if [ -n "$SIG_URL" ] && [ "$SIG_URL" != "null" ]; then
+            for sig_attempt in 1 2 3 4 5; do
+              SIG_CONTENT=$(curl -fsSL "$SIG_URL" 2>/dev/null) && break
+              echo "SIG download failed (attempt $sig_attempt/5) — waiting 10s..."
+              sleep 10
+            done
+          fi
+
+          # Extract changelog for this version
+          NOTES=""
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -80)
+          fi
+
+          jq -n \
+            --arg version "v${VERSION}" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg url "${EXE_URL}" \
+            --arg sig "${SIG_CONTENT}" \
+            --arg notes "${NOTES}" \
+            '{version: $version, pub_date: $pub_date, notes: $notes, platforms: {"windows-x86_64": {url: $url, signature: $sig}}}' \
+            > updates/latest.json
+
+          echo ""
+          echo "latest.json updated:"
+          cat updates/latest.json
+
+          # Commit
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add updates/latest.json
+          git diff --cached --quiet && echo "No changes to commit" || \
+            git commit -m "chore: update latest.json for $TAG [skip ci]"
+          git push origin master

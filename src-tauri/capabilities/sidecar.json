@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "sidecar-capability",
+  "description": "Sidecar execution for kodama-server",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [{ "name": "binaries/kodama-server", "sidecar": true }]
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+# Dependencies (greift auch für composer/node_modules)
+node_modules/
+
+# Build-Artefakte (Frontend) — greift auch für composer/dist (wird lokal/in CI gebaut)
+dist/
+
+# Rust Build-Artefakte
+src-tauri/target/
+
+# Auto-generierte Tauri-Dateien
+src-tauri/gen/
+
+# Kompilierter Python-Server (wird beim Build erstellt)
+src-tauri/binaries/
+
+# Python Cache
+python-backend/__pycache__/
+python-backend/*.pyc
+
+# PyInstaller Build-Artefakte
+python-backend/build/
+python-backend/build_tmp/
+python-backend/dist/
+python-backend/*.spec
+# Ausnahme: Build-Specs die GitHub Actions braucht
+!python-backend/kodama-server-x86_64-pc-windows-msvc.spec
+!python-backend/kodama-server-x86_64-unknown-linux-gnu.spec
+
+# Lokale Caches (werden zur Laufzeit befüllt)
+python-backend/album_cache/
+python-backend/song_cache/
+python-backend/lyrics_cache/
+python-backend/playlist_cache/
+python-backend/imgcache/
+
+# Sensible Nutzerdaten (niemals ins Repo!)
+python-backend/profiles/
+python-backend/headers_raw.txt
+oauth.json
+browser.json
+
+# Node.js Binary (wird beim Build heruntergeladen)
+src-tauri/resources/node.exe
+
+# FFmpeg Binaries (müssen separat heruntergeladen werden)
+python-backend/ffmpeg.exe
+python-backend/ffprobe.exe
+python-backend/ffmpeg
+python-backend/ffprobe
+
+# Laufzeit-Logs
+python-backend/server_startup.log
+
+# Debug-Dateien
+python-backend/debug.py
+python-backend/debug2.py
+
+# Umgebungsvariablen
+.env
+*.env.local
+
+# Backup-Dateien
+*.json.bak
+*.bak
+
+# Claude Code lokale Einstellungen
+.claude/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# macOS
+.DS_Store
+package-lock.json
+
+# Last.fm API credentials (local only)
+lastfm_config.json
+python-backend/lastfm_config.json
+
+# Discord feedback webhook (local only — never commit)
+feedback_config.json
+python-backend/feedback_config.json
+
+# Runtime / user-specific data (never commit)
+python-backend/composer_settings.json
+python-backend/custom_lyrics/
+# Stray scratch/temp files
+hard_0116.txt
+*analyze_b64.txt

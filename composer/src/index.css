@@ -1,0 +1,316 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500;600&display=swap");
+@import "tailwindcss";
+
+/* HeroUI v3 theme variables — same version Kodama ships. Component CSS uses @apply
+   which @tailwindcss/vite does NOT expand in node_modules, so component visuals come
+   from Tailwind utilities in JSX; this import provides the variable definitions. */
+@import "@heroui/styles";
+
+@theme {
+  /* Background Colors */
+  --color-composer-bg: #28292c;
+  --color-composer-bg-dark: #1a1a1c;
+  --color-composer-bg-elevated: #3e3e41;
+  --color-composer-overlay: rgba(0, 0, 0, 0.2);
+  --color-composer-overlay-hover: rgba(0, 0, 0, 0.3);
+
+  /* Text Colors */
+  --color-composer-text: #fff;
+  --color-composer-text-secondary: rgba(255, 255, 255, 0.75);
+  --color-composer-text-muted: rgba(255, 255, 255, 0.5);
+  --color-composer-text-disabled: rgba(255, 255, 255, 0.4);
+  --color-composer-text-tertiary: #aaa;
+  --color-composer-text-faint: #696b77;
+
+  /* Interactive Elements */
+  --color-composer-button: hsla(0, 0%, 100%, 0.1);
+  --color-composer-button-hover: hsla(0, 0%, 100%, 0.2);
+  --color-composer-input: rgba(255, 255, 255, 0.05);
+  --color-composer-border: rgba(255, 255, 255, 0.1);
+  --color-composer-border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Accent Colors */
+  --color-composer-accent: rgb(129, 140, 248);
+  --color-composer-accent-dark: rgb(100, 112, 220);
+  --color-composer-accent-darker: rgb(80, 90, 200);
+  --color-composer-accent-text: rgb(165, 180, 252);
+  --color-composer-accent-warm: #d4a5a5;
+  --color-composer-link: #5865f2;
+
+  /* Error/Warning */
+  --color-composer-error: #b45555;
+  --color-composer-error-text: #ffe5e5;
+  --color-composer-warning: #f5a623;
+  --color-composer-explicit: #ff7a85;
+
+  /* Typography */
+  --font-family-sans: "Satoshi", "Avenir", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Animation */
+  --transition-timing-scroll: cubic-bezier(0.86, 0, 0.07, 1);
+}
+
+/* ── HeroUI theme bridge ──────────────────────────────────────────────────────
+   Maps HeroUI's internal variables onto the composer's --color-composer-* tokens,
+   so HeroUI components automatically follow the composer's (and, via Kodama's
+   runtime injection, the active Kodama accent/surfaces) look. Mirrors the bridge
+   in Kodama's own src/index.css. Unlayered CSS beats @layer rules regardless of
+   order/specificity. */
+:root {
+  --background:              var(--color-composer-bg);
+  --foreground:              var(--color-composer-text);
+  --surface:                 var(--color-composer-bg-elevated);
+  --overlay:                 var(--color-composer-bg-elevated);
+  --primary:                 var(--color-composer-accent);
+  --muted:                   var(--color-composer-text-muted);
+
+  /* Desktop convention: no pointer-hand cursor on interactive elements */
+  --cursor-interactive:      default;
+
+  /* Button ghost/secondary hover surface */
+  --default:                 var(--color-composer-button-hover);
+  --default-hover:           var(--color-composer-button-hover);
+  --default-foreground:      var(--color-composer-text);
+
+  /* Soft tokens (Chip/Badge "soft" variants) */
+  --default-soft:            var(--color-composer-bg-elevated);
+  --default-soft-foreground: var(--color-composer-text-secondary);
+  --accent-soft:             color-mix(in srgb, var(--color-composer-accent) 20%, transparent);
+  --accent-soft-hover:       color-mix(in srgb, var(--color-composer-accent) 30%, transparent);
+  --accent-soft-foreground:  var(--color-composer-accent);
+  --accent-foreground:       #ffffff;
+
+  /* Field raw variables */
+  --field-background:        var(--color-composer-input);
+  --field-foreground:        var(--color-composer-text);
+  --field-placeholder:       var(--color-composer-text-muted);
+
+  /* Field compiled Tailwind token variables */
+  --color-field:             var(--color-composer-input);
+  --color-field-foreground:  var(--color-composer-text);
+  --color-field-placeholder: var(--color-composer-text-muted);
+
+  /* Segmented control (selected Tab pill): a translucent tint of the (Kodama) accent,
+     with full-contrast text on top. HeroUI's own --segment default is tuned for light
+     mode and barely visible here. */
+  --segment:                 color-mix(in srgb, var(--color-composer-accent) 22%, transparent);
+  --segment-foreground:      var(--color-composer-text);
+  --color-segment:           color-mix(in srgb, var(--color-composer-accent) 22%, transparent);
+  --color-segment-foreground: var(--color-composer-text);
+}
+
+/* Tailwind token bridge: HeroUI utilities (bg-surface, text-muted, …) → composer tokens. */
+@theme inline {
+  --color-surface:   var(--color-composer-bg-elevated);
+  --color-elevated:  var(--color-composer-bg-elevated);
+  --color-hover:     var(--color-composer-button-hover);
+
+  --color-primary:   var(--color-composer-text);
+  --color-secondary: var(--color-composer-text-secondary);
+  --color-muted:     var(--color-composer-text-muted);
+
+  --color-accent:    var(--color-composer-accent);
+
+  --color-border:    var(--color-composer-border);
+}
+
+/* Selected segmented-tab pill. We deliberately don't render HeroUI's <Tabs.Indicator/>
+   (it needs a <SharedElementTransition> context, which throws without one), so we colour
+   the selected tab directly. Unlayered → beats @heroui/styles' @layer rules. */
+.tabs__tab[data-selected="true"] {
+  background-color: var(--color-segment);
+}
+
+/* Base styles */
+html {
+  font-size: 16px;
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-composer-bg);
+  color: var(--color-composer-text);
+  font-family: var(--font-family-sans);
+}
+
+/* Text selection */
+::selection {
+  background-color: rgba(129, 140, 248, 0.4);
+  color: #fff;
+}
+
+/* Focus visible indicators - minimal for utility app */
+:focus-visible {
+  outline: none;
+}
+
+/* Geist Mono base weight */
+@layer base {
+  .font-mono {
+    font-weight: 500;
+  }
+}
+
+/* Timeline panning mode */
+@layer components {
+  .is-panning,
+  .is-panning * {
+    @apply cursor-grabbing!;
+  }
+  .is-panning * {
+    @apply pointer-events-none!;
+  }
+  .is-panning *:hover {
+    background-color: transparent !important;
+  }
+
+  .expanded-hit-sm {
+    @apply before:content-[''] before:absolute before:-inset-2 before:pointer-events-auto;
+  }
+
+  .expanded-hit-lg {
+    @apply before:content-[''] before:absolute before:-inset-2 before:pointer-events-auto;
+  }
+
+  .expanded-hit-x-lg {
+    @apply before:content-[''] before:absolute before:top-0 before:-left-4 before:-right-4 before:bottom-0 before:pointer-events-auto;
+  }
+
+  .expanded-hit-x-sm {
+    @apply before:content-[''] before:absolute before:top-0 before:-left-2 before:-right-2 before:bottom-0 before:pointer-events-auto;
+  }
+
+  .playhead-yield,
+  .playhead-yield::before {
+    pointer-events: none !important;
+  }
+
+  .timeline-playhead-bar {
+    will-change: transform;
+    transition: transform 32ms linear;
+    mask-position: -16px 0;
+    -webkit-mask-position: -16px 0;
+    mask-size: calc(100% + 32px) 100%;
+    -webkit-mask-size: calc(100% + 32px) 100%;
+    mask-clip: no-clip;
+    -webkit-mask-clip: no-clip;
+  }
+}
+
+/* Range input styling */
+input[type="range"].settings-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"].settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  margin-top: -5px;
+  border: none;
+}
+
+input[type="range"].settings-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+input[type="range"].settings-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+input[type="range"].settings-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-composer-button);
+}
+
+input[type="range"].settings-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-composer-accent);
+}
+
+/* OverlayScrollbars: ensure tracks render above timeline content */
+.os-scrollbar {
+  z-index: 200;
+}
+
+/* Timeline-specific: offset scrollbars to account for gutter (48px) and waveform (80px) */
+[data-timeline-scroll-host] .os-scrollbar-horizontal {
+  left: 48px !important;
+  width: calc(100% - 48px) !important;
+}
+
+[data-timeline-scroll-host] .os-scrollbar-vertical {
+  top: 80px !important;
+  height: calc(100% - 80px) !important;
+}
+
+.os-theme-light {
+  --os-handle-bg: rgba(255, 255, 255, 0.3);
+  --os-handle-bg-hover: rgba(255, 255, 255, 0.4);
+  --os-handle-bg-active: rgba(255, 255, 255, 0.5);
+}
+
+/* Ensure Virtuoso wrappers don't break sticky gutters */
+[data-scroll-container] [data-virtuoso-scroller] {
+  overflow: visible !important;
+}
+
+/* Hide scrollbars during playback */
+.scrollbar-hidden > .os-scrollbar {
+  opacity: 0 !important;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.is-explicit-word {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-composer-explicit) 20%, transparent) 0 3px,
+    transparent 3px 8px
+  );
+}
+
+[data-help-content] [data-inline-key-badge] {
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+}
+
+.is-snapped {
+  box-shadow: 0 0 0 1.5px rgba(255, 214, 107, 0.85), 0 0 14px 2px rgba(255, 214, 107, 0.28), 0 1px 2px
+    rgba(0, 0, 0, 0.4);
+  transition: box-shadow 110ms cubic-bezier(0.25, 1.4, 0.5, 1);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .is-snapped {
+    transition: none;
+  }
+}

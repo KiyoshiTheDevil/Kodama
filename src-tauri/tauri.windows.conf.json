@@ -1,0 +1,13 @@
+{
+  "bundle": {
+    "targets": ["nsis"],
+    "resources": {
+      "resources/node.exe": "node.exe"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh"
+      }
+    }
+  }
+}

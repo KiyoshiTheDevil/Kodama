@@ -1,0 +1,24 @@
+[
+  {
+    "id": "2026-06-21-closed-beta",
+    "type": "beta",
+    "date": "2026-06-21",
+    "important": true,
+    "title": "Willkommen in der Closed Beta!",
+    "body": "Danke, dass du **Kodama** testest. 💚\n\nBitte melde Fehler und Ideen direkt über **Fehler melden** (Profil-Menü oder Taste **F8**) — das landet sofort bei mir, inklusive Version und Logs.\n\n## Was hilft besonders\n- Kurz beschreiben, was du erwartet hast\n- Schritte zum Nachstellen\n- Screenshot dranlassen, wenn möglich\n\nMehr Infos: [Changelog ansehen](https://github.com/KiyoshiTheDevil/Kodama)"
+  },
+  {
+    "id": "2026-06-21-visualizer",
+    "type": "update",
+    "date": "2026-06-21",
+    "title": "Visualizer, Split-Ansicht & Dynamic Accent",
+    "body": "Die Cover-Ansicht hat jetzt einen echten, audio-reaktiven **Visualizer** mit eigenem Einstellungs-Tab und Live-Preview.\n\n## Highlights\n- Drei Formen: Frame, Ring, Linear\n- Kombinierte Vollbild-Ansicht (Visualizer + Lyrics, frei resizebar)\n- App-Akzentfarbe live aus dem Cover (`Dynamic`)\n- Instrumental-Cover bei Lyrics-Pausen"
+  },
+  {
+    "id": "2026-06-21-session-fix",
+    "type": "fix",
+    "date": "2026-06-21",
+    "title": "Login-Sessions bleiben länger stabil",
+    "body": "Die YouTube-Music-Session wird jetzt im Hintergrund aktiv frisch gehalten, statt nach ein paar Stunden abzulaufen."
+  }
+]

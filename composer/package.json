@@ -1,0 +1,94 @@
+{
+  "name": "composer",
+  "private": true,
+  "version": "1.25.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite-react-ssg dev",
+    "build": "tsc -b && vite-react-ssg build",
+    "preview": "vite preview",
+    "test": "pnpm test:unit && pnpm test:component",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project browser",
+    "test:component:watch": "vitest --project browser",
+    "test:coverage": "vitest run --coverage",
+    "lint:fix": "biome lint --write . && biome format --write .",
+    "typecheck": "tsc -b",
+    "knip": "knip",
+    "knip:production": "knip --production",
+    "jscpd": "jscpd"
+  },
+  "dependencies": {
+    "@braccato/core": "^0.1.6",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@floating-ui/react": "^0.27.16",
+    "@heroui/react": "^3.1.0",
+    "@heroui/styles": "^3.1.0",
+    "@lit/react": "^1.0.8",
+    "@tabler/icons-react": "^3.36.1",
+    "@tanstack/react-query": "^5.100.10",
+    "@tauri-apps/api": "^2",
+    "@uimaxbai/am-lyrics": "^1.5.4",
+    "@wavesurfer/react": "^1.0.12",
+    "clsx": "^2.1.1",
+    "driver.js": "^1.4.0",
+    "lit": "^3.3.2",
+    "motion": "^12.24.12",
+    "nanoid": "^5.1.11",
+    "obscenity": "^0.4.6",
+    "onnxruntime-web": "^1.26.0",
+    "overlayscrollbars": "^2.14.0",
+    "overlayscrollbars-react": "^0.5.6",
+    "prism-react-renderer": "^2.4.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-virtuoso": "^4.18.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "wavesurfer.js": "^7.12.1",
+    "zustand": "^5.0.0"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@biomejs/biome",
+      "esbuild",
+      "protobufjs",
+      "sharp"
+    ],
+    "overrides": {
+      "@braccato/parsers": "^0.1.2"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react-helmet-async>react": "19",
+        "react-helmet-async>react-dom": "19"
+      }
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vercel/og": "^0.11.1",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/browser": "^4.1.6",
+    "@vitest/browser-playwright": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.6",
+    "jscpd": "^4.2.3",
+    "jsdom": "^29.0.1",
+    "knip": "^6.13.1",
+    "playwright": "^1.60.0",
+    "react-router-dom": "^6.30.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.7.0",
+    "vite": "^6.4.2",
+    "vite-react-ssg": "0.9.1-beta.1",
+    "vitest": "^4.1.6",
+    "vitest-browser-react": "^2.2.0"
+  }
+}

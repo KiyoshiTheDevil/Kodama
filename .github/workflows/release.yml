@@ -1,0 +1,233 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── Build + publish release ──────────────────────────────────────────────────
+  # Creates a PUBLISHED (non-draft) release immediately so the download URL uses
+  # the real tag name (releases/download/v0.9.x-beta/…) from the start.
+  # Draft releases get an "untagged-<hash>" placeholder URL that persists even
+  # after publishing when the tag is already in use — so we avoid drafts entirely.
+  build-windows:
+    runs-on: windows-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── 1. Create the release (published, not draft) and capture its ID ──────
+      - name: Create GitHub release
+        id: create_release
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          IS_PRE=false
+          if [[ "$TAG" == *beta* ]] || [[ "$TAG" == *alpha* ]]; then IS_PRE=true; fi
+
+          # gh api always supports --jq regardless of gh CLI version on the runner.
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases \
+            --method POST \
+            --field tag_name="$TAG" \
+            --field name="Kodama $TAG" \
+            --field body="Build in progress…" \
+            --field draft=false \
+            --field prerelease=$IS_PRE \
+            --field target_commitish="${{ github.sha }}" \
+            --jq '.id')
+
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "Created release id=$RELEASE_ID for tag=$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The vendored Composer must be built BEFORE the Python server: PyInstaller bundles
+      # composer/dist into the backend exe (see the .spec files + _composer_dist_dir).
+      - name: Build vendored Composer
+        working-directory: composer
+        run: |
+          npm install -g pnpm@9
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Create build directories
+        run: |
+          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
+          New-Item -ItemType Directory -Force src-tauri/resources | Out-Null
+
+      - name: Install Python dependencies
+        working-directory: python-backend
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build Python server (Windows)
+        working-directory: python-backend
+        run: |
+          pyinstaller kodama-server-x86_64-pc-windows-msvc.spec `
+            --distpath ../src-tauri/binaries `
+            --workpath build_tmp/kodama-server-x86_64-pc-windows-msvc
+
+      - name: Download node.exe
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://nodejs.org/dist/v20.11.0/win-x64/node.exe" `
+            -OutFile "src-tauri/resources/node.exe"
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ── 2. Build + upload assets to the pre-created release ──────────────────
+      - name: Build Tauri NSIS installer + updater bundle
+        id: tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ steps.create_release.outputs.release_id }}
+          args: --target x86_64-pc-windows-msvc --bundles nsis
+
+  # ── Update release notes + auto-trigger latest.json update ───────────────────
+  finalize:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Update release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+
+          # Find release by listing all releases and filtering by tag_name.
+          # (The /releases/tags/{tag} endpoint only works reliably for fully
+          #  published releases; listing is more robust.)
+          RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id")
+
+          if [ -z "$RELEASE_ID" ]; then
+            echo "WARNING: Could not find release for tag $TAG — skipping notes update."
+            exit 0
+          fi
+
+          # Extract changelog section for this version
+          RELEASE_NOTES=""
+          if [ -f CHANGELOG.md ]; then
+            RELEASE_NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md \
+              | sed '/^[[:space:]]*$/d' | head -80)
+          fi
+
+          gh api "repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --method PATCH \
+            --field body="${RELEASE_NOTES}"
+
+          echo "Release notes updated for $TAG."
+
+      - name: Update latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+
+          # Fetch release — must be published (draft=false) which it is.
+          RELEASE=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG")
+
+          ASSETS=$(echo "$RELEASE" | jq '.assets')
+
+          # Tauri NSIS bundles produce:
+          #   *.nsis.zip       — updater bundle  (used as the download URL)
+          #   *.nsis.zip.sig   — minisign signature
+          ZIP_URL=$(echo "$ASSETS" | jq -r \
+            '[.[] | select(.name | endswith(".nsis.zip"))] | first | .browser_download_url // ""')
+          SIG_URL=$(echo "$ASSETS" | jq -r \
+            '[.[] | select(.name | endswith(".nsis.zip.sig"))] | first | .browser_download_url // ""')
+
+          # Fall back to .exe.sig if .nsis.zip.sig is absent
+          if [ -z "$SIG_URL" ] || [ "$SIG_URL" = "null" ]; then
+            SIG_URL=$(echo "$ASSETS" | jq -r \
+              '[.[] | select(.name | endswith("x64-setup.exe.sig"))] | first | .browser_download_url // ""')
+            echo "SIG fallback (.exe.sig): $SIG_URL"
+          fi
+
+          # Fall back to the plain .exe if the .nsis.zip is absent
+          if [ -z "$ZIP_URL" ] || [ "$ZIP_URL" = "null" ]; then
+            ZIP_URL=$(echo "$ASSETS" | jq -r \
+              '[.[] | select(.name | endswith("x64-setup.exe"))] | first | .browser_download_url // ""')
+          fi
+
+          echo "ZIP URL : $ZIP_URL"
+          echo "SIG URL : $SIG_URL"
+
+          if [ -z "$ZIP_URL" ] || [ "$ZIP_URL" = "null" ]; then
+            echo "ERROR: updater bundle not found in release assets." >&2
+            exit 1
+          fi
+
+          SIG_CONTENT=""
+          if [ -n "$SIG_URL" ] && [ "$SIG_URL" != "null" ]; then
+            for attempt in 1 2 3 4 5; do
+              SIG_CONTENT=$(curl -fsSL "$SIG_URL" 2>/dev/null) && break
+              echo "SIG download attempt $attempt/5 failed — retrying in 10s…"
+              sleep 10
+            done
+          fi
+
+          NOTES=""
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md \
+              | sed '/^[[:space:]]*$/d' | head -80)
+          fi
+
+          jq -n \
+            --arg version "v${VERSION}" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg url  "${ZIP_URL}" \
+            --arg sig  "${SIG_CONTENT}" \
+            --arg notes "${NOTES}" \
+            '{version:$version, pub_date:$pub_date, notes:$notes,
+              platforms:{"windows-x86_64":{url:$url, signature:$sig}}}' \
+            > updates/latest.json
+
+          echo "latest.json:"
+          cat updates/latest.json
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git add updates/latest.json
+          git diff --cached --quiet \
+            && echo "latest.json unchanged — no commit needed." \
+            || git commit -m "chore: update latest.json for $TAG [skip ci]"
+          git push origin master
+
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "  $TAG released and latest.json updated. Done!"
+          echo "═══════════════════════════════════════════════════════"

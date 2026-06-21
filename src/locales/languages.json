@@ -1,0 +1,19 @@
+[
+  {
+    "code": "en",
+    "label": "English",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 60 30\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"60\" height=\"30\" fill=\"#012169\"/><path d=\"M0,0 L60,30 M60,0 L0,30\" stroke=\"#fff\" stroke-width=\"6\"/><path d=\"M0,0 L60,30 M60,0 L0,30\" stroke=\"#C8102E\" stroke-width=\"4\"/><path d=\"M30,0 V30 M0,15 H60\" stroke=\"#fff\" stroke-width=\"10\"/><path d=\"M30,0 V30 M0,15 H60\" stroke=\"#C8102E\" stroke-width=\"6\"/></svg>"
+  },
+  {
+    "code": "de",
+    "label": "Deutsch",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 5 3\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"5\" height=\"3\" fill=\"#000\"/><rect width=\"5\" height=\"2\" y=\"1\" fill=\"#D00\"/><rect width=\"5\" height=\"1\" y=\"2\" fill=\"#FFCE00\"/></svg>",
+    "translators": ["KiyoshiTheDevil"]
+  },
+  {
+    "code": "tok",
+    "label": "toki pona",
+    "flag": "<img src='/toki pona logo.svg' style='width:100%;height:100%;object-fit:cover;display:block;' />",
+    "translators": ["SeliliPona"]
+  }
+]

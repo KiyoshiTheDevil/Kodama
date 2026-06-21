@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "composer-capability",
+  "description": "Window controls (custom titlebar) for the locally-served Composer window. The window loads http://localhost:9847, a remote URL, so IPC must be explicitly enabled for that origin via the remote scope.",
+  "windows": ["unison-composer"],
+  "remote": {
+    "urls": ["http://localhost:9847/*"]
+  },
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-unminimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close"
+  ]
+}

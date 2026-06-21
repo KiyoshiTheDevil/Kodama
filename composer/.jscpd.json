@@ -1,0 +1,9 @@
+{
+  "path": ["src"],
+  "format": ["typescript", "tsx"],
+  "ignore": ["**/*.test.ts", "**/*.test.tsx", "**/*.browser.test.tsx", "src/test/**"],
+  "reporters": ["console"],
+  "absolute": true,
+  "gitignore": true,
+  "threshold": 3
+}

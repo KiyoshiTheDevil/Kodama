@@ -1,0 +1,7 @@
+{
+  "name": "composer",
+  "compatibility_date": "2026-01-09",
+  "assets": {
+    "directory": "./dist"
+  }
+}
