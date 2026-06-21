@@ -57,17 +57,23 @@ except Exception:
 # {"webhook": "https://discord.com/api/webhooks/..."} in python-backend/feedback_config.json
 # (gitignored). Closed-beta CI builds should inject it via a secret → env or generated config.
 def _load_feedback_webhook():
-    """Webhook from env, else a local (gitignored) feedback_config.json. Never in source."""
+    """Webhook from env, else feedback_config.json. Never in source. In a PyInstaller build the
+    config is bundled (see the .spec) and extracted to sys._MEIPASS; in dev it sits next to this
+    file. CI writes it from a GitHub secret before building."""
     v = os.environ.get("KODAMA_FEEDBACK_WEBHOOK", "").strip()
     if v:
         return v
-    try:
-        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback_config.json")
-        if os.path.exists(p):
-            with open(p, encoding="utf-8") as f:
-                return (json.load(f).get("webhook") or "").strip()
-    except Exception:
-        pass
+    candidates = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        candidates.append(os.path.join(sys._MEIPASS, "feedback_config.json"))
+    candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback_config.json"))
+    for p in candidates:
+        try:
+            if os.path.exists(p):
+                with open(p, encoding="utf-8") as f:
+                    return (json.load(f).get("webhook") or "").strip()
+        except Exception:
+            pass
     return ""
 FEEDBACK_WEBHOOK_URL = _load_feedback_webhook()
 

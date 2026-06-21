@@ -11,11 +11,16 @@ _ytm_locales = _os.path.join(_os.path.dirname(_ytm.origin), 'locales')
 # there (see _composer_dist_dir in server.py). Must be built (pnpm build) before this runs.
 _composer_dist = _os.path.abspath(_os.path.join(SPECPATH, '..', 'composer', 'dist'))
 
+# Discord feedback webhook config (gitignored). CI writes it from a secret before building;
+# bundled to _MEIPASS root so _load_feedback_webhook() finds it at runtime. Absent → no feedback.
+_feedback_cfg = _os.path.join(SPECPATH, 'feedback_config.json')
+_extra_datas = [(_feedback_cfg, '.')] if _os.path.exists(_feedback_cfg) else []
+
 a = Analysis(
     ['server.py'],
     pathex=[],
     binaries=[],
-    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')],
+    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas,
     hiddenimports=["pykakasi", "jaconv"],
     hookspath=[],
     hooksconfig={},

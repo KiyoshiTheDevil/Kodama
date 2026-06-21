@@ -74,6 +74,17 @@ jobs:
         working-directory: python-backend
         run: pip install -r requirements.txt pyinstaller
 
+      # Write the Discord feedback webhook from a repo secret so PyInstaller bundles it into
+      # the backend exe. If the secret is unset the file holds an empty webhook (feedback then
+      # shows "not configured" in-app, no error).
+      - name: Configure feedback webhook
+        working-directory: python-backend
+        env:
+          WEBHOOK: ${{ secrets.KODAMA_FEEDBACK_WEBHOOK }}
+        run: |
+          $cfg = @{ webhook = "$env:WEBHOOK" } | ConvertTo-Json -Compress
+          Set-Content -Path feedback_config.json -Value $cfg -Encoding utf8
+
       - name: Build Python server (Windows)
         working-directory: python-backend
         run: |
