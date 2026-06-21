@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-06-21-this-is-a-test",
+    "type": "note",
+    "date": "2026-06-21",
+    "title": "This is a Test!",
+    "body": "Meow :3",
+    "important": true,
+    "image": "https://preview.redd.it/crazy-teto-v0-7o5m3b5ox9ff1.png?auto=webp&s=59e1c2a8476afe5c2f33adc888fe4dfb1724623e"
+  },
+  {
     "id": "2026-06-21-closed-beta",
     "type": "beta",
     "date": "2026-06-21",
