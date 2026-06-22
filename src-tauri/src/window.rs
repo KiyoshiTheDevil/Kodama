@@ -171,12 +171,47 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
             };
 
             let current_url = win.url().ok().map(|u| u.to_string()).unwrap_or_default();
-            if !current_url.contains("music.youtube.com") {
+            if !current_url.contains("youtube.com") {
                 continue;
             }
 
-            if let Ok(cookies) = win.cookies_for_url(yt_url.clone()) {
-                let has_auth = cookies.iter().any(|c| c.name() == "SAPISID");
+            // Read auth cookies. On Windows cookies_for_url is reliable; on macOS WKWebView
+            // it often returns an empty/partial set, so fall back to cookies() (whole store)
+            // filtered to the youtube.com domain. eprintln so a terminal run shows the state.
+            let mut found: Vec<_> = match win.cookies_for_url(yt_url.clone()) {
+                Ok(cs) => {
+                    eprintln!("[login] cookies_for_url -> {} cookies", cs.len());
+                    cs
+                }
+                Err(e) => {
+                    eprintln!("[login] cookies_for_url ERR: {}", e);
+                    Vec::new()
+                }
+            };
+            if !found.iter().any(|c| c.name() == "SAPISID") {
+                match win.cookies() {
+                    Ok(cs) => {
+                        eprintln!(
+                            "[login] cookies() all -> {} cookies; names={:?}",
+                            cs.len(),
+                            cs.iter().map(|c| c.name().to_string()).collect::<Vec<_>>()
+                        );
+                        let yt: Vec<_> = cs
+                            .into_iter()
+                            .filter(|c| c.domain().map(|d| d.contains("youtube.com")).unwrap_or(false))
+                            .collect();
+                        if yt.iter().any(|c| c.name() == "SAPISID") {
+                            found = yt;
+                        }
+                    }
+                    Err(e) => eprintln!("[login] cookies() ERR: {}", e),
+                }
+            }
+
+            let has_auth = found.iter().any(|c| c.name() == "SAPISID");
+            eprintln!("[login] url={} has_auth={}", current_url, has_auth);
+            {
+                let cookies = found;
                 if has_auth {
                     let cookie_str = cookies
                         .iter()
