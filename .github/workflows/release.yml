@@ -188,13 +188,20 @@ jobs:
             gh release create "$TAG" --repo "$DIST" --title "Kodama $TAG" --notes "$NOTES" $PRE
           gh release upload "$TAG" "$WIN_EXE" "$WIN_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG" --repo "$DIST" --clobber
 
-          base_url="https://github.com/$DIST/releases/download/$TAG"
+          # Use the asset API URLs (api.github.com/.../releases/assets/<id>), not
+          # browser_download_url: a fine-grained read PAT 404s on browser_download_url but
+          # downloads fine from the asset API with Accept: application/octet-stream.
+          ASSETS=$(gh api "repos/$DIST/releases/tags/$TAG" --jq '.assets')
+          WURL=$(echo "$ASSETS" | jq -r --arg n "$(basename "$WIN_EXE")" '.[]|select(.name==$n)|.url')
+          MURL=$(echo "$ASSETS" | jq -r --arg n "$(basename "$MAC_TGZ")" '.[]|select(.name==$n)|.url')
+          [ -n "$WURL" ] && [ -n "$MURL" ] || { echo "::error::could not resolve asset API URLs"; echo "$ASSETS"; exit 1; }
+
           jq -n \
             --arg version "v${VERSION}" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg notes "$NOTES" \
-            --arg wurl "$base_url/$(basename "$WIN_EXE")" --arg wsig "$(cat "$WIN_SIG")" \
-            --arg murl "$base_url/$(basename "$MAC_TGZ")" --arg msig "$(cat "$MAC_SIG")" \
+            --arg wurl "$WURL" --arg wsig "$(cat "$WIN_SIG")" \
+            --arg murl "$MURL" --arg msig "$(cat "$MAC_SIG")" \
             '{version:$version, pub_date:$pub_date, notes:$notes,
               platforms:{
                 "windows-x86_64":{url:$wurl, signature:$wsig},

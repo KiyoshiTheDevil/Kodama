@@ -187,16 +187,19 @@ const _MAX_FRONTEND_LOGS = 500;
 })();
 
 // ─── App Version ─────────────────────────────────────────────────────────────
-const APP_VERSION = "1.0.0-alpha.12";
+const APP_VERSION = "1.0.0-alpha.13";
 
 // Closed-beta dist repo (Kodama-dist) is PRIVATE. A fine-grained read-only PAT (Contents:
 // Read on that repo only) is injected at build time and sent as a Bearer token so the
 // updater + news feed can still read it. Embedded in the bundle = extractable, but it only
 // grants read to the dist repo and is revocable.
 const DIST_TOKEN = import.meta.env.VITE_DIST_TOKEN || "";
-// vnd.github.raw makes the GitHub Contents API return the file's raw bytes (not base64 JSON).
+// Combined Accept so one header set works for both GitHub endpoints the updater hits:
+// Contents API (manifest + news) honours vnd.github.raw; the release-asset API (installer
+// download) honours octet-stream. Each endpoint picks the media type it supports.
+// (browser_download_url 404s with a fine-grained PAT, so latest.json uses asset-API URLs.)
 const DIST_HEADERS = DIST_TOKEN
-  ? { Authorization: `Bearer ${DIST_TOKEN}`, Accept: "application/vnd.github.raw" }
+  ? { Authorization: `Bearer ${DIST_TOKEN}`, Accept: "application/octet-stream, application/vnd.github.raw" }
   : {};
 
 // Published news feed — read via the Contents API so it works on the private dist repo.
@@ -1390,21 +1393,6 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
             <img src="/Kodama%20Logo.png" alt="Kodama" width="20" height="20" className="shrink-0" />
             <span className="text-t15 font-medium whitespace-nowrap">Kodama</span>
             <div className="ml-auto flex items-center gap-0.5 shrink-0">
-              <div className="relative">
-                <Button
-                  variant="ghost" size="sm" isIconOnly
-                  onPress={onOpenNews}
-                  className="shrink-0 rounded-full"
-                  title={t("news") || "Neuigkeiten"}
-                  style={{ contain: "layout style" }}
-                >
-                  <Bell size={15} />
-                </Button>
-                {newsUnread > 0 && (
-                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold leading-none pointer-events-none"
-                    style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 0 0 2px var(--bg-surface)" }}>{newsUnread > 9 ? "9+" : newsUnread}</span>
-                )}
-              </div>
               <Button
                 variant="ghost" size="sm" isIconOnly
                 onPress={onRefreshView}
@@ -1485,28 +1473,45 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
               {t("updateAvailable")}
             </div>
           )}
-          <Dropdown>
-            <DropdownTrigger
-              className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-secondary hover:bg-hover hover:text-primary transition-colors duration-150"
-              style={{ contain: "layout style" }}
-            >
-              <div className="relative shrink-0">
-                <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-t11 font-medium overflow-hidden">
-                  {currentProfileData?.avatar
-                    ? <img src={thumb(currentProfileData.avatar)} alt="" className="w-full h-full object-cover" />
-                    : (currentProfileData?.displayName || "?")[0].toUpperCase()}
-                </div>
-                {newsUnread > 0 && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: "var(--accent)", boxShadow: "0 0 0 2px var(--bg-surface)" }} aria-hidden="true" />}
-              </div>
-              <div className="overflow-hidden flex-1 min-w-0 text-left">
-                <div className="text-t12 font-medium truncate">{currentProfileData?.displayName || t("noProfile")}</div>
-                {!(hideUserHandle && currentProfileData?.handle) && (
-                  <div className="text-t11 text-muted truncate">{currentProfileData?.handle || t("switchProfile")}</div>
-                )}
-              </div>
-            </DropdownTrigger>
-            {accountMenu}
-          </Dropdown>
+          <div className="flex items-center gap-1">
+            <div className="flex-1 min-w-0">
+              <Dropdown>
+                <DropdownTrigger
+                  className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-secondary hover:bg-hover hover:text-primary transition-colors duration-150"
+                  style={{ contain: "layout style" }}
+                >
+                  <div className="w-7 h-7 shrink-0 rounded-full bg-accent flex items-center justify-center text-t11 font-medium overflow-hidden">
+                    {currentProfileData?.avatar
+                      ? <img src={thumb(currentProfileData.avatar)} alt="" className="w-full h-full object-cover" />
+                      : (currentProfileData?.displayName || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="overflow-hidden flex-1 min-w-0 text-left">
+                    <div className="text-t12 font-medium truncate">{currentProfileData?.displayName || t("noProfile")}</div>
+                    {!(hideUserHandle && currentProfileData?.handle) && (
+                      <div className="text-t11 text-muted truncate">{currentProfileData?.handle || t("switchProfile")}</div>
+                    )}
+                  </div>
+                </DropdownTrigger>
+                {accountMenu}
+              </Dropdown>
+            </div>
+            {/* What's-new bell, beside the profile button */}
+            <div className="relative shrink-0">
+              <Button
+                variant="ghost" size="sm" isIconOnly
+                onPress={onOpenNews}
+                className="shrink-0 rounded-full"
+                title={t("news") || "Neuigkeiten"}
+                style={{ contain: "layout style" }}
+              >
+                <Bell size={16} />
+              </Button>
+              {newsUnread > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold leading-none pointer-events-none"
+                  style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 0 0 2px var(--bg-surface)" }}>{newsUnread > 9 ? "9+" : newsUnread}</span>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -12904,12 +12909,16 @@ export default function App() {
       {flashbang && (
         <div onAnimationEnd={() => setFlashbang(false)} style={{ position: "fixed", inset: 0, zIndex: 999999, pointerEvents: "none", background: "white", animation: "flashbangFade 3s ease-out forwards" }} />
       )}
-      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: fullscreen && !cursorVisible ? "none" : "default", zoom: uiZoom, boxSizing: "border-box", paddingTop: (IS_MAC && !fullscreen) ? 28 : 0 }}>
-        {/* macOS: a draggable strip across the top (the window is a titled window whose webview
-            covers the native titlebar, so dragging needs data-tauri-drag-region). The 28px top
-            padding above keeps app content clear of this strip and the native traffic lights. */}
+      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: fullscreen && !cursorVisible ? "none" : "default", zoom: uiZoom }}>
+        {/* macOS: draggable strip over the sidebar's top (the webview covers the native titlebar,
+            so dragging needs data-tauri-drag-region). Scoped to the sidebar width so it sits in
+            the traffic-light area and never blocks the main content. The sidebar column adds a
+            matching top inset below so its header clears the traffic lights. */}
         {IS_MAC && !fullscreen && (
-          <div data-tauri-drag-region style={{ position: "fixed", top: 0, left: 0, right: 0, height: 28, zIndex: 40, pointerEvents: "all" }} />
+          <div data-tauri-drag-region style={{
+            position: "fixed", top: 0, left: 0, height: 28, zIndex: 40, pointerEvents: "all",
+            width: sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth,
+          }} />
         )}
         {/* Experimental: the playing track's cover as a heavily-blurred, theme-tinted ambient
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
@@ -12921,7 +12930,7 @@ export default function App() {
           minWidth: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
           flexShrink: 0, overflow: "hidden",
           transition: sidebarResizing ? "none" : "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
-          padding: fullscreen ? 0 : "8px 4px 8px 8px",
+          padding: fullscreen ? 0 : (IS_MAC ? "32px 4px 8px 8px" : "8px 4px 8px 8px"),
           position: "relative",
         }}>
           <Sidebar view={view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
