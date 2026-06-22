@@ -65,6 +65,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_DIST_TOKEN: ${{ secrets.DIST_READ_TOKEN }}
         with:
           args: --target x86_64-pc-windows-msvc --bundles nsis
       - name: Collect Windows artifacts
@@ -131,6 +132,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_DIST_TOKEN: ${{ secrets.DIST_READ_TOKEN }}
         with:
           args: --target aarch64-apple-darwin --bundles app,dmg
       - name: Collect macOS artifacts
