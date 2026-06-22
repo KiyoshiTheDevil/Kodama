@@ -187,7 +187,7 @@ const _MAX_FRONTEND_LOGS = 500;
 })();
 
 // ─── App Version ─────────────────────────────────────────────────────────────
-const APP_VERSION = "1.0.0-alpha.11";
+const APP_VERSION = "1.0.0-alpha.12";
 
 // Closed-beta dist repo (Kodama-dist) is PRIVATE. A fine-grained read-only PAT (Contents:
 // Read on that repo only) is injected at build time and sent as a Bearer token so the
@@ -12904,7 +12904,13 @@ export default function App() {
       {flashbang && (
         <div onAnimationEnd={() => setFlashbang(false)} style={{ position: "fixed", inset: 0, zIndex: 999999, pointerEvents: "none", background: "white", animation: "flashbangFade 3s ease-out forwards" }} />
       )}
-      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: fullscreen && !cursorVisible ? "none" : "default", zoom: uiZoom }}>
+      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: fullscreen && !cursorVisible ? "none" : "default", zoom: uiZoom, boxSizing: "border-box", paddingTop: (IS_MAC && !fullscreen) ? 28 : 0 }}>
+        {/* macOS: a draggable strip across the top (the window is a titled window whose webview
+            covers the native titlebar, so dragging needs data-tauri-drag-region). The 28px top
+            padding above keeps app content clear of this strip and the native traffic lights. */}
+        {IS_MAC && !fullscreen && (
+          <div data-tauri-drag-region style={{ position: "fixed", top: 0, left: 0, right: 0, height: 28, zIndex: 40, pointerEvents: "all" }} />
+        )}
         {/* Experimental: the playing track's cover as a heavily-blurred, theme-tinted ambient
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
