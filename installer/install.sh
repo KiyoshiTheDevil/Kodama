@@ -11,29 +11,28 @@ set -euo pipefail
 
 REPO="KiyoshiTheDevil/Kodama-dist"
 APP="/Applications/Kodama.app"
+LATEST_JSON="https://raw.githubusercontent.com/$REPO/master/updates/latest.json"
 
 if [ "$(uname)" != "Darwin" ]; then
   echo "This installer is for macOS only." >&2
   exit 1
 fi
 
-echo "→ Looking up the latest Kodama release…"
-# /releases (not /latest) because beta builds are pre-releases. Grab the newest .dmg URL.
-DMG_URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=1" \
-  | grep '"browser_download_url"' \
-  | grep '\.dmg"' \
-  | head -1 \
-  | sed -E 's/.*"(https[^"]+\.dmg)".*/\1/')
-
-if [ -z "${DMG_URL:-}" ]; then
-  echo "Could not find a .dmg in the latest release." >&2
+echo "→ Checking the current Kodama version…"
+# latest.json is the single source of truth (updated on every release) — don't rely on the
+# /releases list ordering, which GitHub does not return strictly newest-first.
+VER=$(curl -fsSL "$LATEST_JSON" | grep '"version"' | head -1 | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+if [ -z "${VER:-}" ]; then
+  echo "Could not read the latest version from $LATEST_JSON" >&2
   exit 1
 fi
+VNUM="${VER#v}"
+DMG_URL="https://github.com/$REPO/releases/download/$VER/Kodama_${VNUM}_aarch64.dmg"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "→ Downloading $(basename "$DMG_URL")…"
+echo "→ Downloading Kodama $VER…"
 curl -fsSL "$DMG_URL" -o "$TMP/Kodama.dmg"
 
 echo "→ Mounting…"
@@ -51,5 +50,5 @@ hdiutil detach "$MOUNT" -quiet || true
 # Belt-and-suspenders: strip quarantine in case it was set somehow.
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 
-echo "✓ Kodama installed. Launching…"
+echo "✓ Kodama $VER installed. Launching…"
 open "$APP"
