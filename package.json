@@ -1,6 +1,6 @@
 {
   "name": "kodama",
-  "version": "1.0.0-alpha.19",
+  "version": "1.0.0-alpha.20",
   "private": true,
   "scripts": {
     "dev": "vite",

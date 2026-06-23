@@ -135,14 +135,15 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
     let login_data_dir = auth_data_dir(&profile_name);
     let _ = std::fs::remove_dir_all(&login_data_dir);
 
-    let _win = tauri::WebviewWindowBuilder::new(
+    let login_url: url::Url = "https://accounts.google.com/AddSession?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F&flowName=GlifWebSignIn"
+        .parse()
+        .unwrap();
+
+    // Start blank so we can wipe any leftover cookies BEFORE the login page loads.
+    let win = tauri::WebviewWindowBuilder::new(
         &app,
         "login",
-        tauri::WebviewUrl::External(
-            "https://accounts.google.com/AddSession?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F&flowName=GlifWebSignIn"
-                .parse()
-                .unwrap(),
-        ),
+        tauri::WebviewUrl::External("about:blank".parse().unwrap()),
     )
     .title("Kodama – Anmelden")
     .inner_size(900.0, 680.0)
@@ -154,6 +155,14 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
     .data_directory(login_data_dir)
     .build()
     .map_err(|e| e.to_string())?;
+
+    // On macOS the per-profile data_directory wipe does NOT clear WKWebView cookies, so a
+    // stale/expired session would auto-login and the detector below would fire instantly with
+    // dead cookies ("Login successful" but nothing works). Clear the store, then navigate to
+    // the real login URL so the user always gets a genuine, fresh sign-in.
+    let _ = win.clear_all_browsing_data();
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    let _ = win.navigate(login_url);
 
     let app_clone = app.clone();
     let profile = profile_name.clone();
@@ -171,7 +180,9 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
             };
 
             let current_url = win.url().ok().map(|u| u.to_string()).unwrap_or_default();
-            if !current_url.contains("youtube.com") {
+            // Only treat it as logged-in once Google has redirected to YT Music itself — not
+            // while the user is still on the accounts.google.com sign-in form.
+            if !current_url.contains("music.youtube.com") {
                 continue;
             }
 
