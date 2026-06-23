@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Kodama macOS installer.
-#   curl -fsSL https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama-dist/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/install.sh | bash
 #
 # Downloading the .dmg with curl means macOS never attaches the com.apple.quarantine
 # flag, so Gatekeeper does not block the (unsigned) app - no "is damaged", no right-click,
@@ -12,7 +12,7 @@
 #
 set -euo pipefail
 
-REPO="KiyoshiTheDevil/Kodama-dist"
+REPO="KiyoshiTheDevil/Kodama"
 APP="/Applications/Kodama.app"
 LATEST_JSON="https://raw.githubusercontent.com/${REPO}/master/updates/latest.json"
 

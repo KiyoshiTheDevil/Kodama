@@ -1,13 +1,16 @@
 name: Release
 
-# Source is private; builds are published to the PUBLIC KiyoshiTheDevil/Kodama-dist repo
-# (updater manifest + news + installer downloads). Windows and macOS (Apple Silicon) are
-# built on their own runners, then a single publish job writes a combined latest.json.
+# Single public repo: releases, updater manifest (updates/latest.json), news and the
+# installer all live here. Windows and macOS (Apple Silicon) build on their own runners,
+# then one publish job writes the combined latest.json back to this repo.
 
 on:
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -157,15 +160,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dl
-      - name: Publish to public dist repo
+      - name: Publish release + updater manifest (this repo)
         shell: bash
         env:
-          DIST_TOKEN: ${{ secrets.DIST_REPO_TOKEN }}
+          DIST_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          DIST="KiyoshiTheDevil/Kodama-dist"
+          DIST="${{ github.repository }}"
           PRE=""
           case "$TAG" in *alpha*|*beta*|*rc*) PRE="--prerelease";; esac
           export GH_TOKEN="$DIST_TOKEN"
@@ -204,15 +207,14 @@ jobs:
               }}' > latest.json
           echo "latest.json:"; cat latest.json
 
+          # Commit the refreshed manifest back to master (branch push → no tag re-trigger).
           git clone --depth 1 "https://x-access-token:${DIST_TOKEN}@github.com/${DIST}.git" dist_repo
           mkdir -p dist_repo/updates
           cp latest.json dist_repo/updates/latest.json
-          # Keep the macOS one-liner installer in sync at the repo root.
-          [ -f installer/install.sh ] && cp installer/install.sh dist_repo/install.sh
           cd dist_repo
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add updates/latest.json install.sh 2>/dev/null || git add updates/latest.json
-          git diff --cached --quiet && echo "nothing to publish" || git commit -m "release: $TAG"
+          git add updates/latest.json
+          git diff --cached --quiet && echo "nothing to publish" || git commit -m "release: $TAG [skip ci]"
           git push
           echo "Published $TAG (windows-x86_64 + darwin-aarch64) to $DIST."

@@ -187,10 +187,10 @@ const _MAX_FRONTEND_LOGS = 500;
 })();
 
 // ─── App Version ─────────────────────────────────────────────────────────────
-const APP_VERSION = "1.0.0-alpha.18";
+const APP_VERSION = "1.0.0-alpha.19";
 
-// Published news feed (edit + commit updates/news.json in the public Kodama-dist repo).
-const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama-dist/master/updates/news.json";
+// Published news feed (edit + commit updates/news.json in the public Kodama repo).
+const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/news.json";
 
 // Compare dotted version strings (e.g. "1.0.0" vs "0.9.40-beta"). Returns -1 / 0 / 1.
 function cmpVersion(a, b) {
