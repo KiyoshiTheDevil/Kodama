@@ -1868,13 +1868,19 @@ def composer_bridge_audio(video_id):
         if artist: resp.headers["x-track-artist"] = quote(artist)
         return resp
 
-    # 1. Serve from Kodama's download cache if the song is already cached — instant,
-    #    no re-extraction (per-song caching for anything you've downloaded in Kodama).
-    cached = _song_audio_path(video_id)
+    # 1. Serve instantly from a local copy if we already have one — no re-extraction:
+    #    (a) Kodama's download cache, or (b) the file the player just downloaded to play it
+    #    (stream-prepare temp cache). Reusing (b) is what makes opening the Composer for the
+    #    currently/recently played song instant instead of re-pulling from YouTube.
+    cached = _song_audio_path(video_id) or _player_audio_path(video_id)
     if cached:
         from flask import send_file
         ext = os.path.splitext(cached)[1].lower()
-        mime = {".opus": "audio/opus", ".m4a": "audio/mp4", ".webm": "audio/webm", ".mp3": "audio/mpeg"}.get(ext, "audio/mp4")
+        mime = {
+            ".opus": "audio/opus", ".m4a": "audio/mp4", ".mp4": "audio/mp4",
+            ".webm": "audio/webm", ".mp3": "audio/mpeg", ".ogg": "audio/ogg",
+            ".flac": "audio/flac", ".wav": "audio/wav",
+        }.get(ext, "audio/mp4")
         return _with_meta(send_file(cached, mimetype=mime))
 
     # 2. Otherwise resolve the stream URL via our robust multi-tier extractor (/stream).
@@ -3691,6 +3697,23 @@ def _song_audio_path(video_id):
         p = os.path.join(SONG_CACHE_DIR, safe + ext)
         if os.path.exists(p):
             return p
+    return None
+
+def _player_audio_path(video_id):
+    """Audio the player already downloaded via /stream-prepare (temp 'kiyoshi-audio' dir).
+    Lets the Composer reuse the file the player just played instead of re-extracting it
+    from YouTube — the slow part the user noticed."""
+    import tempfile, glob as _glob
+    cache_dir = os.path.join(tempfile.gettempdir(), "kiyoshi-audio")
+    safe = video_id.replace("/", "_").replace("\\", "_")
+    for p in _glob.glob(os.path.join(cache_dir, f"{safe}.*")):
+        ext = os.path.splitext(p)[1].lower()
+        if ext in (".m4a", ".mp4", ".mp3", ".ogg", ".flac", ".wav", ".webm", ".opus"):
+            try:
+                if os.path.getsize(p) > 0:
+                    return p
+            except OSError:
+                pass
     return None
 
 def _song_meta_path(video_id):
