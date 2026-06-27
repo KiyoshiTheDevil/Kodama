@@ -11132,7 +11132,7 @@ function YtDlpUpdateRow() {
       {phase === "updating" ? (
         <span className="text-t12 text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} /></span>
       ) : phase === "done" ? (
-        <span className="text-t12 flex items-center gap-1.5" style={{ color: "#4caf50" }}><CheckCircle size={14} weight="fill" />{t("ffmpegUpdated") || "Aktualisiert"}</span>
+        <span className="text-t12 flex items-center gap-1.5" style={{ color: "#4caf50" }}><CheckCircle size={14} weight="fill" />{t("ytdlpUpdated") || "yt-dlp updated"}</span>
       ) : phase === "error" ? (
         <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate") || "Update"}</Button>
       ) : info?.updateAvailable ? (

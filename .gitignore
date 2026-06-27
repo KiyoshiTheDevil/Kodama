@@ -89,6 +89,7 @@ python-backend/feedback_config.json
 # Runtime / user-specific data (never commit)
 python-backend/composer_settings.json
 python-backend/custom_lyrics/
+python-backend/ytdlp/
 # Stray scratch/temp files
 hard_0116.txt
 *analyze_b64.txt

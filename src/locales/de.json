@@ -267,6 +267,7 @@
   "ffmpegUpdateAvailable": "FFmpeg-Update verfügbar",
   "ffmpegUpdate": "Aktualisieren",
   "ffmpegUpdated": "FFmpeg aktualisiert",
+  "ytdlpUpdated": "yt-dlp aktualisiert",
   "ffmpegUpdateFailed": "Update fehlgeschlagen",
   "switchProfileTitle": "Profil wechseln",
   "addAccount": "Konto hinzufügen",
