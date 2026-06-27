@@ -5919,14 +5919,27 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return null;
   }, [onPremiumDetected]);
 
-  // Preload adjacent tracks in background
+  // Preload upcoming tracks in the background so sequential listening (album/playlist/queue)
+  // has near-instant transitions and "next". Warm the next TWO tracks (most listening is
+  // in order) plus the previous one. Sequential (not concurrent) to avoid starving the
+  // current song's own download of bandwidth. Shuffle's "next" is random/unpredictable, so
+  // there we only warm the immediate in-order neighbour as a cheap best-effort.
   const preloadAdjacent = useCallback(async () => {
-    await new Promise(res => setTimeout(res, 2000)); // wait 2s after track change
-    const next = getAdjacentTrack("next");
-    const prev = getAdjacentTrack("prev");
-    if (next && !urlCache.current.has(next.videoId)) fetchUrl(next.videoId);
-    if (prev && !urlCache.current.has(prev.videoId)) fetchUrl(prev.videoId);
-  }, [getAdjacentTrack, fetchUrl]);
+    await new Promise(res => setTimeout(res, 1500)); // let the current song's download get ahead
+    const q = queueRef.current;
+    const t = trackRef.current;
+    if (!q.length || !t) return;
+    const idx = q.findIndex(x => x.videoId === t.videoId);
+    if (idx === -1) return;
+    const targets = shuffleRef.current
+      ? [q[(idx + 1) % q.length]]
+      : [q[(idx + 1) % q.length], q[(idx + 2) % q.length], q[(idx - 1 + q.length) % q.length]];
+    for (const tk of targets) {
+      if (tk && tk.videoId !== t.videoId && !urlCache.current.has(tk.videoId)) {
+        try { await fetchUrl(tk.videoId); } catch {}
+      }
+    }
+  }, [fetchUrl]);
 
   useEffect(() => {
     if (!track) return;
