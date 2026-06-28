@@ -6,7 +6,23 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
-> Changes landing after 1.0.0-beta.1 accumulate here.
+> Changes landing after the latest release accumulate here.
+
+## [1.0.0-alpha.26] — 2026-06-28
+
+### Added
+- **Song sharing** — Share any song via link from the track menu or the player's ⋮ menu: a universal link (opens the song in Kodama if installed, otherwise YouTube Music), a direct Kodama deep link (`kodama://`), or plain YouTube Music / YouTube links. The universal link opens a small landing page showing the cover, title and artist.
+- **Custom app icons** — Personalize the app icon (taskbar, window, tray, macOS Dock) from a set of Default and Pride variants in Settings → Appearance.
+- **OS media controls** — Play / pause / next / previous now work from the Windows media overlay (SMTC), macOS Now Playing and Linux MPRIS, including keyboard media keys.
+- **Per-transition crossfade** — Set a custom crossfade length for a specific song-to-song transition (right-click a song in the queue), on top of the global default.
+- **Progressive playback** — Songs start playing while still loading for a faster start; can be switched back to classic full-download in Settings for weaker devices.
+
+### Changed
+- **Crossfade rebuilt** — Crossfade now runs in the audio core (two simultaneous sinks) instead of a separate hidden player, so it is captured by OBS and the visualizer and blends correctly.
+- **UI polish** — Hover effects across buttons, lists and menus are now translucent overlays; the search bar and Speed Dial use a frosted-glass style.
+
+### Fixed
+- Faster song loading — a single growing buffer instead of repeated reconnects, plus prewarming of upcoming queue tracks.
 
 ## [1.0.0-beta.1] — 2026-06-21
 
