@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kodama — Open Song</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(130% 130% at 50% 0%, #2a0f33 0%, #120814 45%, #0a0a0a 100%);
+      color: #f0f0f0; padding: 24px;
+    }
+    .card {
+      width: 100%; max-width: 360px; text-align: center;
+      background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 30px 24px;
+      -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .wordmark { font-size: 22px; font-weight: 800; letter-spacing: 0.02em; margin: 0 0 6px; }
+    .wordmark span { color: #e0409a; }
+    p.sub { font-size: 13px; color: #aaa; margin: 0 0 24px; }
+    a.btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none; font-size: 14px; font-weight: 600;
+      padding: 12px 16px; border-radius: 12px; margin-bottom: 10px;
+      transition: transform .12s ease, background .12s ease, opacity .12s ease;
+    }
+    a.btn:active { transform: scale(.98); }
+    .primary { background: #e0409a; color: #fff; }
+    .primary:hover { background: #ec5aac; }
+    .secondary { background: rgba(255,255,255,0.08); color: #f0f0f0; }
+    .secondary:hover { background: rgba(255,255,255,0.13); }
+    .ghost { background: transparent; color: #888; font-size: 12px; font-weight: 500; padding: 8px; margin-top: 4px; }
+    .ghost:hover { color: #bbb; }
+    .err { color: #ff7070; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 class="wordmark">Ko<span>dama</span></h1>
+    <p class="sub" id="sub">Loading…</p>
+    <div id="actions" style="display:none">
+      <a class="btn primary" id="kodama">Open in Kodama</a>
+      <a class="btn secondary" id="ytm">Open in YouTube Music</a>
+      <a class="btn ghost" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Don't have Kodama? Get it here</a>
+    </div>
+    <p class="err" id="err" style="display:none">No song specified in this link.</p>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var v = params.get("v") || location.hash.replace(/^#/, "");
+      var sub = document.getElementById("sub");
+      if (!v || !/^[A-Za-z0-9_-]{6,}$/.test(v)) {
+        sub.style.display = "none";
+        document.getElementById("err").style.display = "block";
+        return;
+      }
+      var kodamaUrl = "kodama://song/" + v;
+      var ytmUrl = "https://music.youtube.com/watch?v=" + v;
+      document.getElementById("kodama").href = kodamaUrl;
+      document.getElementById("ytm").href = ytmUrl;
+      document.getElementById("actions").style.display = "block";
+      sub.textContent = "Choose where to open this song:";
+      // Best-effort auto-open in Kodama (silent — fails harmlessly if not installed).
+      try {
+        var f = document.createElement("iframe");
+        f.style.display = "none";
+        f.src = kodamaUrl;
+        document.body.appendChild(f);
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
