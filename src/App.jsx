@@ -5947,7 +5947,13 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       ? [q[(idx + 1) % q.length]]
       : [q[(idx + 1) % q.length], q[(idx + 2) % q.length], q[(idx - 1 + q.length) % q.length]];
     for (const tk of targets) {
-      if (tk && tk.videoId !== t.videoId && !urlCache.current.has(tk.videoId)) {
+      if (!tk || tk.videoId === t.videoId) continue;
+      if (playbackProgressiveRef.current) {
+        // Progressive: prewarm the URL resolution (the ~2-4s yt-dlp extraction) so the next
+        // play is extraction-free. No bytes are downloaded — playback streams on demand.
+        try { await fetch(`${API}/audio-stream/${tk.videoId}/warm`); } catch {}
+      } else if (!urlCache.current.has(tk.videoId)) {
+        // Classic: pre-download to disk.
         try { await fetchUrl(tk.videoId); } catch {}
       }
     }

@@ -2393,36 +2393,40 @@ def _is_unavailable(err_str):
 @app.route("/stream/<video_id>")
 def stream_url(video_id):
     last_err = None
+    _t_total = time.time()
 
     # ── Tier 1: browser cookies — always fresh, user is logged in there ───────
     # Tried first because app session cookies may be stale; browser cookies are
     # updated every time the user visits YouTube and are never expired.
     for browser_opts in _browser_cookie_opts():
         browser = browser_opts["cookiesfrombrowser"][0]
+        _t = time.time()
         try:
             info = _ydl_extract_url(video_id, _M4A_FMT, extra_opts=browser_opts, skip_auth=True)
             url = _stream_url_from_info(info)
             if url:
-                _logging.info(f"[stream] {video_id} OK via {browser} browser cookies")
+                _logging.info(f"[stream] {video_id} OK via {browser} browser cookies in {time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)")
                 return jsonify({"url": url})
         except Exception as e:
             last_err = e
+            _logging.warning(f"[stream] {video_id} browser={browser} FAILED in {time.time()-_t:.1f}s: {e}")
             if _is_hard_error(str(e)):
                 break
-            _logging.warning(f"[stream] {video_id} browser={browser}: {e}")
 
     # ── Tier 2: _STREAM_ATTEMPTS (app cookies + anonymous mobile/web) ────────
     for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+        _t = time.time()
         try:
             info = _ydl_extract_url(video_id, fmt, extra_opts=extra, skip_auth=no_auth)
             url = _stream_url_from_info(info)
             if url:
+                _logging.info(f"[stream] {video_id} OK via attempt {extra} no_auth={no_auth} in {time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)")
                 return jsonify({"url": url})
         except Exception as e:
             last_err = e
+            _logging.warning(f"[stream] {video_id} attempt {extra} no_auth={no_auth} FAILED in {time.time()-_t:.1f}s: {e}")
             if _is_hard_error(str(e)):
                 break
-            _logging.warning(f"[stream] {video_id} fmt={fmt} no_auth={no_auth}: {e}")
 
     # ── Tier 3: brute-force — no format selector, any audio format ───────────
     # Also retries with youtube.com URL for anonymous attempts: youtube.com
@@ -2577,6 +2581,14 @@ def audio_stream(video_id):
             if chunk:
                 yield chunk
     return Response(gen(), status=upstream.status_code, headers=resp_headers, content_type=ctype)
+
+
+@app.route("/audio-stream/<video_id>/warm")
+def audio_stream_warm(video_id):
+    """Resolve + cache the stream URL ahead of time (no byte transfer) so the next play of
+    this song skips the yt-dlp extraction wait. Used to prewarm upcoming queue tracks."""
+    url = _resolve_audio_url(video_id)
+    return jsonify({"ok": bool(url) and url != "premium_only"})
 
 
 @app.route("/library/playlists")
