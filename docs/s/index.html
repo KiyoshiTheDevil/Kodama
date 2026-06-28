@@ -40,12 +40,28 @@
       width: 100%; max-width: 360px; text-align: center;
       background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
       border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 18px; padding: 30px 24px 26px;
+      border-radius: 18px; padding: 26px 24px;
       -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
       box-shadow: 0 24px 70px rgba(0,0,0,0.5);
     }
-    .logo { width: 150px; height: auto; display: block; margin: 2px auto 16px; }
-    p.sub { font-size: 13px; color: var(--t2); margin: 0 0 22px; }
+    .logo { width: 132px; height: auto; display: block; margin: 0 auto 20px; opacity: .95; }
+    .cover {
+      width: 168px; height: 168px; object-fit: cover; border-radius: 14px;
+      display: block; margin: 0 auto 16px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+      background: var(--bg-elevated);
+    }
+    .title {
+      font-size: 17px; font-weight: 600; line-height: 1.3; margin: 0 0 3px;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .artist {
+      font-size: 13px; color: var(--t2); margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 20px 0 16px; }
+    p.sub { font-size: 13px; color: var(--t2); margin: 0 0 18px; }
     a.btn {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       text-decoration: none; font-size: 14px; font-weight: 600; font-family: var(--font);
@@ -65,6 +81,12 @@
 <body>
   <div class="card">
     <img class="logo" src="Kodama-Logo-Full.svg" alt="Kodama">
+
+    <img class="cover" id="cover" alt="" style="display:none">
+    <h1 class="title" id="title" style="display:none"></h1>
+    <p class="artist" id="artist" style="display:none"></p>
+    <div class="divider" id="divider" style="display:none"></div>
+
     <p class="sub" id="sub">Loading…</p>
     <div id="actions" style="display:none">
       <a class="btn primary" id="kodama">Open in Kodama</a>
@@ -83,12 +105,37 @@
         document.getElementById("err").style.display = "block";
         return;
       }
+
+      // Optional metadata encoded in the link (title / artist / cover).
+      var title = params.get("t");
+      var artist = params.get("a");
+      var cover = params.get("c");
+      var hasMeta = false;
+      if (cover && /^https?:\/\//i.test(cover)) {
+        var img = document.getElementById("cover");
+        img.src = cover;
+        img.onload = function () { img.style.display = "block"; };
+        img.onerror = function () { img.style.display = "none"; };
+        hasMeta = true;
+      }
+      if (title) {
+        var te = document.getElementById("title");
+        te.textContent = title; te.style.display = "block"; hasMeta = true;
+        document.title = artist ? (title + " — " + artist) : title;
+      }
+      if (artist) {
+        var ae = document.getElementById("artist");
+        ae.textContent = artist; ae.style.display = "block"; hasMeta = true;
+      }
+      if (hasMeta) document.getElementById("divider").style.display = "block";
+
       var kodamaUrl = "kodama://song/" + v;
       var ytmUrl = "https://music.youtube.com/watch?v=" + v;
       document.getElementById("kodama").href = kodamaUrl;
       document.getElementById("ytm").href = ytmUrl;
       document.getElementById("actions").style.display = "block";
       sub.textContent = "Choose where to open this song:";
+
       // Best-effort auto-open in Kodama (silent — fails harmlessly if not installed).
       try {
         var f = document.createElement("iframe");

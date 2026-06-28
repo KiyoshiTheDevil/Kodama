@@ -1610,8 +1610,20 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
 const APP_ICON_DEFAULT = "Kodama App Icon - Standard Pink.png";
 
 // Universal share link → GitHub-Pages redirect page (tries kodama://, falls back to YT Music).
-// Works for everyone regardless of whether they have Kodama installed.
+// Works for everyone regardless of whether they have Kodama installed. Title/artist/cover are
+// encoded in the link so the landing page can show the song without any API call.
 const KODAMA_SHARE_BASE = "https://kiyoshithedevil.github.io/Kodama/s/";
+function buildShareLink(track) {
+  const p = new URLSearchParams({ v: track.videoId });
+  const title = track.title || "";
+  const artists = Array.isArray(track.artists)
+    ? track.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
+    : (track.artists || "");
+  if (title) p.set("t", title);
+  if (artists) p.set("a", artists);
+  if (track.thumbnail) p.set("c", track.thumbnail);
+  return `${KODAMA_SHARE_BASE}?${p.toString()}`;
+}
 const APP_ICON_GROUPS = [
   { id: "default", labelKey: "appIconDefault", icons: [
     { label: "Standard Pink",  file: "Kodama App Icon - Standard Pink.png" },
@@ -6800,7 +6812,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           <DropdownMenu aria-label={translate(language, "share")}>
                             <DropdownSection>
                               <DropdownItem textValue={translate(language, "copyShareLink")}
-                                onAction={() => navigator.clipboard.writeText(`${KODAMA_SHARE_BASE}?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                                onAction={() => navigator.clipboard.writeText(buildShareLink(track)).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
                                 <ShareNodes size={14} />
                                 {translate(language, "copyShareLink")}
                               </DropdownItem>
@@ -14197,7 +14209,7 @@ export default function App() {
                     <DropdownMenu aria-label={translate(language, "share")}>
                       <DropdownSection>
                         <CtxItem icon={<ShareNodes size={15} />} label={translate(language, "copyShareLink")}
-                          onSelect={() => copyShare(`${KODAMA_SHARE_BASE}?v=${track.videoId}`)} />
+                          onSelect={() => copyShare(buildShareLink(track))} />
                         <CtxItem icon={<Copy size={15} />} label={translate(language, "copyKodamaLink")}
                           onSelect={() => copyShare(`kodama://song/${track.videoId}`)} />
                         <CtxItem icon={<Copy size={15} />} label={translate(language, "copyYtMusicLink")}
