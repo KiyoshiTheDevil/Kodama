@@ -5,11 +5,11 @@
 <div align="center">
   <p>An unofficial YouTube Music desktop client — built with Tauri 2 &amp; React.</p>
 
-  [![Version](https://img.shields.io/badge/version-1.0.0-a855f7?style=flat-square)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
-  [![Platform](https://img.shields.io/badge/platform-Windows-0078d4?style=flat-square&logo=windows&logoColor=white)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
-  [![Tauri](https://img.shields.io/badge/Tauri-2.x-24c8db?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
-  [![Crowdin](https://img.shields.io/badge/translate-Crowdin-2e3340?style=flat-square&logo=crowdin&logoColor=white)](https://crowdin.com/project/kiyoshi-music)
-  [![License](https://img.shields.io/badge/license-Personal_Use-ef4444?style=flat-square)](#disclaimer)
+  [![Version](https://img.shields.io/badge/version-1.0.0-a855f7?style=for-the-badge)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
+  [![Platform](https://img.shields.io/badge/platform-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
+  [![Tauri](https://img.shields.io/badge/Tauri-2.x-24c8db?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app)
+  [![Crowdin](https://img.shields.io/badge/translate-Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=white)](https://crowdin.com/project/kiyoshi-music)
+  [![License](https://img.shields.io/badge/license-Personal_Use-ef4444?style=for-the-badge)](#disclaimer)
 </div>
 
 ---
