@@ -25,7 +25,13 @@
   /* Desktop convention: no pointer-hand cursor on interactive elements */
   --cursor-interactive:      default;
 
-  /* Button ghost/secondary hover surface */
+  /* Translucent hover overlay (used by the `hover` Tailwind colour + HeroUI default hover).
+     A tint of the theme's text colour so it works on dark *and* light themes without
+     per-theme overrides, and lets the surface beneath show through instead of a flat fill. */
+  --bg-hover-overlay:        color-mix(in srgb, var(--text-primary) 8%, transparent);
+
+  /* Button ghost/secondary hover surface (solid — also the resting fill for some
+     HeroUI "secondary" cards, so kept opaque). Item hover is tinted via CSS below. */
   --default:                 var(--bg-hover);
   --default-hover:           var(--bg-hover);
   --default-foreground:      var(--text-primary);
@@ -59,7 +65,9 @@
      components that use @apply text-base for font sizing. */
   --color-surface:   var(--bg-surface);
   --color-elevated:  var(--bg-elevated);
-  --color-hover:     var(--bg-hover);
+  /* Hover overlay: a translucent tint of the theme's text colour instead of a flat
+     solid fill — adapts automatically (light tint on dark themes, dark on light). */
+  --color-hover:     var(--bg-hover-overlay);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
@@ -349,6 +357,45 @@ html, body, #root {
   border-width: 1px;
 }
 ::-webkit-scrollbar-track:hover   { background: rgba(255,255,255,0.03); }
+
+/* Translucent hover/press instead of HeroUI's flat solid --default fill, for the
+   interactive surfaces that use it: ghost/outline buttons + listbox/menu items. We
+   override the *component* hover tokens (no flicker), NOT --default itself — that stays
+   solid because it's the resting fill for inputs, sliders, secondary buttons, chips,
+   badges, kbd, etc. The item rule targets `:hover` directly (instant) to avoid the
+   solid-then-transparent flicker caused by react-aria's JS-delayed [data-hovered]. */
+.button--ghost, .button--outline {
+  --button-bg-hover: var(--bg-hover-overlay);
+  --button-bg-pressed: color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+.toggle-button--ghost {
+  --toggle-button-bg-hover: var(--bg-hover-overlay);
+  --toggle-button-bg-pressed: color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+.list-box-item:hover, .list-box-item[data-hovered="true"], .list-box-item[data-focused="true"],
+.menu-item:hover, .menu-item[data-hovered="true"], .menu-item[data-focused="true"] {
+  background-color: var(--bg-hover-overlay) !important;
+}
+
+/* Search field: frosted-glass surface instead of the solid --default fill so it blends
+   with the ambient background (kept fairly opaque for input legibility). Targeted via the
+   data-slot the component reliably sets; background-color is overridden directly so it
+   wins regardless of the HeroUI variant's specificity. */
+[data-slot="search-field-group"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+[data-slot="search-field-group"]:focus-within {
+  background-color: rgba(255, 255, 255, 0.13) !important;
+}
+/* Light theme: a translucent dark tint instead (white would vanish on a light surface). */
+[data-theme="light"] [data-slot="search-field-group"] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+[data-theme="light"] [data-slot="search-field-group"]:focus-within {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
 
 /* Scrollable containers â€” dimmer thumb until container is hovered */
 .scrollable::-webkit-scrollbar-thumb         { background-color: #2a2a2a; }

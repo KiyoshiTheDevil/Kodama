@@ -5,6 +5,7 @@
   "windows": ["main", "overlay-editor"],
   "permissions": [
     "core:default",
+    "deep-link:default",
     "core:window:allow-close",
     "core:window:allow-show",
     "core:window:allow-minimize",

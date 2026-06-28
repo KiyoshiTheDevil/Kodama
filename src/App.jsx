@@ -1605,6 +1605,32 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
   );
 }
 
+// Alternate app icons for personalization (live: taskbar/window/tray + macOS Dock & bundle).
+// `file` matches the PNGs in public/App-Icons/ (also bundled as a Tauri resource for Rust).
+const APP_ICON_DEFAULT = "Kodama App Icon - Standard Pink.png";
+
+// Universal share link → GitHub-Pages redirect page (tries kodama://, falls back to YT Music).
+// Works for everyone regardless of whether they have Kodama installed.
+const KODAMA_SHARE_BASE = "https://kiyoshithedevil.github.io/Kodama/s/";
+const APP_ICON_GROUPS = [
+  { id: "default", labelKey: "appIconDefault", icons: [
+    { label: "Standard Pink",  file: "Kodama App Icon - Standard Pink.png" },
+    { label: "Standard White", file: "Kodama App Icon - Standard White.png" },
+    { label: "3D Pink",        file: "Kodama App Icon - 3D Pink.png" },
+  ]},
+  { id: "pride", labelKey: "appIconPride", icons: [
+    { label: "Pride",     file: "Kodama App Icon - Pride.png" },
+    { label: "Progress",  file: "Kodama App Icon - Progress.png" },
+    { label: "Trans",     file: "Kodama App Icon - Trans.png" },
+    { label: "Nonbinary", file: "Kodama App Icon - Nonbinary.png" },
+    { label: "Asexual",   file: "Kodama App Icon - Asexual.png" },
+    { label: "Bisexual",  file: "Kodama App Icon - Bisexual.png" },
+    { label: "Lesbian",   file: "Kodama App Icon - Lesbian.png" },
+    { label: "Pansexual", file: "Kodama App Icon - Pansexual.png" },
+    { label: "Polyamory", file: "Kodama App Icon - Polyamory.png" },
+  ]},
+];
+
 const ACCENT_PRESETS = [
   // Row 1 — saturated
   { label: "Red",            value: "#e53935" },
@@ -4159,7 +4185,7 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
   );
 }
 
-function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange, theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -4770,6 +4796,40 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                 ) : (
                   <AccentColorPicker value={accent} onChange={onAccentChange} />
                 )}
+
+                <SectionLabel>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {t("appIcon")}
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span>
+                  </span>
+                </SectionLabel>
+                <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 10px", paddingLeft: 2 }}>{t("appIconDesc")}</div>
+                {APP_ICON_GROUPS.map(group => (
+                  <div key={group.id} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7 }}>{t(group.labelKey)}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))", gap: 10 }}>
+                      {group.icons.map(ic => {
+                        const selected = appIcon === ic.file;
+                        return (
+                          <button key={ic.file} onClick={() => onAppIconChange?.(ic.file)} title={ic.label}
+                            className={cn(
+                              "relative p-0 rounded-[14px] overflow-hidden cursor-default border-2 aspect-square bg-transparent",
+                              anim && "transition-transform hover:scale-[1.05]",
+                              selected ? "border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-transparent"
+                            )}>
+                            <img src={`/App-Icons/${encodeURIComponent(ic.file)}`} alt={ic.label} draggable={false} className="w-full h-full object-cover block" />
+                            {selected && (
+                              <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-accent flex items-center justify-center shadow-md">
+                                <Check size={10} weight="bold" className="text-white" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
                 <SectionLabel>{t("appearance")}</SectionLabel>
                 <SettingRow label={t("animations")} description={t("animationsDesc")} icon={<Sparkles />}>
                   <Toggle value={animations} onChange={onAnimationsChange} />
@@ -4816,6 +4876,27 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                     <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 28 }}>{crossfade}s</span>
                   </div>
                 </SettingRow>
+                <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 6px", paddingLeft: 2 }}>{t("customCrossfadesDesc")}</div>
+                {Object.keys(crossfadeOverrides).length > 0 && (
+                  <div style={{ margin: "2px 0 6px", padding: "10px 12px", background: "var(--fill-subtle)", borderRadius: 10 }}>
+                    <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginBottom: 8 }}>{t("customCrossfadesTitle")}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {Object.entries(crossfadeOverrides).map(([key, ov]) => (
+                        <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, fontSize: "var(--t12)", color: "var(--text-primary)" }}>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ov.fromTitle || key.split("__")[0]}</span>
+                            <span style={{ color: "var(--accent)", fontWeight: 700 }}>→</span>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ov.toTitle || key.split("__")[1]}</span>
+                          </span>
+                          <span style={{ fontSize: "var(--t11)", fontWeight: 700, color: "var(--accent)", width: 30, textAlign: "right" }}>{ov.secs}s</span>
+                          <Button variant="ghost" size="sm" isIconOnly className="h-7 min-w-7 text-muted hover:text-[#ff7070]!" onPress={() => onRemoveCrossfadeOverride?.(key)}>
+                            <Trash size={13} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <SettingRow label={t("hideExplicit")} description={t("hideExplicitDesc")} icon={<EyeSlash />}>
                   <Toggle value={hideExplicit} onChange={onHideExplicitChange} />
                 </SettingRow>
@@ -5403,12 +5484,13 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
 
 // ─── Queue Panel ────────────────────────────────────────────────────────────
 // ─── Queue Row (standalone to prevent drag breaking on re-render) ────────────
-function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike }) {
+function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs }) {
   const isDragOver = dragOver === globalIdx;
   return (
     <div
       data-queue-idx={globalIdx}
       onClick={onPlay}
+      onContextMenu={onEditFade ? (e) => { e.preventDefault(); onEditFade(); } : undefined}
       onPointerDown={isDraggable ? e => onPointerDown(e, globalIdx) : undefined}
       className={`group/qrow flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-[var(--r-md)] cursor-default select-none border-t-2 transition-[background-color,border-color,opacity] ${
         isDragOver
@@ -5439,6 +5521,14 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
         <div className="text-t11 text-secondary truncate">{track.artists}</div>
       </div>
 
+      {/* Custom-crossfade indicator (set via right-click) */}
+      {fadeSecs != null && (
+        <span title={`Crossfade: ${fadeSecs}s`}
+          className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent px-1.5 py-0.5 rounded-[var(--r-sm)] bg-accent-dim">
+          <Sliders size={10} weight="bold" />{fadeSecs}s
+        </span>
+      )}
+
       {/* Duration */}
       {track.duration && (
         <div className="shrink-0 min-w-[28px] text-t11 text-muted text-right">{track.duration}</div>
@@ -5465,9 +5555,11 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
   );
 }
 
-function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible, crossfade = 0, crossfadeOverrides = {}, onSetCrossfadeOverride, onRemoveCrossfadeOverride }) {
   const t = useLang();
   const [panelTab, setPanelTab] = useState("queue");
+  const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
+  const fadeKey = (a, b) => `${a?.videoId}__${b?.videoId}`;
   const [songDesc, setSongDesc] = useState(null);    // null=loading, ""=none, str=text
   const [songDescId, setSongDescId] = useState(null);
   const [songDescError, setSongDescError] = useState(null);
@@ -5531,6 +5623,12 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   const upNext = queue.slice(currentIdx + 1);
   const played = queue.slice(0, currentIdx);
 
+  // Open the per-transition fade editor for globalIdx → globalIdx+1.
+  const openFadeEdit = (globalIdx) => {
+    const from = queue[globalIdx], to = queue[globalIdx + 1];
+    if (from && to) setFadeEdit({ from, to });
+  };
+
   const removeTrack = useCallback((videoId) => {
     setQueue(q => q.filter(t => t.videoId !== videoId));
   }, [setQueue]);
@@ -5538,6 +5636,7 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   const dragOverRef = useRef(null);
 
   const handlePointerDown = useCallback((e, globalIdx) => {
+    if (e.button !== 0) return; // ignore right/middle click so the context menu (fade editor) fires
     e.preventDefault();
     isDragging.current = false;
     dragOverRef.current = null;
@@ -5694,7 +5793,9 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
               isActive={true} dragOver={dragOver}
               onPointerDown={handlePointerDown}
               onPlay={() => setTrack(currentTrack)} onRemove={removeTrack}
-              isLiked={likedIds?.has(currentTrack.videoId)} onToggleLike={onToggleLike} />
+              isLiked={likedIds?.has(currentTrack.videoId)} onToggleLike={onToggleLike}
+              onEditFade={queue[currentIdx + 1] ? () => openFadeEdit(currentIdx) : undefined}
+              fadeSecs={crossfadeOverrides[fadeKey(currentTrack, queue[currentIdx + 1])]?.secs ?? null} />
           </>
         )}
 
@@ -5705,13 +5806,18 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
               <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("upNext")}</span>
               <ChipRoot size="sm" variant="soft"><ChipLabel>{upNext.length}</ChipLabel></ChipRoot>
             </div>
-            {upNext.map((qt, i) => (
-              <QueueRow key={qt.videoId || i} track={qt} globalIdx={currentIdx + 1 + i} isDraggable={true}
+            {upNext.map((qt, i) => {
+              const gIdx = currentIdx + 1 + i;
+              return (
+              <QueueRow key={qt.videoId || i} track={qt} globalIdx={gIdx} isDraggable={true}
                 isActive={false} dragOver={dragOver}
                 onPointerDown={handlePointerDown}
                 onPlay={() => { if (suppressClickRef.current) return; setTrack(qt); }} onRemove={removeTrack}
-                isLiked={likedIds?.has(qt.videoId)} onToggleLike={onToggleLike} />
-            ))}
+                isLiked={likedIds?.has(qt.videoId)} onToggleLike={onToggleLike}
+                onEditFade={queue[gIdx + 1] ? () => openFadeEdit(gIdx) : undefined}
+                fadeSecs={crossfadeOverrides[fadeKey(qt, queue[gIdx + 1])]?.secs ?? null} />
+              );
+            })}
           </>
         )}
 
@@ -5749,11 +5855,69 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
         </div>,
         document.body
       )}
+
+      {fadeEdit && (
+        <FadeEditorModal
+          from={fadeEdit.from}
+          to={fadeEdit.to}
+          globalDefault={crossfade}
+          current={crossfadeOverrides[fadeKey(fadeEdit.from, fadeEdit.to)]?.secs ?? null}
+          onSave={(secs) => onSetCrossfadeOverride?.(fadeEdit.from.videoId, fadeEdit.to.videoId, secs, fadeEdit.from.title, fadeEdit.to.title)}
+          onClear={() => onRemoveCrossfadeOverride?.(fadeKey(fadeEdit.from, fadeEdit.to))}
+          onClose={() => setFadeEdit(null)}
+        />
+      )}
     </div>
   );
 }
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, lyricsProviders = DEFAULT_LYRICS_PROVIDERS, currentLyricsSource = "", onSwitchLyricsProvider, failedLyricsProviders = new Set(), language = "de", showLyricsTranslation = false, onToggleLyricsTranslation, lyricsTranslationLang = "DE", onSetLyricsTranslationLang, showRomaji = false, onToggleRomaji, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onPremiumDetected, onCreatePlaylist }) {
+function FadeEditorModal({ from, to, current, globalDefault = 0, onSave, onClear, onClose }) {
+  const t = useLang();
+  const [secs, setSecs] = useState(current != null ? current : (globalDefault || 5));
+  return (
+    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ModalBackdrop className="z-[320]!">
+        <ModalContainer placement="center" size="sm" className="w-[420px] max-w-[92vw]">
+          <ModalDialog>
+            <ModalHeader>
+              <ModalIcon><Sliders size={18} /></ModalIcon>
+              <ModalCloseTrigger />
+              <ModalHeading>{t("customCrossfade")}</ModalHeading>
+            </ModalHeader>
+            <ModalBody>
+              <div className="flex flex-col gap-4 pb-1">
+                <div className="flex items-center gap-2 text-t12">
+                  <span className="flex-1 min-w-0 truncate font-medium text-primary">{from?.title}</span>
+                  <span className="shrink-0 text-accent font-bold">→</span>
+                  <span className="flex-1 min-w-0 truncate font-medium text-primary text-right">{to?.title}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Slider min={0} max={12} step={1} value={secs} onChange={setSecs} width={180} />
+                  <span className="text-t12 text-secondary w-9 text-right">{secs}s</span>
+                </div>
+                <p className="text-t11 text-muted">
+                  {secs === 0 ? t("crossfadeHardCut") : t("customCrossfadeHint", { secs })}
+                  {" · "}{t("crossfadeDefault")}: {globalDefault}s
+                </p>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  {current != null
+                    ? <Button variant="ghost" size="sm" className="text-[#ff7070]!" onPress={() => { onClear(); onClose(); }}>{t("removeOverride")}</Button>
+                    : <span />}
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onPress={onClose}>{t("cancel")}</Button>
+                    <Button size="sm" className="bg-accent! text-white!" onPress={() => { onSave(secs); onClose(); }}>{t("save")}</Button>
+                  </div>
+                </div>
+              </div>
+            </ModalBody>
+          </ModalDialog>
+        </ModalContainer>
+      </ModalBackdrop>
+    </ModalRoot>
+  );
+}
+
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, lyricsProviders = DEFAULT_LYRICS_PROVIDERS, currentLyricsSource = "", onSwitchLyricsProvider, failedLyricsProviders = new Set(), language = "de", showLyricsTranslation = false, onToggleLyricsTranslation, lyricsTranslationLang = "DE", onSetLyricsTranslationLang, showRomaji = false, onToggleRomaji, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onPremiumDetected, onCreatePlaylist }) {
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
@@ -5848,17 +6012,18 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // Quadratic volume curve — human hearing is logarithmic, so v² feels linear
   const volCurve = (v) => v * v;
 
-  const crossfadeAudioRef = useRef(new Audio());
-  const crossfadeActiveRef = useRef(false);
-  const crossfadeNextTrackRef = useRef(null);
-  const crossfadeStartTsRef = useRef(0);
-  const skipStreamResetRef = useRef(false);
+  const crossfadeActiveRef = useRef(false);       // a crossfade is pending or in flight
+  const crossfadePendingTrackRef = useRef(null);  // next track, set until Rust confirms "started"
+  const crossfadeFailedTrackRef = useRef(null);   // videoId a crossfade failed for (don't retry it)
+  const skipStreamResetRef = useRef(false);       // suppress audio_play after a crossfade advance
   const _lastProgressTs = useRef(0); // throttle: last time setProgress was called
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { trackRef.current = track; }, [track]);
   useEffect(() => { crossfadeRef.current = crossfade; }, [crossfade]);
+  const crossfadeOverridesRef = useRef(crossfadeOverrides);
+  useEffect(() => { crossfadeOverridesRef.current = crossfadeOverrides; }, [crossfadeOverrides]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
 
   useEffect(() => {
@@ -6015,25 +6180,22 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     const a = audioRef.current;
     if (!a || !streamUrl) return;
 
-    const cf = crossfadeAudioRef.current;
-
-    // Check whether crossfade already transferred this track to main audio.
-    // If so, skip the src reset — but still fall through to attach listeners.
+    // When a crossfade advanced the track (Rust signalled "started"), Rust is already
+    // playing the incoming track on its second sink — skip audio_play, just sync UI.
     const skipSrcReset = skipStreamResetRef.current;
     skipStreamResetRef.current = false;
 
     if (skipSrcReset) {
-      // Audio already playing from crossfade transfer — just sync state
+      // Audio already playing from the Rust crossfade — just sync state.
+      // Don't touch a.src — Rust is mid-blend; fall through to (re)attach listeners.
+      // Leave crossfadeActiveRef set: it stays true until Rust emits "done".
       setIsPlaying(true);
       if (a.duration) setDuration(a.duration);
-      // Don't touch a.src — fall through to register listeners below
     } else {
-      // Cancel any in-progress crossfade from the previous track
+      // A fresh/manual play cancels any pending crossfade (Rust's Play stops sink2).
       crossfadeActiveRef.current = false;
-      crossfadeNextTrackRef.current = null;
-      cf.pause();
-      cf.volume = 0;
-
+      crossfadePendingTrackRef.current = null;
+      crossfadeFailedTrackRef.current = null;
       a.src = streamUrl;
       a.volume = volCurve(volume);
       volumeRef.current = volume;
@@ -6050,44 +6212,23 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     };
 
     const onEnd = () => {
-      // Only do the crossfade transfer if cf.src is actually loaded —
-      // if fetchUrl() hasn't returned yet, cf.src is "" and we must NOT
-      // set skipStreamResetRef, otherwise the normal stream setup is blocked.
-      if (crossfadeActiveRef.current && crossfadeNextTrackRef.current && cf.src) {
-        // Crossfade audio is already playing — transfer it to the main element
-        const next = crossfadeNextTrackRef.current;
-        crossfadeNextTrackRef.current = null;
-        crossfadeActiveRef.current = false;
-        const savedSrc = cf.src;
-        const savedTime = cf.currentTime;
-        cf.pause();
-        cf.src = "";
-        a.src = savedSrc;
-        a.currentTime = savedTime;
-        a.volume = volCurve(volumeRef.current);
-        a.play().catch(() => {});
-        skipStreamResetRef.current = true;
-        setTrack(next);
+      // If a crossfade has already started, Rust drives the transition — ignore the
+      // outgoing track's end. (Once Rust promotes + emits "done", the guard clears
+      // and a later natural end of the promoted track advances normally.)
+      if (crossfadeActiveRef.current && !crossfadePendingTrackRef.current) return;
+      // A crossfade that was still *pending* (build not started) is aborted here.
+      crossfadeActiveRef.current = false;
+      crossfadePendingTrackRef.current = null;
+      if (repeatRef.current === "one") {
+        a.currentTime = 0; a.play();
       } else {
-        // Either no crossfade, or fetchUrl() hadn't returned in time.
-        // Clean up any partial crossfade state and restore volume (was faded to 0).
-        crossfadeActiveRef.current = false;
-        crossfadeNextTrackRef.current = null;
-        cf.pause();
-        cf.src = "";
-        a.volume = volCurve(volumeRef.current);
-
-        if (repeatRef.current === "one") {
-          a.currentTime = 0; a.play();
-        } else {
-          const next = getAdjacentTrack("next");
-          if (next) setTrack(next);
-          else if (repeatRef.current === "none") setIsPlaying(false);
-        }
+        const next = getAdjacentTrack("next");
+        if (next) setTrack(next);
+        else if (repeatRef.current === "none") setIsPlaying(false);
       }
     };
 
-    // Combined timeupdate handler: progress update (throttled) + crossfade logic
+    // Combined timeupdate handler: throttled progress + Rust-core crossfade trigger.
     const onTimeUpdate = () => {
       // Throttle setProgress to max 4× per second to avoid excessive re-renders.
       const now = performance.now();
@@ -6096,45 +6237,49 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
         setProgress(a.currentTime);
       }
 
-      if (!crossfadeRef.current || crossfadeRef.current <= 0 || !a.duration) return;
+      if (!a.duration) return;
+      // Crossfade is a Rust-core feature (two sinks, OBS-capturable). If we fell
+      // back to HTML5 audio (Rust binary missing), skip it entirely.
+      if (audioRef.current?._fallback !== false) return;
+      if (crossfadeActiveRef.current || repeatRef.current === "one") return;
+      // Don't keep retrying a crossfade that already failed for this very track.
+      if (crossfadeFailedTrackRef.current === trackRef.current?.videoId) return;
+
+      const next = getAdjacentTrack("next");
+      if (!next) return;
+
+      // Per-transition override beats the global default; secs 0 = hard cut for this pair.
+      const ov = crossfadeOverridesRef.current[`${trackRef.current?.videoId}__${next.videoId}`];
+      const cfWin = ov ? ov.secs : crossfadeRef.current;
+      if (!cfWin || cfWin <= 0) return;
+
       const remaining = a.duration - a.currentTime;
+      if (remaining > cfWin || remaining <= 0.05) return;
 
-      // Fade out main audio linearly over the crossfade window
-      if (remaining <= crossfadeRef.current && remaining > 0) {
-        const vol = Math.max(0, remaining / crossfadeRef.current);
-        a.volume = vol * volCurve(volumeRef.current);
-      }
-
-      // Start crossfade audio (once) when window begins
-      if (remaining <= crossfadeRef.current && !crossfadeActiveRef.current) {
-        crossfadeActiveRef.current = true;
-        crossfadeStartTsRef.current = Date.now(); // record exact window start
-        const next = getAdjacentTrack("next");
-        if (!next) return;
-        crossfadeNextTrackRef.current = next;
-        fetchUrl(next.videoId).then(url => {
-          if (!url || !crossfadeActiveRef.current) return;
-          cf.src = url;
-          cf.volume = 0;
-          cf.play().catch(() => {});
-          // Fade-in is synced to when the crossfade WINDOW started, not when
-          // fetchUrl resolved — so it stays in lock-step with the fade-out
-          // even if the URL fetch took a second or two.
-          const cfMs = crossfadeRef.current * 1000;
-          const fadeTick = () => {
-            if (!crossfadeActiveRef.current) return;
-            const pct = Math.min(1, (Date.now() - crossfadeStartTsRef.current) / cfMs);
-            cf.volume = pct * volCurve(volumeRef.current);
-            if (pct < 1) requestAnimationFrame(fadeTick);
-          };
-          requestAnimationFrame(fadeTick);
+      // Mark immediately so we trigger exactly once. The guard stays set until Rust
+      // confirms the outcome via "started"/"done"/"failed" — never reset by re-renders,
+      // which is what previously caused a re-trigger storm during the build window.
+      crossfadeActiveRef.current = true;
+      crossfadePendingTrackRef.current = next;
+      const fromId = trackRef.current?.videoId;
+      fetchUrl(next.videoId).then(url => {
+        // Bail if the track changed underneath us (manual skip / natural end) while
+        // the URL was resolving — otherwise we'd start a stale crossfade.
+        if (!url || trackRef.current?.videoId !== fromId || crossfadePendingTrackRef.current !== next) {
+          if (trackRef.current?.videoId === fromId) { crossfadeActiveRef.current = false; crossfadePendingTrackRef.current = null; }
+          return;
+        }
+        // Rust runs both sinks simultaneously (outgoing down, incoming up) so the
+        // blend is captured by OBS / the visualizer just like normal playback. The UI
+        // advances only once Rust emits "audio-crossfade-started" (see listener below).
+        import("@tauri-apps/api/core").then(({ invoke }) => {
+          invoke("audio_crossfade", { url, seekTo: 0, duration: cfWin })
+            .catch(e => console.error("[Player] audio_crossfade error:", e));
         });
-      }
+      });
     };
 
-    // Always register listeners — even after a crossfade transfer.
-    // Previously the early return for skipSrcReset lost these listeners,
-    // which broke progress tracking, track-end detection and subsequent crossfades.
+    // Always register listeners — even after a crossfade advance.
     a.addEventListener("timeupdate", onTimeUpdate);
     a.addEventListener("loadedmetadata", onDur);
     a.addEventListener("ended", onEnd);
@@ -6144,6 +6289,36 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       a.removeEventListener("ended", onEnd);
     };
   }, [streamUrl]);
+
+  // Rust crossfade lifecycle. The UI advances to the incoming track exactly when the
+  // blend actually starts ("started"), and the guard clears only on a definitive
+  // outcome ("done"/"failed") — never on a re-render. This is what prevents the
+  // re-trigger storm that came from clearing the guard during the async build window.
+  useEffect(() => {
+    let unlistens = [];
+    let cancelled = false;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      const reg = (name, fn) =>
+        listen(name, fn).then(u => { if (cancelled) u(); else unlistens.push(u); });
+
+      reg("audio-crossfade-started", () => {
+        const next = crossfadePendingTrackRef.current;
+        crossfadePendingTrackRef.current = null;
+        // Rust is now audibly playing `next` on its second sink — move the UI to it
+        // and suppress the duplicate audio_play in the streamUrl effect.
+        if (next) { skipStreamResetRef.current = true; setTrack(next); }
+      });
+      reg("audio-crossfade-done", () => { crossfadeActiveRef.current = false; });
+      reg("audio-crossfade-failed", () => {
+        // Mark this track so we don't immediately retry; outgoing keeps playing and
+        // will hand off via the normal `ended` path once it finishes.
+        crossfadeFailedTrackRef.current = trackRef.current?.videoId || null;
+        crossfadeActiveRef.current = false;
+        crossfadePendingTrackRef.current = null;
+      });
+    });
+    return () => { cancelled = true; unlistens.forEach(u => u()); };
+  }, []);
 
   const togglePlay = () => {
     const a = audioRef.current;
@@ -6612,6 +6787,42 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                         <MusicNote size={14} />
                         {translate(language, "saveAsOpus")}
                       </DropdownItem>
+                    </DropdownSection>
+
+                    <DropdownSection className="w-full border-t border-border mt-1 pt-1">
+                      <DropdownSubmenuTrigger>
+                        <DropdownItem textValue={translate(language, "share")}>
+                          <ShareNodes size={14} />
+                          {translate(language, "share")}
+                          <DropdownSubmenuIndicator className="ml-auto" />
+                        </DropdownItem>
+                        <DropdownPopover className="min-w-56">
+                          <DropdownMenu aria-label={translate(language, "share")}>
+                            <DropdownSection>
+                              <DropdownItem textValue={translate(language, "copyShareLink")}
+                                onAction={() => navigator.clipboard.writeText(`${KODAMA_SHARE_BASE}?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                                <ShareNodes size={14} />
+                                {translate(language, "copyShareLink")}
+                              </DropdownItem>
+                              <DropdownItem textValue={translate(language, "copyKodamaLink")}
+                                onAction={() => navigator.clipboard.writeText(`kodama://song/${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                                <Copy size={14} />
+                                {translate(language, "copyKodamaLink")}
+                              </DropdownItem>
+                              <DropdownItem textValue={translate(language, "copyYtMusicLink")}
+                                onAction={() => navigator.clipboard.writeText(`https://music.youtube.com/watch?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                                <Copy size={14} />
+                                {translate(language, "copyYtMusicLink")}
+                              </DropdownItem>
+                              <DropdownItem textValue={translate(language, "copyYoutubeLink")}
+                                onAction={() => navigator.clipboard.writeText(`https://youtube.com/watch?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                                <Copy size={14} />
+                                {translate(language, "copyYoutubeLink")}
+                              </DropdownItem>
+                            </DropdownSection>
+                          </DropdownMenu>
+                        </DropdownPopover>
+                      </DropdownSubmenuTrigger>
                     </DropdownSection>
                   </DropdownMenu>
                 </DropdownPopover>
@@ -10052,7 +10263,13 @@ function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArti
 
             {/* Speed Dial — Quick picks recommendations as a paginated 3×3 grid */}
             {hasSpeedDial && (
-              <CardRoot variant="secondary" className="overflow-hidden gap-0! p-0!">
+              <CardRoot variant="transparent" className="overflow-hidden gap-0! p-0!"
+                style={{
+                  background: "color-mix(in srgb, var(--bg-surface) 55%, transparent)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                  border: "none",
+                }}>
                 <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     <span style={{ fontSize: "var(--t12)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("speedDial")}</span>
@@ -12184,6 +12401,37 @@ export default function App() {
     }
   }, []);
 
+  // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
+  // metadata so the player has a title/cover, then play. Falls back to a bare track.
+  const playByVideoId = useCallback(async (videoId) => {
+    try {
+      const d = await fetch(`${API}/song/meta/${videoId}`).then(r => r.json());
+      if (d && d.videoId && !d.error) handlePlay(d);
+      else handlePlay({ videoId, title: videoId, artists: "" });
+    } catch {
+      handlePlay({ videoId, title: videoId, artists: "" });
+    }
+  }, [handlePlay]);
+
+  // Deep links: kodama://song/<videoId>. Handles both cold start (getCurrent) and while
+  // the app is already running (onOpenUrl, routed via the single-instance plugin).
+  useEffect(() => {
+    let unlisten;
+    const handle = (url) => {
+      const m = String(url || "").match(/^kodama:\/\/song\/([A-Za-z0-9_-]{6,})/i);
+      if (m) playByVideoId(m[1]);
+    };
+    (async () => {
+      try {
+        const { getCurrent, onOpenUrl } = await import("@tauri-apps/plugin-deep-link");
+        const start = await getCurrent();
+        if (start && start.length) start.forEach(handle);
+        unlisten = await onOpenUrl((urls) => urls.forEach(handle));
+      } catch (e) { console.error("[DeepLink]", e); }
+    })();
+    return () => { if (unlisten) unlisten(); };
+  }, [playByVideoId]);
+
   // Global queue poll — runs whenever there are active downloads
   useEffect(() => {
     if (downloadingIds.size === 0) return;
@@ -12528,6 +12776,45 @@ export default function App() {
   const [playbackProgressive, setPlaybackProgressive] = useState(
     () => localStorage.getItem("kodama-playback-mode") !== "classic"
   );
+  // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
+  // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
+  const [appIcon, setAppIcon] = useState(() => localStorage.getItem("kodama-app-icon") || APP_ICON_DEFAULT);
+  const applyAppIcon = useCallback(async (file) => {
+    try { const { invoke } = await import("@tauri-apps/api/core"); await invoke("set_app_icon", { file }); }
+    catch (e) { console.error("[AppIcon] set failed:", e); }
+  }, []);
+  const handleAppIconChange = useCallback((file) => {
+    setAppIcon(file);
+    localStorage.setItem("kodama-app-icon", file);
+    applyAppIcon(file);
+  }, [applyAppIcon]);
+  // Re-apply the user's chosen icon on each launch (only if they customized it).
+  useEffect(() => {
+    const stored = localStorage.getItem("kodama-app-icon");
+    if (stored && stored !== APP_ICON_DEFAULT) applyAppIcon(stored);
+  }, [applyAppIcon]);
+
+  // Per-transition crossfade overrides: { "fromId__toId": { secs, fromTitle, toTitle } }.
+  // A pair override beats the global default; secs 0 = hard cut for that one transition.
+  const [crossfadeOverrides, setCrossfadeOverrides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("kodama-crossfade-overrides")) || {}; }
+    catch { return {}; }
+  });
+  const setCrossfadeOverride = useCallback((fromId, toId, secs, fromTitle, toTitle) => {
+    if (!fromId || !toId) return;
+    setCrossfadeOverrides(prev => {
+      const next = { ...prev, [`${fromId}__${toId}`]: { secs, fromTitle, toTitle } };
+      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  const removeCrossfadeOverride = useCallback((key) => {
+    setCrossfadeOverrides(prev => {
+      const next = { ...prev }; delete next[key];
+      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // ── Profile / Auth ──
   const [profiles, setProfiles] = useState([]);
@@ -13328,6 +13615,7 @@ export default function App() {
             queueOpen={queueOpen}
             onToggleQueue={() => setQueueOpen(q => !q)}
             crossfade={crossfade}
+            crossfadeOverrides={crossfadeOverrides}
             playbackProgressive={playbackProgressive}
             fullscreen={fullscreen}
             onToggleFullscreen={async () => {
@@ -13491,6 +13779,10 @@ export default function App() {
             likedIds={likedIds}
             onToggleLike={handleToggleLike}
             visible={queueOpen}
+            crossfade={crossfade}
+            crossfadeOverrides={crossfadeOverrides}
+            onSetCrossfadeOverride={setCrossfadeOverride}
+            onRemoveCrossfadeOverride={removeCrossfadeOverride}
           />
         </div>
         {/* Login Screen - shown when no profile exists */}
@@ -13543,8 +13835,12 @@ export default function App() {
             onLyricsProvidersChange={v => { setLyricsProviders(v); localStorage.setItem("kiyoshi-lyrics-providers", JSON.stringify(v)); }}
             autoplay={autoplay}
             onAutoplayChange={v => { setAutoplay(v); localStorage.setItem("kiyoshi-autoplay", v); }}
+            appIcon={appIcon}
+            onAppIconChange={handleAppIconChange}
             crossfade={crossfade}
             onCrossfadeChange={v => { setCrossfade(v); localStorage.setItem("kiyoshi-crossfade", v); }}
+            crossfadeOverrides={crossfadeOverrides}
+            onRemoveCrossfadeOverride={removeCrossfadeOverride}
             playbackProgressive={playbackProgressive}
             onPlaybackProgressiveChange={v => { setPlaybackProgressive(v); localStorage.setItem("kodama-playback-mode", v ? "progressive" : "classic"); }}
             closeTray={closeTray}
@@ -13774,6 +14070,11 @@ export default function App() {
           const showArtistNav = artistList.length > 0 || !!track.artistBrowseId;
           const isCached = cachedSongIds.has(track.videoId);
 
+          const copyShare = (url) => {
+            navigator.clipboard.writeText(url)
+              .then(() => toast.success(translate(language, "linkCopied")))
+              .catch(() => {});
+          };
           const copyLyrics = () => {
             fetch(`${API}/lyrics/${track.videoId}`).then(r => r.json()).then(d => {
               if (!d.lyrics) return;
@@ -13884,6 +14185,30 @@ export default function App() {
                   }
                 </DropdownSection>
               ) : null}
+
+              <DropdownSection className="w-full border-t border-border mt-1 pt-1">
+                <DropdownSubmenuTrigger>
+                  <DropdownItem textValue={translate(language, "share")}>
+                    <span className="w-4 flex justify-center shrink-0"><ShareNodes size={15} /></span>
+                    {translate(language, "share")}
+                    <DropdownSubmenuIndicator className="ml-auto" />
+                  </DropdownItem>
+                  <DropdownPopover className="min-w-56">
+                    <DropdownMenu aria-label={translate(language, "share")}>
+                      <DropdownSection>
+                        <CtxItem icon={<ShareNodes size={15} />} label={translate(language, "copyShareLink")}
+                          onSelect={() => copyShare(`${KODAMA_SHARE_BASE}?v=${track.videoId}`)} />
+                        <CtxItem icon={<Copy size={15} />} label={translate(language, "copyKodamaLink")}
+                          onSelect={() => copyShare(`kodama://song/${track.videoId}`)} />
+                        <CtxItem icon={<Copy size={15} />} label={translate(language, "copyYtMusicLink")}
+                          onSelect={() => copyShare(`https://music.youtube.com/watch?v=${track.videoId}`)} />
+                        <CtxItem icon={<Copy size={15} />} label={translate(language, "copyYoutubeLink")}
+                          onSelect={() => copyShare(`https://youtube.com/watch?v=${track.videoId}`)} />
+                      </DropdownSection>
+                    </DropdownMenu>
+                  </DropdownPopover>
+                </DropdownSubmenuTrigger>
+              </DropdownSection>
 
               <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                 {isCached ? (

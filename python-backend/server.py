@@ -3212,6 +3212,28 @@ def artist_unsubscribe(browse_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/song/meta/<video_id>")
+def song_meta(video_id):
+    """Minimal track metadata for a videoId — used to turn a shared kodama://song/<id>
+    deep link into a playable track object on the frontend."""
+    try:
+        info = get_ytmusic().get_song(video_id) or {}
+        vd = info.get("videoDetails", {}) or {}
+        thumbs = ((vd.get("thumbnail") or {}).get("thumbnails") or [])
+        thumb = thumbs[-1]["url"] if thumbs else None
+        secs = int(vd.get("lengthSeconds") or 0)
+        dur = f"{secs // 60}:{secs % 60:02d}" if secs else None
+        return jsonify({
+            "videoId": vd.get("videoId") or video_id,
+            "title": vd.get("title"),
+            "artists": vd.get("author"),
+            "thumbnail": thumb,
+            "duration": dur,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
 @app.route("/song/credits/<video_id>")
 def get_song_credits(video_id):
     # Serve from cache if available

@@ -12,6 +12,32 @@ pub enum AudioCmd {
     Stop,
     Seek(f64),
     SetVolume(f32),
+    // Start `url` on a second sink and crossfade from the current track over `duration` secs.
+    Crossfade { url: String, seek_to: f64, duration: f64 },
+}
+
+// Build a ready-to-play decoder source for any of our URL kinds (used by Play's progressive
+// path and by crossfade). Progressive = stream over HTTP; file:// / http = read fully first.
+fn build_streaming_source(url: &str, seek_to: f64) -> Result<StreamingSource, String> {
+    if url.contains("/audio-stream/") {
+        let hs = super::http_source::HttpStream::new(url.to_string()).map_err(|e| e.to_string())?;
+        StreamingSource::new_streaming(Box::new(hs), seek_to)
+    } else if let Some(p) = url.strip_prefix("file://") {
+        let data = std::fs::read(p.replace("%20", " ")).map_err(|e| format!("File read error: {e}"))?;
+        StreamingSource::new_with_seek(data, seek_to)
+    } else {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client.get(url).send().map_err(|e| e.to_string())?;
+        if !resp.status().is_success() {
+            return Err(format!("HTTP {}", resp.status()));
+        }
+        let data = resp.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string())?;
+        StreamingSource::new_with_seek(data, seek_to)
+    }
 }
 
 pub struct AudioPlayer(Mutex<Option<std::sync::mpsc::SyncSender<AudioCmd>>>);
@@ -104,6 +130,16 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         // the audio thread (so the probe's network reads don't block command handling).
         let (source_tx, source_rx) =
             std::sync::mpsc::channel::<(super::decoder::StreamingSource, u64, bool)>();
+
+        // ── Crossfade: a second sink for the incoming track + a linear volume ramp ──
+        let mut sink2: Option<rodio::Sink> = None;
+        let mut duration2: f64 = 0.0;
+        let mut prog_url2: Option<String> = None;
+        let mut xfade_start: Option<std::time::Instant> = None;
+        let mut xfade_dur: f64 = 0.0;
+        let (xsource_tx, xsource_rx) =
+            std::sync::mpsc::channel::<(super::decoder::StreamingSource, String, f64, u64)>();
+
         let mut play_gen: u64 = 0;
 
         loop {
@@ -179,12 +215,50 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 }
             }
 
+            // Incoming crossfade source: start it on sink2 at volume 0 and begin the ramp.
+            while let Ok((mut source, url, dur, gen)) = xsource_rx.try_recv() {
+                if gen != play_gen || sink.is_none() {
+                    // Superseded (track changed) or the outgoing track already ended
+                    // during the build — abort so the frontend can resume normally.
+                    let _ = app.emit("audio-crossfade-failed", ());
+                    continue;
+                }
+                if let Some(s) = sink2.take() {
+                    s.stop();
+                }
+                duration2 = source.total_duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
+                prog_url2 = if url.contains("/audio-stream/") { Some(url) } else { None };
+                match rodio::Sink::try_new(&handle) {
+                    Ok(s2) => {
+                        s2.set_volume(0.0);
+                        // The visualizer follows the incoming track (the UI already shows it).
+                        *current_analysis.lock().unwrap() = Some(source.enable_analysis());
+                        s2.append(source);
+                        sink2 = Some(s2);
+                        xfade_start = Some(std::time::Instant::now());
+                        xfade_dur = dur.max(0.1);
+                        let _ = app.emit("audio-loaded", serde_json::json!({ "duration": duration2 }));
+                        let _ = app.emit("audio-crossfade-started", ());
+                        eprintln!("[Audio] Crossfade started over {xfade_dur:.1}s, next duration={duration2:.1}s");
+                    }
+                    Err(e) => {
+                        let _ = app.emit("audio-crossfade-failed", ());
+                        eprintln!("[Audio] Crossfade sink error: {e}");
+                    }
+                }
+            }
+
             while let Ok(cmd) = rx.try_recv() {
                 match cmd {
                     AudioCmd::Play { url, seek_to } => {
                         if let Some(s) = sink.take() {
                             s.stop();
                         }
+                        if let Some(s) = sink2.take() {
+                            s.stop();
+                        }
+                        xfade_start = None;
+                        prog_url2 = None;
                         duration = 0.0;
                         seek_offset = 0.0;
                         audio_data = None;
@@ -261,9 +335,15 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         if let Some(s) = &sink {
                             s.pause();
                         }
+                        if let Some(s) = &sink2 {
+                            s.pause();
+                        }
                     }
                     AudioCmd::Resume => {
                         if let Some(s) = &sink {
+                            s.play();
+                        }
+                        if let Some(s) = &sink2 {
                             s.play();
                         }
                     }
@@ -271,6 +351,11 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         if let Some(s) = sink.take() {
                             s.stop();
                         }
+                        if let Some(s) = sink2.take() {
+                            s.stop();
+                        }
+                        xfade_start = None;
+                        prog_url2 = None;
                         duration = 0.0;
                         audio_data = None;
                         progressive_url = None;
@@ -317,27 +402,72 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     }
                     AudioCmd::SetVolume(v) => {
                         volume = v;
-                        if let Some(s) = &sink {
+                        // During a crossfade the two sinks are mid-ramp; rescale both to keep
+                        // their relative fade. Otherwise just set the single sink.
+                        if let Some(start) = xfade_start {
+                            let p = (start.elapsed().as_secs_f64() / xfade_dur).clamp(0.0, 1.0) as f32;
+                            if let Some(s) = &sink { s.set_volume(v * (1.0 - p)); }
+                            if let Some(s) = &sink2 { s.set_volume(v * p); }
+                        } else if let Some(s) = &sink {
                             s.set_volume(v);
+                        }
+                    }
+                    AudioCmd::Crossfade { url, seek_to, duration } => {
+                        // Only meaningful if something is currently playing to fade from.
+                        if sink.is_some() && xfade_start.is_none() {
+                            let gen = play_gen;
+                            let xtx = xsource_tx.clone();
+                            let dl_app = app.clone();
+                            std::thread::spawn(move || {
+                                match build_streaming_source(&url, seek_to) {
+                                    Ok(source) => { let _ = xtx.send((source, url, duration, gen)); }
+                                    Err(e) => {
+                                        eprintln!("[Audio] Crossfade build error: {e}");
+                                        let _ = dl_app.emit("audio-crossfade-failed", ());
+                                    }
+                                }
+                            });
                         }
                     }
                 }
             }
 
-            if let Some(s) = &sink {
+            // ── Crossfade ramp + promotion ──
+            if let Some(start) = xfade_start {
+                let p = (start.elapsed().as_secs_f64() / xfade_dur).clamp(0.0, 1.0) as f32;
+                if let Some(s) = &sink { s.set_volume(volume * (1.0 - p)); }
+                if let Some(s) = &sink2 { s.set_volume(volume * p); }
+                // Done when the ramp completes or the outgoing track runs out.
+                let out_ended = sink.as_ref().map(|s| s.empty()).unwrap_or(true);
+                if p >= 1.0 || out_ended {
+                    if let Some(s) = sink.take() { s.stop(); }
+                    sink = sink2.take();
+                    if let Some(s) = &sink { s.set_volume(volume); }
+                    duration = duration2;
+                    seek_offset = 0.0;
+                    audio_data = None;
+                    progressive_url = prog_url2.take();
+                    xfade_start = None;
+                    let _ = app.emit("audio-crossfade-done", ());
+                    eprintln!("[Audio] Crossfade promoted incoming track");
+                }
+            }
+
+            // Report progress for whatever the UI is showing: during a crossfade that's the
+            // incoming track (sink2); otherwise the primary sink.
+            if let Some(s) = sink2.as_ref().filter(|_| xfade_start.is_some()) {
+                let _ = app.emit(
+                    "audio-progress",
+                    serde_json::json!({ "position": s.get_pos().as_secs_f64(), "duration": duration2, "paused": s.is_paused() }),
+                );
+            } else if let Some(s) = &sink {
                 let pos = s.get_pos().as_secs_f64() + seek_offset;
                 let paused = s.is_paused();
                 let ended = s.empty();
-
                 let _ = app.emit(
                     "audio-progress",
-                    serde_json::json!({
-                        "position": pos,
-                        "duration": duration,
-                        "paused":   paused,
-                    }),
+                    serde_json::json!({ "position": pos, "duration": duration, "paused": paused }),
                 );
-
                 if ended {
                     sink = None;
                     duration = 0.0;
@@ -377,6 +507,25 @@ pub fn audio_play(
         return Err("audio_play: rejected non-local URL".into());
     }
     send_audio(&state, AudioCmd::Play { url, seek_to })
+}
+
+#[tauri::command]
+pub fn audio_crossfade(
+    state: tauri::State<AudioPlayer>,
+    url: String,
+    seek_to: f64,
+    duration: f64,
+) -> Result<(), String> {
+    let is_local = url.starts_with("file://") || {
+        let p = std::path::Path::new(&url);
+        p.is_absolute() && url.contains("kiyoshi-audio")
+    };
+    let is_local_http =
+        url.starts_with("http://localhost:") || url.starts_with("http://127.0.0.1:");
+    if !is_local && !is_local_http {
+        return Err("audio_crossfade: rejected non-local URL".into());
+    }
+    send_audio(&state, AudioCmd::Crossfade { url, seek_to, duration })
 }
 
 #[tauri::command]

@@ -6,12 +6,13 @@ mod window;
 mod server;
 mod obs;
 mod media;
+mod appicon;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
-use audio::{AudioPlayer, start_audio_thread, audio_play, audio_pause, audio_resume, audio_stop, audio_seek, audio_set_volume};
+use audio::{AudioPlayer, start_audio_thread, audio_play, audio_crossfade, audio_pause, audio_resume, audio_stop, audio_seek, audio_set_volume};
 use discord::{DiscordRpc, disconnect_rpc, update_discord_rpc, clear_discord_rpc};
 use window::{WasMaximized, set_fullscreen, open_login_window, close_login_window, open_composer_window, remove_window_border_for, ensure_session_keeper, rotate_session_cookies, stop_session_keeper};
 use server::{ServerProcess, stop_server};
@@ -135,6 +136,7 @@ fn main() {
                 let _ = win.set_focus();
             }
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -154,6 +156,14 @@ fn main() {
             // Remove the Windows-accent outer border on the borderless main window.
             if let Some(w) = app.get_webview_window("main") {
                 window::remove_window_border(&w);
+            }
+
+            // Deep-link (kodama://song/<id>): the bundler registers the scheme on release
+            // installs, but Linux and Windows-dev need a runtime registration.
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = app.deep_link().register_all();
             }
 
             // OS media controls (SMTC / Now Playing / MPRIS). setup() runs on the main thread,
@@ -217,7 +227,8 @@ fn main() {
             remove_window_border_for,
             update_discord_rpc, clear_discord_rpc,
             media::media_update, media::media_clear,
-            audio_play, audio_pause, audio_resume,
+            appicon::set_app_icon,
+            audio_play, audio_crossfade, audio_pause, audio_resume,
             audio_stop, audio_seek, audio_set_volume,
             relaunch_app, quit_app, stop_server_cmd,
             update_tray_labels, set_close_to_tray,
