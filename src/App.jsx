@@ -4574,7 +4574,7 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
             {tab === "visualizer" && (
               <>
                 {/* Live preview — reflects the current track + config in real time */}
-                <div className="mb-4 rounded-xl overflow-hidden border border-border sticky z-10" style={{ height: 620, top: -8, background: "var(--bg-base)" }}>
+                <div className="mb-4 rounded-xl overflow-hidden border border-border sticky z-10 shrink-0" style={{ height: "min(620px, 58vh)", top: -8, background: "var(--bg-base)" }}>
                   {vizPreviewTrack?.thumbnail && (<>
                     <div style={{ position: "absolute", inset: "-10%", backgroundImage: `url(${thumb(vizPreviewTrack.thumbnail)})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(56px) saturate(1.4) brightness(0.7)", transform: "scale(1.2)" }} />
                     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.42)" }} />
