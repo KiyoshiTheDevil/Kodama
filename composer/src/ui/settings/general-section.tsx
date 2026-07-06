@@ -2,7 +2,7 @@ import { useConfirm } from "@/stores/confirm-store";
 import { useSettingsStore } from "@/stores/settings";
 import { Button } from "@/ui/button";
 import { ToggleSetting } from "@/ui/settings/setting-controls";
-import { IconRefresh, IconRoute } from "@tabler/icons-react";
+import { IconRefresh, IconRoute } from "@/ui/icons/fa";
 
 // -- General Section ----------------------------------------------------------
 

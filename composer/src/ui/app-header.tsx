@@ -2,7 +2,7 @@ import { useProjectStore } from "@/stores/project";
 import type { SimpleTab } from "@/stores/project";
 import { Button } from "@/ui/button";
 import { Tabs } from "@heroui/react";
-import { IconHelp, IconMinus, IconRoute, IconSettings, IconSquare, IconX } from "@tabler/icons-react";
+import { IconHelp, IconMinus, IconRoute, IconSettings, IconSquare, IconX } from "@/ui/icons/fa";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -139,6 +139,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSettingsOpen, onHelpOpen, onTou
         <Button size="icon" variant="ghost" onClick={onHelpOpen} title="Keyboard shortcuts (?)">
           <IconHelp className="size-5" />
         </Button>
+        {isTauri && <div aria-hidden className="w-px h-5 bg-composer-border mx-1.5" />}
         {isTauri && <WindowControls height={headerHeight} />}
       </div>
     </header>

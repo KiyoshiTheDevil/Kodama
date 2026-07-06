@@ -3,7 +3,7 @@ import { PageHead } from "@/seo/page-head";
 import { Button } from "@/ui/button";
 import { ClearRecoveryButton } from "@/ui/clear-recovery-button";
 import { ClientOnly } from "@/ui/client-only";
-import { IconCheck, IconDownload, IconHome2, IconLifebuoy, IconRefresh } from "@tabler/icons-react";
+import { IconCheck, IconDownload, IconHome2, IconLifebuoy, IconRefresh } from "@/ui/icons/fa";
 import { useEffect, useState } from "react";
 
 // -- Constants -----------------------------------------------------------------

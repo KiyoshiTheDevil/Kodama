@@ -13,7 +13,7 @@ import { GutterAgentPicker } from "@/views/timeline/gutter-agent-picker";
 import { useTimelineStore } from "@/views/timeline/timeline-store";
 import { WordTrack } from "@/views/timeline/word-track";
 import { useDroppable } from "@dnd-kit/core";
-import { IconPlus } from "@tabler/icons-react";
+import { IconPlus } from "@/ui/icons/fa";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 // -- Types ---------------------------------------------------------------------

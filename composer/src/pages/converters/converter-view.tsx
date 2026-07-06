@@ -1,6 +1,6 @@
 import { Button } from "@/ui/button";
 import { cn } from "@/utils/cn";
-import { IconCopy, IconDownload, IconExternalLink } from "@tabler/icons-react";
+import { IconCopy, IconDownload, IconExternalLink } from "@/ui/icons/fa";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 

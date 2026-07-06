@@ -64,6 +64,11 @@
   --surface:                 var(--color-composer-bg-elevated);
   --overlay:                 var(--color-composer-bg-elevated);
   --primary:                 var(--color-composer-accent);
+  /* HeroUI's accent tokens — used by Button `primary` (--button-bg: var(--accent)).
+     Bridged here so accent-colored components follow the (Kodama-injected) composer accent
+     instead of HeroUI's default blue. */
+  --accent:                  var(--color-composer-accent);
+  --accent-hover:            var(--color-composer-accent-dark);
   --muted:                   var(--color-composer-text-muted);
 
   /* Desktop convention: no pointer-hand cursor on interactive elements */
@@ -314,3 +319,19 @@ input[type="range"].settings-slider::-moz-range-progress {
     transition: none;
   }
 }
+
+/* ── FontAwesome icons sized via Tailwind size-* utilities ──────────────────────
+   The Tabler → FA migration renders icons as webfont <i> elements whose glyph size
+   comes from font-size. Call sites that size via `size-N` classes (not the `size`
+   prop) need font-size set to match the box. */
+i[class*="fa-"].size-2   { font-size: 0.5rem; }
+i[class*="fa-"].size-2\.5 { font-size: 0.625rem; }
+i[class*="fa-"].size-3   { font-size: 0.75rem; }
+i[class*="fa-"].size-3\.5 { font-size: 0.875rem; }
+i[class*="fa-"].size-4   { font-size: 1rem; }
+i[class*="fa-"].size-5   { font-size: 1.25rem; }
+i[class*="fa-"].size-6   { font-size: 1.5rem; }
+i[class*="fa-"].size-8   { font-size: 2rem; }
+i[class*="fa-"].size-10  { font-size: 2.5rem; }
+i[class*="fa-"].size-12  { font-size: 3rem; }
+i[class*="fa-"].size-16  { font-size: 4rem; }

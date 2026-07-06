@@ -9,7 +9,7 @@ import {
   IconMoodHappy,
   IconMoodSadDizzy,
   IconTrash,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 
 // -- Helpers ------------------------------------------------------------------
 

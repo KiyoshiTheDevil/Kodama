@@ -16,7 +16,7 @@ import {
   IconLink,
   IconPencil,
   IconRocket,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { useState } from "react";
 
 // -- Types --------------------------------------------------------------------

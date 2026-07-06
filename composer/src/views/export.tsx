@@ -18,7 +18,7 @@ import {
   IconRefresh,
   IconTrash,
   IconUpload,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { Highlight, themes } from "prism-react-renderer";
 import { useCallback, useMemo, useRef, useState } from "react";
 

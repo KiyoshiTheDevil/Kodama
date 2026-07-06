@@ -139,6 +139,7 @@ export const MoonStars          = fa("moon-stars", true);
 // ── Status ───────────────────────────────────────────────────────────────────
 export const WifiHigh           = fa("wifi");
 export const WifiX              = fa("wifi-slash");
+export const DeviceMobile       = fa("mobile-screen-button");
 export const Bug                = fa("bug");
 export const PersonArmsSpread   = fa("universal-access");
 export const Bell               = fa("bell");

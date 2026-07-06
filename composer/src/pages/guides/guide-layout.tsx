@@ -3,7 +3,7 @@ import { BetterLyricsPromo } from "@/pages/landing/sections/better-lyrics-promo"
 import { PageHead } from "@/seo/page-head";
 import { articleSchema, breadcrumbListSchema, organizationSchema } from "@/seo/schemas";
 import { Button } from "@/ui/button";
-import { IconArrowRight, IconChevronLeft } from "@tabler/icons-react";
+import { IconArrowRight, IconChevronLeft } from "@/ui/icons/fa";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 

@@ -1,7 +1,7 @@
 import { useProjectStore } from "@/stores/project";
 import { findRepeatingStandaloneSections, type RepeatingSection } from "@/views/timeline/repeating-sections";
 import { SuggestionsBanner } from "@/views/timeline/suggestions-banner";
-import { IconBulb, IconLink } from "@tabler/icons-react";
+import { IconBulb, IconLink } from "@/ui/icons/fa";
 import { useMemo } from "react";
 
 const INLINE_LINE_MAX = 32;

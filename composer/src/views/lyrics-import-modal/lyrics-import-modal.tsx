@@ -1,4 +1,4 @@
-import { IconFileImport, IconUpload } from "@tabler/icons-react";
+import { IconFileImport, IconUpload } from "@/ui/icons/fa";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAudioStore } from "@/stores/audio";

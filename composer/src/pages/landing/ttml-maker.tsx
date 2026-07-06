@@ -6,7 +6,7 @@ import { Hero } from "@/pages/landing/sections/hero";
 import { HowItWorks } from "@/pages/landing/sections/how-it-works";
 import { PageHead } from "@/seo/page-head";
 import { breadcrumbListSchema, faqPageSchema, organizationSchema, softwareApplicationSchema } from "@/seo/schemas";
-import { IconFileExport, IconHandStop, IconKeyboard, IconUsers, IconWaveSine, IconWindmill } from "@tabler/icons-react";
+import { IconFileExport, IconHandStop, IconKeyboard, IconUsers, IconWaveSine, IconWindmill } from "@/ui/icons/fa";
 
 const FAQS = [
   {

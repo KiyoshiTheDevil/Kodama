@@ -39,7 +39,7 @@ import { mainBounds } from "@/domain/line/bounds";
 import { getEffectiveLines } from "@/domain/line/effective-words";
 import { computeRowLayout, distributeLinesTiming } from "@/views/timeline/utils";
 import { GROUP_HEADER_HEIGHT } from "@/views/timeline/group-header-row";
-import { IconMusic } from "@tabler/icons-react";
+import { IconMusic } from "@/ui/icons/fa";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 import "overlayscrollbars/overlayscrollbars.css";

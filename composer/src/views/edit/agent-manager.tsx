@@ -3,7 +3,7 @@ import { AGENT_PRESETS, getAgentColor } from "@/domain/agent/colors";
 import type { Agent, AgentType } from "@/domain/agent/model";
 import { Button } from "@/ui/button";
 import { Popover } from "@/ui/popover";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconPlus, IconTrash } from "@/ui/icons/fa";
 import { useCallback, useState } from "react";
 
 // -- Helpers ------------------------------------------------------------------

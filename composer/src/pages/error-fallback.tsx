@@ -11,7 +11,7 @@ import {
   IconGhost2,
   IconHome2,
   IconRefresh,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { useMemo, useState } from "react";
 import { isRouteErrorResponse, useRouteError } from "react-router-dom";
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconCheck, IconCopy, IconExternalLink, IconRefresh } from "@tabler/icons-react";
+import { IconCheck, IconCopy, IconExternalLink, IconRefresh } from "@/ui/icons/fa";
 import { Button } from "@/ui/button";
 import { Scroll } from "@/ui/scroll";
 

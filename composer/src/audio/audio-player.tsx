@@ -12,7 +12,7 @@ import {
   IconVolume,
   IconVolume2,
   IconVolume3,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { useCallback } from "react";
 
 // -- Components ---------------------------------------------------------------

@@ -1,5 +1,5 @@
 import type { LyricsSearchResult, ProviderName } from "@/domain/lyrics-search/result";
-import { IconMusicExclamation, IconSearch } from "@tabler/icons-react";
+import { IconMusicExclamation, IconSearch } from "@/ui/icons/fa";
 import { ResultRow } from "@/views/lyrics-import-modal/result-row";
 import type { LyricsSearchError } from "@/utils/lyrics-search/types";
 

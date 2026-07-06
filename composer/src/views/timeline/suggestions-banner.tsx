@@ -1,8 +1,8 @@
 import { Button } from "@/ui/button";
 import { Modal } from "@/ui/modal";
 import { Scroll } from "@/ui/scroll";
-import type { Icon } from "@tabler/icons-react";
-import { IconX } from "@tabler/icons-react";
+import type { Icon } from "@/ui/icons/fa";
+import { IconX } from "@/ui/icons/fa";
 import { useMemo, useState } from "react";
 
 // -- Interfaces ----------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useDualClickImport } from "@/hooks/useDualClickImport";
 import { Button } from "@/ui/button";
-import { IconFileImport, IconFileMusic } from "@tabler/icons-react";
+import { IconFileImport, IconFileMusic } from "@/ui/icons/fa";
 
 // -- Types --------------------------------------------------------------------
 

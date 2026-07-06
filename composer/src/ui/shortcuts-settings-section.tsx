@@ -3,7 +3,7 @@ import { getEffectiveKeysArray, useShortcutBindingsStore } from "@/stores/shortc
 import { type ShortcutScope, getShortcutsByScope } from "@/stores/shortcut-registry";
 import { Button } from "@/ui/button";
 import { ShortcutRebindRow } from "@/ui/shortcut-rebind-row";
-import { IconRefresh, IconSearch, IconX } from "@tabler/icons-react";
+import { IconRefresh, IconSearch, IconX } from "@/ui/icons/fa";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // -- Constants ----------------------------------------------------------------

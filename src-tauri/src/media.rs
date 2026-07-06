@@ -12,6 +12,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 thread_local! {
     static CONTROLS: RefCell<Option<MediaControls>> = const { RefCell::new(None) };
+    // Signature of the metadata last pushed to the OS. The frontend refreshes every ~15s to
+    // keep the elapsed time accurate, but on Windows `set_metadata` re-uploads the cover to
+    // SMTC (WinRT/COM work on the UI thread) and janks a frame. We skip it when the metadata
+    // is unchanged and only update playback state/position — which is cheap.
+    static LAST_META: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 /// Create the OS media controls and forward button presses to the frontend as a
@@ -72,13 +77,27 @@ pub fn init(app: &AppHandle) {
 fn apply(title: String, artist: String, album: String, cover: String, duration: f64, playing: bool, elapsed: f64) {
     CONTROLS.with(|cell| {
         if let Some(controls) = cell.borrow_mut().as_mut() {
-            let _ = controls.set_metadata(MediaMetadata {
-                title: Some(&title),
-                artist: Some(&artist),
-                album: if album.is_empty() { None } else { Some(&album) },
-                cover_url: if cover.is_empty() { None } else { Some(&cover) },
-                duration: if duration > 0.0 { Some(Duration::from_secs_f64(duration)) } else { None },
+            // Only re-push metadata (incl. the cover, the expensive part) when it actually
+            // changed — the periodic elapsed-time refresh otherwise janks a frame every 15s.
+            let sig = format!("{title}\u{1}{artist}\u{1}{album}\u{1}{cover}\u{1}{duration}");
+            let changed = LAST_META.with(|m| {
+                let mut m = m.borrow_mut();
+                if m.as_deref() == Some(sig.as_str()) {
+                    false
+                } else {
+                    *m = Some(sig);
+                    true
+                }
             });
+            if changed {
+                let _ = controls.set_metadata(MediaMetadata {
+                    title: Some(&title),
+                    artist: Some(&artist),
+                    album: if album.is_empty() { None } else { Some(&album) },
+                    cover_url: if cover.is_empty() { None } else { Some(&cover) },
+                    duration: if duration > 0.0 { Some(Duration::from_secs_f64(duration)) } else { None },
+                });
+            }
             let progress = Some(MediaPosition(Duration::from_secs_f64(elapsed.max(0.0))));
             let _ = controls.set_playback(if playing {
                 MediaPlayback::Playing { progress }
@@ -90,6 +109,7 @@ fn apply(title: String, artist: String, album: String, cover: String, duration: 
 }
 
 fn clear() {
+    LAST_META.with(|m| *m.borrow_mut() = None);
     CONTROLS.with(|cell| {
         if let Some(controls) = cell.borrow_mut().as_mut() {
             let _ = controls.set_playback(MediaPlayback::Stopped);

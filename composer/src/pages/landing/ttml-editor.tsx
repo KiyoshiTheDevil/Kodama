@@ -13,7 +13,7 @@ import {
   IconHistory,
   IconLiveView,
   IconWaveSine,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 
 const FAQS = [
   {

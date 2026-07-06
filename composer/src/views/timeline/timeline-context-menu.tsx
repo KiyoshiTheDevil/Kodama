@@ -10,7 +10,7 @@ import { useInstanceMenuActions } from "@/views/timeline/use-instance-menu-actio
 import { useLineMenuActions } from "@/views/timeline/use-line-menu-actions";
 import { useTimelineStore } from "@/views/timeline/timeline-store";
 import { useWordMenuActions } from "@/views/timeline/use-word-menu-actions";
-import { IconCommand } from "@tabler/icons-react";
+import { IconCommand } from "@/ui/icons/fa";
 import { flip, FloatingPortal, shift, useFloating } from "@floating-ui/react";
 import { useEffect, useLayoutEffect } from "react";
 

@@ -13,7 +13,7 @@ import {
   IconWaveSine,
   IconWindmill,
   IconWriting,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 
 const FAQS = [
   {

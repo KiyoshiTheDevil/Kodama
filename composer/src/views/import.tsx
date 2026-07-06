@@ -6,7 +6,8 @@ import { useProjectStore } from "@/stores/project";
 import { useSettingsStore } from "@/stores/settings";
 import { Button } from "@/ui/button";
 import { Modal } from "@/ui/modal";
-import { IconBrandYoutube, IconClock, IconFile, IconLoader2, IconMusic, IconX } from "@tabler/icons-react";
+import { Checkbox } from "@heroui/react";
+import { IconBrandYoutube, IconClock, IconFile, IconLoader2, IconMusic, IconX } from "@/ui/icons/fa";
 import { useCallback, useEffect, useState } from "react";
 
 // -- Helpers ------------------------------------------------------------------
@@ -134,15 +135,13 @@ const RemoveTrackModal: React.FC<{
           This unloads the current audio so you can import a different track. Your lyrics are
           kept unless you choose to clear them.
         </p>
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={clearLyrics}
-            onChange={(e) => setClearLyrics(e.target.checked)}
-            className="size-4 accent-[var(--color-composer-accent)]"
-          />
-          <span className="text-sm text-composer-text">Also clear the lyrics</span>
-        </label>
+        <Checkbox
+          isSelected={clearLyrics}
+          onChange={setClearLyrics}
+          className="text-sm text-composer-text"
+        >
+          Also clear the lyrics
+        </Checkbox>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" size="sm" onClick={onClose}>
             Cancel
@@ -151,7 +150,7 @@ const RemoveTrackModal: React.FC<{
             variant="primary"
             size="sm"
             onClick={() => onConfirm(clearLyrics)}
-            className="bg-[#c0392b] hover:bg-[#e24b4a]"
+            className="bg-[#c0392b]! hover:bg-[#e24b4a]! text-white!"
           >
             Remove
           </Button>
@@ -202,7 +201,7 @@ const ImportPanel: React.FC = () => {
 
     return (
       <div data-tour="import-dropzone" className="flex flex-col-reverse flex-1 size-full">
-        <div className="flex border-t border-composer-border">
+        <div className="flex m-4 rounded-xl bg-composer-bg-elevated/50 overflow-hidden">
           <div
             className="shrink-0 flex items-center justify-center bg-composer-accent/10"
             style={{ width: GUTTER_WIDTH, height: ROW_HEIGHT }}
@@ -241,7 +240,7 @@ const ImportPanel: React.FC = () => {
 
     return (
       <div data-tour="import-dropzone" className="flex flex-col-reverse flex-1 size-full">
-        <div className="flex border-t border-composer-border">
+        <div className="flex m-4 rounded-xl bg-composer-bg-elevated/50 overflow-hidden">
           <div
             className="shrink-0 flex items-center justify-center bg-composer-accent/10 overflow-hidden"
             style={{ width: GUTTER_WIDTH, height: ROW_HEIGHT }}

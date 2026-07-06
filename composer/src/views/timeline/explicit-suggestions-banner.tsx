@@ -2,7 +2,7 @@ import { useProjectStore } from "@/stores/project";
 import { type ExplicitSuggestion, findExplicitWords } from "@/utils/explicit-detection";
 import { getExplicitSnippet } from "@/utils/explicit-snippet";
 import { SuggestionsBanner } from "@/views/timeline/suggestions-banner";
-import { IconAlertTriangle, IconLink } from "@tabler/icons-react";
+import { IconAlertTriangle, IconLink } from "@/ui/icons/fa";
 import { useMemo } from "react";
 
 const INLINE_WORD_MAX = 32;

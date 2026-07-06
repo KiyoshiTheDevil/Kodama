@@ -1,6 +1,6 @@
 import { Button } from "@/ui/button";
 import { slideUpVariants, springSnappy } from "@/utils/animationVariants";
-import { IconCheck } from "@tabler/icons-react";
+import { IconCheck } from "@/ui/icons/fa";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 
 // -- Types --------------------------------------------------------------------

@@ -7,7 +7,7 @@ import { generateTTML } from "@/utils/ttml";
 import { AmLyricsRenderer } from "@/views/preview/am-lyrics-renderer";
 import { BraccatoRenderer } from "@/views/preview/braccato-renderer";
 import { effectiveBounds } from "@/domain/line/bounds";
-import { IconPlayerPauseFilled, IconPlayerPlayFilled } from "@tabler/icons-react";
+import { IconPlayerPauseFilled, IconPlayerPlayFilled } from "@/ui/icons/fa";
 import { useMemo } from "react";
 
 // -- Components ---------------------------------------------------------------

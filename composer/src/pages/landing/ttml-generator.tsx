@@ -6,7 +6,7 @@ import { Hero } from "@/pages/landing/sections/hero";
 import { HowItWorks } from "@/pages/landing/sections/how-it-works";
 import { PageHead } from "@/seo/page-head";
 import { breadcrumbListSchema, faqPageSchema, organizationSchema, softwareApplicationSchema } from "@/seo/schemas";
-import { IconBolt, IconDownload, IconFileCheck, IconHandStop, IconLanguage, IconMusic } from "@tabler/icons-react";
+import { IconBolt, IconDownload, IconFileCheck, IconHandStop, IconLanguage, IconMusic } from "@/ui/icons/fa";
 
 const FAQS = [
   {

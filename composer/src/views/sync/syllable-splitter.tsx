@@ -3,7 +3,7 @@ import { Button } from "@/ui/button";
 import { Popover } from "@/ui/popover";
 import { SplitModeContent } from "@/views/sync/split-mode-content";
 import { useSyllableSplitterState } from "@/views/sync/use-syllable-splitter-state";
-import { IconScissors } from "@tabler/icons-react";
+import { IconScissors } from "@/ui/icons/fa";
 
 // -- Interfaces ---------------------------------------------------------------
 

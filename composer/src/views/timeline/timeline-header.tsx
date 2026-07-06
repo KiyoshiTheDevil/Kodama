@@ -22,7 +22,7 @@ import {
   IconMinus,
   IconPlus,
   IconTextPlus,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { useCallback, useEffect, useMemo } from "react";
 
 // -- Types --------------------------------------------------------------------

@@ -8,7 +8,7 @@ import { useTimelineStore } from "@/views/timeline/timeline-store";
 import { isLineSynced } from "@/domain/line/predicates";
 import { getEffectiveLines } from "@/domain/line/effective-words";
 import { formatTime } from "@/views/timeline/utils";
-import { IconBracketsContainEnd, IconBracketsContainStart, IconLink } from "@tabler/icons-react";
+import { IconBracketsContainEnd, IconBracketsContainStart, IconLink } from "@/ui/icons/fa";
 import { useCallback, useMemo, useState } from "react";
 
 // -- Components ----------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { IconArrowLeft, IconUpload } from "@tabler/icons-react";
+import { IconArrowLeft, IconUpload } from "@/ui/icons/fa";
 import { Button } from "@/ui/button";
 import { cn } from "@/utils/cn";
 

@@ -2,7 +2,7 @@ import type { WordTiming } from "@/domain/word/timing";
 import { Tooltip } from "@/ui/tooltip";
 import { SyllableSplitter } from "@/views/sync/syllable-splitter";
 import { TimeNudgeInput } from "@/views/sync/time-nudge-input";
-import { IconAlertTriangle, IconArrowRight } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowRight } from "@/ui/icons/fa";
 
 // -- Types --------------------------------------------------------------------
 

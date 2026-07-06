@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn";
 import { registerBanner } from "@/views/timeline/banner-progress-registry";
 import { useTimelineStore } from "@/views/timeline/timeline-store";
 import { getWordsInInstance } from "@/views/timeline/utils";
-import { IconChevronDown, IconLink } from "@tabler/icons-react";
+import { IconChevronDown, IconLink } from "@/ui/icons/fa";
 import { m } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 

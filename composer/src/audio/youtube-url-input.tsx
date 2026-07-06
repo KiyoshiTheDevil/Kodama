@@ -1,8 +1,9 @@
-import { IconBrandYoutube, IconLoader2 } from "@tabler/icons-react";
+import { IconBrandYoutube, IconLoader2 } from "@/ui/icons/fa";
 import { useCallback, useState } from "react";
 import { useLoadYouTubeSource } from "@/hooks/useLoadYouTubeSource";
 import { useAudioStore } from "@/stores/audio";
 import { Button } from "@/ui/button";
+import { TextFieldRoot, InputRoot } from "@heroui/react";
 import { extractVideoId } from "@/utils/youtube-url";
 
 // -- Component ----------------------------------------------------------------
@@ -50,23 +51,25 @@ const YouTubeUrlInput: React.FC<YouTubeUrlInputProps> = ({
   return (
     <div className={`flex flex-col gap-1.5 w-full max-w-md ${className ?? ""}`}>
       <div className="flex gap-2">
-        <input
-          type="text"
+        <TextFieldRoot
           aria-label="YouTube URL or video ID"
           value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
+          onChange={(v) => {
+            setValue(v);
             if (error) setError(null);
             if (youtubeLoadError) useAudioStore.getState().setYouTubeLoadError(null);
           }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={isLoading}
-          spellCheck={false}
-          autoCapitalize="off"
-          autoComplete="off"
-          className="flex-1 h-8 px-3 text-sm rounded-md bg-composer-input border border-composer-border focus:outline-none focus:border-composer-accent cursor-text disabled:opacity-50 select-text"
-        />
+          isDisabled={isLoading}
+          className="flex-1"
+        >
+          <InputRoot
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoComplete="off"
+          />
+        </TextFieldRoot>
         <Button variant="primary" hasIcon onClick={handleSubmit} disabled={isLoading || trimmed.length === 0}>
           {isLoading ? <IconLoader2 size={16} className="animate-spin" /> : <IconBrandYoutube size={16} />}
           {isLoading ? "Loading" : "Load"}

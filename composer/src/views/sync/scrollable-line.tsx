@@ -6,7 +6,7 @@ import { stripSplitCharacter } from "@/utils/split-character";
 import { splitIntoWords } from "@/utils/sync-helpers";
 import { TimeNudgeInput } from "@/views/sync/time-nudge-input";
 import { WordRenderer, type WordHandlers } from "@/views/sync/word-renderer";
-import { IconLink } from "@tabler/icons-react";
+import { IconLink } from "@/ui/icons/fa";
 import { memo, useEffect, useMemo, useRef } from "react";
 
 // -- Interfaces ---------------------------------------------------------------

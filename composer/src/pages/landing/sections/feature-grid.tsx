@@ -1,8 +1,7 @@
-import type { IconProps } from "@tabler/icons-react";
-import type { ComponentType } from "react";
+import type { Icon } from "@/ui/icons/fa";
 
 interface FeatureCard {
-  icon: ComponentType<IconProps>;
+  icon: Icon;
   title: string;
   description: string;
 }

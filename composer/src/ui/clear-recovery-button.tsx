@@ -1,6 +1,6 @@
 import { clearRecoveryStorage } from "@/lib/recovery";
 import { Button } from "@/ui/button";
-import { IconTrash } from "@tabler/icons-react";
+import { IconTrash } from "@/ui/icons/fa";
 import { useState } from "react";
 
 // -- Constants ----------------------------------------------------------------

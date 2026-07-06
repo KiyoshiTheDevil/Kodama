@@ -14,7 +14,7 @@ import {
   IconMicrophone,
   IconUpload,
   IconUser,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 
 // -- Types --------------------------------------------------------------------
 

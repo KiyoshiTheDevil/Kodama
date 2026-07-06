@@ -5,7 +5,7 @@ import { useAudioStore } from "@/stores/audio";
 import { Button } from "@/ui/button";
 import { Popover } from "@/ui/popover";
 import { cn } from "@/utils/cn";
-import { IconCheck, type IconProps, IconLoader2, IconMicrophone, IconMusic, IconWaveSine } from "@tabler/icons-react";
+import { IconCheck, type IconProps, IconLoader2, IconMicrophone, IconMusic, IconWaveSine } from "@/ui/icons/fa";
 import { type ComponentType, useEffect } from "react";
 import type { Stem } from "@/audio/separation/types";
 

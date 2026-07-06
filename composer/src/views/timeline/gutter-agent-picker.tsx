@@ -2,7 +2,7 @@ import { useProjectStore } from "@/stores/project";
 import { getAgentColor } from "@/domain/agent/colors";
 import { Popover } from "@/ui/popover";
 import { useTimelineStore } from "@/views/timeline/timeline-store";
-import { IconPlus } from "@tabler/icons-react";
+import { IconPlus } from "@/ui/icons/fa";
 import { useCallback, useState } from "react";
 
 // -- Types --------------------------------------------------------------------

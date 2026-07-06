@@ -1,4 +1,4 @@
-import { IconArrowLeft, IconClipboardText, IconMusic } from "@tabler/icons-react";
+import { IconArrowLeft, IconClipboardText, IconMusic } from "@/ui/icons/fa";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/ui/button";

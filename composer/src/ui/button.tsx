@@ -1,3 +1,4 @@
+import { Button as HeroButton } from "@heroui/react";
 import { cn } from "@/utils/cn";
 
 // -- Types --------------------------------------------------------------------
@@ -12,51 +13,38 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: React.Ref<HTMLButtonElement>;
 }
 
-// -- Styles -------------------------------------------------------------------
-
-const BASE_STYLES =
-  "inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
-
-const VARIANT_STYLES: Record<ButtonVariant, string> = {
-  primary: "bg-composer-accent-dark hover:bg-composer-accent text-white",
-  secondary: "bg-composer-button hover:bg-composer-button-hover text-composer-text",
-  ghost: "text-composer-text-muted hover:text-composer-text hover:bg-composer-button",
-};
-
-const SIZE_STYLES: Record<ButtonSize, string> = {
-  sm: "h-7 px-2.5 text-xs",
-  md: "h-8 px-3 text-sm",
-  icon: "size-8 p-0",
-};
-
-const SIZE_STYLES_WITH_ICON: Record<ButtonSize, string> = {
-  sm: "h-7 pl-2 pr-3 text-xs",
-  md: "h-8 pl-2.5 pr-3.5 text-sm",
-  icon: "size-8 p-0",
-};
+const HERO_SIZE: Record<ButtonSize, "sm" | "md"> = { sm: "sm", md: "md", icon: "sm" };
 
 // -- Component ----------------------------------------------------------------
 
+// Thin wrapper around HeroUI's Button that preserves this project's original API
+// ({ variant, size, hasIcon, onClick, disabled, … }) so every call site works
+// unchanged. HeroUI follows the composer's theme bridge, so the look matches Kodama.
+// `onClick` is forwarded natively (react-aria-components ≥1.5 fires a real click event);
+// `disabled` maps to HeroUI's `isDisabled`.
 const Button: React.FC<ButtonProps> = ({
   variant = "secondary",
   size = "md",
-  hasIcon = false,
+  hasIcon: _hasIcon,
   className,
   children,
   ref,
+  disabled,
   ...props
 }) => {
-  const sizeStyles = hasIcon ? SIZE_STYLES_WITH_ICON[size] : SIZE_STYLES[size];
-
+  void _hasIcon;
   return (
-    <button
+    <HeroButton
       ref={ref}
-      type="button"
-      className={cn(BASE_STYLES, VARIANT_STYLES[variant], sizeStyles, className)}
-      {...props}
+      variant={variant}
+      size={HERO_SIZE[size]}
+      isIconOnly={size === "icon"}
+      isDisabled={disabled}
+      className={cn(className)}
+      {...(props as React.ComponentProps<typeof HeroButton>)}
     >
       {children}
-    </button>
+    </HeroButton>
   );
 };
 

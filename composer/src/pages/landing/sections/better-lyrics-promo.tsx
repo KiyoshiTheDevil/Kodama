@@ -1,5 +1,5 @@
 import { BetterLyricsLogo } from "@/ui/icons/better-lyrics-logo";
-import { IconArrowUpRight } from "@tabler/icons-react";
+import { IconArrowUpRight } from "@/ui/icons/fa";
 
 const BETTER_LYRICS_URL = "https://better-lyrics.boidu.dev";
 

@@ -1,6 +1,6 @@
 import { getEffectiveKeysArray } from "@/stores/shortcut-bindings";
 import { isMac } from "@/utils/platform";
-import { IconCommand } from "@tabler/icons-react";
+import { IconCommand } from "@/ui/icons/fa";
 
 // -- Types --------------------------------------------------------------------
 

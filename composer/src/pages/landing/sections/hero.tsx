@@ -1,5 +1,5 @@
 import { Button } from "@/ui/button";
-import { IconArrowRight } from "@tabler/icons-react";
+import { IconArrowRight } from "@/ui/icons/fa";
 import { Link } from "react-router-dom";
 
 interface HeroProps {

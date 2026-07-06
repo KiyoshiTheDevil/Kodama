@@ -5381,6 +5381,347 @@ def overlay_status():
     return jsonify({"running": _ov_server_obj is not None, "clients": len(_ov_clients)})
 
 
+# ─── Remote Control (LAN) ──────────────────────────────────────────────────────
+# A phone on the same network controls playback. The main server already listens on
+# 0.0.0.0, so phone-facing routes live here — gated by a session token AND per-device
+# desktop approval. Desktop-only control routes (_enable/_status/_device/_push/_poll)
+# are restricted to localhost. State bridges in-process: the app frontend pushes the
+# now-playing state and drains the command queue; the phone reads state + enqueues cmds.
+import secrets as _secrets
+
+_remote_enabled = False
+_remote_token = None
+_remote_state = {
+    "title": "", "artists": "", "thumbnail": "",
+    "isPlaying": False, "position": 0, "duration": 0, "hasTrack": False,
+    "shuffle": False, "repeat": "none",
+}
+_remote_cmds = []                 # pending command strings, drained by the app frontend
+_remote_devices = {}              # deviceId -> {name, status: pending|approved, last_seen}
+
+_REMOTE_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d0d0d">
+<title>Kodama Remote</title>
+<style>
+  :root { --accent:#e040fb; --bg:#0d0d0d; --t1:#f5f5f5; --t2:#b4b4b4; --t3:#7a7a7a; color-scheme:dark; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; min-height:100vh; font-family:-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--t1);
+    background:radial-gradient(90% 60% at 50% -5%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%), var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; }
+  .msg { text-align:center; color:var(--t2); max-width:300px; }
+  .msg .big { font-size:18px; font-weight:600; color:var(--t1); margin-bottom:8px; }
+  .spin { width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color:var(--accent); margin:0 auto 18px; animation:sp 1s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .player { width:100%; max-width:340px; text-align:center; display:none; }
+  .cover { width:min(72vw,280px); aspect-ratio:1; border-radius:18px; object-fit:cover; margin:0 auto 22px;
+    background:linear-gradient(150deg,#ff5ea8,#9b3cff 60%,#3a2bd8); box-shadow:0 20px 50px rgba(0,0,0,.5); display:block; }
+  .ti { font-size:19px; font-weight:600; line-height:1.25; }
+  .ar { font-size:14px; color:var(--t2); margin-top:3px; }
+  .bar { height:5px; border-radius:3px; background:rgba(255,255,255,.13); overflow:hidden; margin:22px 0 6px; }
+  .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .25s linear; }
+  .times { display:flex; justify-content:space-between; font-size:11px; color:var(--t3); }
+  .ctrls { display:flex; align-items:center; justify-content:center; gap:20px; margin-top:26px; }
+  .ctrls button { background:none; border:none; color:var(--t1); padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .ctrls svg { width:26px; height:26px; fill:currentColor; }
+  .ctrls .sr { color:var(--t3); }
+  .ctrls .sr.on { color:var(--accent); }
+  .ctrls .sr svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .play { width:92px; height:58px; border-radius:30px; background:var(--accent); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 26px color-mix(in srgb, var(--accent) 42%, transparent); }
+  .play svg { width:26px; height:26px; fill:#fff; }
+  .brand { position:fixed; top:16px; left:0; right:0; display:flex; align-items:center; justify-content:center; gap:9px; }
+  .brand svg { height:22px; width:auto; }
+  .brand .rt { font-weight:600; font-size:15px; color:var(--t2); letter-spacing:.02em; }
+  .nameline { margin-top:16px; font-size:12px; color:var(--t3); }
+  .nameline b { color:var(--t2); font-weight:600; }
+  .nameline a { color:var(--accent); text-decoration:none; margin-left:7px; cursor:pointer; }
+</style></head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 210 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Kodama">
+      <path d="M23.7715 36.0721C24.998 37.8626 23.7213 40.3 21.557 40.3C20.6614 40.3 19.8245 39.8521 19.3253 39.1056L9.72173 24.743C9.5629 24.5055 9.22578 24.4768 9.02947 24.6842C6.51278 27.3426 5.10944 30.8702 5.10944 34.5378V38.1187C5.10944 39.3234 4.13674 40.3 2.93685 40.3H2.55472C1.14379 40.3 0 39.1516 0 37.735V9.565C0 8.14839 1.14379 7 2.55472 7C3.96565 7 5.10944 8.14839 5.10944 9.565V19.7887C5.10944 20.6989 6.22195 21.1358 6.83705 20.4673L18.5334 7.75452C18.976 7.27353 19.5985 7 20.2507 7C22.3026 7 23.3591 9.46426 21.9488 10.9606L15.2576 18.0598C13.9658 19.4305 13.8038 21.5211 14.8688 23.0759L23.7715 36.0721ZM92.9752 40.3H89.3348C84.9342 40.3 81.3669 36.7183 81.3669 32.3V15C81.3669 10.5817 84.9342 7 89.3348 7H93.7371C103.821 7 109.334 13.66 109.334 23.65C109.334 33.64 103.552 40.3 92.9752 40.3ZM86.4763 31.44C86.4763 33.6491 88.2601 35.44 90.4603 35.44H92.9752C100.236 35.44 104.045 31.075 104.045 23.65C104.045 16.27 100.415 11.86 93.3337 11.86H90.4603C88.2601 11.86 86.4763 13.6509 86.4763 15.86V31.44ZM139.061 36.8396C139.684 38.5153 138.45 40.3 136.669 40.3C135.594 40.3 134.635 39.625 134.269 38.6112L132.061 32.5082C131.559 31.122 130.353 30.1142 128.904 29.8703C126.525 29.4695 124.096 29.4695 121.716 29.8703C120.267 30.1142 119.062 31.122 118.56 32.5082L116.353 38.6112C115.985 39.625 115.026 40.3 113.951 40.3C112.171 40.3 110.937 38.5153 111.559 36.8396L121.711 9.50869C122.272 8.00021 123.707 7 125.311 7C126.914 7 128.349 8.00021 128.909 9.50869L139.061 36.8396ZM126.225 16.6577C125.901 15.792 124.68 15.7942 124.36 16.661L121.346 24.7962C121.263 25.018 121.491 25.2276 121.704 25.126C123.985 24.0377 126.633 24.0367 128.914 25.1249C129.127 25.2266 129.355 25.0161 129.273 24.7944L126.225 16.6577ZM149.108 37.78C149.108 39.1718 147.985 40.3 146.598 40.3C145.212 40.3 144.088 39.1718 144.088 37.78V10.159C144.088 8.41434 145.497 7 147.235 7C148.317 7 149.323 7.55839 149.899 8.4784L155.647 17.6635C157.992 21.4112 163.433 21.4065 165.772 17.6547L171.482 8.49553C172.062 7.56509 173.079 7 174.171 7C175.924 7 177.344 8.42628 177.344 10.1857V37.7575C177.344 39.1617 176.211 40.3 174.813 40.3C173.413 40.3 172.28 39.1617 172.28 37.7575V19.682C172.28 18.7203 171.06 18.3129 170.486 19.0831L167.076 23.6619C163.896 27.9318 157.523 27.9422 154.329 23.6827L150.9 19.1093C150.325 18.3423 149.108 18.7507 149.108 19.7107V37.78ZM209.837 36.8396C210.459 38.5153 209.225 40.3 207.444 40.3C206.37 40.3 205.41 39.625 205.044 38.6112L202.836 32.5082C202.334 31.122 201.129 30.1142 199.68 29.8703C197.3 29.4695 194.871 29.4695 192.491 29.8703C191.042 30.1142 189.837 31.122 189.335 32.5082L187.128 38.6112C186.761 39.625 185.801 40.3 184.727 40.3C182.946 40.3 181.712 38.5153 182.334 36.8396L192.486 9.50869C193.047 8.00021 194.482 7 196.086 7C197.69 7 199.124 8.00021 199.685 9.50869L209.837 36.8396ZM197 16.6577C196.677 15.792 195.456 15.7942 195.135 16.661L192.121 24.7962C192.038 25.018 192.266 25.2276 192.479 25.126C194.76 24.0377 197.409 24.0367 199.689 25.1249C199.903 25.2266 200.131 25.0161 200.048 24.7944L197 16.6577Z" fill="white"/>
+      <path d="M53.7854 1.08728C66.388 1.08752 76.6039 11.3469 76.6039 24.0004C76.603 37.4721 65.0822 48.036 51.7195 46.8168L46.8465 46.3716C44.7842 46.1832 42.7057 46.2948 40.675 46.7025C35.0252 47.8371 30.0422 42.8361 31.1713 37.1634C31.5775 35.1243 31.6886 33.0351 31.501 30.9642L31.0604 26.0746C29.8456 12.6573 40.3668 1.08728 53.7854 1.08728ZM53.6949 7.08729C43.6016 7.08729 35.7467 15.8971 36.8613 25.9691L37.2727 29.6781C37.5942 32.5833 37.283 35.5242 36.3623 38.2971C35.7077 40.2708 37.58 42.1485 39.5458 41.4906C42.307 40.5666 45.2349 40.254 48.1274 40.5765L51.8246 40.9896C61.8555 42.108 70.6276 34.2246 70.6279 24.0912C70.6279 14.7011 63.0471 7.08801 53.6949 7.08729Z" fill="white"/>
+      <path d="M52.6986 19.0876C52.6986 17.4308 51.3608 16.0876 49.7106 16.0876C48.0604 16.0876 46.7227 17.4308 46.7227 19.0876V25.0876C46.7227 26.7445 48.0604 28.0876 49.7106 28.0876C51.3608 28.0876 52.6986 26.7445 52.6986 25.0876V19.0876Z" fill="white"/>
+      <path d="M61.6635 19.0876C61.6635 17.4308 60.3256 16.0876 58.6755 16.0876C57.0252 16.0876 55.6875 17.4308 55.6875 19.0876V25.0876C55.6875 26.7445 57.0252 28.0876 58.6755 28.0876C60.3256 28.0876 61.6635 26.7445 61.6635 25.0876V19.0876Z" fill="white"/>
+    </svg>
+    <span class="rt">Remote</span>
+  </div>
+  <div class="msg" id="msg"><div class="spin"></div><div id="msgtext">Connecting…</div><div class="nameline" id="nameline"></div></div>
+  <div class="player" id="player">
+    <img class="cover" id="cover" alt="">
+    <div class="ti" id="ti">—</div>
+    <div class="ar" id="ar"></div>
+    <div class="bar"><i id="fill"></i></div>
+    <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+    <div class="ctrls">
+      <button class="sr" id="shuf" aria-label="Shuffle"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></button>
+      <button id="prev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M7 5v14h2V5zM20 5l-9 7 9 7z"/></svg></button>
+      <button class="play" id="pp" aria-label="Play/Pause"><svg id="ppi" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <button id="next" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M17 5v14h-2V5zM4 5l9 7-9 7z"/></svg></button>
+      <button class="sr" id="rep" aria-label="Repeat"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
+    </div>
+  </div>
+<script>
+  var token = location.hash.replace(/^#/, "");
+  var did = localStorage.getItem("kodama-remote-device");
+  if (!did) { did = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("d" + Date.now() + Math.random().toString(16).slice(2)); localStorage.setItem("kodama-remote-device", did); }
+  var ua = navigator.userAgent;
+  // Best-effort device label. Android UAs carry the model ("…; Pixel 7 Build/…" or "…; SM-G991B)"),
+  // but modern Chrome freezes it to a generic "K" (UA reduction) — fall back to "Android" then.
+  // iOS never exposes the model; UA-CH high-entropy hints need HTTPS (not available on the LAN),
+  // so the user can override with a manual name (persisted, sent in hello).
+  function deriveName() {
+    var custom = localStorage.getItem("kodama-remote-name");
+    if (custom) return custom;
+    var m = ua.match(/Android[\\s\\d.]*;\\s*([^;)]+?)(?:\\s+Build\\/|;|\\))/i);
+    if (m && m[1]) {
+      var model = m[1].trim().replace(/\\s+Build.*/i, "").trim();
+      if (model && !/^(k|wv|mobile)$/i.test(model)) return model.slice(0, 48);
+      return "Android";
+    }
+    if (/iphone/i.test(ua)) return "iPhone";
+    if (/ipad/i.test(ua)) return "iPad";
+    if (/macintosh|mac os x/i.test(ua)) return "Mac";
+    if (/windows/i.test(ua)) return "Windows PC";
+    if (/linux/i.test(ua)) return "Linux";
+    return "Phone";
+  }
+  var name = deriveName();
+  var msg = document.getElementById("msg"), player = document.getElementById("player"), msgtext = document.getElementById("msgtext");
+  function renderNameLine() {
+    var nl = document.getElementById("nameline");
+    if (!nl) return;
+    nl.innerHTML = 'Connecting as <b></b><a id="rn">Rename</a>';
+    nl.querySelector("b").textContent = name;
+    document.getElementById("rn").onclick = function () {
+      var v = prompt("Name this device", name);
+      if (v && v.trim()) { name = v.trim().slice(0, 48); localStorage.setItem("kodama-remote-name", name); renderNameLine(); hello(); }
+    };
+  }
+  var fmt = function (s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  function show(state) {
+    if (state) { msg.style.display = "none"; player.style.display = "block"; }
+    else { msg.style.display = "block"; player.style.display = "none"; }
+    var nl = document.getElementById("nameline");
+    if (nl) nl.style.display = (!state && token) ? "block" : "none";
+  }
+  function setMsg(t) { msgtext.textContent = t; }
+  function hello() {
+    return fetch("/remote/hello", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token, deviceId: did, name: name }) }).then(function (r) { return r.json(); }).catch(function () { return {}; });
+  }
+  function render(st) {
+    document.getElementById("ti").textContent = st.title || "Nothing playing";
+    document.getElementById("ar").textContent = st.artists || "";
+    var c = document.getElementById("cover");
+    if (st.thumbnail) { if (c.src !== st.thumbnail) c.src = st.thumbnail; }
+    document.getElementById("cur").textContent = fmt(st.position);
+    document.getElementById("dur").textContent = fmt(st.duration);
+    document.getElementById("fill").style.width = (st.duration ? Math.min(100, st.position / st.duration * 100) : 0) + "%";
+    document.getElementById("ppi").innerHTML = st.isPlaying ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+    document.getElementById("shuf").classList.toggle("on", !!st.shuffle);
+    document.getElementById("rep").classList.toggle("on", !!st.repeat && st.repeat !== "none");
+  }
+  function cmd(action) {
+    fetch("/remote/cmd", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token, deviceId: did, action: action }) }).then(function () { setTimeout(loop, 250); }).catch(function () {});
+  }
+  document.getElementById("prev").onclick = function () { cmd("prev"); };
+  document.getElementById("next").onclick = function () { cmd("next"); };
+  document.getElementById("pp").onclick = function () { cmd("playpause"); };
+  document.getElementById("shuf").onclick = function () { cmd("shuffle"); };
+  document.getElementById("rep").onclick = function () { cmd("repeat"); };
+  function loop() {
+    fetch("/remote/state?token=" + encodeURIComponent(token) + "&deviceId=" + encodeURIComponent(did))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) { show(false); setMsg("This link is no longer valid. Re-open it from the app."); return; }
+        if (d.status === "unknown") { hello(); show(false); setMsg("Waiting for approval on your desktop…"); return; }
+        if (d.status === "pending") { show(false); setMsg("Waiting for approval on your desktop…"); return; }
+        if (d.status === "approved") { show(true); render(d.state || {}); return; }
+        show(false); setMsg("Connecting…");
+      })
+      .catch(function () { show(false); setMsg("Can't reach Kodama. Same Wi-Fi?"); });
+  }
+  if (!token) { setMsg("Open this page from the Kodama app's QR code."); document.querySelector(".spin").style.display = "none"; }
+  else { renderNameLine(); hello().then(loop); setInterval(loop, 1500); }
+</script>
+</body></html>"""
+
+def _remote_is_local():
+    ra = request.remote_addr or ""
+    return ra.startswith("127.") or ra in ("::1", "localhost")
+
+_remote_ips_cache = {"ips": None, "ts": 0.0}
+
+def _remote_local_ips():
+    # Cached: the underlying getaddrinfo(hostname) can be slow/blocking on Windows and was
+    # previously called on every _status poll (~2.5s). The LAN IP rarely changes.
+    now = time.time()
+    if _remote_ips_cache["ips"] is not None and now - _remote_ips_cache["ts"] < 30:
+        return _remote_ips_cache["ips"]
+    import socket
+    ips = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))            # no packets sent; just picks the primary iface
+        ips.append(s.getsockname()[0]); s.close()
+    except Exception:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0]
+            if ip not in ips and not ip.startswith("127."):
+                ips.append(ip)
+    except Exception:
+        pass
+    _remote_ips_cache["ips"] = ips
+    _remote_ips_cache["ts"] = now
+    return ips
+
+def _remote_token_ok(token):
+    return bool(_remote_enabled and _remote_token and token == _remote_token)
+
+# ── Desktop-only control endpoints (localhost) ──
+@app.route("/remote/_enable", methods=["POST"])
+def remote_enable():
+    global _remote_enabled, _remote_token, _remote_devices, _remote_cmds
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    enabled = bool(data.get("enabled"))
+    _remote_enabled = enabled
+    if enabled:
+        # The desktop persists the token + trusted devices across restarts (backend state is
+        # in-memory) and re-supplies them here, so old QR codes and remembered phones keep
+        # working after a restart. A supplied token is reused; otherwise a fresh one is minted.
+        supplied = (data.get("token") or "").strip()
+        if supplied:
+            _remote_token = supplied[:64]
+        elif not _remote_token:
+            _remote_token = _secrets.token_urlsafe(12)
+        trusted = data.get("trusted")
+        if isinstance(trusted, list):
+            for tdev in trusted:
+                did = (tdev or {}).get("id")
+                if did and did not in _remote_devices:
+                    _remote_devices[did] = {"name": (tdev.get("name") or "Device")[:48],
+                                            "status": "approved", "last_seen": 0}
+    else:
+        _remote_token = None
+        _remote_devices = {}
+        _remote_cmds = []
+    return jsonify({"enabled": _remote_enabled, "token": _remote_token,
+                    "port": 9847, "ips": _remote_local_ips()})
+
+@app.route("/remote/_status")
+def remote_status():
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    now = time.time()
+    devices = [{"id": did, "name": d["name"], "status": d["status"],
+                "online": (now - d.get("last_seen", 0)) < 12}
+               for did, d in _remote_devices.items()]
+    return jsonify({"enabled": _remote_enabled, "token": _remote_token,
+                    "port": 9847, "ips": _remote_local_ips(), "devices": devices})
+
+@app.route("/remote/_device", methods=["POST"])
+def remote_device():
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    did, action = data.get("id"), data.get("action")
+    d = _remote_devices.get(did)
+    if not d:
+        return jsonify({"error": "unknown"}), 404
+    if action == "approve":
+        d["status"] = "approved"
+    elif action in ("deny", "remove"):
+        _remote_devices.pop(did, None)
+    return jsonify({"ok": True})
+
+@app.route("/remote/_push", methods=["POST"])
+def remote_push():
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    _remote_state.update({k: v for k, v in data.items() if k in _remote_state})
+    return jsonify({"ok": True})
+
+@app.route("/remote/_poll")
+def remote_poll():
+    global _remote_cmds
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    cmds, _remote_cmds = _remote_cmds, []
+    return jsonify({"commands": cmds})
+
+@app.route("/remote/_sync", methods=["POST"])
+def remote_sync():
+    """Combined push + poll in one request — the app frontend sends the current now-playing
+    state and receives any pending commands, halving the desktop's background request rate."""
+    global _remote_cmds
+    if not _remote_is_local():
+        return jsonify({"error": "forbidden"}), 403
+    st = (request.json or {}).get("state")
+    if isinstance(st, dict):
+        _remote_state.update({k: v for k, v in st.items() if k in _remote_state})
+    cmds, _remote_cmds = _remote_cmds, []
+    return jsonify({"commands": cmds})
+
+# ── Phone-facing endpoints (token + device-approval gated) ──
+@app.route("/remote/hello", methods=["POST"])
+def remote_hello():
+    data = request.json or {}
+    if not _remote_token_ok(data.get("token")):
+        return jsonify({"error": "invalid_token"}), 403
+    did = (data.get("deviceId") or "").strip()[:64]
+    name = (data.get("name") or "Device").strip()[:48] or "Device"
+    if not did:
+        return jsonify({"error": "no_device"}), 400
+    d = _remote_devices.get(did)
+    if not d:
+        _remote_devices[did] = {"name": name, "status": "pending", "last_seen": time.time()}
+    else:
+        d["last_seen"], d["name"] = time.time(), name
+    return jsonify({"status": _remote_devices[did]["status"]})
+
+@app.route("/remote/state")
+def remote_state():
+    if not _remote_token_ok(request.args.get("token")):
+        return jsonify({"error": "invalid_token"}), 403
+    d = _remote_devices.get(request.args.get("deviceId") or "")
+    if not d:
+        return jsonify({"status": "unknown"})
+    d["last_seen"] = time.time()
+    if d["status"] != "approved":
+        return jsonify({"status": d["status"]})
+    return jsonify({"status": "approved", "state": _remote_state})
+
+@app.route("/remote/cmd", methods=["POST"])
+def remote_cmd():
+    data = request.json or {}
+    if not _remote_token_ok(data.get("token")):
+        return jsonify({"error": "invalid_token"}), 403
+    d = _remote_devices.get(data.get("deviceId") or "")
+    if not d or d["status"] != "approved":
+        return jsonify({"error": "not_allowed"}), 403
+    d["last_seen"] = time.time()
+    action = data.get("action")
+    if action in ("playpause", "next", "prev", "shuffle", "repeat"):
+        _remote_cmds.append(action)
+        return jsonify({"ok": True})
+    return jsonify({"error": "bad_action"}), 400
+
+@app.route("/remote")
+def remote_page():
+    from flask import Response
+    return Response(_REMOTE_HTML, mimetype="text/html")
+
+
 # ── Local system fonts ─────────────────────────────────────────────────────────
 @app.route("/api/local-fonts")
 def api_local_fonts():

@@ -27,7 +27,7 @@ import {
   importParsedLyrics,
   type ImportParsedLyricsContext,
 } from "@/views/lyrics-import-modal/use-import-modal-actions";
-import { IconAlertTriangle, IconFileImport, IconMicrophone, IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconFileImport, IconMicrophone, IconX } from "@/ui/icons/fa";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 // -- Constants ----------------------------------------------------------------

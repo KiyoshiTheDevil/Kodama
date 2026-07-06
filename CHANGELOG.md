@@ -8,6 +8,23 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 > Changes landing after the latest release accumulate here.
 
+## [1.0.0-alpha.27] — 2026-07-06
+
+### Added
+- **Delete effect** — Removing a song from the queue, a song from a playlist, a history entry or an entire playlist now dissolves it into a little burst of particles tinted from its cover art (respects the animations setting).
+- **Remote control — device names & remembered devices** — A paired phone now shows a real device label (the Android model where the OS still exposes it, otherwise a name you can set on the phone), and you can mark a device as *remembered* so it stays paired across app restarts. Pairing was redesigned into a dialog with the QR code plus a cleaner approve / deny prompt.
+
+### Changed
+- **Composer redesign** — The bundled lyrics Composer was reworked on HeroUI with a unified header/tab bar and a custom title bar (borderless windows), and its ~90 icons migrated to Font Awesome to match the Kodama style.
+- **Internal** — The frontend's monolithic `App.jsx` was split into ~20 focused modules (no behavior change), and the in-app version is now read from the build config so it can never drift from the shipped version again.
+
+### Fixed
+- **"What's New" now loads in packaged builds** — the news feed was blocked by the app's Content Security Policy, whose allow-list had drifted out of sync between the two places it is defined.
+- **"Add to playlist → New playlist" no longer creates an empty playlist** — the selected song(s) are now actually added to the freshly created playlist (from the track menu, the player's ⋮ menu and multi-selection alike).
+- **Removed an occasional ~15 s playback stutter** — the OS media controls were re-uploading the cover art on every refresh; now only the playback position updates between track changes.
+- **Remote control no longer causes a periodic stutter** while it is enabled.
+- **History entries can be removed again**, and removing a song from a playlist updates the list smoothly instead of briefly flashing a loading placeholder.
+
 ## [1.0.0-alpha.26] — 2026-06-28
 
 ### Added

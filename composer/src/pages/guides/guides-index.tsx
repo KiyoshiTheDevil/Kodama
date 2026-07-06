@@ -2,7 +2,7 @@ import { LandingLayout } from "@/pages/landing/landing-layout";
 import { BetterLyricsPromo } from "@/pages/landing/sections/better-lyrics-promo";
 import { PageHead } from "@/seo/page-head";
 import { breadcrumbListSchema, organizationSchema } from "@/seo/schemas";
-import { IconArrowRight } from "@tabler/icons-react";
+import { IconArrowRight } from "@/ui/icons/fa";
 import { Link } from "react-router-dom";
 
 interface GuideListing {

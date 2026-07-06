@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconCheck, IconExclamationCircle, IconLoader2 } from "@tabler/icons-react";
+import { IconCheck, IconExclamationCircle, IconLoader2 } from "@/ui/icons/fa";
 import { useSettingsStore } from "@/stores/settings";
 import { useUIStore } from "@/stores/ui";
 import { hasBridgeEverBeenDetected, markBridgeDetected } from "@/utils/bridge-detection";

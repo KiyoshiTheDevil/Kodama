@@ -18,7 +18,7 @@ import {
   IconPlayerPlay,
   IconPlugConnected,
   IconSettings,
-} from "@tabler/icons-react";
+} from "@/ui/icons/fa";
 import { useEffect, useState } from "react";
 
 // -- Types --------------------------------------------------------------------

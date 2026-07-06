@@ -73,6 +73,7 @@ import {
   Radio,
   Sparkles,
   ShareNodes,
+  DeviceMobile,
   Globe,
   Lock,
   LockOpen,
@@ -100,7 +101,29 @@ import {
   PaperPlaneTilt,
 } from "./icons.jsx";
 
-const API = "http://localhost:9847";
+import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale } from "./context.jsx";
+import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
+import { NewsModal } from "./modals/news-modal.jsx";
+import { BugReportModal } from "./modals/bug-report-modal.jsx";
+import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
+import { RemotePairModal, RemoteControlPanel } from "./ui/remote-control.jsx";
+import { FadeEditorModal } from "./modals/fade-editor-modal.jsx";
+import { DEFAULT_LYRICS_PROVIDERS, PROVIDER_SYNC } from "./lyrics/providers.js";
+import { parseLrc, parseTtml, parseDurationToSeconds } from "./lyrics/parse.js";
+import { fetchLyrics } from "./lyrics/fetch.js";
+import { unisonSetNickname, unisonResetNickname, unisonFetchDisplayName } from "./unison/api.js";
+import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
+import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./ui/rows.jsx";
+import { Tooltip } from "./ui/tooltip.jsx";
+import { useAccentColor } from "./ui/use-accent-color.js";
+import { SelActionBtn, PlaylistLayout } from "./views/track-table.jsx";
+import { CollectionView } from "./views/collection-view.jsx";
+import { DownloadsView } from "./views/downloads-view.jsx";
+import { HistoryView } from "./views/history-view.jsx";
+import { LikedView } from "./views/liked-view.jsx";
+import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
+import { particleBurst, dissolve } from "./effects/particle-burst.js";
+import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "./ui/settings-controls.jsx";
 
 
 async function openOverlayEditor() {
@@ -187,7 +210,9 @@ const _MAX_FRONTEND_LOGS = 500;
 })();
 
 // ─── App Version ─────────────────────────────────────────────────────────────
-const APP_VERSION = "1.0.0-alpha.26";
+// Injected from src-tauri/tauri.conf.json at build time (see vite.config.js) — the single
+// source of truth, so this never drifts from the shipped version.
+const APP_VERSION = __APP_VERSION__;
 
 // Published news feed (edit + commit updates/news.json in the public Kodama repo).
 const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/news.json";
@@ -202,18 +227,6 @@ function cmpVersion(a, b) {
   }
   return 0;
 }
-
-// Short, human-readable OS string for bug-report diagnostics.
-const OS_INFO = (() => {
-  const ua = navigator.userAgent || "";
-  let os = navigator.platform || "Unknown";
-  if (/Windows NT 10/.test(ua)) os = "Windows 10/11";
-  else if (/Windows/.test(ua)) os = "Windows";
-  else if (/Mac OS X|Macintosh/.test(ua)) os = "macOS";
-  else if (/Linux|X11/.test(ua)) os = "Linux";
-  const arch = /x64|Win64|WOW64|x86_64/.test(ua) ? "x64" : (/arm64|aarch64/i.test(ua) ? "arm64" : "");
-  return arch ? `${os} · ${arch}` : os;
-})();
 
 // macOS uses a native titled window (traffic lights + native drag), so the custom
 // titlebar/drag-region is Windows-only. (Borderless windows swallow clicks on macOS.)
@@ -249,26 +262,8 @@ function getInitialLang() {
   return localStorage.getItem("kiyoshi-lang") || detectSystemLang();
 }
 
-const LangContext = createContext("de");
-const useLang = () => {
-  const lang = useContext(LangContext);
-  return (key, vars) => translate(lang, key, vars);
-};
-
-// Proxy YouTube thumbnails through local server to avoid CORS issues
-const thumb = (url) => url ? `${API}/imgproxy?url=${encodeURIComponent(url)}` : "";
-
-// ─── Animation Context ──────────────────────────────────────────────────────
-const AnimationContext = createContext(true);
-const useAnimations = () => useContext(AnimationContext);
-
-// ─── Zoom Context ─────────────────────────────────────────────────────────────
-const ZoomContext = createContext(1);
-const useZoom = () => useContext(ZoomContext);
-
-// ─── Font Scale Context ───────────────────────────────────────────────────────
-const FontScaleContext = createContext(1);
-const useFontScale = () => useContext(FontScaleContext);
+// API, thumb, and the language / animation / zoom / font-scale contexts now live in
+// ./context.jsx (imported at the top) so extracted components can share them.
 
 // ── Shortcut helpers ────────────────────────────────────────────────────────
 /** Serialize a keydown event to a storable shortcut string, e.g. "Ctrl+Equal" or "Space" */
@@ -477,55 +472,6 @@ if (typeof document !== "undefined" && !document.getElementById("kiyoshi-tooltip
   document.head.appendChild(s);
 }
 
-function Tooltip({ text, children }) {
-  const [visible, setVisible] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const showTimer = useRef(null);
-  const hideTimer = useRef(null);
-  if (!text) return children;
-
-  const hide = () => {
-    clearTimeout(showTimer.current);
-    if (visible) {
-      setLeaving(true);
-      hideTimer.current = setTimeout(() => { setVisible(false); setLeaving(false); }, 120);
-    }
-  };
-
-  return (
-    <span style={{ display: "contents" }}
-      onMouseEnter={e => {
-        clearTimeout(hideTimer.current);
-        setLeaving(false);
-        const el = e.currentTarget.firstElementChild || e.target;
-        const r = el.getBoundingClientRect();
-        setPos({ x: r.left + r.width / 2, y: r.top });
-        clearTimeout(showTimer.current);
-        showTimer.current = setTimeout(() => setVisible(true), 350);
-      }}
-      onMouseLeave={hide}
-    >
-      {children}
-      {visible && createPortal(
-        <div style={{
-          position: "fixed", left: pos.x, top: pos.y - 6,
-          transform: "translate(-50%, -100%)",
-          background: "var(--bg-elevated)", color: "var(--text-primary)",
-          padding: "5px 9px", borderRadius: 6,
-          fontSize: "var(--t11)", fontWeight: 500,
-          pointerEvents: "none", zIndex: 99999,
-          border: "0.5px solid var(--border)",
-          whiteSpace: "nowrap",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-          animation: `${leaving ? "tooltipOut" : "tooltipIn"} 0.12s ease forwards`,
-        }}>{text}</div>,
-        document.body
-      )}
-    </span>
-  );
-}
-
 // ── IpcAudio ─────────────────────────────────────────────────────────────────
 // Drop-in replacement for `new Audio()` that routes playback through the Rust
 // host process (kiyoshi-music.exe) instead of WebView2 / msedgewebview2.exe.
@@ -706,17 +652,6 @@ class IpcAudio {
   }
 }
 
-function ExplicitBadge() {
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center",
-      background: "var(--text-muted)", color: "var(--bg-primary)",
-      borderRadius: 3, fontSize: 9, fontWeight: 700, padding: "1px 4px",
-      letterSpacing: "0.05em", flexShrink: 0, lineHeight: 1.2, userSelect: "none",
-    }}>E</span>
-  );
-}
-
 function TitleBar() {
   const [maximized, setMaximized] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState(null);
@@ -803,49 +738,6 @@ function TitleBar() {
   );
 }
 
-function formatDuration(str) {
-  if (!str) return "";
-  return str;
-}
-
-/**
- * Renders artist names as individual clickable spans (supports arrays of artist objects).
- * Falls back to a single span using track.artistBrowseId when artists is a plain string.
- */
-function ArtistLinks({ track, onOpenArtist, onBeforeNavigate, style }) {
-  const base = { cursor: "default", transition: "color 0.15s", ...style };
-  const hover   = e => { e.currentTarget.style.color = "var(--accent)"; };
-  const unhover = e => { e.currentTarget.style.color = ""; };
-
-  // Prefer artistLinks from backend (has individual browseIds per artist)
-  const links = track?.artistLinks;
-  if (Array.isArray(links) && links.length > 0) {
-    return links.map((a, i) => (
-      <React.Fragment key={i}>
-        {i > 0 && ", "}
-        {a.browseId && onOpenArtist
-          ? <span
-              onClick={e => { e.stopPropagation(); onBeforeNavigate?.(); onOpenArtist({ browseId: a.browseId, artist: a.name }); }}
-              style={base} onMouseEnter={hover} onMouseLeave={unhover}
-            >{a.name}</span>
-          : a.name}
-      </React.Fragment>
-    ));
-  }
-
-  // Fallback: single artistBrowseId (old data / SQLite cache)
-  const artists = track?.artists;
-  if (track?.artistBrowseId && onOpenArtist) {
-    return (
-      <span
-        onClick={e => { e.stopPropagation(); onBeforeNavigate?.(); onOpenArtist({ browseId: track.artistBrowseId, artist: artists }); }}
-        style={base} onMouseEnter={hover} onMouseLeave={unhover}
-      >{artists}</span>
-    );
-  }
-  return artists ?? null;
-}
-
 /** Returns {left, top} clamped so the menu (w×h px) stays within the viewport. */
 function clampMenu(x, y, w = 220, h = 320) {
   const vw = window.innerWidth;
@@ -904,158 +796,6 @@ function CtxItem({ icon: Icon, label, onSelect, danger, id, textValue }) {
       {Icon ? <span className="w-4 flex justify-center shrink-0">{Icon}</span> : null}
       {label}
     </DropdownItem>
-  );
-}
-
-// "Add to playlist" modal. A dedicated dialog (own focus scope) instead of a nested
-// menu — so the search field works without fighting a parent menu's focus management,
-// and each playlist row has room for a cover, title and track count. `tracks` is the
-// list of tracks to add (one from the context menu, many from a multi-selection).
-function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) {
-  const t = useLang();
-  const [playlists, setPlaylists] = useState(null);
-  const [q, setQ] = useState("");
-  const [busyId, setBusyId] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API}/library/playlists`).then(r => r.json())
-      .then(d => { if (!cancelled) setPlaylists(d.playlists || []); })
-      .catch(() => { if (!cancelled) setPlaylists([]); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const query = q.trim().toLowerCase();
-  const filtered = (playlists || []).filter(pl => (pl.title || "").toLowerCase().includes(query));
-
-  const countLabel = (c) => {
-    if (!c) return null;
-    const s = String(c);
-    return /^\d+$/.test(s) ? `${s} ${t("songs")}` : s;
-  };
-
-  const add = async (pl) => {
-    if (busyId) return;
-    setBusyId(pl.playlistId);
-    try {
-      await fetch(`${API}/playlist/${pl.playlistId}/add`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoIds: tracks.map(tr => tr.videoId), tracks }),
-      });
-      toast.success(t("addedToPlaylist", { title: pl.title }), { timeout: 3000 });
-      onAdded?.();
-    } catch {}
-    setBusyId(null);
-    onClose();
-  };
-
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="sm" className="w-[440px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Playlist size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("addToPlaylist")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="flex flex-col gap-3">
-                <SearchFieldRoot aria-label={t("search")} value={q} onChange={setQ} className="w-full">
-                  <SearchFieldGroup>
-                    <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
-                    <SearchFieldInput autoFocus placeholder={t("search")} />
-                    <SearchFieldClearButton />
-                  </SearchFieldGroup>
-                </SearchFieldRoot>
-
-                <Button variant="ghost" fullWidth className="justify-start gap-2.5 px-3 rounded-xl text-accent"
-                  onPress={() => { onClose(); onNewPlaylist(); }}>
-                  <Plus size={16} weight="bold" />
-                  {t("newPlaylist")}
-                </Button>
-
-                <div className="h-[46vh] overflow-y-auto -mx-1 px-1">
-                  {playlists === null ? (
-                    <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
-                  ) : filtered.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted text-t12">{t("noPlaylists")}</div>
-                  ) : (
-                  <div className="flex flex-col gap-1">
-                  {filtered.map((pl, i) => (
-                    <button key={pl.playlistId || i}
-                      onClick={() => add(pl)}
-                      disabled={!!busyId}
-                      className="flex items-center gap-3 p-2 rounded-xl text-left transition-colors duration-150 border-none bg-transparent w-full hover:bg-hover disabled:opacity-60"
-                    >
-                      <div className="w-11 h-11 rounded-lg bg-elevated shrink-0 overflow-hidden flex items-center justify-center text-muted">
-                        {pl.thumbnail
-                          ? <img src={thumb(pl.thumbnail)} alt="" className="w-full h-full object-cover" />
-                          : <Playlist size={18} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-t13 font-medium truncate">{pl.title}</div>
-                        {countLabel(pl.count) ? <div className="text-t11 text-muted truncate">{countLabel(pl.count)}</div> : null}
-                      </div>
-                      {busyId === pl.playlistId
-                        ? <Spinner size="sm" className="shrink-0" />
-                        : <Plus size={16} className="text-muted shrink-0" />}
-                    </button>
-                  ))}
-                  </div>
-                  )}
-                </div>
-              </div>
-            </ModalBody>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu }) {
-  const anim = useAnimations();
-  return (
-    <div
-      onClick={() => onPlay(track)}
-      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(e, track); } : undefined}
-      className={`flex items-center gap-3 px-4 py-2 rounded-[var(--radius)] cursor-default transition-colors ${
-        isPlaying ? "bg-accent-dim" : "hover:bg-hover"
-      }`}
-    >
-      <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-md bg-elevated">
-        {track.thumbnail
-          ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
-        {isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
-            {anim
-              ? [1, 2, 3].map(b => (
-                  <div
-                    key={b}
-                    className="w-[3px] rounded-[2px] bg-accent"
-                    style={{ animation: `eqBar${b} ${0.6 + b * 0.15}s ease-in-out infinite`, animationDelay: `${b * 0.1}s` }}
-                  />
-                ))
-              : <Pause size={15} className="text-accent" />}
-          </div>
-        )}
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <div className={`flex items-center gap-1 overflow-hidden text-t13 font-medium transition-colors ${isPlaying ? "text-accent" : "text-primary"}`}>
-          <span className="truncate min-w-0">{track.title}</span>
-          {track.isExplicit && <ExplicitBadge />}
-        </div>
-        <div className="text-t12 text-secondary truncate">
-          <ArtistLinks track={track} onOpenArtist={onOpenArtist} />
-          {track.album ? ` · ${track.album}` : ""}
-        </div>
-      </div>
-      <div className="text-t12 text-muted shrink-0">
-        {formatDuration(track.duration)}
-      </div>
-    </div>
   );
 }
 
@@ -1825,58 +1565,6 @@ function AccentColorPicker({ value, onChange }) {
   );
 }
 
-function Slider({ min, max, step = 1, value, onChange, onChangeCommit, width = 120 }) {
-  // Thin wrapper around HeroUI Slider so existing {min,max,step,value,onChange,onChangeCommit,width} callers stay unchanged.
-  return (
-    <SliderRoot
-      aria-label="slider"
-      value={value}
-      minValue={min}
-      maxValue={max}
-      step={step}
-      onChange={onChange}
-      onChangeEnd={onChangeCommit}
-      className="shrink-0"
-      style={{ width }}
-    >
-      <SliderTrack>
-        <SliderFill />
-        <SliderThumb />
-      </SliderTrack>
-    </SliderRoot>
-  );
-}
-
-function Toggle({ value, onChange }) {
-  // Thin wrapper around HeroUI Switch so all existing Toggle({value,onChange}) call sites stay unchanged.
-  return (
-    <SwitchRoot isSelected={!!value} onChange={onChange} aria-label="toggle">
-      <SwitchControl>
-        <SwitchThumb />
-      </SwitchControl>
-    </SwitchRoot>
-  );
-}
-
-function SettingRow({ label, description, icon, children }) {
-  return (
-    <CardRoot variant="secondary" className="bg-surface-1 flex flex-row items-center justify-between gap-4 px-[18px] py-4 mb-1.5">
-      <div className="flex items-center gap-3 min-w-0">
-        {icon && (
-          <div className="w-[30px] h-[30px] rounded-md shrink-0 flex items-center justify-center text-accent">
-            {React.cloneElement(icon, { size: 15 })}
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="text-t13 font-medium text-primary">{label}</div>
-          {description && <div className="text-t11 text-muted mt-0.5 leading-snug">{description}</div>}
-        </div>
-      </div>
-      <div className="shrink-0">{children}</div>
-    </CardRoot>
-  );
-}
-
 // Last.fm connect/disconnect row. Uses the desktop auth flow: connect → open browser
 // → user authorizes → "I've authorized" exchanges the token for a session key.
 function LastfmRow() {
@@ -2211,491 +1899,6 @@ function CacheTab({ t }) {
         {t("cacheClearAll")}
       </Button>
     </div>
-  );
-}
-
-// Quick account switcher — opened from the sidebar account dropdown ("Switch account").
-// Built on HeroUI's Modal (genuine backdrop/animations/styling). Click an account to
-// switch and close, or add a new one. Full management lives in the Account settings tab.
-function ProfileSwitcherModal({ isOpen, onOpenChange, accounts, onSwitch, onAdd }) {
-  const t = useLang();
-  const list = accounts || [];
-
-  const Avatar = ({ a }) => (
-    <div className={cn("w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold text-t12",
-      a.type === "local" ? "bg-elevated text-secondary border border-border" : "bg-accent text-white")}>
-      {a.avatar
-        ? <img src={thumb(a.avatar)} alt="" className="w-full h-full object-cover" />
-        : (a.displayName || a.name || "?")[0].toUpperCase()}
-    </div>
-  );
-
-  return (
-    <ModalRoot isOpen={isOpen} onOpenChange={onOpenChange}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="sm" className="w-[380px] max-w-[92vw]">
-          <ModalDialog className="overflow-x-hidden">
-            <ModalHeader>
-              <ModalIcon><Users size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("switchProfileTitle")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="flex flex-col gap-1">
-                {list.map(a => (
-                  <button key={a.name}
-                    onClick={() => { if (!a.active) onSwitch(a.name); onOpenChange(false); }}
-                    className={cn("flex items-center gap-3 p-2 rounded-xl text-left transition-colors duration-150 border-none bg-transparent w-full",
-                      a.active ? "bg-accent-dim" : "hover:bg-hover")}
-                  >
-                    <Avatar a={a} />
-                    <div className="flex-1 min-w-0">
-                      <div className={cn("text-t13 font-medium truncate", a.active && "text-accent")}>{a.displayName || a.name}</div>
-                      <div className="text-t11 text-muted truncate">
-                        {a.type === "local" ? t("localAccount") : a.loggedOut ? t("logOut") : a.handle}
-                      </div>
-                    </div>
-                    {a.active && <Check size={16} className="text-accent shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="ghost" fullWidth className="justify-start gap-2.5 px-3 rounded-xl text-secondary"
-                onPress={() => { onOpenChange(false); onAdd(); }}>
-                <UserPlus size={16} />
-                {t("addAccount")}
-              </Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-function CreatePlaylistModal({ onClose, onCreated, t }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [privacy, setPrivacy] = useState("PRIVATE");
-  const [creating, setCreating] = useState(false);
-
-  const handleCreate = async () => {
-    if (!title.trim() || creating) return;
-    setCreating(true);
-    try {
-      const r = await fetch(`${API}/playlist/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description, privacyStatus: privacy }),
-      });
-      const data = await r.json();
-      if (data.ok) {
-        window.dispatchEvent(new Event("kiyoshi-library-updated"));
-        onCreated?.(data.playlistId, title.trim());
-        onClose();
-      }
-    } catch {}
-    setCreating(false);
-  };
-
-  const fieldLabel = "text-t10 font-bold uppercase tracking-[0.08em] text-muted";
-  const privacyOpts = [
-    ["PRIVATE",  t("privacyPrivate"),  <Lock size={14} />],
-    ["UNLISTED", t("privacyUnlisted"), <EyeSlash size={14} />],
-    ["PUBLIC",   t("privacyPublic"),   <Globe size={14} />],
-  ];
-
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="lg" className="w-[640px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Playlist size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("createPlaylist")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="flex gap-5">
-                {/* Left: title + description */}
-                <div className="flex-1 flex flex-col gap-4 min-w-0">
-                  <div className="flex flex-col gap-2">
-                    <label className={fieldLabel}>{t("playlistTitle")}</label>
-                    <TextFieldRoot aria-label={t("playlistTitle")} value={title} onChange={setTitle} className="w-full">
-                      <InputRoot autoFocus onKeyDown={e => { if (e.key === "Enter") handleCreate(); }} />
-                    </TextFieldRoot>
-                  </div>
-                  <div className="flex flex-col gap-2 flex-1">
-                    <label className={fieldLabel}>{t("playlistDescription")}</label>
-                    <TextFieldRoot aria-label={t("playlistDescription")} value={description} onChange={setDescription} className="w-full flex-1">
-                      <TextArea className="min-h-[110px] resize-none" />
-                    </TextFieldRoot>
-                  </div>
-                </div>
-
-                {/* Right: visibility */}
-                <div className="w-[180px] shrink-0 flex flex-col gap-2 border-l border-border pl-5">
-                  <label className={fieldLabel}>{t("playlistPrivacy")}</label>
-                  <div className="flex flex-col gap-1.5">
-                    {privacyOpts.map(([val, label, icon]) => {
-                      const active = privacy === val;
-                      return (
-                        <button key={val} onClick={() => setPrivacy(val)}
-                          className={cn("flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-t13 border-none w-full transition-colors duration-150",
-                            active ? "bg-accent-dim text-accent font-semibold" : "bg-transparent text-secondary hover:bg-hover")}>
-                          <span className={cn("flex w-4 justify-center shrink-0", !active && "opacity-55")}>{icon}</span>
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="ghost" onPress={onClose}>{t("cancel")}</Button>
-              <Button color="accent" variant="solid" isDisabled={!title.trim() || creating} onPress={handleCreate}>
-                {creating ? <Spinner size="sm" /> : t("create")}
-              </Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-// Rename an existing playlist. HeroUI modal with a single text field.
-function RenamePlaylistModal({ dialog, onClose, t }) {
-  const [name, setName] = useState(dialog.title || "");
-  const submit = async () => {
-    const newTitle = name.trim();
-    if (!newTitle) return;
-    try {
-      await fetch(`${API}/playlist/${dialog.playlistId}/edit`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle }),
-      });
-      window.dispatchEvent(new Event("kiyoshi-library-updated"));
-    } catch {}
-    onClose();
-  };
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="sm" className="w-[380px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><PencilSimple size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("renamePlaylist")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <TextFieldRoot aria-label={t("renamePlaylist")} value={name} onChange={setName} className="w-full">
-                <InputRoot autoFocus onKeyDown={e => { if (e.key === "Enter") submit(); }} />
-              </TextFieldRoot>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="ghost" onPress={onClose}>{t("cancel")}</Button>
-              <Button color="accent" variant="solid" isDisabled={!name.trim()} onPress={submit}>{t("save")}</Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-// Confirm deleting a playlist.
-function DeletePlaylistModal({ dialog, onConfirm, onClose, t }) {
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="sm" className="w-[400px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Trash size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("deletePlaylist")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="text-t13 text-secondary leading-relaxed">
-                {t("deletePlaylistConfirm")}<br /><strong className="text-primary">{dialog.title}</strong>
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="ghost" onPress={onClose}>{t("cancel")}</Button>
-              <Button variant="danger" onPress={onConfirm}>{t("removeAccountConfirm")}</Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-// News / announcements modal. Items come from a remote news.json (published by editing
-// that file). Unread state is tracked by the parent; `unreadIds` marks which were new on open.
-// Tiny inline markdown: **bold**, *italic*, `code`, [text](url). Links open externally.
-function renderInline(text, kp) {
-  const out = [];
-  const re = /(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
-  let last = 0, m, i = 0;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    if (m[2] != null) out.push(<strong key={`${kp}-${i}`}>{m[2]}</strong>);
-    else if (m[3] != null) out.push(<em key={`${kp}-${i}`}>{m[3]}</em>);
-    else if (m[4] != null) out.push(<code key={`${kp}-${i}`} className="px-1 py-0.5 rounded bg-elevated" style={{ fontSize: "0.92em" }}>{m[4]}</code>);
-    else if (m[5] != null) { const url = m[6]; out.push(<span key={`${kp}-${i}`} onClick={() => openUrl(url).catch(() => {})} className="text-accent cursor-pointer hover:underline">{m[5]}</span>); }
-    last = m.index + m[0].length; i++;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-// Lightweight block markdown for news bodies: ## headings, - bullet lists, paragraphs.
-function renderNewsBody(body) {
-  if (!body) return null;
-  const blocks = [];
-  let list = null;
-  const flush = () => { if (list) { blocks.push(<ul key={`ul-${blocks.length}`} className="list-disc pl-5 my-1 flex flex-col gap-0.5">{list}</ul>); list = null; } };
-  body.split("\n").forEach((line, idx) => {
-    const s = line.trim();
-    if (!s) { flush(); return; }
-    if (s.startsWith("## ")) { flush(); blocks.push(<div key={idx} className="text-t13 font-semibold mt-2 mb-0.5 text-primary">{renderInline(s.slice(3), `h${idx}`)}</div>); return; }
-    if (s.startsWith("- ")) { if (!list) list = []; list.push(<li key={idx}>{renderInline(s.slice(2), `li${idx}`)}</li>); return; }
-    flush();
-    blocks.push(<p key={idx} className="my-1">{renderInline(s, `p${idx}`)}</p>);
-  });
-  flush();
-  return blocks;
-}
-
-function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
-  const [refreshing, setRefreshing] = useState(false);
-  const doRefresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    try { await onRefresh?.(); } finally { setRefreshing(false); }
-  };
-  const badgeFor = (type) => {
-    if (type === "beta")   return { label: t("newsBeta")   || "Closed Beta", bg: "color-mix(in srgb, #f4a020 20%, transparent)", fg: "#f4b840" };
-    if (type === "note")   return { label: t("newsNote")   || "Hinweis",     bg: "rgba(255,255,255,0.08)",                       fg: "var(--text-secondary)" };
-    if (type === "fix")    return { label: t("newsFix")    || "Fix",         bg: "color-mix(in srgb, #1d9e75 22%, transparent)", fg: "#3ec79a" };
-    return { label: t("newsUpdate") || "Update", bg: "color-mix(in srgb, var(--accent) 20%, transparent)", fg: "var(--accent)" };
-  };
-  const list = news || [];
-  const [selectedId, setSelectedId] = useState(() => list[0]?.id || null);
-  const selected = list.find(n => n.id === selectedId) || list[0] || null;
-  const sb = selected ? badgeFor(selected.type) : null;
-
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="xl" className="w-[880px] max-w-[94vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Megaphone size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("news") || "Neuigkeiten"}</ModalHeading>
-            </ModalHeader>
-            <ModalBody className="p-0! overflow-hidden">
-              {list.length === 0 ? (
-                <div className="text-t13 text-muted text-center py-12">{t("newsEmpty") || "Keine Neuigkeiten."}</div>
-              ) : (
-                <div className="flex" style={{ height: "62vh" }}>
-                  {/* Left: entry list */}
-                  <div className="w-[268px] shrink-0 border-r border-border overflow-y-auto overflow-x-hidden">
-                    {list.map((n) => {
-                      const b = badgeFor(n.type);
-                      const unread = unreadIds?.has(n.id);
-                      const active = n.id === (selected?.id);
-                      return (
-                        <button key={n.id} onClick={() => setSelectedId(n.id)}
-                          className={cn("w-full text-left flex gap-2.5 px-3 py-2.5 border-b border-border transition-colors duration-100",
-                            active ? "bg-accent-dim" : "hover:bg-hover")}>
-                          {n.image
-                            ? <img src={n.image} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
-                            : <div className="w-11 h-11 rounded-lg shrink-0 flex items-center justify-center" style={{ background: b.bg }}><Megaphone size={16} style={{ color: b.fg }} /></div>}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
-                              {n.important && <Star size={10} weight="fill" className="text-accent shrink-0" />}
-                              {unread && <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: "var(--accent)" }} />}
-                            </div>
-                            <div className="text-t13 font-semibold truncate" style={{ color: active ? "var(--accent)" : "var(--text-primary)" }}>{n.title || "—"}</div>
-                            <div className="text-t10 text-muted truncate">{n.date}{n.min_version ? ` · ab ${n.min_version}` : ""}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {/* Right: full entry */}
-                  <div className="flex-1 min-w-0 overflow-y-auto">
-                    {selected && (
-                      <>
-                        {selected.image && <img src={selected.image} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: "cover" }} />}
-                        <div className="px-6 py-5">
-                          <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-                            <span className="text-t10 font-bold px-2 py-0.5 rounded-md" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span>
-                            {selected.important && <Star size={13} weight="fill" className="text-accent" />}
-                            {selected.date && <span className="text-t12 text-muted">{selected.date}</span>}
-                            {selected.min_version && <span className="text-t11 text-muted">· ab {selected.min_version}{selected.max_version ? ` – ${selected.max_version}` : ""}</span>}
-                          </div>
-                          <div className="text-t20 font-bold mb-3 leading-snug">{selected.title || "—"}</div>
-                          {selected.body && <div className="text-t14 text-secondary leading-relaxed">{renderNewsBody(selected.body)}</div>}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="ghost" className="mr-auto" isDisabled={refreshing} onPress={doRefresh}>
-                <span className="flex items-center gap-1.5">
-                  <ArrowClockwise size={14} style={refreshing ? { animation: "spin2 0.8s linear infinite" } : undefined} />
-                  {t("refresh") || "Aktualisieren"}
-                </span>
-              </Button>
-              <Button color="accent" variant="solid" onPress={onClose}>{t("close") || "Schließen"}</Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-// Bug-report / feedback modal. Submits to the local backend, which forwards to a Discord
-// webhook. Version + OS (and optionally recent backend logs) are attached automatically.
-function BugReportModal({ onClose, screenshot, t }) {
-  const CATS = [
-    { value: "Bug", label: t("catBug") || "Bug" },
-    { value: "Absturz", label: t("catCrash") || "Crash" },
-    { value: "UI / Design", label: t("catUI") || "UI / Design" },
-    { value: "Vorschlag", label: t("catSuggestion") || "Suggestion" },
-  ];
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("Bug");
-  const [description, setDescription] = useState("");
-  const [includeDiag, setIncludeDiag] = useState(true);
-  const [includeShot, setIncludeShot] = useState(!!screenshot);
-  const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState(null); // null | "ok" | "error" | "unconfigured"
-
-  const submit = async () => {
-    if ((!title.trim() && !description.trim()) || sending) return;
-    setSending(true); setStatus(null);
-    try {
-      const r = await fetch(`${API}/feedback`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(), category, description: description.trim(),
-          version: APP_VERSION, os: OS_INFO, includeLogs: includeDiag,
-          screenshot: (includeShot && screenshot) ? screenshot : undefined,
-        }),
-      });
-      if (r.ok) { setStatus("ok"); setTimeout(onClose, 1500); }
-      else if (r.status === 503) setStatus("unconfigured");
-      else setStatus("error");
-    } catch { setStatus("error"); }
-    setSending(false);
-  };
-
-  const fieldLabel = "text-t10 font-bold uppercase tracking-[0.08em] text-muted";
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="lg" className="w-[560px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Bug size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("reportBug") || "Fehler melden"}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              {status === "ok" ? (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <CheckCircle size={44} weight="fill" className="text-accent" />
-                  <div className="text-t14 font-semibold">{t("reportSent") || "Danke! Dein Report wurde gesendet."}</div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <label className={fieldLabel}>{t("reportTitle") || "Titel"}</label>
-                    <TextFieldRoot aria-label={t("reportTitle") || "Titel"} value={title} onChange={setTitle} className="w-full">
-                      <InputRoot autoFocus placeholder={t("reportTitlePlaceholder") || "Kurz: was ist passiert?"} />
-                    </TextFieldRoot>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className={fieldLabel}>{t("reportCategory") || "Kategorie"}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {CATS.map((c) => (
-                        <button key={c.value} onClick={() => setCategory(c.value)}
-                          className={cn("px-3.5 py-2 rounded-xl text-t13 border-none transition-colors duration-150",
-                            category === c.value ? "bg-accent-dim text-accent font-semibold" : "bg-transparent text-secondary hover:bg-hover border border-border")}>
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className={fieldLabel}>{t("reportDescription") || "Beschreibung & Schritte"}</label>
-                    <TextFieldRoot aria-label={t("reportDescription") || "Beschreibung"} value={description} onChange={setDescription} className="w-full">
-                      <TextArea className="min-h-[110px] resize-none" placeholder={t("reportDescPlaceholder") || "Was hast du erwartet, was ist stattdessen passiert? Schritte zum Nachstellen?"} />
-                    </TextFieldRoot>
-                  </div>
-                  <div className="rounded-xl bg-elevated px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Info size={15} className="text-muted shrink-0" />
-                        <span className="text-t13 font-medium">{t("reportDiagnostics") || "Diagnose anhängen"}</span>
-                      </div>
-                      <Toggle value={includeDiag} onChange={setIncludeDiag} />
-                    </div>
-                    {includeDiag && (
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
-                        {[`v${APP_VERSION}`, OS_INFO, t("reportLogs") || "letzte Log-Zeilen"].map((chip, i) => (
-                          <span key={i} className="text-t11 font-mono px-2 py-0.5 rounded-md bg-surface border border-border text-secondary">{chip}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {screenshot && (
-                    <div className="rounded-xl bg-elevated px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <ImageSquare size={15} className="text-muted shrink-0" />
-                          <span className="text-t13 font-medium">{t("reportScreenshot") || "Attach screenshot"}</span>
-                        </div>
-                        <Toggle value={includeShot} onChange={setIncludeShot} />
-                      </div>
-                      {includeShot && (
-                        <img src={`data:image/png;base64,${screenshot}`} alt=""
-                          className="mt-2.5 w-full rounded-lg border border-border" style={{ maxHeight: 150, objectFit: "cover", objectPosition: "top" }} />
-                      )}
-                    </div>
-                  )}
-                  {status === "error" && <div className="text-t12 text-red-400">{t("reportError") || "Senden fehlgeschlagen. Bitte später erneut versuchen."}</div>}
-                  {status === "unconfigured" && <div className="text-t12 text-amber-400">{t("reportUnconfigured") || "Feedback ist in diesem Build noch nicht konfiguriert."}</div>}
-                </div>
-              )}
-            </ModalBody>
-            {status !== "ok" && (
-              <ModalFooter>
-                <span className="text-t11 text-muted mr-auto">{t("reportAnon") || "Anonym · keine Account-Daten"}</span>
-                <Button variant="ghost" onPress={onClose}>{t("cancel")}</Button>
-                <Button color="accent" variant="solid" isDisabled={(!title.trim() && !description.trim()) || sending} onPress={submit}>
-                  {sending ? <Spinner size="sm" /> : <span className="flex items-center gap-1.5"><PaperPlaneTilt size={15} />{t("reportSend") || "Senden"}</span>}
-                </Button>
-              </ModalFooter>
-            )}
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
   );
 }
 
@@ -3137,33 +2340,6 @@ function DebugTab({ t }) {
         </div>
       </div>
     </div>
-  );
-}
-
-// Extracted outside SettingsPanel to avoid remount on every parent render
-function SettingsSectionLabel({ children, style }) {
-  return (
-    <div style={{
-      fontSize: 13,
-      fontWeight: 600,
-      color: "var(--t1)",
-      margin: "24px 0 10px 2px",
-      ...style,
-    }}>{children}</div>
-  );
-}
-
-// Explanatory text shown under a section header. Same size as the header (13px),
-// muted, for a consistent look across all settings sections.
-function SettingsSectionDesc({ children, style }) {
-  return (
-    <div style={{
-      fontSize: 13,
-      color: "var(--text-muted)",
-      lineHeight: 1.5,
-      margin: "-4px 0 12px 2px",
-      ...style,
-    }}>{children}</div>
   );
 }
 
@@ -4197,7 +3373,9 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
   );
 }
 
-function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange, theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
+  remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -4918,6 +4096,12 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                   <Toggle value={discordRpc} onChange={onDiscordRpcChange} />
                 </SettingRow>
                 <LastfmRow />
+                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
+                  <Toggle value={remoteEnabled} onChange={onToggleRemote} />
+                </SettingRow>
+                {remoteEnabled && (
+                  <RemoteControlPanel devices={remoteDevices} onDevice={onRemoteDevice} onPair={onPairDevice} trustedIds={remoteTrustedIds} onRemember={onRememberDevice} />
+                )}
               </>
             )}
 
@@ -5498,8 +4682,11 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
 // ─── Queue Row (standalone to prevent drag breaking on re-render) ────────────
 function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs }) {
   const isDragOver = dragOver === globalIdx;
+  const anim = useAnimations();
+  const rowRef = useRef(null);
   return (
     <div
+      ref={rowRef}
       data-queue-idx={globalIdx}
       onClick={onPlay}
       onContextMenu={onEditFade ? (e) => { e.preventDefault(); onEditFade(); } : undefined}
@@ -5557,7 +4744,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
       {/* Remove button */}
       {isDraggable && (
         <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" isIconOnly onPress={() => onRemove(track.videoId)}
+          <Button variant="ghost" size="sm" isIconOnly onPress={() => { if (anim) dissolve(rowRef.current, () => onRemove(track.videoId)); else onRemove(track.videoId); }}
             className="h-7 min-w-7 rounded-[var(--r-sm)] text-muted hover:text-[#ff7070]!">
             <Trash size={13} />
           </Button>
@@ -5883,53 +5070,7 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   );
 }
 
-function FadeEditorModal({ from, to, current, globalDefault = 0, onSave, onClear, onClose }) {
-  const t = useLang();
-  const [secs, setSecs] = useState(current != null ? current : (globalDefault || 5));
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[320]!">
-        <ModalContainer placement="center" size="sm" className="w-[420px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Sliders size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading>{t("customCrossfade")}</ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="flex flex-col gap-4 pb-1">
-                <div className="flex items-center gap-2 text-t12">
-                  <span className="flex-1 min-w-0 truncate font-medium text-primary">{from?.title}</span>
-                  <span className="shrink-0 text-accent font-bold">→</span>
-                  <span className="flex-1 min-w-0 truncate font-medium text-primary text-right">{to?.title}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Slider min={0} max={12} step={1} value={secs} onChange={setSecs} width={180} />
-                  <span className="text-t12 text-secondary w-9 text-right">{secs}s</span>
-                </div>
-                <p className="text-t11 text-muted">
-                  {secs === 0 ? t("crossfadeHardCut") : t("customCrossfadeHint", { secs })}
-                  {" · "}{t("crossfadeDefault")}: {globalDefault}s
-                </p>
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  {current != null
-                    ? <Button variant="ghost" size="sm" className="text-[#ff7070]!" onPress={() => { onClear(); onClose(); }}>{t("removeOverride")}</Button>
-                    : <span />}
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onPress={onClose}>{t("cancel")}</Button>
-                    <Button size="sm" className="bg-accent! text-white!" onPress={() => { onSave(secs); onClose(); }}>{t("save")}</Button>
-                  </div>
-                </div>
-              </div>
-            </ModalBody>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, lyricsProviders = DEFAULT_LYRICS_PROVIDERS, currentLyricsSource = "", onSwitchLyricsProvider, failedLyricsProviders = new Set(), language = "de", showLyricsTranslation = false, onToggleLyricsTranslation, lyricsTranslationLang = "DE", onSetLyricsTranslationLang, showRomaji = false, onToggleRomaji, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onPremiumDetected, onCreatePlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, lyricsProviders = DEFAULT_LYRICS_PROVIDERS, currentLyricsSource = "", onSwitchLyricsProvider, failedLyricsProviders = new Set(), language = "de", showLyricsTranslation = false, onToggleLyricsTranslation, lyricsTranslationLang = "DE", onSetLyricsTranslationLang, showRomaji = false, onToggleRomaji, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
@@ -5946,7 +5087,6 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   const [prevBouncing, setPrevBouncing] = useState(false);
   const [nextBouncing, setNextBouncing] = useState(false);
   const [songStats, setSongStats] = useState(null);
-  const [morePlaylists, setMorePlaylists] = useState(null);
   const [fetchedBrowseIds, setFetchedBrowseIds] = useState({});
   const zoom = useZoom();
 
@@ -6366,6 +5506,43 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return () => { if (unlisten) unlisten(); };
   }, []);
 
+  // LAN remote bridge: while enabled, push now-playing state to the backend and drain
+  // commands the phone enqueued — executed through the same playback controls as media keys.
+  const runPlaybackAction = (action) => {
+    const h = mediaCtlRef.current;
+    if (action === "playpause") h.togglePlay();
+    else if (action === "next") { const tk = h.getAdjacentTrack("next"); if (tk) h.setTrack(tk); }
+    else if (action === "prev") { const tk = h.getAdjacentTrack("prev"); if (tk) h.setTrack(tk); }
+    else if (action === "shuffle") setShuffle(s => !s);
+    else if (action === "repeat") cycleRepeat();
+  };
+  const remoteNpRef = useRef({});
+  remoteNpRef.current = { track, isPlaying, progress, duration, shuffle, repeat };
+  useEffect(() => {
+    if (!remoteEnabled) return;
+    // One combined request per tick (push state + receive pending commands) instead of two
+    // separate polling loops — keeps background activity (and its GC churn) low.
+    const sync = () => {
+      const { track: t, isPlaying: p, progress: pos, duration: dur, shuffle: sh, repeat: rp } = remoteNpRef.current;
+      const artists = Array.isArray(t?.artists)
+        ? t.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
+        : (t?.artists || "");
+      fetch(`${API}/remote/_sync`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          state: {
+            title: t?.title || "", artists, thumbnail: t?.thumbnail || "",
+            isPlaying: !!p, position: Math.floor(pos || 0), duration: Math.floor(dur || 0), hasTrack: !!t,
+            shuffle: !!sh, repeat: rp || "none",
+          },
+        }),
+      }).then(r => r.json()).then(d => (d.commands || []).forEach(runPlaybackAction)).catch(() => {});
+    };
+    sync();
+    const iv = setInterval(sync, 1000);
+    return () => { clearInterval(iv); };
+  }, [remoteEnabled]);
+
   // Seek drag state for the HeroUI seek slider (seconds while dragging, else null).
   const [seekDrag, setSeekDrag] = useState(null);
 
@@ -6638,12 +5815,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             const downloaded = cachedSongIds?.has(track.videoId);
             const downloading = downloadingIds?.has(track.videoId);
             return (
-              <Dropdown onOpenChange={(open) => {
-                if (open) {
-                  fetchMoreBrowseIds();
-                  if (!morePlaylists) fetch(`${API}/library/playlists`).then(r => r.json()).then(d => setMorePlaylists(d.playlists || [])).catch(() => setMorePlaylists([]));
-                } else { setMorePlaylists(null); }
-              }}>
+              <Dropdown onOpenChange={(open) => { if (open) fetchMoreBrowseIds(); }}>
                 <DropdownTrigger
                   className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-150 text-secondary hover:text-primary hover:bg-hover"
                   style={{ contain: "layout style" }}
@@ -6656,32 +5828,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                   <DropdownMenu aria-label="More">
                     {/* Add to Playlist (submenu) + Like */}
                     <DropdownSection>
-                      <DropdownSubmenuTrigger>
-                        <DropdownItem textValue={t("addToPlaylist")}>
-                          <Plus size={14} />
-                          {t("addToPlaylist")}
-                          <DropdownSubmenuIndicator className="ml-auto" />
-                        </DropdownItem>
-                        <DropdownPopover className="min-w-52 max-h-80 overflow-y-auto">
-                          <DropdownMenu aria-label={t("addToPlaylist")}>
-                            <DropdownSection>
-                              {(morePlaylists || []).map(pl => (
-                                <DropdownItem key={pl.playlistId} textValue={pl.title}
-                                  onAction={async () => { try { await fetch(`${API}/playlist/${pl.playlistId}/add`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoIds: [track.videoId], tracks: [track] }) }); } catch {} }}>
-                                  <Playlist size={14} />
-                                  <span className="truncate">{pl.title}</span>
-                                </DropdownItem>
-                              ))}
-                            </DropdownSection>
-                            <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                              <DropdownItem textValue={t("newPlaylist")} onAction={() => onCreatePlaylist?.()}>
-                                <Plus size={14} weight="bold" />
-                                {t("newPlaylist")}
-                              </DropdownItem>
-                            </DropdownSection>
-                          </DropdownMenu>
-                        </DropdownPopover>
-                      </DropdownSubmenuTrigger>
+                      <DropdownItem textValue={t("addToPlaylist")} onAction={() => onAddToPlaylist?.([track])}>
+                        <Plus size={14} />
+                        {t("addToPlaylist")}
+                      </DropdownItem>
                       <DropdownItem textValue={isLiked ? t("unlike") : t("like")} onAction={() => toggleLike()}
                         className={isLiked ? "text-accent" : undefined}>
                         <Heart size={14} weight={isLiked ? "fill" : "regular"} />
@@ -7156,614 +6306,6 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
 
 
 
-function parseLrc(lrc) {
-  if (!lrc) return [];
-  const lines = [];
-  for (const line of lrc.split("\n")) {
-    const m = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-    if (m) {
-      const time = parseInt(m[1]) * 60 + parseFloat(m[2]);
-      lines.push({ time, text: m[3].trim() });
-    }
-  }
-  return lines.sort((a, b) => a.time - b.time);
-}
-
-function parseRichSync(richsync) {
-  // Musixmatch RichSync: [{ ts, te, l: [{c, o}], x }, ...]
-  // ts/te = line start/end in seconds, l[i].c = word/char, l[i].o = offset from ts
-  if (!Array.isArray(richsync)) return [];
-  return richsync
-    .filter(line => line && typeof line.ts === "number")
-    .map(line => {
-      const words = (line.l || []).map((w, j) => {
-        const wordStart = line.ts + (w.o || 0);
-        const wordEnd = line.l[j + 1] ? line.ts + line.l[j + 1].o : line.te;
-        return { text: w.c, time: wordStart, end: wordEnd, isSpace: (w.c || "").trim() === "" };
-      });
-      return { time: line.ts, endTime: line.te, words, wordSync: true, text: line.x || "" };
-    });
-}
-
-function parseTtml(ttml) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(ttml, "text/xml");
-
-  // Detect timing mode: "Line" = one timestamp per line, "Word" = per-word timestamps
-  const ttEl = doc.querySelector("tt");
-  const timingMode = ttEl?.getAttribute("itunes:timing") || ttEl?.getAttribute("composer:timing") || "Word";
-  const isLineSync = timingMode === "Line";
-
-  // Parse agents from <head><metadata><ttm:agent>
-  const TTM_NS = "http://www.w3.org/ns/ttml#metadata";
-  const agents = {};
-  let leadAgentId = null;
-  const agentEls = doc.getElementsByTagNameNS(TTM_NS, "agent");
-  for (const a of agentEls) {
-    const id = a.getAttribute("xml:id");
-    const type = a.getAttribute("type");
-    const nameEls = a.getElementsByTagNameNS(TTM_NS, "name");
-    const name = nameEls[0]?.textContent?.trim();
-    if (id) {
-      agents[id] = { id, type, name };
-      if (!leadAgentId && type === "person") leadAgentId = id;
-    }
-  }
-
-  const lines = [];
-  for (const p of doc.querySelectorAll("p")) {
-    const begin = p.getAttribute("begin");
-    const end = p.getAttribute("end");
-    if (!begin) continue;
-    const time = ttmlTimeToSeconds(begin);
-    const endTime = end ? ttmlTimeToSeconds(end) : null;
-
-    // Resolve agent and role
-    const agentId = p.getAttribute("ttm:agent");
-    const agent = agentId ? (agents[agentId] || null) : null;
-    let agentRole = null;
-    if (agent) {
-      if (agent.type === "group") agentRole = "group";
-      else if (agentId === leadAgentId) agentRole = "lead";
-      else agentRole = "featured";
-    }
-
-    if (isLineSync) {
-      // Line-sync main text + BG vocals that may have their own per-word timestamps.
-      // Even in line-sync mode the x-bg span can contain timed inner spans — extract
-      // those as bgWords so the RAF can animate them word-by-word.
-      let mainText = "";
-      const bgWords = [];
-
-      const extractBgWords = (node, iBegin, iEnd) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const t = node.textContent;
-          if (t) bgWords.push({
-            text: t,
-            time: ttmlTimeToSeconds(iBegin || begin),
-            end: ttmlTimeToSeconds(iEnd || end || begin),
-            isSpace: t.trim() === "",
-          });
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const b = node.getAttribute("begin") || iBegin || begin;
-          const e = node.getAttribute("end")   || iEnd   || end || begin;
-          for (const c of node.childNodes) extractBgWords(c, b, e);
-        }
-      };
-
-      for (const child of p.childNodes) {
-        if (child.nodeType === Node.TEXT_NODE) {
-          mainText += child.textContent;
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          if (child.getAttribute("ttm:role") === "x-bg")
-            for (const c of child.childNodes) extractBgWords(c, begin, end);
-          else
-            mainText += child.textContent;
-        }
-      }
-      mainText = mainText.trim();
-
-      // Stretch line time-range to fully cover bg vocals (before or after main line)
-      let effectiveTime = time;
-      let effectiveEnd  = endTime;
-      if (bgWords.length) {
-        const bgNS = bgWords.filter(w => !w.isSpace);
-        if (bgNS.length) {
-          const bgFirst = Math.min(...bgNS.map(w => w.time));
-          const bgLast  = Math.max(...bgNS.map(w => w.end));
-          if (isFinite(bgFirst) && bgFirst < effectiveTime) effectiveTime = bgFirst;
-          if (isFinite(bgLast)  && bgLast  > (effectiveEnd ?? 0)) effectiveEnd = bgLast;
-        }
-      }
-
-      if (mainText || bgWords.length) {
-        const lineObj = { time: effectiveTime, endTime: effectiveEnd,
-          text: mainText || "\u00A0", wordSync: false, lineSync: true, agent, agentRole };
-        if (bgWords.length) lineObj.bgWords = bgWords;
-        lines.push(lineObj);
-      }
-      continue;
-    }
-
-    // Word-sync: extract per-span timestamps; separate background vocals (ttm:role="x-bg")
-    const words = [];
-    const bgWords = [];
-    const processNode = (node, inheritBegin, inheritEnd, isBg = false) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent;
-        if (text) {
-          const w = {
-            text,
-            time: ttmlTimeToSeconds(inheritBegin || begin),
-            end: ttmlTimeToSeconds(inheritEnd || end || begin),
-            isSpace: text.trim() === "",
-          };
-          if (isBg) bgWords.push(w); else words.push(w);
-        }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const nextIsBg = isBg || node.getAttribute("ttm:role") === "x-bg";
-        const b = node.getAttribute("begin") || inheritBegin || begin;
-        const e = node.getAttribute("end") || inheritEnd || end || begin;
-        for (const child of node.childNodes) processNode(child, b, e, nextIsBg);
-      }
-    };
-
-    for (const child of p.childNodes) processNode(child, begin, end, false);
-    if (words.length || bgWords.length) {
-      // Stretch the line's time range to fully cover bg vocals in both directions.
-      // BG vocals can start before the main line (extend time backward) or end
-      // after it (extend endTime forward) — the line must stay active throughout.
-      let effectiveTime = time;
-      let effectiveEnd = endTime;
-      if (bgWords.length) {
-        const bgNonSpace = bgWords.filter(w => !w.isSpace);
-        if (bgNonSpace.length) {
-          const bgFirst = Math.min(...bgNonSpace.map(w => w.time));
-          const bgLast  = Math.max(...bgNonSpace.map(w => w.end));
-          if (isFinite(bgFirst) && bgFirst < effectiveTime) effectiveTime = bgFirst;
-          if (isFinite(bgLast)  && bgLast  > (effectiveEnd ?? 0)) effectiveEnd = bgLast;
-        }
-      }
-      const lineObj = { time: effectiveTime, endTime: effectiveEnd, words, wordSync: true, agent, agentRole };
-      if (bgWords.length) lineObj.bgWords = bgWords;
-      lines.push(lineObj);
-    }
-  }
-  return lines;
-}
-
-function ttmlTimeToSeconds(t) {
-  if (!t) return 0;
-  // Format: HH:MM:SS.mmm or MM:SS.mmm
-  const parts = t.split(":");
-  if (parts.length === 3) {
-    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-  } else if (parts.length === 2) {
-    return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
-  }
-  return parseFloat(t);
-}
-
-function parseDurationToSeconds(str) {
-  if (!str) return null;
-  const parts = str.split(":").map(Number);
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  return null;
-}
-
-function formatTotalDuration(tracks) {
-  const totalSecs = tracks.reduce((sum, t) => sum + (parseDurationToSeconds(t.duration) || 0), 0);
-  if (totalSecs <= 0) return null;
-  const h = Math.floor(totalSecs / 3600);
-  const m = Math.floor((totalSecs % 3600) / 60);
-  const s = totalSecs % 60;
-  if (h > 0) return `${h} h ${m} min`;
-  if (m > 0) return `${m} min ${s} s`;
-  return `${s} s`;
-}
-
-const DEFAULT_LYRICS_PROVIDERS = [
-  { id: "better",     label: "Better Lyrics", enabled: true },
-  { id: "unison",     label: "Unison",        enabled: true },
-  { id: "musixmatch", label: "Musixmatch",    enabled: true },
-  { id: "lrclib",     label: "LRCLIB",        enabled: true },
-  { id: "kugou",      label: "Kugou",         enabled: true },
-  { id: "simp",       label: "SimpMusic",     enabled: true },
-];
-
-// Sync-type tags shown next to each provider in settings
-const PROVIDER_SYNC = {
-  better:     { label: "Syllable", icon: "/sync-syllable.svg", color: "#ce93d8", bg: "rgba(206,147,216,0.12)" },
-  unison:     { label: "Syllable", icon: "/sync-syllable.svg", color: "#ce93d8", bg: "rgba(206,147,216,0.12)" },
-  musixmatch: { label: "Word",     icon: "/sync-word.svg",     color: "#f48fb1", bg: "rgba(244,143,177,0.12)" },
-  lrclib:     { label: "Line",     icon: "/sync-line.svg",     color: "#81c784", bg: "rgba(129,199,132,0.12)" },
-  kugou:      { label: "Line",     icon: "/sync-line.svg",     color: "#81c784", bg: "rgba(129,199,132,0.12)" },
-  simp:       { label: "Line",     icon: "/sync-line.svg",     color: "#81c784", bg: "rgba(129,199,132,0.12)" },
-};
-
-async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_LYRICS_PROVIDERS, videoId = "") {
-  const tryBetter = async () => {
-    const params = new URLSearchParams({ title, artist, source: "better" });
-    if (album) params.set("album", album);
-    if (duration) params.set("duration", Math.round(duration));
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.ttml) { const lrc = parseTtml(d.ttml); if (lrc.length) return { source: "Better Lyrics", lrc }; }
-    }
-    return null;
-  };
-  const tryUnison = async () => {
-    const params = new URLSearchParams({ title, artist, source: "unison" });
-    if (album) params.set("album", album);
-    if (duration) params.set("duration", Math.round(duration));
-    if (videoId) params.set("videoId", videoId);
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      const sub = d?.submitterName || null;
-      if (d?.ttml) { const lrc = parseTtml(d.ttml); if (lrc.length) return { source: "Unison", lrc, submitterName: sub }; }
-      if (d?.synced) return { source: "Unison", lrc: parseLrc(d.synced), submitterName: sub };
-      if (d?.plain)  return { source: "Unison", lrc: d.plain.split("\n").map(t => ({ time: -1, text: t })), submitterName: sub };
-    }
-    return null;
-  };
-  const tryLrclib = async () => {
-    const params = new URLSearchParams({ title, artist, source: "lrclib" });
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d.synced) return { source: "LRCLIB", lrc: parseLrc(d.synced) };
-      if (d.plain) return { source: "LRCLIB", lrc: d.plain.split("\n").map(t => ({ time: -1, text: t })) };
-    }
-    return null;
-  };
-  const tryKugou = async () => {
-    const params = new URLSearchParams({ title, artist, source: "kugou" });
-    if (duration) params.set("duration", Math.round(duration));
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d.synced) return { source: "Kugou", lrc: parseLrc(d.synced) };
-    }
-    return null;
-  };
-  const trySimp = async () => {
-    const params = new URLSearchParams({ title, artist, source: "simp" });
-    if (videoId) params.set("videoId", videoId);
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d.synced) return { source: "SimpMusic", lrc: parseLrc(d.synced) };
-      if (d.plain) return { source: "SimpMusic", lrc: d.plain.split("\n").map(t => ({ time: -1, text: t })) };
-    }
-    return null;
-  };
-  const tryMusixmatch = async () => {
-    const params = new URLSearchParams({ title, artist, source: "musixmatch" });
-    if (duration) params.set("duration", Math.round(duration));
-    const r = await fetch(`${API}/lyrics?${params}`);
-    if (!r.ok) return null;
-    const d = await r.json();
-    if (d.richsync) { const lrc = parseRichSync(d.richsync); if (lrc.length) return { source: "Musixmatch", lrc }; }
-    if (d.synced)   return { source: "Musixmatch", lrc: parseLrc(d.synced) };
-    if (d.plain)    return { source: "Musixmatch", lrc: d.plain.split("\n").map(t => ({ time: -1, text: t })) };
-    return null;
-  };
-
-  const tryFns = { better: tryBetter, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
-  const enabledProviders = providers.filter(p => p.enabled && tryFns[p.id]);
-
-  // Fetch all providers in parallel — so we know which ones have no lyrics
-  const settled = await Promise.all(
-    enabledProviders.map(p => tryFns[p.id]().catch(() => null).then(r => ({ id: p.id, result: r })))
-  );
-
-  // Pick best result in priority order, collect failures + every available version
-  const failedIds = [];
-  let bestResult = null;
-  const allResults = [];
-  for (const p of enabledProviders) {
-    const { result } = settled.find(s => s.id === p.id);
-    if (result) {
-      const tagged = { ...result, providerId: p.id };
-      allResults.push(tagged);
-      if (!bestResult) bestResult = tagged;
-    } else failedIds.push(p.id);
-  }
-
-  return bestResult ? { ...bestResult, failedIds, allResults } : { failedIds, allResults };
-}
-
-// ─── Unison signed write helpers ─────────────────────────────────────────────
-// The frontend signs each request with the stored identity (WebCrypto) and posts the
-// signed envelope to the backend, which forwards it to Unison.
-function getUnisonIdentity() {
-  try { const raw = localStorage.getItem("kodama-unison-identity"); return raw ? JSON.parse(raw) : null; }
-  catch { return null; }
-}
-async function unisonVote(lyricsId, vote) {
-  const id = getUnisonIdentity();
-  if (!id) throw new Error("no_identity");
-  const method = vote === 0 ? "DELETE" : "POST";
-  const body = await buildSignedRequest(id, vote === 0 ? {} : { vote });
-  const r = await fetch(`${API}/unison/lyrics/${lyricsId}/vote`, {
-    method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error("vote_failed");
-  return true;
-}
-async function unisonReport(lyricsId, reason, details) {
-  const id = getUnisonIdentity();
-  if (!id) throw new Error("no_identity");
-  const body = await buildSignedRequest(id, details ? { reason, details } : { reason });
-  const r = await fetch(`${API}/unison/lyrics/${lyricsId}/report`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error("report_failed");
-  return true;
-}
-
-// Set / reset / look up the identity's Unison nickname (custom display name).
-async function unisonSetNickname(nickname) {
-  const id = getUnisonIdentity();
-  if (!id) throw new Error("no_identity");
-  const body = await buildSignedRequest(id, { nickname });
-  const r = await fetch(`${API}/unison/auth/nickname`, {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || "nickname_failed");
-  return d;
-}
-async function unisonResetNickname() {
-  const id = getUnisonIdentity();
-  if (!id) throw new Error("no_identity");
-  const body = await buildSignedRequest(id, {});
-  const r = await fetch(`${API}/unison/auth/nickname`, {
-    method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error("reset_failed");
-  return true;
-}
-async function unisonFetchDisplayName(keyId) {
-  try {
-    const r = await fetch(`${API}/unison/displayname/${keyId}`);
-    if (r.ok) return (await r.json()).displayName || null;
-  } catch {}
-  return null;
-}
-
-// Browse every available lyrics version for the current track and apply the preferred
-// one. Fetches all providers on open and shows a preview + sync type per version.
-const UNISON_REPORT_REASONS = ["wrong_song", "bad_sync", "offensive", "spam", "other"];
-
-function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter, currentVersionId, onApply, onClose }) {
-  const t = useLang();
-  const [results, setResults] = useState(null); // null = loading, [] = none
-  const [votes, setVotes] = useState({});       // { [versionId]: { my: -1|0|1, count } }
-
-  const doVote = async (r, dir) => {
-    if (r.id == null) return;
-    if (!getUnisonIdentity()) { toast.danger(t("unisonNeedIdentity"), { timeout: 5000 }); return; }
-    const cur = votes[r.id]?.my ?? 0;
-    const base = votes[r.id]?.count ?? (r.voteCount || 0);
-    const next = cur === dir ? 0 : dir; // toggle off if same direction
-    setVotes(v => ({ ...v, [r.id]: { my: next, count: base + (next - cur) } }));
-    try { await unisonVote(r.id, next); }
-    catch {
-      setVotes(v => ({ ...v, [r.id]: { my: cur, count: base } }));
-      toast.danger(t("unisonVoteError"), { timeout: 4000 });
-    }
-  };
-
-  const doReport = async (versionId, reason) => {
-    if (!getUnisonIdentity()) { toast.danger(t("unisonNeedIdentity"), { timeout: 5000 }); return; }
-    try { await unisonReport(versionId, reason); toast.success(t("unisonReportThanks"), { timeout: 3500 }); }
-    catch { toast.danger(t("unisonReportError"), { timeout: 4000 }); }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const res = await fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "").catch(() => null);
-      let base = res?.allResults || [];
-      // Expand the single Unison entry into every community submission for this song.
-      if (providers.some(p => p.enabled && p.id === "unison")) {
-        try {
-          const params = new URLSearchParams({ title: track.title, artist: track.artists });
-          if (track.album) params.set("album", track.album);
-          const dur = parseDurationToSeconds(track.duration);
-          if (dur) params.set("duration", Math.round(dur));
-          if (track.videoId) params.set("videoId", track.videoId);
-          const r = await fetch(`${API}/lyrics/unison/versions?${params}`);
-          if (r.ok) {
-            const d = await r.json();
-            const uVersions = (d.versions || []).map(v => {
-              let lrc = null;
-              if (v.format === "ttml") lrc = parseTtml(v.lyrics);
-              else if (v.format === "lrc") lrc = parseLrc(v.lyrics);
-              else if (v.lyrics) lrc = v.lyrics.split("\n").map(line => ({ time: -1, text: line }));
-              return (lrc && lrc.length)
-                ? { id: v.id, source: "Unison", providerId: "unison", submitterName: v.submitterName, syncType: v.syncType, format: v.format, voteCount: v.voteCount, lrc }
-                : null;
-            }).filter(Boolean);
-            if (uVersions.length) {
-              const idx = base.findIndex(x => x.providerId === "unison");
-              const without = base.filter(x => x.providerId !== "unison");
-              const at = idx >= 0 ? idx : 0;
-              base = [...without.slice(0, at), ...uVersions, ...without.slice(at)];
-            }
-          }
-        } catch {}
-      }
-      if (!cancelled) setResults(base);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const lineText = (l) => (l.text || (l.words || []).map(w => w.text).join("")).trim();
-  const previewOf = (lrc) => (lrc || []).map(lineText).filter(Boolean).slice(0, 3).join(" / ");
-
-  // Sync badge derived from the ACTUAL parsed lyrics, not the provider — the real sync
-  // type varies per song (e.g. Better Lyrics may return line-synced for some tracks).
-  // word-level timing → Syllable/Word (by provider); line-level → Line; none → Plain.
-  const detectSync = (lrc) => {
-    if (!lrc || !lrc.length) return "plain";
-    if (lrc.some(l => Array.isArray(l.words) && l.words.length > 0)) return "word";
-    if (lrc.some(l => typeof l.time === "number" && l.time >= 0)) return "line";
-    return "plain";
-  };
-  const syncFor = (r) => {
-    const level = detectSync(r.lrc);
-    if (level === "line") return PROVIDER_SYNC.lrclib;  // Line badge
-    if (level === "plain") return { label: "Plain", color: "#9e9e9e", bg: "rgba(158,158,158,0.12)" };
-    return r.providerId === "musixmatch" ? PROVIDER_SYNC.musixmatch : PROVIDER_SYNC.better;
-  };
-
-  // Exactly one row is "active": prefer an exact version-id match (set when a version
-  // was applied from here), otherwise the first row matching the live source/submitter.
-  const activeIdx = (() => {
-    const list = results || [];
-    if (currentVersionId != null) {
-      const i = list.findIndex(r => r.id != null && r.id === currentVersionId);
-      if (i >= 0) return i;
-    }
-    return list.findIndex(r => r.source === currentSource
-      && (r.source !== "Unison" || (r.submitterName || null) === (currentSubmitter || null)));
-  })();
-
-  return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ModalBackdrop className="z-[300]!">
-        <ModalContainer placement="center" size="lg" className="w-[520px] max-w-[92vw]">
-          <ModalDialog>
-            <ModalHeader>
-              <ModalIcon><Microphone size={18} /></ModalIcon>
-              <ModalCloseTrigger />
-              <ModalHeading className="flex items-center gap-2">
-                {t("browseLyrics")}
-                <span className="text-t10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-accent-dim text-accent">Beta</span>
-              </ModalHeading>
-            </ModalHeader>
-            <ModalBody>
-              <div className="h-[48vh] overflow-y-auto overflow-x-hidden px-0.5">
-                {results === null ? (
-                  <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
-                ) : results.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-muted text-t12">{t("noLyricsFound")}</div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {results.map((r, i) => {
-                      const sync = syncFor(r);
-                      const isActive = i === activeIdx;
-                      const preview = previewOf(r.lrc);
-                      const isUnison = r.providerId === "unison" && r.id != null;
-                      const vState = votes[r.id];
-                      const count = vState ? vState.count : (r.voteCount ?? 0);
-                      const my = vState ? vState.my : 0;
-                      return (
-                        <div key={`${r.providerId}-${i}`} role="button" tabIndex={0}
-                          onClick={() => { onApply(r); onClose(); }}
-                          onKeyDown={e => { if (e.key === "Enter") { onApply(r); onClose(); } }}
-                          className={cn("flex flex-col gap-1.5 p-3 rounded-xl text-left border w-full min-w-0 cursor-default transition-colors duration-150",
-                            isActive ? "border-accent bg-accent-dim" : "border-border bg-transparent hover:bg-hover")}>
-                          <div className="flex items-center gap-2 w-full min-w-0">
-                            <span className={cn("text-t13 font-semibold shrink-0", isActive && "text-accent")}>{r.source}</span>
-                            {r.submitterName ? <span className="text-t11 text-muted truncate min-w-0">· {r.submitterName}</span> : null}
-                            {sync ? (
-                              <span className="ml-auto text-t10 px-1.5 py-0.5 rounded shrink-0" style={{ color: sync.color, background: sync.bg }}>{sync.label}</span>
-                            ) : <span className="ml-auto" />}
-                            {isActive ? <Check size={14} weight="bold" className="text-accent shrink-0" /> : null}
-                          </div>
-                          {preview ? <div className="text-t11 text-muted leading-relaxed line-clamp-2 break-words w-full">{preview}</div> : null}
-                          {isUnison ? (
-                            <div className="flex items-center gap-1 pt-0.5" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => doVote(r, 1)} title={t("upvote")}
-                                className={cn("flex items-center justify-center size-6 rounded-md hover:bg-hover transition-colors", my === 1 ? "text-accent" : "text-muted")}>
-                                <CaretUp size={13} weight="bold" />
-                              </button>
-                              <span className="text-t11 tabular-nums min-w-[18px] text-center text-secondary">{count}</span>
-                              <button onClick={() => doVote(r, -1)} title={t("downvote")}
-                                className={cn("flex items-center justify-center size-6 rounded-md hover:bg-hover transition-colors", my === -1 ? "text-[#e05252]" : "text-muted")}>
-                                <CaretDown size={13} weight="bold" />
-                              </button>
-                              <Dropdown>
-                                <DropdownTrigger title={t("report")}
-                                  className="ml-auto flex items-center justify-center size-6 rounded-md hover:bg-hover text-muted hover:text-[#e05252] transition-colors">
-                                  <Flag size={13} />
-                                </DropdownTrigger>
-                                <DropdownPopover className={cn("z-[400]!", CTX_POPOVER_ANIM)}>
-                                  <DropdownMenu aria-label={t("report")} onAction={(key) => doReport(r.id, String(key))}>
-                                    {UNISON_REPORT_REASONS.map(rr => (
-                                      <DropdownItem key={rr} id={rr} textValue={t("report_" + rr)}>{t("report_" + rr)}</DropdownItem>
-                                    ))}
-                                  </DropdownMenu>
-                                </DropdownPopover>
-                              </Dropdown>
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="secondary" fullWidth className="justify-center gap-2"
-                onPress={() => { openComposer(track?.videoId).catch(console.error); onClose(); }}>
-                <img src="/Boidu Composer Icon.svg" style={{ width: 18, height: 18 }} alt="" />{t("openComposerBtn")}
-              </Button>
-            </ModalFooter>
-          </ModalDialog>
-        </ModalContainer>
-      </ModalBackdrop>
-    </ModalRoot>
-  );
-}
-
-// LEGACY - replaced above
-async function _fetchLyrics_unused(title, artist, album, duration) {
-  // 1. Kimuco Lyrics (Supabase)
-  try {
-    const q = encodeURIComponent(title.toLowerCase());
-    const url = `${SUPABASE_URL}/rest/v1/Kimuco%20Lyrics?select=synced_lyrics&title=ilike.${q}&limit=1`;
-    const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
-    const d = await r.json();
-    if (d?.[0]?.synced_lyrics) return { source: "Kimuco", lrc: parseLrc(d[0].synced_lyrics) };
-  } catch {}
-
-  // 2. Better Lyrics
-  try {
-    const params = new URLSearchParams({ s: title, a: artist });
-    if (album) params.set("al", album);
-    if (duration) params.set("d", Math.round(duration));
-    const r = await fetch(`https://lyrics-api.boidu.dev/getLyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.ttml) { const lrc = parseTtml(d.ttml); if (lrc.length) return { source: "Better Lyrics", lrc }; }
-    }
-  } catch {}
-
-  // 3. LRCLIB
-  try {
-    const r = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d.syncedLyrics) return { source: "LRCLIB", lrc: parseLrc(d.syncedLyrics) };
-      if (d.plainLyrics) return { source: "LRCLIB", lrc: d.plainLyrics.split("\n").map(t => ({ time: -1, text: t })) };
-    }
-  } catch {}
-
-  return null;
-}
-
-// Paint a word-synced line's per-syllable highlight directly onto its DOM spans.
-// Shared by the ACTIVE line and the TRAILING line (a line that handed over before its
-// endTime). Driving both from the same routine means a handed-over line keeps wiping its
-// remaining syllables to completion instead of snapping fully white on the line switch.
 // zoomMaxRef: pass a ref to enable the per-syllable zoom (active line); pass null to
 // disable it (trailing line — it just finishes its wipe quietly, no attention-grab).
 // Paints a single karaoke word sequence (its own active-word index, stored under
@@ -8829,28 +7371,6 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
   );
 }
 
-function GridCard({ thumbnail, title, subtitle, onClick, onContextMenu }) {
-  return (
-    <div
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      className="grid-card cursor-default overflow-hidden rounded-[14px] bg-surface shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] hover:shadow-[0_12px_32px_rgba(0,0,0,0.55)]"
-    >
-      {/* Thumbnail */}
-      <div className="w-full aspect-square overflow-hidden bg-elevated">
-        {thumbnail
-          ? <img src={thumb(thumbnail)} alt="" className="block w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
-      </div>
-      {/* Info footer */}
-      <div className="grid-card-footer min-h-[52px] px-[14px] pt-3 pb-[14px] bg-[rgb(10,10,12)]">
-        <div className="text-t13 font-semibold text-white truncate">{title}</div>
-        <div className="text-t11 text-muted mt-1 min-h-[14px] truncate">{subtitle || ""}</div>
-      </div>
-    </div>
-  );
-}
-
 function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu }) {
   const [tab, setTab] = useState("playlists");
   const [playlists, setPlaylists] = useState([]);
@@ -8872,6 +7392,14 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
     const handler = () => setRefreshKey(k => k + 1);
     window.addEventListener("kiyoshi-library-updated", handler);
     return () => window.removeEventListener("kiyoshi-library-updated", handler);
+  }, []);
+
+  // Targeted, refetch-free removal of a single playlist (used when deleting): drops just that
+  // card from the local list so the grid doesn't reload and flash empty.
+  useEffect(() => {
+    const onRemoved = (e) => setPlaylists(prev => prev.filter(p => p.playlistId !== e.detail));
+    window.addEventListener("kiyoshi-playlist-removed", onRemoved);
+    return () => window.removeEventListener("kiyoshi-playlist-removed", onRemoved);
   }, []);
 
   useEffect(() => {
@@ -9014,7 +7542,8 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
         }}>
           {items.map((item, i) => {
             if (tab === "playlists") return (
-              <GridCard key={i}
+              <GridCard key={item.playlistId || i}
+                cardId={item.playlistId}
                 thumbnail={item.thumbnail}
                 title={item.title}
                 subtitle={item.count ? `${item.count} ${t("songs")}` : ""}
@@ -9023,7 +7552,7 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
               />
             );
             if (tab === "albums") return (
-              <GridCard key={i}
+              <GridCard key={item.browseId || item.playlistId || i}
                 thumbnail={item.thumbnail}
                 title={item.title}
                 subtitle={`${item.artists}${item.year ? ` · ${item.year}` : ""}`}
@@ -9032,7 +7561,7 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
               />
             );
             if (tab === "artists") return (
-              <GridCard key={i}
+              <GridCard key={item.browseId || i}
                 thumbnail={item.thumbnail}
                 title={item.artist}
                 subtitle={item.songs ? `${item.songs} ${t("songs")}` : ""}
@@ -9047,747 +7576,6 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
   );
 }
 
-
-// ─── Extract dominant color from image via Canvas ──────────────────────────
-function useAccentColor(imageUrl) {
-  const [color, setColor] = useState("40,40,60");
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = 50;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, 50, 50);
-        const d = ctx.getImageData(0, 0, 50, 50).data;
-        let r = 0, g = 0, b = 0, count = 0;
-        for (let i = 0; i < d.length; i += 16) {
-          r += d[i]; g += d[i+1]; b += d[i+2]; count++;
-        }
-        r = Math.round(r/count); g = Math.round(g/count); b = Math.round(b/count);
-        setColor(`${r},${g},${b}`);
-      } catch {}
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
-  return color;
-}
-
-// ─── Shared table row for playlist/liked views ─────────────────────────────
-function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizontal }) {
-  const [hov, setHov] = React.useState(false);
-  const btn = (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: "flex",
-        flexDirection: horizontal ? "row" : "column",
-        alignItems: "center", justifyContent: "center",
-        gap: horizontal ? 8 : 6,
-        padding: iconOnly ? "10px 14px" : horizontal ? "10px 18px" : "10px 20px",
-        border: "none", borderRadius: 12,
-        background: hov
-          ? (danger ? "rgba(239,68,68,0.85)" : "rgba(255,255,255,0.10)")
-          : "transparent",
-        color: hov
-          ? (danger ? "#fff" : "var(--text-primary)")
-          : "var(--text-secondary)",
-        cursor: "default",
-        transition: "background 0.15s, color 0.15s",
-        flexShrink: 0,
-        fontFamily: "inherit",
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
-      {!iconOnly && <span style={{ fontSize: horizontal ? "var(--t13)" : "var(--t11)", fontWeight: 500, whiteSpace: "nowrap", fontFamily: "inherit" }}>{label}</span>}
-    </button>
-  );
-  return iconOnly ? <Tooltip text={label}>{btn}</Tooltip> : btn;
-}
-
-function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect }) {
-  const anim = useAnimations();
-  const t = useLang();
-
-  const gridCols = onToggleSelect
-    ? (isAlbum ? "28px minmax(0,2fr) minmax(0,1fr) 28px 52px" : "28px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px")
-    : (isAlbum ? "minmax(0,2fr) minmax(0,1fr) 28px 52px" : "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px");
-
-  const row = (
-    <div
-      onClick={isPremiumOnly ? undefined : () => onPlay(track)}
-      onContextMenu={(!isPremiumOnly && onContextMenu) ? (e) => { e.preventDefault(); onContextMenu(e, track); } : undefined}
-      style={{ gridTemplateColumns: gridCols }}
-      className={`group grid items-center gap-2 px-4 py-1 min-h-[52px] rounded-lg cursor-default transition-colors ${
-        selected
-          ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-          : isPlaying
-            ? "bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
-            : "hover:bg-hover"
-      } ${isPremiumOnly ? "opacity-40" : ""}`}
-    >
-      {onToggleSelect && (
-        <div
-          onClick={e => { e.stopPropagation(); onToggleSelect(); }}
-          className={`flex items-center justify-center shrink-0 cursor-default transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-        >
-          {selected
-            ? <CheckCircle size={18} weight="fill" className="text-accent" />
-            : <div className="w-4 h-4 rounded-full border-[1.5px] border-[var(--text-muted)] bg-elevated" />}
-        </div>
-      )}
-      {/* Title */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-md bg-elevated">
-          {track.thumbnail
-            ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
-          {isPlaying && (
-            <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
-              {anim ? [1, 2, 3].map(b => (
-                <div key={b} className="w-[3px] rounded-[2px] bg-accent" style={{ animation: `eqBar${b} ${0.6 + b * 0.15}s ease-in-out infinite`, animationDelay: `${b * 0.1}s` }} />
-              )) : <Pause size={12} className="text-accent" />}
-            </div>
-          )}
-        </div>
-        <div className="min-w-0">
-          <div className={`flex items-center gap-1 overflow-hidden text-t13 font-medium ${isPlaying ? "text-accent" : "text-primary"}`}>
-            <span className="truncate min-w-0">{track.title}</span>
-            {track.isExplicit && <ExplicitBadge />}
-          </div>
-        </div>
-      </div>
-      {/* Artist */}
-      <div className="text-t12 text-secondary truncate">
-        <ArtistLinks track={track} onOpenArtist={onOpenArtist} />
-        {(!track.artists || (Array.isArray(track.artists) && track.artists.length === 0)) && "—"}
-      </div>
-      {/* Album */}
-      {!isAlbum && (
-        <div
-          onClick={e => { if (track.albumBrowseId && onOpenAlbum) { e.stopPropagation(); onOpenAlbum({ browseId: track.albumBrowseId, title: track.album }); }}}
-          className="text-t12 text-secondary truncate cursor-default transition-colors hover:text-primary"
-        >
-          {track.album || "—"}
-        </div>
-      )}
-      {/* Download */}
-      <div className="flex justify-center"
-        onClick={e => { e.stopPropagation(); if (!isPremiumOnly && onDownload && !isCached && !isDownloading) onDownload(track); }}
-      >
-        {isPremiumOnly ? (
-          <Crown size={14} weight="fill" className="text-[#f0b429]" />
-        ) : isCached ? (
-          <CheckCircle size={14} className="text-[#4caf50]" />
-        ) : isDownloading ? (
-          <DownloadSimple size={14} className="text-accent animate-pulse" />
-        ) : onDownload ? (
-          <DownloadSimple size={14} className="text-muted cursor-default opacity-0 transition-opacity group-hover:opacity-100" />
-        ) : null}
-      </div>
-      {/* Duration */}
-      <div className="text-t12 text-muted text-right">
-        {track.duration || "—"}
-      </div>
-    </div>
-  );
-
-  return isPremiumOnly
-    ? <Tooltip text={t("premiumOnly")}>{row}</Tooltip>
-    : row;
-}
-
-// ─── Shared playlist/collection layout ────────────────────────────────────
-function PlaylistLayout({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel }) {
-  const accentColor = useAccentColor(thumbnail);
-  const t = useLang();
-  const [trackSearch, setTrackSearch] = useState("");
-  const [searchVisible, setSearchVisible] = useState(false);
-  const searchInputRef = useRef(null);
-
-  useEffect(() => {
-    if (searchVisible) searchInputRef.current?.focus();
-  }, [searchVisible]);
-
-  const visibleTracks = tracks.filter(tr => {
-    if (hideExplicit && tr.isExplicit) return false;
-    if (trackSearch.trim()) {
-      const q = trackSearch.toLowerCase();
-      return (tr.title || "").toLowerCase().includes(q) || (tr.artists || "").toLowerCase().includes(q);
-    }
-    return true;
-  });
-
-  const totalDuration = formatTotalDuration(tracks);
-  const skeletonCount = total ? Math.max(0, total - tracks.length) : 0;
-
-  // ── List virtualization ─────────────────────────────────────────────────────
-  // Only the visible rows are mounted (constant DOM regardless of list length).
-  // The whole page scrolls (the list is NOT the scroll container), so we virtualize
-  // against the nearest `.scrollable` ancestor and offset by the list's position in it.
-  const listInnerRef = useRef(null);
-  const [scrollEl, setScrollEl] = useState(null);
-  const [listScrollMargin, setListScrollMargin] = useState(0);
-  const [, bumpMeasure] = useState(0);
-
-  useEffect(() => {
-    const onResize = () => bumpMeasure(n => n + 1);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  // Re-measure the list's offset within the scroll container every render (cheap, guarded);
-  // catches header-height changes as tracks/metadata stream in.
-  useLayoutEffect(() => {
-    const inner = listInnerRef.current;
-    if (!inner) return;
-    const sc = inner.closest(".scrollable");
-    if (sc !== scrollEl) setScrollEl(sc);
-    if (!sc) return;
-    const top = Math.max(0, Math.round(inner.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop));
-    setListScrollMargin(prev => (prev === top ? prev : top));
-  });
-
-  const skelN = trackSearch ? 0 : skeletonCount;
-  const rowCount = visibleTracks.length + skelN;
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => scrollEl,
-    estimateSize: () => 52,
-    overscan: 12,
-    scrollMargin: listScrollMargin,
-  });
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
-      <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:.9}}`}</style>
-
-      {/* Hero header */}
-      <div style={{
-        position: "relative",
-      }}>
-        {/* Navigation row */}
-        <div style={{ padding: "48px 22px 18px", display: "flex", gap: 8 }}>
-          <button
-            onClick={onBack || undefined}
-            disabled={!onBack}
-            style={{
-              width: 36, height: 36, borderRadius: "50%",
-              background: "rgba(0,0,0,0.38)", border: "0.5px solid rgba(255,255,255,0.12)",
-              color: onBack ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "default",
-              backdropFilter: "blur(8px)", transition: "background 0.15s",
-              padding: 0,
-            }}
-            onMouseEnter={e => { if (onBack) e.currentTarget.style.background = "rgba(0,0,0,0.58)"; }}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.38)"}
-          >
-            <ArrowLeft size={16} />
-          </button>
-        </div>
-
-        {/* Album / playlist info */}
-        <div style={{ display: "flex", gap: 26, alignItems: "flex-end", padding: "0 28px 28px" }}>
-          {/* Cover */}
-          <div style={{
-            width: 190, height: 190, borderRadius: 12, flexShrink: 0,
-            overflow: "hidden", background: "var(--bg-elevated)",
-            boxShadow: `0 18px 52px rgba(${accentColor},0.38)`,
-          }}>
-            {thumbnail
-              ? <img src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, rgba(${accentColor},0.8), rgba(${accentColor},0.3))`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {isLiked
-                    ? <Heart size={72} weight="fill" style={{ color: "rgba(255,255,255,0.9)" }} />
-                    : typeLabel
-                    ? <ClockCounterClockwise size={72} style={{ color: "rgba(255,255,255,0.9)" }} />
-                    : null}
-                </div>}
-          </div>
-
-          {/* Info */}
-          <div style={{ minWidth: 0, flex: 1 }}>
-            {/* Type label */}
-            <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
-              {typeLabel ?? (isAlbum ? t("album") : t("playlist"))}
-            </div>
-
-            {/* Title */}
-            <div style={{ fontSize: 38, fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: "#fff", textShadow: "0 2px 20px rgba(0,0,0,0.55)" }}>{title}</div>
-
-            {/* Metadata row with pipe separators */}
-            <div style={{ fontSize: "var(--t13)", color: "rgba(255,255,255,0.65)", marginBottom: 20, display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
-              {isAlbum && albumArtists && (
-                <>
-                  <span
-                    onClick={() => albumArtistBrowseId && onOpenArtist?.({ browseId: albumArtistBrowseId, artist: albumArtists })}
-                    style={{
-                      cursor: "default",
-                      display: "inline-flex", alignItems: "center",
-                      background: `rgba(${accentColor},0.25)`,
-                      border: `1px solid rgba(${accentColor},0.42)`,
-                      borderRadius: 20, padding: "3px 12px",
-                      fontSize: "var(--t13)", fontWeight: 600,
-                      color: "var(--accent)", transition: "background 0.15s, border-color 0.15s",
-                      marginRight: 10,
-                    }}
-                    onMouseEnter={e => { if (albumArtistBrowseId) { e.currentTarget.style.background = `rgba(${accentColor},0.38)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.65)`; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = `rgba(${accentColor},0.25)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.42)`; }}
-                  >{albumArtists}</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                </>
-              )}
-              {isAlbum && year && (
-                <>
-                  <span>{year}</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                </>
-              )}
-              <span>{total || tracks.length} {t("songs")}</span>
-              {totalDuration && (
-                <>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                  <span>{totalDuration}</span>
-                </>
-              )}
-            </div>
-
-            {/* Action buttons — play left, secondary right */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              {/* Left: play */}
-              <button onClick={() => tracks.length && onPlay(tracks[0], tracks)} style={{
-                background: `rgba(${accentColor},0.18)`,
-                border: `1px solid rgba(${accentColor},0.38)`,
-                borderRadius: 28, height: 50, padding: "0 28px",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                cursor: "default", transition: "background 0.18s, border-color 0.18s, transform 0.15s",
-                fontSize: "var(--t15)", fontWeight: 700, color: "var(--accent)",
-                fontFamily: "var(--font)", backdropFilter: "blur(6px)",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = `rgba(${accentColor},0.3)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.6)`; e.currentTarget.style.transform = "scale(1.03)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = `rgba(${accentColor},0.18)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.38)`; e.currentTarget.style.transform = "scale(1)"; }}
-              >
-                <Play size={14} weight="fill" style={{ color: "var(--accent)" }} />
-                {t("playAll")}
-              </button>
-
-              {/* Right: secondary actions */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {extraActions}
-                {/* Inline search input */}
-                <div style={{
-                  width: searchVisible ? 200 : 0, overflow: "hidden",
-                  transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
-                  display: "flex", alignItems: "center",
-                }}>
-                  <input
-                    ref={searchInputRef}
-                    value={trackSearch}
-                    onChange={e => setTrackSearch(e.target.value)}
-                    placeholder={t("searchInPlaylist")}
-                    style={{
-                      background: "rgba(0,0,0,0.35)", border: "0.5px solid rgba(255,255,255,0.18)",
-                      borderRadius: 20, padding: "9px 14px", fontSize: "var(--t13)", color: "#fff",
-                      outline: "none", width: 200, flexShrink: 0, fontFamily: "var(--font)",
-                    }}
-                  />
-                </div>
-                {searchVisible && trackSearch && (
-                  <span style={{ fontSize: "var(--t12)", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-                    {visibleTracks.length} {t("xOfY")} {tracks.length}
-                  </span>
-                )}
-                {/* Search toggle */}
-                <Tooltip text={t("searchInPlaylist")}><button
-                  onClick={() => { setSearchVisible(v => !v); if (searchVisible) setTrackSearch(""); }}
-                  style={{
-                    background: searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)",
-                    border: "0.5px solid rgba(255,255,255,0.15)",
-                    borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                    justifyContent: "center", cursor: "default", transition: "background 0.15s",
-                    color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)"}
-                >
-                  <MagnifyingGlass size={15} />
-                </button></Tooltip>
-
-                {/* Download / downloaded state */}
-                {onDownloadAll && tracks.length > 0 && (() => {
-                  const allCached = cachedSongIds && tracks.every(tr => cachedSongIds.has(tr.videoId));
-                  const someDownloading = downloadingIds && tracks.some(tr => downloadingIds.has(tr.videoId));
-                  const btnBase = {
-                    borderRadius: 28, height: 42, display: "flex", alignItems: "center",
-                    padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
-                    cursor: "default", transition: "background 0.15s, border-color 0.15s",
-                    fontFamily: "var(--font)", backdropFilter: "blur(6px)", border: "0.5px solid rgba(255,255,255,0.15)",
-                  };
-                  return allCached ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ ...btnBase, cursor: "default", color: "#4caf50", background: "rgba(76,175,80,0.12)", border: "0.5px solid rgba(76,175,80,0.3)" }}>
-                        <CheckCircle size={14} weight="fill" />
-                        {t("downloaded")}
-                      </div>
-                      {onRemoveAll && (
-                        <Tooltip text={t("removeDownload")}><button
-                          onClick={() => onRemoveAll(tracks)}
-                          style={{
-                            background: "rgba(0,0,0,0.3)", border: "0.5px solid rgba(255,255,255,0.15)",
-                            borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                            justifyContent: "center", cursor: "default", transition: "background 0.15s",
-                            color: "rgba(255,255,255,0.7)", padding: 0, backdropFilter: "blur(6px)",
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(224,82,82,0.25)"; e.currentTarget.style.color = "#e05252"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
-                        >
-                          <Trash size={14} />
-                        </button></Tooltip>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => onDownloadAll(tracks)}
-                      disabled={someDownloading}
-                      style={{
-                        ...btnBase,
-                        background: "rgba(0,0,0,0.3)",
-                        color: "rgba(255,255,255,0.85)",
-                        opacity: someDownloading ? 0.65 : 1,
-                        cursor: someDownloading ? "default" : "default",
-                      }}
-                      onMouseEnter={e => { if (!someDownloading) e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
-                      onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.3)"}
-                    >
-                      {someDownloading
-                        ? <DownloadSimple size={14} style={{ animation: "pulse 1s ease-in-out infinite" }} />
-                        : <DownloadSimple size={14} />}
-                      {t("downloadAll")}
-                    </button>
-                  );
-                })()}
-
-                {/* Refresh */}
-                {cached && onRefresh && (
-                  <Tooltip text={t("refresh")}><button
-                    onClick={onRefresh}
-                    style={{
-                      background: "rgba(0,0,0,0.3)", border: "0.5px solid rgba(255,255,255,0.15)",
-                      borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                      justifyContent: "center", cursor: "default", transition: "background 0.15s, transform 0.15s",
-                      color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "rotate(30deg)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = "rotate(0deg)"; }}
-                  >
-                    <ArrowClockwise size={14} />
-                  </button></Tooltip>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* Loading progress */}
-      {loading && !cached && (
-        <div style={{ padding: "0 28px 12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)" }}>{t("fetchingSongs")}</span>
-            <span style={{ fontSize: "var(--t11)", color: "var(--accent)", fontWeight: 500 }}>{progress}%</span>
-          </div>
-          <div style={{ height: 3, background: "var(--bg-elevated)", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,var(--accent),#c020e0)", width: `${progress}%`, transition: "width 0.4s ease" }} />
-          </div>
-        </div>
-      )}
-
-      {/* Column headers */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: onToggleSelect
-          ? (isAlbum ? "28px minmax(0,2fr) minmax(0,1fr) 28px 52px" : "28px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px")
-          : (isAlbum ? "minmax(0,2fr) minmax(0,1fr) 28px 52px" : "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px"),
-        gap: 8, padding: "8px 16px", margin: "0 12px",
-        borderBottom: "0.5px solid var(--border)",
-        fontSize: "var(--t11)", fontWeight: 600, color: "var(--text-muted)",
-        textTransform: "uppercase", letterSpacing: "0.08em",
-      }}>
-        {onToggleSelect && (() => {
-          const allSelected = visibleTracks.length > 0 && visibleTracks.every(tr => selectedTracks?.has(tr.videoId));
-          return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}
-              onClick={() => onSelectAll?.(visibleTracks, allSelected)}
-              title={allSelected ? t("deselectAll") : t("selectAll")}
-            >
-              {allSelected
-                ? <CheckCircle size={18} weight="fill" style={{ color: "var(--accent)" }} />
-                : <div style={{ width: 16, height: 16, borderRadius: "50%", border: "1.5px solid var(--text-muted)", background: "var(--bg-elevated)" }} />
-              }
-            </div>
-          );
-        })()}
-        <div>{t("colTitle")}</div>
-        <div>{t("colArtist")}</div>
-        {!isAlbum && <div>{t("colAlbum")}</div>}
-        <div></div>
-        <div style={{ textAlign: "right" }}>{t("colDuration")}</div>
-      </div>
-
-      {/* Track list (virtualized — only on-screen rows are mounted) */}
-      <div style={{ padding: "8px 12px 32px" }}>
-        <div ref={listInnerRef} style={{ position: "relative", height: rowVirtualizer.getTotalSize() }}>
-          {rowVirtualizer.getVirtualItems().map(vi => {
-            const i = vi.index;
-            const tr = visibleTracks[i];
-            return (
-              <div
-                key={vi.key}
-                data-index={i}
-                ref={rowVirtualizer.measureElement}
-                style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start - listScrollMargin}px)` }}
-              >
-                {tr ? (
-                  <TableRow track={tr} index={i}
-                    isPlaying={isPlaying && currentTrack?.videoId === tr.videoId}
-                    onPlay={() => onPlay(tr, visibleTracks)}
-                    onOpenArtist={onOpenArtist}
-                    onOpenAlbum={onOpenAlbum}
-                    isAlbum={isAlbum}
-                    onContextMenu={onTrackContextMenu}
-                    isCached={cachedSongIds?.has(tr.videoId)}
-                    isDownloading={downloadingIds?.has(tr.videoId)}
-                    isPremiumOnly={premiumSongIds?.has(tr.videoId)}
-                    onDownload={onDownloadSong}
-                    selected={selectedTracks?.has(tr.videoId)}
-                    onToggleSelect={onToggleSelect ? () => onToggleSelect(tr) : undefined}
-                  />
-                ) : (
-                  <SkeletonRow />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SkeletonRow() {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 12,
-      padding: "8px 16px", borderRadius: "var(--radius)",
-    }}>
-      <div style={{ width: 44, height: 44, borderRadius: 6, background: "var(--bg-elevated)", flexShrink: 0,
-        animation: "pulse 1.4s ease-in-out infinite" }} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ height: 12, width: "45%", borderRadius: 4, background: "var(--bg-elevated)",
-          animation: "pulse 1.4s ease-in-out infinite" }} />
-        <div style={{ height: 10, width: "30%", borderRadius: 4, background: "var(--bg-elevated)",
-          animation: "pulse 1.4s ease-in-out 0.2s infinite" }} />
-      </div>
-      <div style={{ height: 10, width: 36, borderRadius: 4, background: "var(--bg-elevated)",
-        animation: "pulse 1.4s ease-in-out infinite" }} />
-    </div>
-  );
-}
-
-function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onTrackContextMenu, hideExplicit, onOpenAlbum, onOpenArtist, onToggleLike, likedIds }) {
-  const t = useLang();
-  const [songs, setSongs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("songs");
-  const [selectedGroup, setSelectedGroup] = useState(null);
-
-  useEffect(() => {
-    setLoading(true);
-    let cancelled = false;
-    const load = (attempt = 0) => {
-      fetch(`${API}/song/cached/list`)
-        .then(r => r.json())
-        .then(d => { if (!cancelled) { setSongs(d.songs || []); setLoading(false); } })
-        .catch(() => {
-          if (!cancelled && attempt < 20) setTimeout(() => load(attempt + 1), 1500);
-          else if (!cancelled) setLoading(false);
-        });
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [cachedSongIds.size]);
-
-  const albums = useMemo(() => {
-    const map = new Map();
-    songs.forEach(song => {
-      if (!song.album) return;
-      const key = song.albumBrowseId || song.album;
-      if (!map.has(key)) map.set(key, { key, title: song.album, browseId: song.albumBrowseId, thumbnail: song.thumbnail, artists: song.artists, songs: [] });
-      map.get(key).songs.push(song);
-    });
-    return Array.from(map.values()).sort((a, b) => a.title.localeCompare(b.title));
-  }, [songs]);
-
-  const artists = useMemo(() => {
-    const map = new Map();
-    songs.forEach(song => {
-      if (!song.artists) return;
-      const key = song.artistBrowseId || song.artists;
-      if (!map.has(key)) map.set(key, { key, artist: song.artists, browseId: song.artistBrowseId, thumbnail: song.thumbnail, songs: [] });
-      map.get(key).songs.push(song);
-    });
-    return Array.from(map.values()).sort((a, b) => a.artist.localeCompare(b.artist));
-  }, [songs]);
-
-  const tabDefs = [
-    { id: "songs",   label: t("filterSongs"),   icon: <MusicNote size={14} /> },
-    { id: "albums",  label: t("filterAlbums"),  icon: <VinylRecord size={14} /> },
-    { id: "artists", label: t("filterArtists"), icon: <Microphone size={14} /> },
-  ];
-
-  // Detail view for a selected album or artist
-  if (selectedGroup) {
-    return (
-      <PlaylistLayout
-        title={selectedGroup.title}
-        thumbnail={selectedGroup.thumbnail}
-        tracks={selectedGroup.songs}
-        total={selectedGroup.songs.length}
-        loading={false}
-        progress={1}
-        cached={true}
-        onPlay={onPlay}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        onBack={() => setSelectedGroup(null)}
-        onOpenArtist={onOpenArtist}
-        onOpenAlbum={onOpenAlbum}
-        onTrackContextMenu={onTrackContextMenu}
-        cachedSongIds={cachedSongIds}
-        downloadingIds={downloadingIds}
-        premiumSongIds={premiumSongIds}
-        onDownloadSong={onDownloadSong}
-        hideExplicit={hideExplicit}
-        onToggleLike={onToggleLike}
-        likedIds={likedIds}
-      />
-    );
-  }
-
-  // Header in normal flow — sits above PlaylistLayout via zIndex:5 (safe, below any overlay)
-  const HEADER_H = 60; // 24px top padding + 36px row height
-  const tabBar = (
-    <div style={{ position: "relative", zIndex: 5, flexShrink: 0, padding: "24px 24px 0" }}>
-      <div style={{ position: "relative", display: "flex", alignItems: "center", height: 36 }}>
-      <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("downloads")}</div>
-      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4 }}>
-        {tabDefs.map(tb => (
-          <button key={tb.id} onClick={() => setTab(tb.id)}
-            className={`view-tab-btn${tab === tb.id ? " active" : ""}`}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: tab === tb.id ? "color-mix(in srgb, var(--accent) 20%, transparent)" : "transparent",
-              color: tab === tb.id ? "var(--accent)" : "var(--text-secondary)",
-              border: "none", borderRadius: 8, padding: "7px 14px",
-              fontSize: "var(--t13)", cursor: "default", fontFamily: "var(--font)",
-              transition: "all 0.15s", fontWeight: tab === tb.id ? 600 : 400,
-            }}>{tb.icon}{tb.label}</button>
-        ))}
-      </div>
-      </div>
-    </div>
-  );
-
-  if (tab === "songs") {
-    return (
-      <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
-        {tabBar}
-        {/* Negative margin pulls PlaylistLayout's gradient up behind the header */}
-        <div style={{ marginTop: -HEADER_H, flex: 1 }}>
-          <PlaylistLayout
-            title={t("allSongs")}
-            thumbnail={null}
-            tracks={songs}
-            total={songs.length}
-            loading={loading}
-            progress={1}
-            cached={false}
-            onPlay={onPlay}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onBack={null}
-            onOpenArtist={onOpenArtist}
-            onOpenAlbum={onOpenAlbum}
-            onTrackContextMenu={onTrackContextMenu}
-            cachedSongIds={cachedSongIds}
-            downloadingIds={downloadingIds}
-            premiumSongIds={premiumSongIds}
-            onDownloadSong={onDownloadSong}
-            hideExplicit={hideExplicit}
-            onToggleLike={onToggleLike}
-            likedIds={likedIds}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // Albums / Artists grid
-  const items = tab === "albums" ? albums : artists;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {tabBar}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 32px" }}>
-        {loading ? (
-          <div style={{ color: "var(--text-muted)", fontSize: "var(--t13)" }}>{t("loading")}…</div>
-        ) : items.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", fontSize: "var(--t13)" }}>{t("noResults")}</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 16 }}>
-            {tab === "albums" && albums.map((album, i) => (
-              <GridCard key={i}
-                thumbnail={album.thumbnail}
-                title={album.title}
-                subtitle={`${album.artists || ""} · ${album.songs.length} ${t("songs")}`}
-                onClick={() => setSelectedGroup({ title: album.title, thumbnail: album.thumbnail, songs: album.songs })}
-              />
-            ))}
-            {tab === "artists" && artists.map((artist, i) => (
-              <GridCard key={i}
-                thumbnail={artist.thumbnail}
-                title={artist.artist}
-                subtitle={`${artist.songs.length} ${t("songs")}`}
-                onClick={() => setSelectedGroup({ title: artist.artist, thumbnail: artist.thumbnail, songs: artist.songs })}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CollectionView({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll }) {
-  return (
-    <PlaylistLayout
-      title={title} thumbnail={thumbnail} tracks={tracks} total={total}
-      loading={loading} progress={progress} cached={cached}
-      onPlay={onPlay} currentTrack={currentTrack} isPlaying={isPlaying}
-      onBack={onBack} onOpenArtist={onOpenArtist} onOpenAlbum={onOpenAlbum}
-      isAlbum={isAlbum} albumArtists={albumArtists} albumArtistBrowseId={albumArtistBrowseId} year={year}
-      onRefresh={onRefresh} onTrackContextMenu={onTrackContextMenu}
-      cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={onDownloadSong} onDownloadAll={onDownloadAll} onRemoveAll={onRemoveAll}
-      hideExplicit={hideExplicit} onToggleLike={onToggleLike} likedIds={likedIds}
-      selectedTracks={selectedTracks} onToggleSelect={onToggleSelect} onSelectAll={onSelectAll}
-    />
-  );
-}
 
 function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onOpenPlaylist, onContextMenu, onTrackContextMenu, hideExplicit }) {
   const [filter, setFilter] = useState("songs");
@@ -10412,130 +8200,6 @@ function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArti
         </div>
       )}
     </div>
-  );
-}
-
-function timeAgo(ts, t) {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60)   return t("justNow")    || "Gerade eben";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)} d`;
-  return new Date(ts).toLocaleDateString();
-}
-
-function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onTrackContextMenu, cachedSongIds, downloadingIds, onDownloadSong, hideExplicit, onBack }) {
-  const t = useLang();
-  const profileKey = () => `kiyoshi-history-${window.__activeProfile || "default"}`;
-  const load = () => { try { return JSON.parse(localStorage.getItem(profileKey()) || "[]"); } catch { return []; } };
-  const [tracks, setTracks] = useState(load);
-  const [historyCtx, setHistoryCtx] = useState(null); // { x, y, track, index }
-
-  useEffect(() => {
-    const sync = () => setTracks(load());
-    window.addEventListener("kiyoshi-history-updated", sync);
-    return () => window.removeEventListener("kiyoshi-history-updated", sync);
-  }, []);
-
-  const clearHistory = () => {
-    localStorage.removeItem(profileKey());
-    setTracks([]);
-  };
-
-  const removeFromHistory = (index) => {
-    const updated = [...tracks];
-    updated.splice(index, 1);
-    localStorage.setItem(profileKey(), JSON.stringify(updated));
-    setTracks(updated);
-  };
-
-  const clearHistoryBtn = tracks.length > 0 ? (
-    <button onClick={clearHistory} style={{
-      borderRadius: 28, height: 42, display: "flex", alignItems: "center",
-      padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
-      cursor: "default", transition: "background 0.15s, border-color 0.15s, color 0.15s",
-      fontFamily: "var(--font)", backdropFilter: "blur(6px)",
-      border: "0.5px solid rgba(255,255,255,0.15)",
-      background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.75)",
-    }}
-    onMouseEnter={e => { e.currentTarget.style.color = "#f44336"; e.currentTarget.style.borderColor = "#f44336"; e.currentTarget.style.background = "rgba(244,67,54,0.12)"; }}
-    onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.75)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(0,0,0,0.3)"; }}
-    >
-      <Trash size={13} /> {t("clearHistory")}
-    </button>
-  ) : null;
-
-  return (
-    <PlaylistLayout
-      title={t("history")} thumbnail={null} tracks={tracks} total={tracks.length}
-      loading={false} progress={0} cached={false}
-      onPlay={onPlay} currentTrack={currentTrack} isPlaying={isPlaying}
-      onBack={onBack}
-      typeLabel={t("history")}
-      isLiked={false}
-      onOpenArtist={onOpenArtist} onOpenAlbum={onOpenAlbum}
-      onTrackContextMenu={onTrackContextMenu}
-      cachedSongIds={cachedSongIds} downloadingIds={downloadingIds}
-      onDownloadSong={onDownloadSong}
-      hideExplicit={hideExplicit}
-      extraActions={clearHistoryBtn}
-    />
-  );
-}
-
-function LikedView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onTrackContextMenu, cachedSongIds, downloadingIds, onDownloadSong, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, onBack }) {
-  const [tracks, setTracks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [errorCode, setErrorCode] = useState(null);
-  const t = useLang();
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(`${API}/liked`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) { const err = new Error(d.error); err.code = d.code; throw err; }
-        setTracks(d.tracks || []);
-      })
-      .catch(e => { setError(e.message); setErrorCode(e.code || null); })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return (
-    <div style={{ padding: 28, color: "var(--text-secondary)" }}>
-      {t("loadingLikedSongs")}
-    </div>
-  );
-
-  if (error && errorCode === "auth_expired") return (
-    <div style={{ padding: 28 }}>
-      <div style={{ color: "#f44336", marginBottom: 8 }}>{t("sessionExpired")}</div>
-      <div style={{ color: "var(--text-secondary)", fontSize: "var(--t13)" }}>{t("sessionExpiredHint")}</div>
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ padding: 28 }}>
-      <div style={{ color: "#f44336", marginBottom: 8 }}>{t("errorLoading")}</div>
-      <div style={{ color: "var(--text-secondary)", fontSize: "var(--t13)" }}>{error}</div>
-      <div style={{ color: "var(--text-muted)", fontSize: "var(--t12)", marginTop: 12 }}>
-        {t("backendHint")} <code style={{ background: "var(--bg-elevated)", padding: "1px 6px", borderRadius: 4 }}>python server.py</code>
-      </div>
-    </div>
-  );
-
-  return (
-    <PlaylistLayout
-      title={t("likedSongs")} thumbnail={null} tracks={tracks} total={tracks.length}
-      loading={false} progress={0} cached={false}
-      onPlay={onPlay} currentTrack={currentTrack} isPlaying={isPlaying}
-      onBack={onBack || null} isLiked={true} onOpenArtist={onOpenArtist} onOpenAlbum={onOpenAlbum}
-      onTrackContextMenu={onTrackContextMenu}
-      cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={onDownloadSong}
-      hideExplicit={hideExplicit} onToggleLike={onToggleLike} likedIds={likedIds}
-      selectedTracks={selectedTracks} onToggleSelect={onToggleSelect} onSelectAll={onSelectAll}
-    />
   );
 }
 
@@ -11672,6 +9336,7 @@ export default function App() {
   const [pinnedIds, setPinnedIds] = useState([]);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [createPlaylistForSelection, setCreatePlaylistForSelection] = useState(false);
+  const [createPlaylistTracks, setCreatePlaylistTracks] = useState(null); // tracks to add to the freshly created playlist (from "Add to playlist ▸ New playlist")
   const [selectedTracks, setSelectedTracks] = useState(new Map()); // videoId → track
   const [selectionPlaylistOpen, setSelectionPlaylistOpen] = useState(false);
 
@@ -12788,6 +10453,81 @@ export default function App() {
   const [playbackProgressive, setPlaybackProgressive] = useState(
     () => localStorage.getItem("kodama-playback-mode") !== "classic"
   );
+
+  // ── LAN remote control ──
+  // Default off; enabling starts the token-gated phone endpoints on the (already 0.0.0.0)
+  // backend. The Player pushes now-playing state + drains commands while enabled.
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+  const [remoteInfo, setRemoteInfo] = useState(null);     // { token, ips, port }
+  const [remoteDevices, setRemoteDevices] = useState([]);
+  // Remembered devices persist across app restarts. The backend state is in-memory, so the
+  // desktop keeps the stable token + trusted device list in localStorage and re-supplies both
+  // on enable — remembered phones then auto-approve without re-pairing after a restart.
+  const [remoteTrusted, setRemoteTrusted] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("kodama-remote-trusted") || "[]"); } catch { return []; }
+  });
+  const remoteTrustedIds = useMemo(() => new Set(remoteTrusted.map(x => x.id)), [remoteTrusted]);
+  const toggleRemote = useCallback(async (on) => {
+    try {
+      let trusted = [];
+      try { trusted = JSON.parse(localStorage.getItem("kodama-remote-trusted") || "[]"); } catch {}
+      const savedToken = localStorage.getItem("kodama-remote-token") || "";
+      const d = await fetch(`${API}/remote/_enable`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: on, token: on ? savedToken : "", trusted: on ? trusted : [] }),
+      }).then(r => r.json());
+      setRemoteEnabled(!!d.enabled);
+      setRemoteInfo(d.enabled ? { token: d.token, ips: d.ips || [], port: d.port } : null);
+      if (d.enabled && d.token) { try { localStorage.setItem("kodama-remote-token", d.token); } catch {} }
+      if (!d.enabled) setRemoteDevices([]);
+    } catch (e) { console.error("[Remote] toggle failed:", e); }
+  }, []);
+  const remoteDeviceAction = useCallback((id, action) => {
+    fetch(`${API}/remote/_device`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    }).catch(() => {});
+    // Forget a removed/denied device so it doesn't get re-seeded as approved next restart.
+    if (action === "remove" || action === "deny") {
+      setRemoteTrusted(prev => {
+        const next = prev.filter(x => x.id !== id);
+        try { localStorage.setItem("kodama-remote-trusted", JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  }, []);
+  const remoteRememberDevice = useCallback((id, name, on) => {
+    setRemoteTrusted(prev => {
+      const next = on ? [...prev.filter(x => x.id !== id), { id, name }] : prev.filter(x => x.id !== id);
+      try { localStorage.setItem("kodama-remote-trusted", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  // Pairing modal open state — declared before the device poll so the poll can speed up
+  // while it's open (for snappy scan detection) and stay slow otherwise (for performance).
+  const [pairModalOpen, setPairModalOpen] = useState(false);
+  // While enabled, poll the device list (for the desktop approval UI). Adaptive rate:
+  // fast (2s) while pairing so a scan is detected quickly, slow (5s) when idle.
+  useEffect(() => {
+    if (!remoteEnabled) return;
+    let stop = false;
+    // Only update state when the device list actually changed — a fresh array reference
+    // every poll would re-render the whole app even when nothing changed.
+    const sig = (arr) => (arr || []).map(x => `${x.id}:${x.status}:${x.online}`).join("|");
+    const tick = () => fetch(`${API}/remote/_status`).then(r => r.json())
+      .then(d => {
+        if (stop || !d || !d.devices) return;
+        setRemoteDevices(prev => (sig(prev) === sig(d.devices) ? prev : d.devices));
+      }).catch(() => {});
+    tick();
+    const iv = setInterval(tick, pairModalOpen ? 2000 : 5000);
+    return () => { stop = true; clearInterval(iv); };
+  }, [remoteEnabled, pairModalOpen]);
+
+  useEffect(() => { if (!remoteEnabled) setPairModalOpen(false); }, [remoteEnabled]);
+  const hasPending = remoteDevices.some(d => d.status === "pending");
+  useEffect(() => { if (hasPending) setPairModalOpen(true); }, [hasPending]);
+
   // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
   // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
   const [appIcon, setAppIcon] = useState(() => localStorage.getItem("kodama-app-icon") || APP_ICON_DEFAULT);
@@ -13628,6 +11368,7 @@ export default function App() {
             onToggleQueue={() => setQueueOpen(q => !q)}
             crossfade={crossfade}
             crossfadeOverrides={crossfadeOverrides}
+            remoteEnabled={remoteEnabled}
             playbackProgressive={playbackProgressive}
             fullscreen={fullscreen}
             onToggleFullscreen={async () => {
@@ -13672,6 +11413,7 @@ export default function App() {
             onRemoveCustomLyrics={() => removeCustomLyricsRef.current?.()}
             onPremiumDetected={(videoId) => setPremiumSongIds(prev => new Set(prev).add(videoId))}
             onCreatePlaylist={() => setCreatePlaylistOpen(true)}
+            onAddToPlaylist={(tracks) => setAddToPlaylistFor({ tracks })}
           />
           </div>
           </div>
@@ -13806,6 +11548,17 @@ export default function App() {
         />
       )}
 
+      {/* LAN remote pairing / approval — top-level so it can pop up even with Settings closed. */}
+      {remoteEnabled && (
+        <RemotePairModal
+          isOpen={pairModalOpen}
+          onClose={() => setPairModalOpen(false)}
+          info={remoteInfo}
+          devices={remoteDevices}
+          onDevice={remoteDeviceAction}
+          onRemember={remoteRememberDevice}
+        />
+      )}
 
       {(settingsOpen || settingsClosing) && (
         <div style={{
@@ -13849,6 +11602,13 @@ export default function App() {
             onAutoplayChange={v => { setAutoplay(v); localStorage.setItem("kiyoshi-autoplay", v); }}
             appIcon={appIcon}
             onAppIconChange={handleAppIconChange}
+            remoteEnabled={remoteEnabled}
+            remoteDevices={remoteDevices}
+            remoteTrustedIds={remoteTrustedIds}
+            onToggleRemote={toggleRemote}
+            onRemoteDevice={remoteDeviceAction}
+            onRememberDevice={remoteRememberDevice}
+            onPairDevice={() => setPairModalOpen(true)}
             crossfade={crossfade}
             onCrossfadeChange={v => { setCrossfade(v); localStorage.setItem("kiyoshi-crossfade", v); }}
             crossfadeOverrides={crossfadeOverrides}
@@ -13967,26 +11727,31 @@ export default function App() {
             screenshot={feedbackShot}
             onClose={() => setFeedbackOpen(false)}
             t={(key) => translate(language, key)}
+            version={APP_VERSION}
           />
         )}
 
         {createPlaylistOpen && (
           <CreatePlaylistModal
             t={(key) => translate(language, key)}
-            onClose={() => { setCreatePlaylistOpen(false); setCreatePlaylistForSelection(false); }}
+            onClose={() => { setCreatePlaylistOpen(false); setCreatePlaylistForSelection(false); setCreatePlaylistTracks(null); }}
             onCreated={async (id, title) => {
-              if (createPlaylistForSelection && selectedTracks.size > 0) {
-                const tracks = Array.from(selectedTracks.values());
+              // If the create flow started from "Add to playlist ▸ New playlist", push the
+              // pending tracks into the new playlist (works for both a single context-menu
+              // track and a multi-selection — the tracks were captured when the modal opened).
+              const pending = createPlaylistTracks;
+              if (pending && pending.length > 0) {
                 try {
                   await fetch(`${API}/playlist/${id}/add`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ videoIds: tracks.map(t => t.videoId), tracks }),
+                    body: JSON.stringify({ videoIds: pending.map(t => t.videoId), tracks: pending }),
                   });
                 } catch {}
-                clearSelection();
-                setCreatePlaylistForSelection(false);
+                if (createPlaylistForSelection) clearSelection();
               }
+              setCreatePlaylistTracks(null);
+              setCreatePlaylistForSelection(false);
               openPlaylist({ playlistId: id, title, thumbnail: "" }, view);
             }}
           />
@@ -13997,7 +11762,7 @@ export default function App() {
           <AddToPlaylistModal
             tracks={addToPlaylistFor.tracks}
             onClose={() => setAddToPlaylistFor(null)}
-            onNewPlaylist={() => { if (addToPlaylistFor.fromSelection) setCreatePlaylistForSelection(true); setCreatePlaylistOpen(true); }}
+            onNewPlaylist={() => { setCreatePlaylistTracks(addToPlaylistFor.tracks || null); if (addToPlaylistFor.fromSelection) setCreatePlaylistForSelection(true); setCreatePlaylistOpen(true); }}
             onAdded={addToPlaylistFor.fromSelection ? clearSelection : undefined}
           />
         )}
@@ -14132,12 +11897,15 @@ export default function App() {
             } catch (e) { console.error(e); }
           };
           const removeFromPlaylist = async () => {
+            // Optimistic: burst the row + drop it (and decrement total so the virtualized list
+            // doesn't render a phantom SkeletonRow for the now-missing slot), then tell the server.
+            if (animations) { try { particleBurst(document.querySelector(`[data-track-id="${CSS.escape(track.videoId)}"]`)); } catch {} }
+            setCollection(c => c ? { ...c, tracks: c.tracks.filter(t => t.videoId !== track.videoId || t.setVideoId !== track.setVideoId), total: Math.max(0, (c.total ?? c.tracks.length) - 1) } : c);
             try {
               await fetch(`${API}/playlist/${trackContextMenu.playlistId}/remove`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ videos: [{ videoId: track.videoId, setVideoId: track.setVideoId }] }),
               });
-              setCollection(c => c ? { ...c, tracks: c.tracks.filter(t => t.videoId !== track.videoId || t.setVideoId !== track.setVideoId) } : c);
             } catch {}
           };
           const removeDownload = async () => {
@@ -14315,13 +12083,25 @@ export default function App() {
             onClose={() => setDeleteDialog(null)}
             t={(key) => translate(language, key)}
             onConfirm={async () => {
-              try {
-                await fetch(`${API}/playlist/${deleteDialog.playlistId}`, { method: "DELETE" });
-                window.dispatchEvent(new Event("kiyoshi-library-updated"));
-                removeRecentPlaylist(deleteDialog.playlistId);
-                if (view === "collection" && collection?.playlistId === deleteDialog.playlistId) setView("library");
-              } catch {}
+              const pid = deleteDialog.playlistId;
+              const fromCollection = view === "collection" && collection?.playlistId === pid;
               setDeleteDialog(null);
+              removeRecentPlaylist(pid);
+              if (!fromCollection) {
+                // Library grid: dissolve the card (burst + fade), then remove just that one card
+                // locally — no full library refetch, so the grid never flashes empty.
+                const remove = () => window.dispatchEvent(new CustomEvent("kiyoshi-playlist-removed", { detail: pid }));
+                requestAnimationFrame(() => {
+                  const el = document.querySelector(`[data-card-id="${CSS.escape(pid)}"]`);
+                  if (animations && el) dissolve(el, remove); else remove();
+                });
+                fetch(`${API}/playlist/${pid}`, { method: "DELETE" }).catch(() => {});
+              } else {
+                // Deleting the currently open playlist: delete first, then go back to a fresh library.
+                try { await fetch(`${API}/playlist/${pid}`, { method: "DELETE" }); } catch {}
+                window.dispatchEvent(new Event("kiyoshi-library-updated"));
+                setView("library");
+              }
             }}
           />
         )}
