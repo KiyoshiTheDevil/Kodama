@@ -1,15 +1,15 @@
 {
   "version": "v1.0.0-alpha.26",
-  "pub_date": "2026-06-28T18:59:05Z",
+  "pub_date": "2026-06-28T19:25:02Z",
   "notes": "### Added\n- **Song sharing** — Share any song via link from the track menu or the player's ⋮ menu: a universal link (opens the song in Kodama if installed, otherwise YouTube Music), a direct Kodama deep link (`kodama://`), or plain YouTube Music / YouTube links. The universal link opens a small landing page showing the cover, title and artist.\n- **Custom app icons** — Personalize the app icon (taskbar, window, tray, macOS Dock) from a set of Default and Pride variants in Settings → Appearance.\n- **OS media controls** — Play / pause / next / previous now work from the Windows media overlay (SMTC), macOS Now Playing and Linux MPRIS, including keyboard media keys.\n- **Per-transition crossfade** — Set a custom crossfade length for a specific song-to-song transition (right-click a song in the queue), on top of the global default.\n- **Progressive playback** — Songs start playing while still loading for a faster start; can be switched back to classic full-download in Settings for weaker devices.\n### Changed\n- **Crossfade rebuilt** — Crossfade now runs in the audio core (two simultaneous sinks) instead of a separate hidden player, so it is captured by OBS and the visualizer and blends correctly.\n- **UI polish** — Hover effects across buttons, lists and menus are now translucent overlays; the search bar and Speed Dial use a frosted-glass style.\n### Fixed\n- Faster song loading — a single growing buffer instead of repeated reconnects, plus prewarming of upcoming queue tracks.",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.26/Kodama_1.0.0-alpha.26_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnRtSDRudERCVjRwTEJvbjJSR0oxVmhWUjdUN2pZNWFSMElpQVBPblczQ2hYb2p6OElNTWRBM084VnZaWVIvMFo1NUJKdmhsNmhsS3ZBcUdXOG9MSFFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNjczMDUxCWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjI2X3g2NC1zZXR1cC5leGUKdHlWd3hYRjF2QUd0YkRuRDd5RytxR3Z0TW9tZDdMSE9JZmlud2xKMG55R3MrL0c0bHQ5RUg3dG9JREl1bjZCQmc5WlZVQWFwN25OSFQrUGJLaytEQ0E9PQo="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmxGUzBEVForb3A0VFRJY0trQlNnc0M4QUFBRTBkZE5sRWoyeWR6T2ZiWXhVOXoxZHZma2ZwakZrU2dKaGxtaENUVmtIUS95ZDdpbS9ValhJM093REFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNjc0Njg1CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjI2X3g2NC1zZXR1cC5leGUKd1FDYU5GWjZrN210NkNlTE00ZFJJZWIzVnU2QStvdHN6QlMreVV3d2xJR2c5TjZDUk9YaXRFeVBHOFFyVXBmM0NtS0lwN0J5MEV4KzNhMFI0ZE1zQWc9PQo="
     },
     "darwin-aarch64": {
       "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.26/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnV6cW50Mld2ZDZGOThFSytjbjlnTnZ0S3FNY0hHZHpORVdEWGg3Mm14eXhsMzBEZzg3VVlvbUVxdmZ0RXI1U3dOd3NTNTF0UHE0OTBOZFA5eWxHWGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNjcyNTA3CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKWk9aOHRweUNCVmVmTWFBYWJmeHJIT01jQzNQSnl4STFZQTY0MTNFMG1LelhSY3crblVvejRpdTVkUlE0clg3azlmaVRrcngrcFBMQWlISU5xYjhvRFE9PQo="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmlpeGdLa1F1Zk5LMFJCWlpMcnNnd3pSS2U4QXNlVTBsL3lvemdSTko3d242ZnNab2xLRVh5em5WWXVscU1IcUpGVVN1Q0h6bXhjS0Zya29sb3RSdHdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNjc0MjgxCWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKUWhJQnoxUW9EUHdzd3BodmN6MmhMS0VUQ0RnQXNtb0ZaeXZ4WVZ4KytGK1J1T1cwbWNjOCtxdkhnMlMxL3FpVDFCUS9wRitUZlBJUmVpYVU0cmwxQUE9PQo="
     }
   }
 }
