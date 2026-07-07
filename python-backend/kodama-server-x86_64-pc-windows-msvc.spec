@@ -16,6 +16,12 @@ _composer_dist = _os.path.abspath(_os.path.join(SPECPATH, '..', 'composer', 'dis
 _feedback_cfg = _os.path.join(SPECPATH, 'feedback_config.json')
 _extra_datas = [(_feedback_cfg, '.')] if _os.path.exists(_feedback_cfg) else []
 
+# Last.fm API key + secret (gitignored, same pattern as feedback). CI writes it from secrets;
+# bundled to _MEIPASS root so the Last.fm loader finds it at runtime. Absent → "Not configured".
+_lastfm_cfg = _os.path.join(SPECPATH, 'lastfm_config.json')
+if _os.path.exists(_lastfm_cfg):
+    _extra_datas.append((_lastfm_cfg, '.'))
+
 a = Analysis(
     ['server.py'],
     pathex=[],

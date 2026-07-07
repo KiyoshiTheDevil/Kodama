@@ -45,6 +45,14 @@ jobs:
         run: |
           $cfg = @{ webhook = "$env:WEBHOOK" } | ConvertTo-Json -Compress
           Set-Content -Path feedback_config.json -Value $cfg -Encoding utf8
+      - name: Configure Last.fm
+        working-directory: python-backend
+        env:
+          LFM_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LFM_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+        run: |
+          $cfg = @{ api_key = "$env:LFM_KEY"; api_secret = "$env:LFM_SECRET" } | ConvertTo-Json -Compress
+          Set-Content -Path lastfm_config.json -Value $cfg -Encoding utf8
       - name: Build Python server (Windows)
         working-directory: python-backend
         run: |
@@ -111,6 +119,13 @@ jobs:
           WEBHOOK: ${{ secrets.KODAMA_FEEDBACK_WEBHOOK }}
         run: |
           printf '{"webhook":"%s"}' "$WEBHOOK" > feedback_config.json
+      - name: Configure Last.fm
+        working-directory: python-backend
+        env:
+          LFM_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LFM_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+        run: |
+          printf '{"api_key":"%s","api_secret":"%s"}' "$LFM_KEY" "$LFM_SECRET" > lastfm_config.json
       - name: Build Python server (macOS arm64)
         working-directory: python-backend
         run: |

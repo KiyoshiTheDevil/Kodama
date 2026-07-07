@@ -197,13 +197,23 @@ IMG_CACHE_TTL = 30 * 24 * 3600  # 30 days
 LASTFM_API_KEY = os.environ.get("LASTFM_API_KEY", "")
 LASTFM_API_SECRET = os.environ.get("LASTFM_API_SECRET", "")
 if not (LASTFM_API_KEY and LASTFM_API_SECRET):
-    try:
-        with open(os.path.join(_base_dir, "lastfm_config.json"), encoding="utf-8") as _lf:
-            _lfc = json.load(_lf)
-            LASTFM_API_KEY = LASTFM_API_KEY or _lfc.get("api_key", "")
-            LASTFM_API_SECRET = LASTFM_API_SECRET or _lfc.get("api_secret", "")
-    except Exception:
-        pass
+    # Same resolution as the feedback webhook: in a PyInstaller build the config is bundled (see
+    # the .spec) and extracted to sys._MEIPASS; in dev it sits next to this file. NOT _base_dir —
+    # that points at the user data dir when frozen, where the config isn't. CI writes it from a secret.
+    _lf_candidates = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        _lf_candidates.append(os.path.join(sys._MEIPASS, "lastfm_config.json"))
+    _lf_candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lastfm_config.json"))
+    for _lf_path in _lf_candidates:
+        try:
+            if os.path.exists(_lf_path):
+                with open(_lf_path, encoding="utf-8") as _lf:
+                    _lfc = json.load(_lf)
+                    LASTFM_API_KEY = LASTFM_API_KEY or _lfc.get("api_key", "")
+                    LASTFM_API_SECRET = LASTFM_API_SECRET or _lfc.get("api_secret", "")
+                break
+        except Exception:
+            pass
 
 LASTFM_API_ROOT = "https://ws.audioscrobbler.com/2.0/"
 
