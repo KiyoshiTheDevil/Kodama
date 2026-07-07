@@ -38,7 +38,7 @@ downloads the latest release and avoids Gatekeeper's quarantine):
 curl -fsSL https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/install.sh | bash
 ```
 
-The app updates itself in place once installed.
+Automatic Updates on macOS are currently not functional. Hopefully I can fix it in the near future.
 
 ## Screenshots
 
