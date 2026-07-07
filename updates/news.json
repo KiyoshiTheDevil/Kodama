@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-07-06-this-is-another-notification-test",
+    "type": "note",
+    "date": "2026-07-06",
+    "title": "This is another notification test!",
+    "body": "Due to some issues in the Alpha 26, this hopefully works now in the newly released Alpha 27.\n\nmeow :3",
+    "image": "https://klipy.com/gifs/kasane-teto-birdbrain-1"
+  },
+  {
     "id": "2026-06-28-hello",
     "type": "note",
     "date": "2026-06-28",
