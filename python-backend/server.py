@@ -34,6 +34,8 @@ CORS(app, origins=[
     "http://127.0.0.1",
 ])
 
+# N: IDK
+# N-A: Generic delayed dictionary cleanup; keep as a small shared timing helper.
 def _schedule_cleanup(d, key, delay=300):
     """Remove *key* from dict *d* after *delay* seconds (default 5 min)."""
     def _do():
@@ -41,6 +43,8 @@ def _schedule_cleanup(d, key, delay=300):
         d.pop(key, None)
     threading.Thread(target=_do, daemon=True).start()
 
+# N: Artists
+# N-A: Pure YouTube response mapper; group with other artist/metadata helpers.
 def _artist_links(artist_list):
     """Return [{name, browseId}, ...] for all artists that have a name."""
     return [
@@ -49,6 +53,8 @@ def _artist_links(artist_list):
         if a.get("name")
     ]
 
+# N: Thumbnail
+# N-A: Pure thumbnail selection; keep beside the other thumbnail URL helper below.
 def _pick_thumb(thumbs, min_size=226):
     """Pick the smallest thumbnail that is at least min_size px wide.
     Falls back to the first thumbnail if none meet the threshold."""
@@ -58,6 +64,8 @@ def _pick_thumb(thumbs, min_size=226):
     chosen = min(candidates, key=lambda t: t["width"]) if candidates else thumbs[0]
     return chosen.get("url", "") if isinstance(chosen, dict) else ""
 
+# N: Thumbnail
+# N-A: Pure thumbnail URL transform; belongs in the same image/thumbnail helper module.
 def _upscale_thumbnail_url(url: str) -> str:
     """Return a higher-resolution variant of a YouTube/Google image URL.
     - lh3.googleusercontent.com / yt3.ggpht.com: replace =wNNN-hNNN… with =w0-h0
@@ -87,6 +95,9 @@ _composer_autocache = _load_composer_autocache()
 # yt-dlp needs Node.js for nsig (n-parameter) decryption on ALL requests,
 # not only authenticated ones.  Calling this here guarantees it runs before
 # the first request regardless of auth status.
+
+# N: Nodejs -> Maybe can combined with other disk related stuff
+# N-A: Startup dependency discovery, not cache/disk storage; it fits a runtime or yt-dlp helper.
 def _ensure_node_in_path():
     """Add bundled node.exe directory to PATH so yt-dlp can find it via shutil.which."""
     import shutil
@@ -114,120 +125,9 @@ def _ensure_node_in_path():
 
 _ensure_node_in_path()
 
-# ─── Debug log ring buffer ───────────────────────────────────────────────────
-import logging as _logging
-
-_server_start_time = time.time()
-_debug_log = collections.deque(maxlen=500)
-_debug_log_lock = threading.Lock()
-
-class _RingBufferHandler(_logging.Handler):
-    """Logging handler that appends records to the ring buffer.
-    Uses Python's standard logging module — safe in all PyInstaller modes."""
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            lvl = record.levelname
-            if lvl == "WARNING":
-                lvl = "WARN"
-            elif lvl not in ("INFO", "ERROR", "WARN", "DEBUG"):
-                lvl = "INFO"
-            with _debug_log_lock:
-                _debug_log.append({
-                    "ts": time.time(),
-                    "level": lvl,
-                    "msg": msg,
-                    "source": "backend",
-                })
-        except Exception:
-            pass
-
-_ring_handler = _RingBufferHandler()
-_ring_handler.setFormatter(_logging.Formatter("%(name)s: %(message)s"))
-_ring_handler.setLevel(_logging.DEBUG)
-# Capture root logger + Werkzeug (Flask's HTTP request logger)
-_logging.getLogger().addHandler(_ring_handler)
-_logging.getLogger("werkzeug").addHandler(_ring_handler)
-_logging.getLogger("werkzeug").setLevel(_logging.INFO)
-
 # ─── Musixmatch (inoffizielle API) ───────────────────────────────────────────
-_mx_token = None
-_mx_token_expires = 0
-MX_APP_ID  = "web-desktop-app-v1.0"
-MX_BASE    = "https://apic-desktop.musixmatch.com/ws/1.1"
-MX_HEADERS = {
-    "authority":   "apic-desktop.musixmatch.com",
-    "user-agent":  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "cookie":      "x-mxm-token-guid=",
-}
 
-def _get_mx_token():
-    """Holt oder erneuert den Musixmatch User-Token (10-Minuten-Cache)."""
-    global _mx_token, _mx_token_expires
-    if _mx_token and time.time() < _mx_token_expires:
-        return _mx_token
-    try:
-        import requests as req
-        r = req.get(f"{MX_BASE}/token.get",
-                    params={"app_id": MX_APP_ID, "guid": "default"},
-                    headers=MX_HEADERS, timeout=8)
-        tok = r.json()["message"]["body"]["user_token"]
-        _mx_token = tok
-        _mx_token_expires = time.time() + 600
-        return tok
-    except Exception as e:
-        print(f"[lyrics] Musixmatch token error: {e}", flush=True)
-        return None
-
-def _try_musixmatch(title, artist, duration=None):
-    """Sucht einen Track auf Musixmatch und gibt RichSync (Word) oder Subtitle (LRC) zurück."""
-    import json as _json, requests as req
-    token = _get_mx_token()
-    if not token:
-        return None
-    base = {"app_id": MX_APP_ID, "usertoken": token}
-
-    # Track suchen
-    try:
-        sr = req.get(f"{MX_BASE}/track.search",
-                     params={**base, "q_track": title, "q_artist": artist,
-                             "s_track_rating": "desc", "page_size": 5},
-                     headers=MX_HEADERS, timeout=8)
-        track_list = sr.json()["message"]["body"]["track_list"]
-    except Exception as e:
-        print(f"[lyrics] Musixmatch search error: {e}", flush=True)
-        return None
-    if not track_list:
-        return None
-    track_id = track_list[0]["track"]["track_id"]
-    bp = {**base, "track_id": track_id}
-
-    # RichSync (Word-Sync)
-    try:
-        rr = req.get(f"{MX_BASE}/track.richsync.get",
-                     params=bp, headers=MX_HEADERS, timeout=8)
-        rb = rr.json()["message"]["body"]
-        if rb and isinstance(rb, dict) and rb.get("richsync", {}).get("richsync_body"):
-            richsync = _json.loads(rb["richsync"]["richsync_body"])
-            if richsync:
-                return {"source": "Musixmatch", "richsync": richsync, "synced": None, "plain": None}
-    except Exception as e:
-        print(f"[lyrics] Musixmatch richsync error: {e}", flush=True)
-
-    # Fallback: Line-Sync (LRC)
-    try:
-        lr = req.get(f"{MX_BASE}/track.subtitle.get",
-                     params={**bp, "subtitle_format": "lrc"},
-                     headers=MX_HEADERS, timeout=8)
-        lb = lr.json()["message"]["body"]
-        if lb and isinstance(lb, dict) and lb.get("subtitle", {}).get("subtitle_body"):
-            return {"source": "Musixmatch", "richsync": None,
-                    "synced": lb["subtitle"]["subtitle_body"], "plain": None}
-    except Exception as e:
-        print(f"[lyrics] Musixmatch subtitle error: {e}", flush=True)
-
-    return None
-
+# IDK - Maybe disk related (°_°)
 def _dir_size_and_count(path):
     """Return (total_bytes, file_count) for all files in a directory."""
     total, count = 0, 0
@@ -241,82 +141,18 @@ def _dir_size_and_count(path):
         pass
     return total, count
 
-
-def _playlist_disk_path(playlist_id):
-    profile = _current_profile or "default"
-    safe = playlist_id.replace("/", "_").replace("\\", "_")
-    return os.path.join(PLAYLIST_CACHE_DIR, f"{profile}_{safe}.json")
-
-def _load_playlist_disk(playlist_id, ttl=PLAYLIST_CACHE_TTL):
-    path = _playlist_disk_path(playlist_id)
-    if not os.path.exists(path):
-        return None
-    if time.time() - os.path.getmtime(path) > ttl:
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # Invalidate old caches that don't have isExplicit yet
-        tracks = data.get("tracks", [])
-        if tracks and "isExplicit" not in tracks[0]:
-            return None
-        return data
-    except Exception:
-        return None
-
-def _save_playlist_disk(playlist_id, data):
-    path = _playlist_disk_path(playlist_id)
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-    except Exception:
-        pass
-
-def _purge_playlist_cache(playlist_id):
-    _playlist_cache.pop(playlist_id, None)
-    p = _playlist_disk_path(playlist_id)
-    if os.path.exists(p):
-        os.remove(p)
-
-
-def _album_disk_path(browse_id):
-    safe = browse_id.replace("/", "_").replace("\\", "_")
-    return os.path.join(ALBUM_CACHE_DIR, f"{safe}.json")
-
-def _load_album_disk(browse_id):
-    path = _album_disk_path(browse_id)
-    if not os.path.exists(path):
-        return None
-    if time.time() - os.path.getmtime(path) > ALBUM_CACHE_TTL:
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # Invalidate old caches that don't have isExplicit yet
-        tracks = data.get("tracks", [])
-        if tracks and "isExplicit" not in tracks[0]:
-            return None
-        return data
-    except Exception:
-        return None
-
-def _save_album_disk(browse_id, data):
-    path = _album_disk_path(browse_id)
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-    except Exception:
-        pass
-
+# N: Profile
+# N-A: Profile-storage path helper; keep with meta_path and local_db_path.
 def profile_path(name):
     return os.path.join(PROFILES_DIR, f"{name}.json")
 
-def meta_path(name):
-    return os.path.join(PROFILES_DIR, f"{name}.meta.json")
-
+# N: DB
+# N-A: Profile-storage path helper; it belongs with the profile file path functions.
 def local_db_path(name):
     return os.path.join(PROFILES_DIR, f"{name}.db")
 
+# N: Profile
+# N-A: Reads profile metadata, so it belongs in profile storage rather than YTMusic.
 def is_local_profile(name):
     if not name:
         return False
@@ -329,6 +165,7 @@ def is_local_profile(name):
     except Exception:
         return False
 
+# DB setup
 def get_local_db(name):
     """Öffnet/erstellt die SQLite-Datenbank für ein lokales Profil."""
     db = sqlite3.connect(local_db_path(name), check_same_thread=False)
@@ -360,6 +197,7 @@ def get_local_db(name):
 
 from contextlib import contextmanager
 
+# DB
 @contextmanager
 def local_db(name):
     """Context-Manager um get_local_db — schließt die Verbindung garantiert."""
@@ -371,6 +209,8 @@ def local_db(name):
 
 # Short-lived cookies that expire in minutes and break the session.
 # YouTube rotates these via Set-Cookie but ytmusicapi doesn't update them.
+
+# N: Config
 _SHORT_LIVED_COOKIES = {
     '__Secure-1PSIDTS', '__Secure-3PSIDTS',
     'SIDCC', '__Secure-1PSIDCC', '__Secure-3PSIDCC',
@@ -378,6 +218,8 @@ _SHORT_LIVED_COOKIES = {
     'VISITOR_PRIVACY_METADATA', '__Secure-ROLLOUT_TOKEN',
 }
 
+# N: IDK -> Maybe Helper or a Connection Helper (°_°)
+# N-A: Normalizes browser auth headers; this is an authentication/connection helper.
 def clean_headers_for_storage(headers):
     """Minimal cleanup: only remove headers that don't belong in API requests."""
     h = dict(headers)
@@ -395,6 +237,8 @@ def clean_headers_for_storage(headers):
             h["authorization"] = f"SAPISIDHASH {ts}_{sha}"
     return h
 
+# N: Youtube music
+# N-A: YTMusic client factory for a stored profile; pair it with profile authentication helpers.
 def make_ytmusic(name):
     """Build a YTMusic instance for a stored browser-auth profile.
 
@@ -415,6 +259,8 @@ def make_ytmusic(name):
             json.dump(cleaned, f, indent=2)
     return YTMusic(path)
 
+# N: Maybe youtube music or own profile class -> Warning has bad global variables
+# N-A: Session coordinator: it changes the active client/profile, so it needs a session-state owner.
 def load_profile(name):
     global _ytm, _current_profile, _playlist_cache
     # Local profile: use unauthenticated YTMusic instance
@@ -442,8 +288,11 @@ def load_profile(name):
 # users out. We periodically fetch fresh tokens with the profile's own cookies and inject
 # them into the live ytmusicapi cookie header (in memory; the SAPISIDHASH auth header is
 # recomputed per request from the long-lived SAPISID).
+# N: (°_°) -> Maybe a connectionhelper, wtf id psidts?!
 _psidts_last_refresh = 0.0
 
+# N: Warning has bad global variables -> Maybe a connectionhelper, wtf id psidts?!
+# N-A: Refreshes short-lived Google anti-bot cookies for the active YTMusic session.
 def _refresh_ytm_psidts(force=False):
     global _psidts_last_refresh
     try:
@@ -529,6 +378,8 @@ def _refresh_ytm_psidts(force=False):
     except Exception as e:
         print(f"[cookies] PSIDTS refresh failed (non-fatal): {e}", flush=True)
 
+# N: Warning: While true!!
+# N-A: Background scheduler for cookie refresh; separate it from the one-shot refresh operation.
 def _psidts_refresher_loop():
     while True:
         time.sleep(300)  # every 5 minutes — *DCC tokens rotate faster than PSIDTS
@@ -565,13 +416,18 @@ def refresh_cookies():
     print(f"[cookies] WebView refresh applied (PSIDTS present: {has_ts})", flush=True)
     return jsonify({"ok": True, "psidts": has_ts})
 
+# N: Get YouTube Music instance -> _ytm comes from load_profile (._.)
+# N-A: Active-session accessor; it should live beside the state that owns _ytm.
 def get_ytmusic():
     if _ytm is None:
         raise Exception("Kein Profil aktiv. Bitte zuerst anmelden.")
     return _ytm
 
+# N: Maybe connection Helper idk
 _ydl_cookie_last_refresh = 0.0   # epoch seconds of last successful cookie refresh
 
+# N: Maybe connection Helper idk
+# N-A: Converts active profile/session cookies into yt-dlp's Netscape cookie-file format.
 def _get_ydl_cookiefile():
     """Write a fresh Netscape cookie file for yt-dlp and return its path.
 
@@ -668,6 +524,8 @@ def _get_ydl_cookiefile():
     except Exception:
         return None
 
+# N: Maybe connection Helper idk
+# N-A: Small yt-dlp auth adapter; keep it next to _get_ydl_cookiefile.
 def _apply_ydl_auth(ydl_opts):
     """Inject cookiefile into yt-dlp opts."""
     # Node PATH is set once at startup — no need to call here again.
@@ -676,6 +534,8 @@ def _apply_ydl_auth(ydl_opts):
         ydl_opts["cookiefile"] = cookie_file
     return ydl_opts
 
+# N: Maybe youtube music or own profile class
+# N-A: Profile repository/listing logic; it belongs with profile storage, not the YTMusic client.
 def get_profiles():
     profiles = []
     seen = set()
@@ -735,6 +595,8 @@ def get_profiles():
             })
     return profiles
 
+# N: IDK
+# N-A: One-time profile-storage migration; call it from startup/bootstrap only.
 # Migrate legacy browser.json to profiles/
 def migrate_legacy():
     legacy = os.path.join(os.path.dirname(__file__), "browser.json")
@@ -747,6 +609,8 @@ def migrate_legacy():
             json.dump(meta, f)
         print("[i] browser.json zu profiles/default.json migriert")
 
+# N: Maybe youtube music or own profile class
+# N-A: Enriches saved profile metadata using a temporary YTMusic client; profile-service work.
 # Auto-load first profile on startup
 def fetch_account_info(profile_name):
     """Versucht den echten Kontonamen von YouTube Music zu holen."""
@@ -770,6 +634,8 @@ def fetch_account_info(profile_name):
     except Exception as e:
         print(f"[i] Account-Info nicht abrufbar: {e}")
 
+# N: Maybe youtube music or own profile class
+# N-A: Startup orchestration; keep this in bootstrap after profile helpers have been extracted.
 def autoload():
     migrate_legacy()
     # Skip logged-out profiles — they have no auth and can't be loaded. Try each in
@@ -782,6 +648,7 @@ def autoload():
 
 autoload()
 
+# N: ok, sure buddy
 # Keep the active browser session's anti-bot cookies fresh in the background.
 threading.Thread(target=_psidts_refresher_loop, daemon=True).start()
 

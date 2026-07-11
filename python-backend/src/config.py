@@ -114,8 +114,19 @@ class ConfigYTMusic:
 
     PLAYLIST_CACHE_MAX = 20
 
+class ConfigMusixMatch:
+    """Fixed Music Match settings."""
+
+    MX_APP_ID = "web-desktop-app-v1.0"
+    MX_BASE = "https://apic-desktop.musixmatch.com/ws/1.1"
+    MX_HEADERS = {
+        "authority": "apic-desktop.musixmatch.com",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "cookie": "x-mxm-token-guid=",
+    }
 
 config = Config()
 config_dirs = ConfigDirs()
 config_lastfm = ConfigLastFM()
 config_ytmusic = ConfigYTMusic()
+config_musixmatch = ConfigMusixMatch()
