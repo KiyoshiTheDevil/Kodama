@@ -10,6 +10,7 @@ from .lastFm import blueprint as lastfm_blueprint
 from .lyrics import blueprint as lyrics_blueprint
 from .profiles import blueprint as profiles_blueprint
 from .root import blueprint as root_blueprint
+from .streaming import blueprint as streaming_blueprint
 from .. import Config
 
 # List of a Tuple with the blueprint and if debug
@@ -23,6 +24,7 @@ blueprints: List[Tuple[Blueprint, bool]] = [
     (lyrics_blueprint, False),
     (profiles_blueprint, False),
     (root_blueprint, False),
+    (streaming_blueprint, False),
 ]
 
 

@@ -9,6 +9,7 @@ from src.lib import (
     LyricsService,
     MusixMatch,
     Profile,
+    StreamService,
     YoutubeMusicSession,
     YTDLP,
     setup_debug,
@@ -38,13 +39,19 @@ def create_app():
             musixmatch=MusixMatch(),
         )
 
+        ytdlp = YTDLP(
+            profiles=profile_repository,
+            music_state=app.extensions["youtube_music_session"].state,
+        )
+        app.extensions["ytdlp"] = ytdlp
+        app.extensions["stream_service"] = StreamService(ytdlp=ytdlp)
+
         register_blueprints(app)
 
         setup_debug(app)
         setup_log_tee()
         setup_logger()
 
-        ytdlp = YTDLP()
         ytdlp.activate_ytdlp_update()
 
         return app
