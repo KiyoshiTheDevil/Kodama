@@ -2,9 +2,11 @@
 
 from .composer.settings import ComposerSettings
 from .integrations.feedback import load_feedback_webhook
+from .integrations.lastfm import LastFM
 from .integrations.ytdlp import YTDLP
 from .music.youtube_data import YoutubeResponseMapper
 from .music.youtube_music import YoutubeMusicSession, YoutubeMusicSessionState
+from .profiles.auth_headers import ProfileAuthHeaders
 from .profiles.profile import Profile
 from .runtime.cache import CacheSettings
 from .runtime.debug import setup_debug
@@ -16,7 +18,9 @@ __all__ = [
     "DirectoryInspector",
     "CacheSettings",
     "ComposerSettings",
+    "LastFM",
     "Profile",
+    "ProfileAuthHeaders",
     "YoutubeResponseMapper",
     "YoutubeMusicSession",
     "YoutubeMusicSessionState",

@@ -35,11 +35,19 @@ class Profile:
 
     def update_metadata(self, name, **updates):
         """Merge fields into a profile's metadata file and persist the result."""
-        metadata = self._read_metadata(name)
+        metadata = self.read_metadata(name)
         metadata.update(updates)
+        self.write_metadata(name, metadata)
+        return metadata
+
+    def read_metadata(self, name):
+        """Return a profile's metadata, or an empty mapping when it is absent."""
+        return self._read_metadata(name)
+
+    def write_metadata(self, name, metadata):
+        """Persist a complete profile metadata mapping."""
         with open(self.metadata_file_path(name), "w", encoding="utf-8") as meta_file:
             json.dump(metadata, meta_file)
-        return metadata
 
     def delete_files(self, name):
         """Delete browser-auth, metadata, and local-database files for a profile."""

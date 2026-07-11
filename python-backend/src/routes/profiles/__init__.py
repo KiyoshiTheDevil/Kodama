@@ -1,5 +1,3 @@
-"""Profile-management routes."""
-
 from flask import Blueprint
 
 
