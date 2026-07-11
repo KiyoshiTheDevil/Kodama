@@ -445,6 +445,10 @@ class FakeComposerBridge:
 
 
 class FakePlaylistCache:
+    @staticmethod
+    def memory_key(playlist_id, profile_name):
+        return (profile_name or "default", playlist_id)
+
     def __init__(self):
         self.playlist_cache = {}
         self.disk = {}
@@ -453,8 +457,17 @@ class FakePlaylistCache:
 
     def purge_playlist_cache(self, playlist_id, profile_name):
         self.purged.append((playlist_id, profile_name))
-        self.playlist_cache.pop(playlist_id, None)
+        self.discard_memory(playlist_id, profile_name)
         self.disk.pop((profile_name, playlist_id), None)
+
+    def get_memory(self, playlist_id, profile_name):
+        return self.playlist_cache.get(self.memory_key(playlist_id, profile_name))
+
+    def discard_memory(self, playlist_id, profile_name):
+        self.playlist_cache.pop(self.memory_key(playlist_id, profile_name), None)
+
+    def clear_memory(self):
+        self.playlist_cache.clear()
 
     def load_playlist_disk(self, playlist_id, profile_name):
         return self.disk.get((profile_name, playlist_id))
@@ -463,8 +476,8 @@ class FakePlaylistCache:
         self.saved.append((playlist_id, profile_name, data))
         self.disk[(profile_name, playlist_id)] = data
 
-    def put(self, playlist_id, data):
-        self.playlist_cache[playlist_id] = data
+    def put(self, playlist_id, profile_name, data):
+        self.playlist_cache[self.memory_key(playlist_id, profile_name)] = data
 
 
 class FakeAlbumCache:

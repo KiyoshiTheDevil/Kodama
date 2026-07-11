@@ -82,6 +82,17 @@ class PlaylistRouteTests(RouteTestCase):
         self.assertTrue(cached_events[0]["cached"])
         self.assertEqual(cached_events[-1], {"type": "done"})
 
+    def test_in_memory_playlist_cache_is_profile_scoped(self):
+        default_events = sse_events(self.client.get("/playlist/LM/stream"))
+        self.assertEqual(default_events[1]["title"], "Liked Songs")
+        self.assertIn(("default", "LM"), self.playlist_cache.playlist_cache)
+
+        self.music_session.state.current_profile = "second"
+        second_events = sse_events(self.client.get("/playlist/LM/stream"))
+        self.assertEqual(second_events[0]["type"], "loading")
+        self.assertFalse(second_events[0].get("cached", False))
+        self.assertIn(("second", "LM"), self.playlist_cache.playlist_cache)
+
     def test_liked_songs_playlist_fetch_and_stream(self):
         playlist = self.client.get("/playlist/LM")
         self.assertEqual(playlist.status_code, 200)

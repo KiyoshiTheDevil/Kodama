@@ -15,9 +15,9 @@ class CacheRouteTests(RouteTestCase):
         self.assertEqual(self.client.post("/cache/settings", json={"images": False}).json, {"ok": True})
         self.assertFalse(self.cache_settings.enabled["images"])
 
-        self.music_session.state.playlist_cache["x"] = {}
+        self.playlist_cache.put("x", "default", {"tracks": []})
         with patch("src.routes.cache.clear.config_dirs", self.cache_dirs):
             cleared = self.client.post("/cache/clear", json={"category": "playlists"})
         self.assertEqual(cleared.json, {"ok": True})
-        self.assertEqual(self.music_session.state.playlist_cache, {})
+        self.assertEqual(self.playlist_cache.playlist_cache, {})
         self.assertEqual(list(self.cache_dirs.PLAYLIST_CACHE_DIR.iterdir()), [])
