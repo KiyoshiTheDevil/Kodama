@@ -10,11 +10,10 @@ from pathlib import Path
 
 from flask import Flask
 
-from src.config import config_dirs
+from src.config import BACKEND_PORT, config_dirs
 
 
 HOST = "0.0.0.0"
-PORT = 9847
 
 
 class StartupLog:
@@ -70,7 +69,7 @@ def _start_self_test(port: int, startup_log: StartupLog) -> None:
     threading.Thread(target=self_test, daemon=True).start()
 
 
-def run_server(app: Flask, *, host: str = HOST, port: int = PORT) -> None:
+def run_server(app: Flask, *, host: str = HOST, port: int = BACKEND_PORT) -> None:
     """Run the backend with single-instance handling and startup diagnostics."""
     startup_log = StartupLog(config_dirs.BASE_DIR / "server_startup.log")
     startup_log.reset()

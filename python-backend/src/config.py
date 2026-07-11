@@ -4,7 +4,6 @@ This module deliberately contains fixed settings and resolved paths only. Runtim
 state, such as the active profile or a YTMusic client, belongs outside config.
 """
 
-import collections
 import json
 import os
 import shutil
@@ -14,6 +13,7 @@ from typing import Optional
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_PORT = 9847
 
 
 def _resolve_base_dir() -> Path:
@@ -67,8 +67,6 @@ class Config:
 
     DEBUG = True
     PREFER_IPV4 = True
-    LOG_RING = collections.deque(maxlen=300)
-
     IMG_CACHE_TTL = 30 * 24 * 3600
     PLAYLIST_CACHE_TTL = 24 * 3600
     ALBUM_CACHE_TTL = 7 * 24 * 3600

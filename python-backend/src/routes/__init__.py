@@ -1,3 +1,4 @@
+import logging
 from typing import List, Tuple
 
 from flask import Flask, Blueprint
@@ -16,7 +17,10 @@ from .operations import blueprint as operations_blueprint
 from .profiles import blueprint as profiles_blueprint
 from .root import blueprint as root_blueprint
 from .streaming import blueprint as streaming_blueprint
-from .. import Config
+from src.config import Config
+
+
+logger = logging.getLogger(__name__)
 
 # List of a Tuple with the blueprint and if debug
 blueprints: List[Tuple[Blueprint, bool]] = [
@@ -46,7 +50,7 @@ def register_blueprints(application: Flask) -> None:
             if is_debug and not Config.DEBUG:
                 continue
             if Config.DEBUG:
-                print("[Route] Registering blueprint:", blueprint.name)
+                logger.debug("Registering blueprint: %s", blueprint.name)
 
             application.register_blueprint(blueprint)
     except Exception as error:

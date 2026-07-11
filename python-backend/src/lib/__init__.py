@@ -9,6 +9,7 @@ from .integrations.musixmatch import MusixMatch
 from .integrations.ytdlp import YTDLP
 from .music.album import Album
 from .music.download import DownloadService
+from .music.credits import SongCreditsCache
 from .music.export import ExportService
 from .music.lyrics import LyricsService
 from .music.playlist import Playlist
@@ -45,6 +46,7 @@ __all__ = [
     "Profile",
     "ProfileAuthHeaders",
     "RemoteControl",
+    "SongCreditsCache",
     "StreamService",
     "YoutubeResponseMapper",
     "YoutubeMusicSession",

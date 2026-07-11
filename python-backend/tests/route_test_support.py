@@ -571,6 +571,20 @@ class FakeAlbumCache:
         self.disk[browse_id] = data
 
 
+class FakeSongCreditsCache:
+    def __init__(self):
+        self.entries = {}
+
+    def get(self, video_id):
+        return self.entries.get(video_id)
+
+    def put(self, video_id, payload):
+        self.entries[video_id] = payload
+
+    def clear(self):
+        self.entries.clear()
+
+
 class FakeDownloadService:
     def __init__(self, root):
         self.root = Path(root)
@@ -810,6 +824,7 @@ class RouteTestCase(unittest.TestCase):
         self.stream = FakeStreamService()
         self.playlist_cache = FakePlaylistCache()
         self.album_cache = FakeAlbumCache()
+        self.song_credits_cache = FakeSongCreditsCache()
         self.download_service = FakeDownloadService(self.root)
         self.export_service = FakeExportService()
         self.ffmpeg = FakeFFmpeg()
@@ -827,6 +842,7 @@ class RouteTestCase(unittest.TestCase):
                 "stream_service": self.stream,
                 "playlist_cache": self.playlist_cache,
                 "album_cache": self.album_cache,
+                "song_credits_cache": self.song_credits_cache,
                 "download_service": self.download_service,
                 "export_service": self.export_service,
                 "ffmpeg": self.ffmpeg,

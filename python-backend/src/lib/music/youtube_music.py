@@ -43,9 +43,17 @@ class YoutubeMusicSession:
         "__Secure-ROLLOUT_TOKEN",
     }
 
-    def __init__(self, profiles=None, state=None, client_factory=YTMusic, session_factory=requests.Session):
+    def __init__(
+        self,
+        profiles=None,
+        state=None,
+        playlist_cache=None,
+        client_factory=YTMusic,
+        session_factory=requests.Session,
+    ):
         self.profiles = profiles or Profile()
         self.state = state or YoutubeMusicSessionState()
+        self._playlist_cache = playlist_cache
         self._client_factory = client_factory
         self._session_factory = session_factory
         self._cookie_refresh_loop_lock = threading.Lock()
@@ -68,8 +76,6 @@ class YoutubeMusicSession:
     def is_oauth_profile(raw) -> bool:
         """Identify unsupported OAuth profiles left over from older releases."""
         return isinstance(raw, dict) and ("refresh_token" in raw or raw.get("token_type") == "Bearer")
-
-    _is_oauth_profile = is_oauth_profile
 
     @staticmethod
     # Old server.py: clean_headers_for_storage
@@ -131,13 +137,19 @@ class YoutubeMusicSession:
         client.get_liked_songs(limit=1)
         self.state.ytm = client
         self.state.current_profile = name
+        self._clear_profile_playlist_memory(name)
         threading.Thread(target=self.refresh_session_cookies, kwargs={"force": True}, daemon=True).start()
         return client
 
     def clear_active_profile(self):
         """Clear the active client and profile without deleting profile files."""
+        self._clear_profile_playlist_memory(self.state.current_profile)
         self.state.current_profile = None
         self.state.ytm = None
+
+    def _clear_profile_playlist_memory(self, profile_name):
+        if self._playlist_cache is not None:
+            self._playlist_cache.clear_memory_for_profile(profile_name)
 
     def apply_webview_cookies(self, cookie_string):
         """Apply browser-refreshed cookies to the active session and profile file."""

@@ -17,3 +17,14 @@ class CacheSettings:
         for category in self.CATEGORIES:
             if category in values:
                 self.enabled[category] = bool(values[category])
+
+    @staticmethod
+    def category_directories(config_dirs):
+        """Map cache categories to their configured filesystem directories."""
+        return {
+            "playlists": config_dirs.PLAYLIST_CACHE_DIR,
+            "albums": config_dirs.ALBUM_CACHE_DIR,
+            "images": config_dirs.IMG_CACHE_DIR,
+            "songs": config_dirs.SONG_CACHE_DIR,
+            "lyrics": config_dirs.LYRICS_CACHE_DIR,
+        }

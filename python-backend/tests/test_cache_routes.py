@@ -21,3 +21,13 @@ class CacheRouteTests(RouteTestCase):
         self.assertEqual(cleared.json, {"ok": True})
         self.assertEqual(self.playlist_cache.playlist_cache, {})
         self.assertEqual(list(self.cache_dirs.PLAYLIST_CACHE_DIR.iterdir()), [])
+
+        self.download_service.status["cleared-song"] = "done"
+        with patch("src.routes.cache.clear.config_dirs", self.cache_dirs):
+            cleared = self.client.post("/cache/clear", json={"category": "songs"})
+        self.assertEqual(cleared.json, {"ok": True})
+        self.assertEqual(self.download_service.status, {})
+        self.assertEqual(
+            self.client.get("/song/download/status/cleared-song").json,
+            {"status": "not_found"},
+        )

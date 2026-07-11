@@ -9,7 +9,7 @@ from typing import Dict, Iterator, Optional, Tuple
 
 import requests
 
-from src.config import PROJECT_ROOT, config_composer, config_dirs
+from src.config import BACKEND_PORT, PROJECT_ROOT, config_composer, config_dirs
 
 
 class ComposerBridgeError(RuntimeError):
@@ -23,7 +23,7 @@ class ComposerBridge:
     composer_bridge_thumb, _composer_dist_dir, and composer_app.
     """
 
-    STREAM_ENDPOINT = "http://127.0.0.1:9847/stream"
+    STREAM_ENDPOINT = f"http://127.0.0.1:{BACKEND_PORT}/stream"
     EXPOSED_HEADERS = "Content-Type, x-track-title, x-track-artist, x-track-album"
     _AUDIO_MIME_TYPES = {
         ".opus": "audio/opus",

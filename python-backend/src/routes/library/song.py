@@ -7,11 +7,7 @@ import requests
 from flask import jsonify
 
 from . import blueprint
-from ._services import music_session
-
-
-# Old server.py: _credits_cache — video_id -> {description[, error]} (permanent, small)
-_credits_cache = {}
+from ._services import music_session, song_credits_cache
 
 
 @blueprint.route("/song/meta/<video_id>")
@@ -104,8 +100,9 @@ def song_stats(video_id):
 @blueprint.route("/song/credits/<video_id>")
 def get_song_credits(video_id):
     # Serve from cache if available
-    if video_id in _credits_cache:
-        return jsonify(_credits_cache[video_id])
+    cached = song_credits_cache().get(video_id)
+    if cached is not None:
+        return jsonify(cached)
     description = ""
     last_error = ""
 
@@ -188,5 +185,5 @@ def get_song_credits(video_id):
     result = {"description": description}
     if not description and last_error:
         result["error"] = last_error
-    _credits_cache[video_id] = result
+    song_credits_cache().put(video_id, result)
     return jsonify(result)

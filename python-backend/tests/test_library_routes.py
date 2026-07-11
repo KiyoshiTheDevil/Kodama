@@ -189,9 +189,7 @@ class LibraryDetailRouteTests(RouteTestCase):
         self.assertEqual(response.json, {"error": "stats unavailable"})
 
     def test_song_credits_routes_use_cache_after_first_fetch(self):
-        from src.routes.library import song
-
-        song._credits_cache.clear()
+        self.song_credits_cache.clear()
         payload = {
             "contents": {
                 "twoColumnWatchNextResults": {

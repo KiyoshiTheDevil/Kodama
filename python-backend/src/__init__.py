@@ -19,6 +19,7 @@ from src.lib import (
     Playlist,
     Profile,
     RemoteControl,
+    SongCreditsCache,
     StreamService,
     YoutubeMusicSession,
     YTDLP,
@@ -43,6 +44,8 @@ CORS_ORIGINS = [
 
 def create_app():
     try:
+        setup_log_tee()
+        setup_logger()
         setup_ipv4_first()
 
         app = Flask(__name__)
@@ -50,10 +53,16 @@ def create_app():
         CORS(app, origins=CORS_ORIGINS)
         app.extensions["server_start_time"] = time.time()
         app.extensions["feedback_webhook_url"] = load_feedback_webhook()
+        app.extensions["song_credits_cache"] = SongCreditsCache()
 
         profile_repository = Profile()
         app.extensions["profile_repository"] = profile_repository
-        music_session = YoutubeMusicSession(profiles=profile_repository)
+        playlist_cache = Playlist()
+        app.extensions["playlist_cache"] = playlist_cache
+        music_session = YoutubeMusicSession(
+            profiles=profile_repository,
+            playlist_cache=playlist_cache,
+        )
         music_session.autoload_first_profile()
         music_session.start_cookie_refresh_loop()
         app.extensions["youtube_music_session"] = music_session
@@ -68,7 +77,6 @@ def create_app():
             cache_settings=app.extensions["cache_settings"],
             musixmatch=MusixMatch(),
         )
-        app.extensions["playlist_cache"] = Playlist()
         app.extensions["album_cache"] = Album()
 
         ytdlp = YTDLP(
@@ -89,9 +97,6 @@ def create_app():
         register_blueprints(app)
 
         setup_debug(app)
-        setup_log_tee()
-        setup_logger()
-
         # yt-dlp needs Node.js for nsig decryption before it handles any request.
         ytdlp.ensure_node_in_path()
         ytdlp.activate_ytdlp_update()

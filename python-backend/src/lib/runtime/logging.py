@@ -6,11 +6,9 @@ import sys
 import threading
 import time
 
-from src.config import Config
-
-
 DEBUG_LOG = collections.deque(maxlen=500)
 DEBUG_LOG_LOCK = threading.Lock()
+FEEDBACK_LOG_RING = collections.deque(maxlen=300)
 
 
 class LogTee:
@@ -31,7 +29,7 @@ class LogTee:
         while "\n" in self._buffer:
             line, self._buffer = self._buffer.split("\n", 1)
             if line.strip():
-                Config.LOG_RING.append(line)
+                FEEDBACK_LOG_RING.append(line)
         return len(data)
 
     def flush(self) -> None:

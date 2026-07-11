@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+
+# Runtime-generated user data and diagnostics
+browser_cookies.txt
+server_startup.log
+profiles/
+imgcache/
+album_cache/
+lyrics_cache/
+playlist_cache/
+song_cache/
+custom_lyrics/
+ytdlp/
+
+# Locally provisioned secrets
+feedback_config.json
+lastfm_config.json

@@ -3,7 +3,7 @@ import json
 import requests
 from flask import Blueprint, current_app, jsonify, request
 
-from src.config import config
+from src.lib.runtime.logging import FEEDBACK_LOG_RING
 
 blueprint = Blueprint("feedback", __name__)
 
@@ -57,8 +57,8 @@ def submit_feedback():
         except Exception:
             pass
     payload = {"username": "Kodama Feedback", "embeds": [embed]}
-    if include_logs and config.LOG_RING:
-        log_text = "\n".join(list(config.LOG_RING)[-80:])
+    if include_logs and FEEDBACK_LOG_RING:
+        log_text = "\n".join(list(FEEDBACK_LOG_RING)[-80:])
         files["file_log"] = ("backend-log.txt", log_text, "text/plain")
     try:
         if files:

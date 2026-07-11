@@ -66,7 +66,7 @@ class LyricsService:
             result = self._lookup_kugou(title, artist, duration, source)
         if not result and source in ("auto", "musixmatch"):
             try:
-                result = self._musixmatch._try_musixmatch(title, artist, duration)
+                result = self._musixmatch.lookup(title, artist, duration)
             except Exception as error:
                 print(f"[lyrics] Musixmatch error: {error}", flush=True)
         if not result:
@@ -118,8 +118,9 @@ class LyricsService:
             if duration:
                 params["d"] = duration
             response = requests.get("https://lyrics-api.boidu.dev/getLyrics", params=params, timeout=8)
-            if response.ok and response.json().get("ttml"):
-                return {"source": "Better Lyrics", "ttml": response.json()["ttml"]}
+            data = response.json() if response.ok else {}
+            if data.get("ttml"):
+                return {"source": "Better Lyrics", "ttml": data["ttml"]}
         except Exception as error:
             print(f"[lyrics] Better Lyrics error: {error}", flush=True)
         return None

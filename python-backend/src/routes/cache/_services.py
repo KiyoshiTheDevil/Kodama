@@ -13,3 +13,7 @@ def music_session():
 
 def playlist_cache():
     return current_app.extensions["playlist_cache"]
+
+
+def download_service():
+    return current_app.extensions["download_service"]

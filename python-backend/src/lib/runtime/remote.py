@@ -9,9 +9,7 @@ operations are additionally restricted to localhost by the routes.
 import secrets
 import time
 
-from src.config import PROJECT_ROOT
-
-REMOTE_PORT = 9847
+from src.config import BACKEND_PORT, PROJECT_ROOT
 
 
 class RemoteControl:
@@ -95,7 +93,7 @@ class RemoteControl:
             self.devices = {}
             self.cmds = []
         return {"enabled": self.enabled, "token": self.token,
-                "port": REMOTE_PORT, "ips": self.local_ips()}
+                "port": BACKEND_PORT, "ips": self.local_ips()}
 
     # Old server.py: remote_status
     def status_payload(self):
@@ -104,7 +102,7 @@ class RemoteControl:
                     "online": (now - d.get("last_seen", 0)) < 12}
                    for did, d in self.devices.items()]
         return {"enabled": self.enabled, "token": self.token,
-                "port": REMOTE_PORT, "ips": self.local_ips(), "devices": devices}
+                "port": BACKEND_PORT, "ips": self.local_ips(), "devices": devices}
 
     # Old server.py: remote_device
     def device_action(self, data):

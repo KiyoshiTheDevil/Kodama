@@ -21,3 +21,7 @@ def playlist_cache():
 
 def album_cache():
     return current_app.extensions["album_cache"]
+
+
+def song_credits_cache():
+    return current_app.extensions["song_credits_cache"]

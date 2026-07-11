@@ -3,7 +3,7 @@
 from flask import jsonify
 
 from src.config import config_dirs
-from src.lib import DirectoryInspector
+from src.lib import CacheSettings, DirectoryInspector
 
 from . import blueprint
 from ._services import cache_settings
@@ -11,13 +11,7 @@ from ._services import cache_settings
 
 @blueprint.route("/cache/stats")
 def cache_stats():
-    directories = {
-        "playlists": config_dirs.PLAYLIST_CACHE_DIR,
-        "albums": config_dirs.ALBUM_CACHE_DIR,
-        "images": config_dirs.IMG_CACHE_DIR,
-        "songs": config_dirs.SONG_CACHE_DIR,
-        "lyrics": config_dirs.LYRICS_CACHE_DIR,
-    }
+    directories = CacheSettings.category_directories(config_dirs)
     result = {}
     settings = cache_settings()
     for category, directory in directories.items():

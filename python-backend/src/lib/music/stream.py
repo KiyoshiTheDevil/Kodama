@@ -15,14 +15,14 @@ import time
 
 import requests
 
-from src.config import config_ytdlp
+from src.config import BACKEND_PORT, config_ytdlp
 
 
 class StreamService:
     """Resolve YouTube Music audio URLs and proxy progressive audio streams."""
 
     # Local stream resolver reused by the progressive proxy (see resolve_audio_url).
-    STREAM_ENDPOINT = "http://127.0.0.1:9847/stream"
+    STREAM_ENDPOINT = f"http://127.0.0.1:{BACKEND_PORT}/stream"
     # symphonia has no Opus decoder, so WebM is intentionally excluded.
     PLAYABLE_EXTS = {".m4a", ".mp4", ".mp3", ".ogg", ".flac", ".wav"}
 

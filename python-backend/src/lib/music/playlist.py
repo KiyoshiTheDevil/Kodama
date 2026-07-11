@@ -77,6 +77,12 @@ class Playlist:
         """Drop every in-memory entry (used by the 'clear caches' action)."""
         self.playlist_cache.clear()
 
+    def clear_memory_for_profile(self, profile):
+        """Drop in-memory playlists belonging to one profile only."""
+        profile_key = profile or "default"
+        for key in [key for key in self.playlist_cache if key[0] == profile_key]:
+            self.playlist_cache.pop(key, None)
+
     # Old server.py: _playlist_cache_put
     def put(self, playlist_id, profile, data):
         """Insert/update a playlist and evict the least-recently-used entry."""
