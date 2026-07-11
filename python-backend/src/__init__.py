@@ -13,6 +13,7 @@ from src.lib import (
     YoutubeMusicSession,
     YTDLP,
     setup_debug,
+    setup_ipv4_first,
     setup_log_tee,
     setup_logger,
 )
@@ -21,6 +22,8 @@ from src.routes import register_blueprints
 
 def create_app():
     try:
+        setup_ipv4_first()
+
         app = Flask(__name__)
         app.config.from_object(Config)
 

@@ -4,21 +4,6 @@ Lokaler API-Server der ytmusicapi nutzt.
 Starte mit: python server.py
 """
 
-# ── Prefer IPv4 for all outbound connections ────────────────────────────────
-# On machines with broken/blackholed IPv6, Python's socket stack tries the IPv6
-# address first and stalls ~40s waiting for it to time out before falling back
-# to IPv4 (unlike curl/browsers, it does not do Happy-Eyeballs). That made every
-# outbound fetch — Google thumbnail CDN, YouTube Music — hang for ~40s. Filtering
-# getaddrinfo to IPv4 removes the stall; harmless where IPv6 works.
-import socket as _socket
-_orig_getaddrinfo = _socket.getaddrinfo
-def _ipv4_first_getaddrinfo(*args, **kwargs):
-    res = _orig_getaddrinfo(*args, **kwargs)
-    v4 = [r for r in res if r[0] == _socket.AF_INET]
-    return v4 or res
-_socket.getaddrinfo = _ipv4_first_getaddrinfo
-# ────────────────────────────────────────────────────────────────────────────
-
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from ytmusicapi import YTMusic

@@ -66,6 +66,7 @@ class Config:
     """Flask-compatible, application-wide fixed settings."""
 
     DEBUG = True
+    PREFER_IPV4 = True
     LOG_RING = collections.deque(maxlen=300)
 
     IMG_CACHE_TTL = 30 * 24 * 3600
