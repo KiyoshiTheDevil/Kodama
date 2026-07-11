@@ -48,6 +48,21 @@ class YoutubeMusicSession:
         self.state = state or YoutubeMusicSessionState()
         self._client_factory = client_factory
         self._session_factory = session_factory
+        self._cookie_refresh_loop_lock = threading.Lock()
+        self._cookie_refresh_loop_started = False
+
+    def start_cookie_refresh_loop(self):
+        """Start the background cookie refresher once for this session."""
+        with self._cookie_refresh_loop_lock:
+            if self._cookie_refresh_loop_started:
+                return False
+            threading.Thread(
+                target=self.run_cookie_refresh_loop,
+                name="youtube-cookie-refresh",
+                daemon=True,
+            ).start()
+            self._cookie_refresh_loop_started = True
+        return True
 
     @staticmethod
     def is_oauth_profile(raw) -> bool:

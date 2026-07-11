@@ -56,6 +56,7 @@ def create_app():
         # Without this, saved accounts exist on disk but no active YTMusic client is
         # created until the user manually switches profiles.
         music_session.autoload_first_profile()
+        music_session.start_cookie_refresh_loop()
         app.extensions["youtube_music_session"] = music_session
         app.extensions["lastfm_client"] = LastFM()
         app.extensions["cache_settings"] = CacheSettings()
@@ -92,6 +93,8 @@ def create_app():
         setup_log_tee()
         setup_logger()
 
+        # yt-dlp needs Node.js for nsig decryption before it handles any request.
+        ytdlp.ensure_node_in_path()
         ytdlp.activate_ytdlp_update()
 
         return app
