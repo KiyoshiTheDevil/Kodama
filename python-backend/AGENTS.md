@@ -14,36 +14,50 @@ The following route families are already registered by the app factory:
 - Composer Bridge and Composer SPA: `src/routes/composer/`
 - Cache controls: `src/routes/cache/`
 - Standalone/root routes: `src/routes/root/`
+- Streaming: `src/routes/streaming/`
 
 The matching legacy handlers have been removed from `server.py` after each
 family was ported.
+
+The streaming family (`/stream`, `/stream-prepare`, `/audio-stream` and its
+`/warm` variant) is served by `StreamService` in `src/lib/music/stream.py`,
+registered as `app.extensions["stream_service"]`. It owns the browser-cookie
+extraction cache and the resolved-URL cache, and resolves auth through the
+`YTDLP` instance (`app.extensions["ytdlp"]`, built with the active profile and
+music-session state). yt-dlp client options, the audio format, the browser
+cookie file, and `STREAM_ATTEMPTS` live in `ConfigYTDLP` (`src/config.py`).
+The shared `_is_hard_error` helper stays in `server.py` until the download and
+export families that also use it are ported.
+
+## Startup and Runtime Helpers
+
+Non-route infrastructure ported out of `server.py`'s module top-level:
+
+- IPv4-first outbound resolution is now `setup_ipv4_first()` in
+  `src/lib/runtime/network.py`, called at the start of `create_app()` and
+  toggled by `Config.PREFER_IPV4`. It mirrors the `setup_debug()` pattern so it
+  can be deactivated from config.
 
 ## Remaining Server Families
 
 The remaining `server.py` routes should be migrated by coherent subject, not in
 file order:
 
-1. Streaming
-   - `/stream/<video_id>`
-   - `/stream-prepare/<video_id>`
-   - `/audio-stream/<video_id>` and `/audio-stream/<video_id>/warm`
-   - Browser-cookie extraction and yt-dlp stream resolution helpers.
-
-2. Music library and detail pages
+1. Music library and detail pages
    - `/library/*`, `/playlist/*`, `/radio/*`
    - `/album/*`, `/artist/*`, `/song/meta/*`, `/song/credits/*`
    - Local-profile SQLite behavior and playlist/album disk caches.
 
-3. Discovery
+2. Discovery
    - `/podcast/*`, `/mood/*`
    - Any remaining response-normalization helpers they require.
 
-4. Download, export, and tool updates
+3. Download, export, and tool updates
    - `/song/download/*`, `/song/cached/*`, `/downloads/queue`
    - `/song/export/*`, `/ffmpeg/*`, `/ytdlp/*`
    - Download state, ffmpeg discovery, export status, and update workflows.
 
-5. Operations and integrations
+4. Operations and integrations
    - `/debug/info`
    - `/overlay/*`
    - `/remote/*`
