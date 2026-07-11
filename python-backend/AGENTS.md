@@ -76,14 +76,6 @@ Non-route infrastructure ported out of `server.py`'s module top-level:
 
 ## Remaining Server Families
 
-The remaining `server.py` routes should be migrated by coherent subject, not in
-file order:
-
-1. Operations and integrations
-   - `/debug/info`
-   - `/overlay/*`
-   - `/remote/*`
-   - `/api/local-fonts`
 
 ## Migration Recipe
 

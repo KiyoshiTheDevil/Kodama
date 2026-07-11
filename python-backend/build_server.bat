@@ -13,7 +13,7 @@ REM Install PyInstaller and dependencies if needed
 pip install pyinstaller yt-dlp pykakasi --quiet
 
 REM Build the server executable with the correct Tauri platform suffix
-echo Kompiliere server.py...
+echo Kompiliere run.py...
 pyinstaller --onefile ^
   --name kodama-server-x86_64-pc-windows-msvc ^
   --distpath ..\src-tauri\binaries ^
@@ -28,7 +28,7 @@ pyinstaller --onefile ^
   --collect-all yt_dlp ^
   --collect-all pykakasi ^
   --add-data "..\.venv\Lib\site-packages\ytmusicapi\locales;ytmusicapi/locales" ^
-  server.py
+  run.py
 
 echo.
 if exist "..\src-tauri\binaries\kodama-server-x86_64-pc-windows-msvc.exe" (

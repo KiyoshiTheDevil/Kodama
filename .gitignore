@@ -40,6 +40,7 @@ python-backend/imgcache/
 # Sensible Nutzerdaten (niemals ins Repo!)
 python-backend/profiles/
 python-backend/headers_raw.txt
+python-backend/browser_cookies.txt
 oauth.json
 browser.json
 
@@ -99,3 +100,6 @@ dist_token.txt
 
 # Maintainer-only tooling (news editor mit GitHub-Publish etc.) — nicht ins Public-Repo
 tools/
+
+.idea
+*.iml
