@@ -8,7 +8,7 @@ _ytm_locales = _os.path.join(_os.path.dirname(_ytm.origin), 'locales')
 
 # Vendored Boidu Composer — its built static site (repo ./composer/dist) is bundled as
 # data and extracted to sys._MEIPASS/composer_dist at runtime; the backend serves it from
-# there (see _composer_dist_dir in run.py). Must be built (pnpm build) before this runs.
+# there (see _composer_dist_dir in server.py). Must be built (pnpm build) before this runs.
 _composer_dist = _os.path.abspath(_os.path.join(SPECPATH, '..', 'composer', 'dist'))
 
 # Discord feedback webhook config (gitignored). CI writes it from a secret before building;
@@ -23,7 +23,7 @@ if _os.path.exists(_lastfm_cfg):
     _extra_datas.append((_lastfm_cfg, '.'))
 
 a = Analysis(
-    ['run.py'],
+    ['server.py'],
     pathex=[],
     binaries=[],
     datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas,
