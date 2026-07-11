@@ -1,0 +1,10 @@
+name = "kodama-stats"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Anonymous active-user counter. See README.md.
+# Create the KV namespace once, then paste its id below:
+#   npx wrangler kv namespace create STATS
+[[kv_namespaces]]
+binding = "STATS"
+id = "PASTE_KV_NAMESPACE_ID_HERE"

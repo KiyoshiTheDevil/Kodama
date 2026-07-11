@@ -652,3 +652,10 @@ button:not([class]) {
    cover shows through them instead of a solid surface bar. */
 [data-ambient="true"] .player-seek .slider__track,
 [data-ambient="true"] .player-vol .slider__track { background-color: rgba(255,255,255,0.18) !important; }
+
+/* Breathing room between settings sub-sections (Discord-style sub-nav). Applies only between
+   consecutive sections, so the first section keeps its natural top spacing. */
+[data-settings-section] + [data-settings-section] { margin-top: 44px; }
+
+/* Big Picture search — blinking caret. */
+@keyframes bpCaret { 50% { opacity: 0; } }

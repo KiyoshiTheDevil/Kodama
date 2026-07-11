@@ -328,6 +328,23 @@ pub fn spawn_decoder_streaming(
     });
 }
 
+// Wait until the ring holds a small cushion of decoded audio before playback starts. rodio pulls
+// samples on its mixer thread the moment the source is appended; if the ring is still filling
+// (decode/download racing realtime), the blocking next() stalls the mixer → cpal underruns →
+// audible crackle at the start. A ~2 s head start lets the decoder pull ahead so the ring then
+// stays near-full for the rest of the track. Bounded by a timeout so a slow stream still starts.
+const PREBUFFER_MS: usize = 2000;
+const PREBUFFER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6);
+
+fn prebuffer_ring(ring: &SampleRing, sample_rate: u32, channels: u16) {
+    let want = ((sample_rate as usize) * (channels as usize) * PREBUFFER_MS / 1000)
+        .min(ring.capacity().saturating_sub(1));
+    let deadline = std::time::Instant::now() + PREBUFFER_TIMEOUT;
+    while ring.write_pos() < want && !ring.is_done() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
 impl StreamingSource {
     pub fn new(data: Vec<u8>) -> Result<Self, String> {
         Self::new_with_seek(data, 0.0)
@@ -345,6 +362,8 @@ impl StreamingSource {
             "[Audio] Streaming decoder started: {}ch, {}Hz, seek={seek_to_secs:.1}s",
             info.channels, info.sample_rate
         );
+
+        prebuffer_ring(&ring, info.sample_rate, info.channels);
 
         Ok(StreamingSource {
             ring,
@@ -375,6 +394,7 @@ impl StreamingSource {
             "[Audio] Streaming(HTTP) decoder started: {}ch, {}Hz, seek={seek_to_secs:.1}s",
             info.channels, info.sample_rate
         );
+        prebuffer_ring(&ring, info.sample_rate, info.channels);
         Ok(StreamingSource {
             ring,
             channels: info.channels,
