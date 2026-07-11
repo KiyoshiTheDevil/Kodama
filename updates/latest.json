@@ -1,15 +1,15 @@
 {
-  "version": "v1.0.0-alpha.28",
-  "pub_date": "2026-07-07T18:45:34Z",
-  "notes": "### Fixed\n- **Last.fm now works in installed builds** — scrobbling and loving tracks were unavailable in the packaged app (Last.fm showed *\"Not configured\"*), even though it worked in development. The credentials are now bundled correctly.",
+  "version": "v1.0.0-alpha.29",
+  "pub_date": "2026-07-11T22:24:20Z",
+  "notes": "### Added\n- **More reliable playback** — a proof-of-origin token path lets the app fetch many tracks that previously failed with *\"not available\"*, a Premium wall, or a *\"confirm you're not a bot\"* check.\n- **Search overhaul** — a mixed *All* results view, a **Playlists** tab, live autocomplete, and paste a playlist link (including unlisted \"link only\" ones) to open it directly.\n- **Share playlists** — copy a YouTube Music / YouTube link for a whole playlist from its menu.\n- **Visualizer presets** — save, import and export visualizer setups (plus a reset-to-default).\n- **Anonymous usage stats** — an opt-out active-user counter (rotating token, no personal data).\n- **Quick actions** — track numbering, start a playlist shuffled, and add-to-queue / play-next / start-radio in the track menu.\n### Changed\n- **Loading spinner** in the player bar while a track resolves.\n- **Higher-resolution cover art** in the player.\n### Fixed\n- **Google sign-in on macOS** no longer blocked with *\"browser may not be secure\"* (thanks @SchmidtiTv).\n- **Audio crackle** at the very start of playback.\n- **Search \"0 songs\"** on some playlists and a playlist-cache glitch.",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.28/Kodama_1.0.0-alpha.28_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnRudkRYUEJHQkphZzJ0WThSamVoOVNjZjI3OW84SG1KZW42SVYxTXVKNVc0YitBMHZXMUZrUmF0alhwNEFmZlBuK1VKTDFWK25CMjR0MVhOL0hIaFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDQ5ODM5CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjI4X3g2NC1zZXR1cC5leGUKZ0src2xJSzhtMFM0NTh1R1Z3L0hCYjZ6VnllRlNZQzlRcUZsQzRUZlkyd2kwcFdKbmVFaU0wUEtRVU11ZDFTVDFNN0ZwSzk2QmNjYzdVakxXbS9rQmc9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.29/Kodama_1.0.0-alpha.29_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm9GdFA3anJpaDhET1ZUMkVObjVIWXJuOWZNeWFBMGNqL3dTOFEzcG5ZMWwwZDg2WHZBQ3Z4M0QycW45UmlJaE5XNmx5OWU4VVJiNzRiL2dZMGY0L0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODA4NTg3CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjI5X3g2NC1zZXR1cC5leGUKSmJ0TFdaZFJGaTBlRzZuVDh1UEVvN1FPdVRSVVVhTU1qcnFvVzkrT2ROajM2RlNZQlZBMEdGNnQ2a1FtdWpISnRQQ09CTW91eGoyalpMZEljak9SQkE9PQo="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.28/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnBST1ltSm12YjhKaDR6TFJURGRUb1ZCU0xpZmJVK3F0UXBBeDdoeU8yMnNNellNZUZ6V09ydGYrcVVHNGJUQ2gxd1JRZmFGTndhaDNCNXZBdmZ1T3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDQ5MjYzCWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKTWl3VWpEZFlacjEycUttT01yQUJOV2xxZVdKRG1SbXdJRzAxWlhQcUlsRDNkMVduYndrS3ZKQ0RFSDJKWEtRUmJHQWRLVWFKekE3V1c2bHFrQ29KRHc9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.29/Kodama.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm9MdDVia1BaNjczUWhxcWo1Y001Y1ZyN0swTDB0U2ZrcWhnbnRNdnFuWFRBc3FlR2pCL0xyMVBBOSs0UWt3ZSt4Q3B6Rm5lQlNrdExPcjlDM0JyV1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODA4MDA1CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKYVZFNTBrbUR5bHVDbHpkeXBMRGZyRUZjQ21JcmhXcjJrT3JEVko5dnl1UDM1M2ZpaGsxbjFoWG11NEZZVCtJQzdIdXlXVytPU3dDN05hV2JpaWdqQ2c9PQo="
     }
   }
 }
