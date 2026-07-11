@@ -15,7 +15,14 @@ class MiscRouteTests(RouteTestCase):
         self.assertEqual(proxied.headers["X-Cache"], "MISS")
         self.assertEqual(proxied.data, b"img")
 
-        self.assertEqual(self.client.get("/news").status_code, 200)
+        project_root = self.root / "python-backend"
+        news_path = project_root.parent / "updates" / "news.json"
+        news_path.parent.mkdir(parents=True)
+        news_path.write_text('[{"id": "release-1"}]', encoding="utf-8")
+        with patch("src.routes.news.PROJECT_ROOT", project_root):
+            news = self.client.get("/news")
+        self.assertEqual(news.status_code, 200)
+        self.assertEqual(news.json, [{"id": "release-1"}])
         self.assertEqual(self.client.post("/feedback", json={"title": "Bug"}).status_code, 503)
 
         self.app.extensions["feedback_webhook_url"] = "https://hooks.example.test"

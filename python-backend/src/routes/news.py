@@ -1,7 +1,8 @@
 import json
-import os
 
 from flask import jsonify, Blueprint
+
+from src.config import PROJECT_ROOT
 
 blueprint = Blueprint("news", __name__)
 
@@ -10,9 +11,9 @@ def get_news():
     """Fallback news feed for dev/offline: serves the repo's updates/news.json. Published builds
     fetch the remote feed directly; this is only used when that's unavailable."""
     try:
-        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "updates", "news.json")
-        if os.path.exists(p):
-            with open(p, encoding="utf-8") as f:
+        path = PROJECT_ROOT.parent / "updates" / "news.json"
+        if path.is_file():
+            with path.open(encoding="utf-8") as f:
                 return jsonify(json.load(f))
     except Exception:
         pass
