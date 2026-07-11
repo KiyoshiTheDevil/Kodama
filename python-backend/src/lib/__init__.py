@@ -3,10 +3,13 @@
 from .composer.bridge import ComposerBridge, ComposerBridgeError
 from .composer.settings import ComposerSettings
 from .integrations.feedback import load_feedback_webhook
+from .integrations.ffmpeg import FFmpeg
 from .integrations.lastfm import LastFM
 from .integrations.musixmatch import MusixMatch
 from .integrations.ytdlp import YTDLP
 from .music.album import Album
+from .music.download import DownloadService
+from .music.export import ExportService
 from .music.lyrics import LyricsService
 from .music.playlist import Playlist
 from .music.stream import StreamService
@@ -28,6 +31,9 @@ __all__ = [
     "ComposerBridge",
     "ComposerBridgeError",
     "ComposerSettings",
+    "DownloadService",
+    "ExportService",
+    "FFmpeg",
     "LastFM",
     "LyricsService",
     "MusixMatch",

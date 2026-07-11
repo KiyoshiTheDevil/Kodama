@@ -6,6 +6,7 @@ from .news import blueprint as news_blueprint
 from .clientlog import blueprint as clientlog_blueprint
 from .cache import blueprint as cache_blueprint
 from .composer import blueprint as composer_blueprint
+from .downloads import blueprint as downloads_blueprint
 from .feedback import blueprint as feedback_blueprint
 from .lastFm import blueprint as lastfm_blueprint
 from .library import blueprint as library_blueprint
@@ -22,6 +23,7 @@ blueprints: List[Tuple[Blueprint, bool]] = [
     (clientlog_blueprint, True),
     (cache_blueprint, False),
     (composer_blueprint, False),
+    (downloads_blueprint, False),
     (feedback_blueprint, False),
     (lastfm_blueprint, False),
     (library_blueprint, False),

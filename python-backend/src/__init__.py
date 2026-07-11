@@ -7,6 +7,9 @@ from src.lib import (
     LastFM,
     ComposerBridge,
     ComposerSettings,
+    DownloadService,
+    ExportService,
+    FFmpeg,
     LyricsService,
     MusixMatch,
     Playlist,
@@ -52,6 +55,11 @@ def create_app():
         )
         app.extensions["ytdlp"] = ytdlp
         app.extensions["stream_service"] = StreamService(ytdlp=ytdlp)
+
+        ffmpeg = FFmpeg()
+        app.extensions["ffmpeg"] = ffmpeg
+        app.extensions["download_service"] = DownloadService(ytdlp=ytdlp)
+        app.extensions["export_service"] = ExportService(ytdlp=ytdlp, ffmpeg=ffmpeg)
 
         register_blueprints(app)
 

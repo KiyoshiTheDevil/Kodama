@@ -16,9 +16,26 @@ The following route families are already registered by the app factory:
 - Standalone/root routes: `src/routes/root/`
 - Streaming: `src/routes/streaming/`
 - Music library and detail pages: `src/routes/library/`
+- Download, export, and tool updates: `src/routes/downloads/`
 
 The matching legacy handlers have been removed from `server.py` after each
 family was ported.
+
+The download/export/tools family (`/song/download/*`, `/song/cached/*`,
+`/downloads/queue`, `/song/export/*`, `/ffmpeg/*`, `/ytdlp/*`) lives under
+`src/routes/downloads/` (`download`, `cached`, `export`, `ffmpeg`, `ytdlp`).
+It is backed by three services in `src/lib/`: `DownloadService`
+(`music/download.py`, owns the download status/queue and the song-cache path
+helpers), `ExportService` (`music/export.py`, owns the export status and
+`embed_metadata`), and `FFmpeg` (`integrations/ffmpeg.py`, discovery + version
+check + Windows auto-download SSE) — registered as `app.extensions`
+`download_service`, `export_service`, and `ffmpeg`. yt-dlp version check/update
+moved onto the existing `YTDLP` class (`check_update`/`update`/`active_version`
+/`compare_versions`). The shared yt-dlp error classifiers `is_hard_error` /
+`is_unavailable` now live in `integrations/ytdlp.py` (the last `server.py`
+consumer of `_is_hard_error` is gone, so it was removed there too). `FFmpeg`
+resolves its dev-mode binary path from `config.PROJECT_ROOT` rather than
+`__file__`, since the module no longer sits at the backend root.
 
 The library family (`/library/*`, `/playlist/*`, `/radio/*`, `/album/*`,
 `/artist/*`, `/song/meta`, `/song/credits`) lives under `src/routes/library/`,
@@ -39,8 +56,6 @@ extraction cache and the resolved-URL cache, and resolves auth through the
 `YTDLP` instance (`app.extensions["ytdlp"]`, built with the active profile and
 music-session state). yt-dlp client options, the audio format, the browser
 cookie file, and `STREAM_ATTEMPTS` live in `ConfigYTDLP` (`src/config.py`).
-The shared `_is_hard_error` helper stays in `server.py` until the download and
-export families that also use it are ported.
 
 ## Startup and Runtime Helpers
 
@@ -60,12 +75,7 @@ file order:
    - `/podcast/*`, `/mood/*`
    - Any remaining response-normalization helpers they require.
 
-2. Download, export, and tool updates
-   - `/song/download/*`, `/song/cached/*`, `/downloads/queue`
-   - `/song/export/*`, `/ffmpeg/*`, `/ytdlp/*`
-   - Download state, ffmpeg discovery, export status, and update workflows.
-
-3. Operations and integrations
+2. Operations and integrations
    - `/debug/info`
    - `/overlay/*`
    - `/remote/*`
