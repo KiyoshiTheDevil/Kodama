@@ -34,356 +34,15 @@ CORS(app, origins=[
     "http://127.0.0.1",
 ])
 
-# N: IDK
-# N-A: Generic delayed dictionary cleanup; keep as a small shared timing helper.
-def _schedule_cleanup(d, key, delay=300):
-    """Remove *key* from dict *d* after *delay* seconds (default 5 min)."""
-    def _do():
-        time.sleep(delay)
-        d.pop(key, None)
-    threading.Thread(target=_do, daemon=True).start()
-
-# N: Artists
-# N-A: Pure YouTube response mapper; group with other artist/metadata helpers.
-def _artist_links(artist_list):
-    """Return [{name, browseId}, ...] for all artists that have a name."""
-    return [
-        {"name": a.get("name", ""), "browseId": a.get("id") or a.get("browseId") or ""}
-        for a in (artist_list or [])
-        if a.get("name")
-    ]
-
-# N: Thumbnail
-# N-A: Pure thumbnail selection; keep beside the other thumbnail URL helper below.
-def _pick_thumb(thumbs, min_size=226):
-    """Pick the smallest thumbnail that is at least min_size px wide.
-    Falls back to the first thumbnail if none meet the threshold."""
-    if not thumbs:
-        return ""
-    candidates = [t for t in thumbs if isinstance(t, dict) and t.get("width", 0) >= min_size]
-    chosen = min(candidates, key=lambda t: t["width"]) if candidates else thumbs[0]
-    return chosen.get("url", "") if isinstance(chosen, dict) else ""
-
-# N: Thumbnail
-# N-A: Pure thumbnail URL transform; belongs in the same image/thumbnail helper module.
-def _upscale_thumbnail_url(url: str) -> str:
-    """Return a higher-resolution variant of a YouTube/Google image URL.
-    - lh3.googleusercontent.com / yt3.ggpht.com: replace =wNNN-hNNN… with =w0-h0
-      (Google Image Serving returns the original / max size when w=0 h=0).
-    - i.ytimg.com: upgrade /default.jpg and /mqdefault.jpg → /hqdefault.jpg.
-    """
-    import re
-    url = re.sub(r'=w\d+-h\d+[^&?#\s]*', '=w0-h0', url)
-    url = re.sub(r'/(mq|sd)?default\.jpg', '/hqdefault.jpg', url)
-    return url
-
 # Cache feature flags (can be toggled at runtime via /cache/settings)
 _cache_enabled = {"playlists": True, "albums": True, "images": True, "songs": True, "lyrics": True}
 
 # Whether the Composer bridge caches audio it extracts for not-yet-downloaded songs, so
 # reopening the same song in the composer is instant. Persisted across restarts.
-_COMPOSER_SETTINGS_FILE = os.path.join(_base_dir, "composer_settings.json")
-def _load_composer_autocache():
-    try:
-        with open(_COMPOSER_SETTINGS_FILE) as f:
-            return bool(json.load(f).get("autocache", True))
-    except Exception:
-        return True
 _composer_autocache = _load_composer_autocache()
 
-# ─── Node.js PATH — set once at startup ──────────────────────────────────────
-# yt-dlp needs Node.js for nsig (n-parameter) decryption on ALL requests,
-# not only authenticated ones.  Calling this here guarantees it runs before
-# the first request regardless of auth status.
-
-# N: Nodejs -> Maybe can combined with other disk related stuff
-# N-A: Startup dependency discovery, not cache/disk storage; it fits a runtime or yt-dlp helper.
-def _ensure_node_in_path():
-    """Add bundled node.exe directory to PATH so yt-dlp can find it via shutil.which."""
-    import shutil
-    if shutil.which("node"):
-        return  # already in PATH
-    # Search in multiple locations: the exe's directory and its parent.
-    # In PyInstaller onefile mode sys.executable is the original .exe; in dev it's the Python interpreter.
-    exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-    candidates = [exe_dir]
-    parent = os.path.dirname(exe_dir)
-    if parent and parent != exe_dir:
-        candidates.append(parent)
-    node_name = "node.exe" if sys.platform == "win32" else "node"
-    # On macOS the app bundles node under Contents/Resources; also probe there.
-    if sys.platform == "darwin":
-        candidates.append(os.path.join(parent, "Resources"))
-        candidates.append(os.path.join(exe_dir, "..", "Resources"))
-    for candidate in candidates:
-        bundled = os.path.join(candidate, node_name)
-        if os.path.isfile(bundled):
-            os.environ["PATH"] = candidate + os.pathsep + os.environ.get("PATH", "")
-            print(f"[ydl] added bundled {node_name} to PATH: {bundled}", flush=True)
-            return
-    print(f"[ydl] {node_name} not found — nsig decryption may fail for some tracks", flush=True)
-
-_ensure_node_in_path()
-
-# ─── Musixmatch (inoffizielle API) ───────────────────────────────────────────
-
-# IDK - Maybe disk related (°_°)
-def _dir_size_and_count(path):
-    """Return (total_bytes, file_count) for all files in a directory."""
-    total, count = 0, 0
-    try:
-        for f in os.listdir(path):
-            fp = os.path.join(path, f)
-            if os.path.isfile(fp):
-                total += os.path.getsize(fp)
-                count += 1
-    except Exception:
-        pass
-    return total, count
-
-# N: Profile
-# N-A: Profile-storage path helper; keep with meta_path and local_db_path.
-def profile_path(name):
-    return os.path.join(PROFILES_DIR, f"{name}.json")
-
-# N: DB
-# N-A: Profile-storage path helper; it belongs with the profile file path functions.
-def local_db_path(name):
-    return os.path.join(PROFILES_DIR, f"{name}.db")
-
-# N: Profile
-# N-A: Reads profile metadata, so it belongs in profile storage rather than YTMusic.
-def is_local_profile(name):
-    if not name:
-        return False
-    mp = meta_path(name)
-    if not os.path.exists(mp):
-        return False
-    try:
-        with open(mp) as f:
-            return json.load(f).get("type") == "local"
-    except Exception:
-        return False
-
-# DB setup
-def get_local_db(name):
-    """Öffnet/erstellt die SQLite-Datenbank für ein lokales Profil."""
-    db = sqlite3.connect(local_db_path(name), check_same_thread=False)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS liked_songs (
-            video_id TEXT PRIMARY KEY,
-            title TEXT, artists TEXT, album TEXT,
-            thumbnail TEXT, duration TEXT,
-            liked_at INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS playlists (
-            playlist_id TEXT PRIMARY KEY,
-            title TEXT, description TEXT,
-            privacy TEXT DEFAULT 'PRIVATE',
-            created_at INTEGER, updated_at INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS playlist_tracks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            playlist_id TEXT, video_id TEXT,
-            title TEXT, artists TEXT, album TEXT,
-            thumbnail TEXT, duration TEXT,
-            set_video_id TEXT,
-            position INTEGER, added_at INTEGER
-        );
-    """)
-    db.commit()
-    return db
 
 from contextlib import contextmanager
-
-# DB
-@contextmanager
-def local_db(name):
-    """Context-Manager um get_local_db — schließt die Verbindung garantiert."""
-    db = get_local_db(name)
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Short-lived cookies that expire in minutes and break the session.
-# YouTube rotates these via Set-Cookie but ytmusicapi doesn't update them.
-
-# N: Config
-_SHORT_LIVED_COOKIES = {
-    '__Secure-1PSIDTS', '__Secure-3PSIDTS',
-    'SIDCC', '__Secure-1PSIDCC', '__Secure-3PSIDCC',
-    'CONSISTENCY', 'YSC', '__Secure-YEC',
-    'VISITOR_PRIVACY_METADATA', '__Secure-ROLLOUT_TOKEN',
-}
-
-# N: IDK -> Maybe Helper or a Connection Helper (°_°)
-# N-A: Normalizes browser auth headers; this is an authentication/connection helper.
-def clean_headers_for_storage(headers):
-    """Minimal cleanup: only remove headers that don't belong in API requests."""
-    h = dict(headers)
-    # content-encoding doesn't belong in outgoing request headers
-    h.pop("content-encoding", None)
-    # Ensure authorization header exists (ytmusicapi needs it to detect browser auth type)
-    if "authorization" not in h:
-        import hashlib
-        cookie_str = h.get("cookie", "")
-        sapisid = next((p.strip()[8:] for p in cookie_str.split(";")
-                        if p.strip().startswith("SAPISID=")), "")
-        if sapisid:
-            ts = str(int(time.time()))
-            sha = hashlib.sha1(f"{ts} {sapisid} https://music.youtube.com".encode()).hexdigest()
-            h["authorization"] = f"SAPISIDHASH {ts}_{sha}"
-    return h
-
-# N: Youtube music
-# N-A: YTMusic client factory for a stored profile; pair it with profile authentication helpers.
-def make_ytmusic(name):
-    """Build a YTMusic instance for a stored browser-auth profile.
-
-    NOTE: OAuth profiles are intentionally NOT loadable. OAuth tokens are
-    fundamentally incompatible with YouTube Music's internal API — data calls return
-    HTTP 400 "invalid argument" (ytmusicapi issue #813). Browser/cookie auth is the
-    only working method; we keep its session alive via _refresh_ytm_psidts().
-    """
-    path = profile_path(name)
-    with open(path, "r") as f:
-        raw = json.load(f)
-    if _is_oauth_profile(raw):
-        raise Exception("OAuth-Profile werden nicht mehr unterstützt (YT-Music-Inkompatibilität).")
-    # Browser auth: ensure the authorization header exists (older bug stripped it)
-    if "authorization" not in raw:
-        cleaned = clean_headers_for_storage(raw)
-        with open(path, "w") as f:
-            json.dump(cleaned, f, indent=2)
-    return YTMusic(path)
-
-# N: Maybe youtube music or own profile class -> Warning has bad global variables
-# N-A: Session coordinator: it changes the active client/profile, so it needs a session-state owner.
-def load_profile(name):
-    global _ytm, _current_profile, _playlist_cache
-    # Local profile: use unauthenticated YTMusic instance
-    if is_local_profile(name):
-        _ytm = YTMusic()
-        _current_profile = name
-        _playlist_cache.clear()
-        return True
-    path = profile_path(name)
-    if not os.path.exists(path):
-        return False
-    try:
-        _ytm = make_ytmusic(name)
-    except Exception as e:
-        print(f"[auth] load_profile failed for {name}: {e}", flush=True)
-        return False
-    _current_profile = name
-    _playlist_cache = {}
-    # Immediately top up the rotating anti-bot cookie so the very first hours stay valid.
-    threading.Thread(target=_refresh_ytm_psidts, kwargs={"force": True}, daemon=True).start()
-    return True
-
-# ─── Keep browser sessions alive (rotating __Secure-1PSIDTS / 3PSIDTS) ─────────
-# Since ~Aug 2025 YouTube rejects stale anti-bot tokens after a few hours, which logged
-# users out. We periodically fetch fresh tokens with the profile's own cookies and inject
-# them into the live ytmusicapi cookie header (in memory; the SAPISIDHASH auth header is
-# recomputed per request from the long-lived SAPISID).
-# N: (°_°) -> Maybe a connectionhelper, wtf id psidts?!
-_psidts_last_refresh = 0.0
-
-# N: Warning has bad global variables -> Maybe a connectionhelper, wtf id psidts?!
-# N-A: Refreshes short-lived Google anti-bot cookies for the active YTMusic session.
-def _refresh_ytm_psidts(force=False):
-    global _psidts_last_refresh
-    try:
-        if _ytm is None or not _current_profile or is_local_profile(_current_profile):
-            return
-        now = time.time()
-        if not force and (now - _psidts_last_refresh) < 240:
-            return
-        base = getattr(_ytm, "base_headers", None)
-        if base is None:
-            return
-        cookie_header = base.get("cookie", "")
-        if not cookie_header or "SAPISID" not in cookie_header:
-            return
-        ua = base.get("user-agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-        sess = requests.Session()
-        # Ping a few Google/YouTube endpoints — each can rotate a different subset of the
-        # short-lived auth cookies via Set-Cookie. accounts.google.com in particular rotates
-        # the *DCC tokens that a plain youtube.com homepage hit often leaves stale.
-        authed = None
-        statuses = []
-        for url in ("https://music.youtube.com/", "https://www.youtube.com/", "https://accounts.google.com/"):
-            try:
-                r = sess.get(url, headers={
-                    "Cookie": cookie_header, "User-Agent": ua,
-                    "Accept-Language": "en-US,en;q=0.9",
-                }, timeout=8, allow_redirects=True)
-                statuses.append(f"{url.split('//', 1)[1].split('/', 1)[0]}={r.status_code}")
-                # Diagnose login state from YouTube's own page flag.
-                if authed is None and "youtube.com" in url:
-                    txt = r.text or ""
-                    if '"LOGGED_IN":true' in txt:
-                        authed = True
-                    elif '"LOGGED_IN":false' in txt:
-                        authed = False
-            except Exception:
-                pass
-        # NOTE: the *SIDTS timestamp tokens (which expire after ~1-2h) do NOT rotate on plain
-        # HTTP requests — only a real browser engine reissues them. That's handled separately by
-        # the hidden session-keeper WebView (see window.rs / /auth/refresh-cookies). Here we just
-        # capture the *DCC/visitor cookies that DO rotate on these GETs.
-        # Capture ALL rotating short-lived cookies the server set, not just PSIDTS — the
-        # *PSIDCC / SIDCC tokens also rotate and a stale one alone will kill the session.
-        fresh = {c.name: c.value for c in sess.cookies
-                 if c.name in _SHORT_LIVED_COOKIES}
-        if authed is False:
-            print(f"[cookies] refresh ping is LOGGED OUT (statuses: {', '.join(statuses)}) — "
-                  f"the stored cookies are no longer valid; re-login required.", flush=True)
-        if not fresh:
-            print(f"[cookies] refresh: no rotating cookies returned "
-                  f"(authed={authed}, statuses: {', '.join(statuses)})", flush=True)
-            return
-        # Merge fresh tokens into the cookie header (replace existing, else append)
-        parts, seen = [], set()
-        for kv in cookie_header.split(";"):
-            kv = kv.strip()
-            if not kv or "=" not in kv:
-                continue
-            cname = kv.split("=", 1)[0].strip()
-            if cname in fresh:
-                parts.append(f"{cname}={fresh[cname]}"); seen.add(cname)
-            else:
-                parts.append(kv)
-        for cname, val in fresh.items():
-            if cname not in seen:
-                parts.append(f"{cname}={val}")
-        base["cookie"] = "; ".join(parts)
-        # Persist the freshest cookies back to the profile so a backend restart keeps the
-        # live session instead of falling back to the (possibly stale) login-time cookies.
-        try:
-            p = profile_path(_current_profile)
-            with open(p) as f:
-                raw = json.load(f)
-            raw["cookie"] = base["cookie"]
-            with open(p, "w") as f:
-                json.dump(raw, f, indent=2)
-        except Exception:
-            pass
-        _psidts_last_refresh = now
-        print(f"[cookies] session refreshed (authed={authed}): {', '.join(sorted(fresh.keys()))} | {', '.join(statuses)}", flush=True)
-    except Exception as e:
-        print(f"[cookies] PSIDTS refresh failed (non-fatal): {e}", flush=True)
-
-# N: Warning: While true!!
-# N-A: Background scheduler for cookie refresh; separate it from the one-shot refresh operation.
-def _psidts_refresher_loop():
-    while True:
-        time.sleep(300)  # every 5 minutes — *DCC tokens rotate faster than PSIDTS
-        _refresh_ytm_psidts(force=True)
 
 @app.route("/auth/refresh-cookies", methods=["POST"])
 def refresh_cookies():
@@ -416,237 +75,8 @@ def refresh_cookies():
     print(f"[cookies] WebView refresh applied (PSIDTS present: {has_ts})", flush=True)
     return jsonify({"ok": True, "psidts": has_ts})
 
-# N: Get YouTube Music instance -> _ytm comes from load_profile (._.)
-# N-A: Active-session accessor; it should live beside the state that owns _ytm.
-def get_ytmusic():
-    if _ytm is None:
-        raise Exception("Kein Profil aktiv. Bitte zuerst anmelden.")
-    return _ytm
-
 # N: Maybe connection Helper idk
 _ydl_cookie_last_refresh = 0.0   # epoch seconds of last successful cookie refresh
-
-# N: Maybe connection Helper idk
-# N-A: Converts active profile/session cookies into yt-dlp's Netscape cookie-file format.
-def _get_ydl_cookiefile():
-    """Write a fresh Netscape cookie file for yt-dlp and return its path.
-
-    Cookie sources (later wins on key conflicts):
-    1. Long-lived cookies from headers.json (SAPISID, SID, HSID … valid for years)
-    2. Live ytmusicapi session cookies (may include short-lived tokens for
-       music.youtube.com set during recent API calls)
-    3. A lightweight HEAD request to www.youtube.com using the same session,
-       which causes YouTube to issue / rotate __Secure-1PSIDTS and
-       __Secure-3PSIDTS on the youtube.com domain — these are the exact tokens
-       yt-dlp needs to pass bot-detection when extracting stream URLs.
-
-    The cookie file is only regenerated once per minute; callers that need a
-    guaranteed-fresh file can delete it or call with force=True.
-
-    Returns the file path, or None if no authenticated profile is active.
-    """
-    global _ydl_cookie_last_refresh
-    if not _current_profile or is_local_profile(_current_profile):
-        return None
-    try:
-        cookie_file = os.path.join(PROFILES_DIR, f"{_current_profile}_ydl_cookies.txt")
-
-        # ── 1. Stored long-lived cookies from headers.json ──────────────────────
-        with open(profile_path(_current_profile)) as f:
-            headers = json.load(f)
-        cookie_str = headers.get("cookie", "")
-        cookie_dict = {}
-        for part in cookie_str.split(";"):
-            part = part.strip()
-            if "=" not in part:
-                continue
-            name, _, value = part.partition("=")
-            name, value = name.strip(), value.strip()
-            if name:
-                cookie_dict[name] = value
-
-        # ── 2. Live ytmusicapi session cookies (music.youtube.com) ─────────────
-        session = None
-        try:
-            if _ytm is not None and hasattr(_ytm, "_session"):
-                session = _ytm._session
-                for c in session.cookies:
-                    domain = c.domain or ""
-                    if "youtube" in domain or not domain:
-                        cookie_dict[c.name] = c.value
-        except Exception:
-            pass
-
-        # ── 3. Ping youtube.com to refresh __Secure-1PSIDTS (anti-bot token) ───
-        # ytmusicapi talks to music.youtube.com; yt-dlp stream extraction needs
-        # cookies scoped to youtube.com.  A cheap GET on youtube.com triggers
-        # YouTube to rotate and set the short-lived bot-detection cookies on the
-        # correct domain.  We throttle this to once per 55 seconds.
-        now = time.time()
-        if session is not None and (now - _ydl_cookie_last_refresh) > 55:
-            try:
-                resp = session.get(
-                    "https://www.youtube.com/",
-                    timeout=6,
-                    headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/124.0.0.0 Safari/537.36"
-                        ),
-                        "Accept-Language": "en-US,en;q=0.9",
-                    },
-                    allow_redirects=True,
-                )
-                # Harvest cookies set by this response (youtube.com scope)
-                for c in session.cookies:
-                    domain = c.domain or ""
-                    if "youtube" in domain or not domain:
-                        cookie_dict[c.name] = c.value
-                _ydl_cookie_last_refresh = now
-                _logging.debug("[cookies] youtube.com ping refreshed session cookies")
-            except Exception as exc:
-                _logging.debug(f"[cookies] youtube.com ping failed (non-fatal): {exc}")
-
-        if not cookie_dict:
-            return None
-
-        # ── Write Netscape cookie file ───────────────────────────────────────────
-        lines = ["# Netscape HTTP Cookie File\n"]
-        for name, value in cookie_dict.items():
-            secure = "TRUE" if name.startswith("__Secure-") or name.startswith("__Host-") else "FALSE"
-            # Columns: domain  include_subdomains  path  secure  expires  name  value
-            lines.append(f".youtube.com\tTRUE\t/\t{secure}\t2147483647\t{name}\t{value}\n")
-        # Unix line endings — required for yt-dlp to parse the Netscape header on Windows
-        with open(cookie_file, "w", encoding="utf-8", newline="\n") as f:
-            f.writelines(lines)
-        return cookie_file
-    except Exception:
-        return None
-
-# N: Maybe connection Helper idk
-# N-A: Small yt-dlp auth adapter; keep it next to _get_ydl_cookiefile.
-def _apply_ydl_auth(ydl_opts):
-    """Inject cookiefile into yt-dlp opts."""
-    # Node PATH is set once at startup — no need to call here again.
-    cookie_file = _get_ydl_cookiefile()
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
-    return ydl_opts
-
-# N: Maybe youtube music or own profile class
-# N-A: Profile repository/listing logic; it belongs with profile storage, not the YTMusic client.
-def get_profiles():
-    profiles = []
-    seen = set()
-    # Google profiles — have a .json headers file
-    for p in glob.glob(os.path.join(PROFILES_DIR, "*.json")):
-        name = os.path.splitext(os.path.basename(p))[0]
-        if name.endswith(".meta") or name in seen:
-            continue
-        mp = os.path.join(PROFILES_DIR, f"{name}.meta.json")
-        meta = {}
-        if os.path.exists(mp):
-            with open(mp) as f:
-                meta = json.load(f)
-        if meta.get("type") == "local":
-            continue  # handled in second pass
-        seen.add(name)
-        profiles.append({
-            "name": name,
-            "displayName": meta.get("displayName", name),
-            "handle": meta.get("handle", ""),
-            "avatar": meta.get("avatar", ""),
-            "type": "google",
-            "active": name == _current_profile,
-        })
-    # Local profiles — only have a .meta.json with type==local
-    for mp in glob.glob(os.path.join(PROFILES_DIR, "*.meta.json")):
-        name = os.path.splitext(os.path.splitext(os.path.basename(mp))[0])[0]
-        if name in seen:
-            continue
-        try:
-            with open(mp) as f:
-                meta = json.load(f)
-        except Exception:
-            continue
-        if meta.get("type") == "local":
-            seen.add(name)
-            profiles.append({
-                "name": name,
-                "displayName": meta.get("displayName", name),
-                "handle": "",
-                "avatar": "",
-                "type": "local",
-                "active": name == _current_profile,
-            })
-        elif meta.get("logged_out"):
-            # Logged-out Google profile: no .json headers file, but kept listed
-            # so the user can re-authenticate it under the same name.
-            seen.add(name)
-            profiles.append({
-                "name": name,
-                "displayName": meta.get("displayName", name),
-                "handle": meta.get("handle", ""),
-                "avatar": meta.get("avatar", ""),
-                "type": "google",
-                "active": False,
-                "loggedOut": True,
-            })
-    return profiles
-
-# N: IDK
-# N-A: One-time profile-storage migration; call it from startup/bootstrap only.
-# Migrate legacy browser.json to profiles/
-def migrate_legacy():
-    legacy = os.path.join(os.path.dirname(__file__), "browser.json")
-    if os.path.exists(legacy) and not get_profiles():
-        import shutil
-        dest = profile_path("default")
-        shutil.copy(legacy, dest)
-        meta = {"displayName": "Standard"}
-        with open(os.path.join(PROFILES_DIR, "default.meta.json"), "w") as f:
-            json.dump(meta, f)
-        print("[i] browser.json zu profiles/default.json migriert")
-
-# N: Maybe youtube music or own profile class
-# N-A: Enriches saved profile metadata using a temporary YTMusic client; profile-service work.
-# Auto-load first profile on startup
-def fetch_account_info(profile_name):
-    """Versucht den echten Kontonamen von YouTube Music zu holen."""
-    if is_local_profile(profile_name):
-        return  # Lokale Profile haben keinen YouTube-Account
-    try:
-        ytm_temp = make_ytmusic(profile_name)
-        # get_account_info gibt Name + Handle zurück
-        info = ytm_temp.get_account_info()
-        if info:
-            meta_path = os.path.join(PROFILES_DIR, f"{profile_name}.meta.json")
-            meta = {}
-            if os.path.exists(meta_path):
-                with open(meta_path) as f:
-                    meta = json.load(f)
-            meta["displayName"] = info.get("accountName", profile_name)
-            meta["handle"] = info.get("channelHandle", "")
-            meta["avatar"] = info.get("accountPhotoUrl", "")
-            with open(meta_path, "w") as f:
-                json.dump(meta, f)
-    except Exception as e:
-        print(f"[i] Account-Info nicht abrufbar: {e}")
-
-# N: Maybe youtube music or own profile class
-# N-A: Startup orchestration; keep this in bootstrap after profile helpers have been extracted.
-def autoload():
-    migrate_legacy()
-    # Skip logged-out profiles — they have no auth and can't be loaded. Try each in
-    # order until one loads (a leftover, now-unsupported OAuth profile is skipped).
-    profiles = [p for p in get_profiles() if not p.get("loggedOut")]
-    for p in profiles:
-        if load_profile(p["name"]):
-            threading.Thread(target=fetch_account_info, args=(p["name"],), daemon=True).start()
-            break
-
-autoload()
 
 # N: ok, sure buddy
 # Keep the active browser session's anti-bot cookies fresh in the background.
@@ -1446,8 +876,6 @@ def unison_displayname(key_id):
 # {bridgeUrl}/health and {bridgeUrl}/audio/<videoId>; we serve those under
 # /composer-bridge. CORS must allow the composer origin so its JS can read the bytes
 # and the x-track-* metadata headers.
-_COMPOSER_ORIGIN = "https://composer.boidu.dev"
-
 def _bridge_headers(resp):
     resp.headers["Access-Control-Allow-Origin"] = _COMPOSER_ORIGIN
     resp.headers["Access-Control-Expose-Headers"] = "Content-Type, x-track-title, x-track-artist, x-track-album"
@@ -1629,8 +1057,7 @@ def shutdown():
 def status():
     return jsonify({"ok": True, "message": "Kodama Backend laeuft"})
 
-# In-memory LRU cache für Lyrics-Übersetzungen (max 500 Einträge)
-_LYRICS_CACHE_MAX = 500
+# In-memory LRU cache für Lyrics-Übersetzungen
 _translation_cache = collections.OrderedDict()
 _romaji_cache      = collections.OrderedDict()
 
@@ -1684,13 +1111,6 @@ def romanize_lyrics():
         result.append(romaji)
 
     return jsonify({"romanizations": result})
-
-# Google Translate language code mapping (DeepL uppercase → Google lowercase)
-_GOOGLE_LANG = {
-    "DE": "de", "EN": "en", "FR": "fr", "ES": "es", "IT": "it",
-    "PT": "pt", "NL": "nl", "PL": "pl", "RU": "ru",
-    "JA": "ja", "KO": "ko", "ZH": "zh-CN",
-}
 
 def _google_translate_batch(lines, target_lang):
     """Übersetzt eine Liste von Strings via inoffizielle Google Translate API.
@@ -1905,46 +1325,12 @@ def _ydl_pick_any_audio(video_id, extra_opts=None, skip_auth=False, use_ytm=True
         return candidates[-1]["url"]
     return info.get("url")
 
-# Each entry: (format_string, extra_ydl_opts, skip_auth)
-#
-# Strategy (2026): YouTube requires PO tokens for the default `web` client
-# when cookies are present, but mobile clients (android_music, ios) bypass
-# that requirement entirely.  Authenticated mobile clients are therefore
-# tried FIRST — they have valid cookies, skip PO-token checks, and are
-# less likely to trigger the "Sign in to confirm you're not a bot" error.
-# Anonymous clients follow as fallback (no cookies = no PO-token demand).
-# The plain web client (default / web_music) comes last; it only works
-# anonymously when YouTube hasn't flagged the IP.
-_WEB_MUSIC_OPTS  = {"extractor_args": {"youtube": {"player_client": ["web_music"]}}}
-_ANDROID_OPTS    = {"extractor_args": {"youtube": {"player_client": ["android_music"], "player_skip": ["js"]}}}
-_IOS_OPTS        = {"extractor_args": {"youtube": {"player_client": ["ios"],           "player_skip": ["js"]}}}
-_IOS_MUSIC_OPTS  = {"extractor_args": {"youtube": {"player_client": ["ios_music"],     "player_skip": ["js"]}}}
-_TV_OPTS         = {"extractor_args": {"youtube": {"player_client": ["tv_embedded"],   "player_skip": ["js"]}}}
-_M4A_FMT = "bestaudio[ext=m4a]/bestaudio[acodec=aac]"
-
-_MWEB_OPTS = {"extractor_args": {"youtube": {"player_client": ["mweb"]}}}
-
 # Strategy (2026): Web cookies ONLY work correctly with web clients.
 # Mixing mobile client headers (android_music, ios) with web cookies causes
 # YouTube to detect an inconsistency and return "Sign in to confirm you're not a bot".
 # → Authenticated requests use web_music / default web client only.
 # → Mobile clients are ALWAYS anonymous (no cookies = no client mismatch).
 # → Anonymous fallbacks try youtube.com (use_ytm=False) for wider format availability.
-_STREAM_ATTEMPTS = [
-    # ── 1. Authenticated web clients (web cookies + web client = consistent) ─────
-    (_M4A_FMT, _WEB_MUSIC_OPTS, False),   # web_music + cookies
-    (_M4A_FMT, None,            False),    # default web + cookies
-    # ── 2. Anonymous mobile/TV (no cookies → no mismatch, no PO-token demand) ───
-    (_M4A_FMT, _TV_OPTS,        True),
-    (_M4A_FMT, _ANDROID_OPTS,   True),
-    (_M4A_FMT, _IOS_OPTS,       True),
-    (_M4A_FMT, _IOS_MUSIC_OPTS, True),
-    (_M4A_FMT, _MWEB_OPTS,      True),    # mobile-web often bypasses bot checks
-    # ── 3. Anonymous web ─────────────────────────────────────────────────────────
-    (_M4A_FMT, _WEB_MUSIC_OPTS, True),
-    (_M4A_FMT, None,            True),
-]
-
 def _browser_cookie_opts():
     """
     Return a list of ydl_opts dicts that use cookiesfrombrowser for each
@@ -1972,9 +1358,6 @@ def _browser_cookie_opts():
 # Trade-off vs. cookiesfrombrowser: a static cookie file cannot auto-extract PO
 # tokens from live browser storage. In practice this is fine here; log in via
 # the app for a first-class authenticated session if a track ever needs it.
-_BROWSER_COOKIEFILE = os.path.join(_base_dir, "browser_cookies.txt")
-_BROWSER_COOKIE_TTL = 6 * 3600        # re-extract at most every 6 hours
-_BROWSER_COOKIE_MIN_GAP = 600         # never re-extract more than once / 10 min (each costs a keychain prompt)
 _browser_cookie_lock = threading.Lock()
 _browser_cookie_last_extract = 0.0
 
@@ -4358,33 +3741,7 @@ _ov_state = {
     "title": "", "artist": "", "album": "",
     "cover": "", "progress": 0.0, "duration": 0.0, "isPlaying": False,
 }
-# Canonical v1 default config (kept for migration to the v2 layer document).
-_OV_V1_DEFAULT = {
-    "preset": "basic",
-    "bgColor": "#1a1a1a", "bgOpacity": 90,
-    "accentColor": "#EEA8FF", "textColor": "#ffffff",
-    "borderRadius": 14,
-    "showProgress": True, "showAlbumArt": True,
-    "showArtist": True, "showAlbum": False,
-    "border": False, "borderColor": "#EEA8FF", "borderWidth": 1.5,
-    "fontFamily": "system-ui, sans-serif",
-    "titleFontSize": 14, "artistFontSize": 12,
-    "dynamicWidth": False, "widgetWidth": 400, "widgetHeight": 0, "artSize": 56, "artRadius": 8,
-    "artRadiusTL": 8, "artRadiusTR": 8, "artRadiusBR": 8, "artRadiusBL": 8,
-    "artCornerTypeTL": "r", "artCornerTypeTR": "r", "artCornerTypeBR": "r", "artCornerTypeBL": "r",
-    "paddingV": 12, "paddingH": 16, "gap": 12,
-    "progressHeight": 3,
-    "showShadow": False, "shadowStrength": 0.35,
-    "bgBlur": 10, "bgBlurEnabled": False,
-    "autoHide": False,
-    "scrollTitle": False, "scrollSpeed": 80,
-    "radiusTL": 14, "radiusTR": 14, "radiusBR": 14, "radiusBL": 14,
-    "cornerTypeTL": "r", "cornerTypeTR": "r", "cornerTypeBR": "r", "cornerTypeBL": "r",
-    "borderBlur": 0,
-}
-
 # ── Overlay v2 document schema / migration (mirror of src/overlay/schema.js) ──
-_OVERLAY_DOC_VERSION = 2
 
 def _r(v):
     return int(v + 0.5)  # round-half-up for non-negative (mirrors JS Math.round)

@@ -71,6 +71,7 @@ class Config:
     IMG_CACHE_TTL = 30 * 24 * 3600
     PLAYLIST_CACHE_TTL = 24 * 3600
     ALBUM_CACHE_TTL = 7 * 24 * 3600
+    CACHE_DEFAULTS = {"playlists": True, "albums": True, "images": True, "songs": True, "lyrics": True}
 
 
 class ConfigDirs:
@@ -114,6 +115,85 @@ class ConfigYTMusic:
 
     PLAYLIST_CACHE_MAX = 20
 
+
+class ConfigComposer:
+    """Static settings for the local Composer bridge."""
+
+    ORIGIN = "https://composer.boidu.dev"
+    DEFAULT_AUTOCACHE = True
+
+    def __init__(self, base_dir: Path):
+        self.SETTINGS_FILE = base_dir / "composer_settings.json"
+
+
+class ConfigLyrics:
+    """Fixed limits and language mappings for lyric tools."""
+
+    TRANSLATION_CACHE_MAX = 500
+    GOOGLE_LANGUAGE_CODES = {
+        "DE": "de", "EN": "en", "FR": "fr", "ES": "es", "IT": "it",
+        "PT": "pt", "NL": "nl", "PL": "pl", "RU": "ru",
+        "JA": "ja", "KO": "ko", "ZH": "zh-CN",
+    }
+
+
+class ConfigYTDLP:
+    """Client options and browser-cookie refresh settings for yt-dlp."""
+
+    WEB_MUSIC_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["web_music"]}}}
+    ANDROID_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["android_music"], "player_skip": ["js"]}}}
+    IOS_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["ios"], "player_skip": ["js"]}}}
+    IOS_MUSIC_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["ios_music"], "player_skip": ["js"]}}}
+    TV_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["tv_embedded"], "player_skip": ["js"]}}}
+    MWEB_OPTIONS = {"extractor_args": {"youtube": {"player_client": ["mweb"]}}}
+    AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[acodec=aac]"
+    BROWSER_COOKIE_TTL = 6 * 3600
+    BROWSER_COOKIE_MIN_GAP = 600
+
+    def __init__(self, base_dir: Path):
+        self.BROWSER_COOKIE_FILE = base_dir / "browser_cookies.txt"
+        self.STREAM_ATTEMPTS = [
+            (self.AUDIO_FORMAT, self.WEB_MUSIC_OPTIONS, False),
+            (self.AUDIO_FORMAT, None, False),
+            (self.AUDIO_FORMAT, self.TV_OPTIONS, True),
+            (self.AUDIO_FORMAT, self.ANDROID_OPTIONS, True),
+            (self.AUDIO_FORMAT, self.IOS_OPTIONS, True),
+            (self.AUDIO_FORMAT, self.IOS_MUSIC_OPTIONS, True),
+            (self.AUDIO_FORMAT, self.MWEB_OPTIONS, True),
+            (self.AUDIO_FORMAT, self.WEB_MUSIC_OPTIONS, True),
+            (self.AUDIO_FORMAT, None, True),
+        ]
+
+
+class ConfigOverlay:
+    """Default document settings for the OBS overlay."""
+
+    DOCUMENT_VERSION = 2
+    V1_DEFAULT = {
+        "preset": "basic",
+        "bgColor": "#1a1a1a", "bgOpacity": 90,
+        "accentColor": "#EEA8FF", "textColor": "#ffffff",
+        "borderRadius": 14,
+        "showProgress": True, "showAlbumArt": True,
+        "showArtist": True, "showAlbum": False,
+        "border": False, "borderColor": "#EEA8FF", "borderWidth": 1.5,
+        "fontFamily": "system-ui, sans-serif",
+        "titleFontSize": 14, "artistFontSize": 12,
+        "dynamicWidth": False, "widgetWidth": 400, "widgetHeight": 0, "artSize": 56, "artRadius": 8,
+        "artRadiusTL": 8, "artRadiusTR": 8, "artRadiusBR": 8, "artRadiusBL": 8,
+        "artCornerTypeTL": "r", "artCornerTypeTR": "r", "artCornerTypeBR": "r", "artCornerTypeBL": "r",
+        "paddingV": 12, "paddingH": 16, "gap": 12,
+        "progressHeight": 3,
+        "showShadow": False, "shadowStrength": 0.35,
+        "bgBlur": 10, "bgBlurEnabled": False,
+        "autoHide": False,
+        "scrollTitle": False, "scrollSpeed": 80,
+        "radiusTL": 14, "radiusTR": 14, "radiusBR": 14, "radiusBL": 14,
+        "cornerTypeTL": "r", "cornerTypeTR": "r", "cornerTypeBR": "r", "cornerTypeBL": "r",
+        "borderBlur": 0,
+    }
+
+
 class ConfigMusixMatch:
     """Fixed Music Match settings."""
 
@@ -129,4 +209,8 @@ config = Config()
 config_dirs = ConfigDirs()
 config_lastfm = ConfigLastFM()
 config_ytmusic = ConfigYTMusic()
+config_composer = ConfigComposer(config_dirs.BASE_DIR)
+config_lyrics = ConfigLyrics()
+config_ytdlp = ConfigYTDLP(config_dirs.BASE_DIR)
+config_overlay = ConfigOverlay()
 config_musixmatch = ConfigMusixMatch()
