@@ -4,6 +4,8 @@ from flask import Flask, Blueprint
 from .auth import blueprint as auth_blueprint
 from .news import blueprint as news_blueprint
 from .clientlog import blueprint as clientlog_blueprint
+from .cache import blueprint as cache_blueprint
+from .composer import blueprint as composer_blueprint
 from .lastFm import blueprint as lastfm_blueprint
 from .lyrics import blueprint as lyrics_blueprint
 from .profiles import blueprint as profiles_blueprint
@@ -14,6 +16,8 @@ blueprints: List[Tuple[Blueprint, bool]] = [
     (auth_blueprint, False),
     (news_blueprint, False),
     (clientlog_blueprint, True),
+    (cache_blueprint, False),
+    (composer_blueprint, False),
     (lastfm_blueprint, False),
     (lyrics_blueprint, False),
     (profiles_blueprint, False),

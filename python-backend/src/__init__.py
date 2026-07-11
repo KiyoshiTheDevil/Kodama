@@ -4,6 +4,8 @@ from src.config import Config
 from src.lib import (
     CacheSettings,
     LastFM,
+    ComposerBridge,
+    ComposerSettings,
     LyricsService,
     MusixMatch,
     Profile,
@@ -26,6 +28,11 @@ def create_app():
         app.extensions["youtube_music_session"] = YoutubeMusicSession(profiles=profile_repository)
         app.extensions["lastfm_client"] = LastFM()
         app.extensions["cache_settings"] = CacheSettings()
+        app.extensions["composer_bridge"] = ComposerBridge(
+            settings=ComposerSettings(),
+            cache_settings=app.extensions["cache_settings"],
+            music_session=app.extensions["youtube_music_session"],
+        )
         app.extensions["lyrics_service"] = LyricsService(
             cache_settings=app.extensions["cache_settings"],
             musixmatch=MusixMatch(),

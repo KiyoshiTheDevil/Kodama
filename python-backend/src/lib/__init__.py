@@ -1,5 +1,6 @@
 """Public imports for reusable backend helpers organized by subject."""
 
+from .composer.bridge import ComposerBridge, ComposerBridgeError
 from .composer.settings import ComposerSettings
 from .integrations.feedback import load_feedback_webhook
 from .integrations.lastfm import LastFM
@@ -19,6 +20,8 @@ __all__ = [
     "DelayedCleanup",
     "DirectoryInspector",
     "CacheSettings",
+    "ComposerBridge",
+    "ComposerBridgeError",
     "ComposerSettings",
     "LastFM",
     "LyricsService",

@@ -20,3 +20,13 @@ class ComposerSettings:
                 return bool(json.load(settings_file).get("autocache", config_composer.DEFAULT_AUTOCACHE))
         except (OSError, ValueError, TypeError):
             return config_composer.DEFAULT_AUTOCACHE
+
+    def set_autocache(self, enabled):
+        """Persist the bridge's audio-cache preference."""
+        self.autocache = bool(enabled)
+        try:
+            with open(self._settings_file, "w", encoding="utf-8") as settings_file:
+                json.dump({"autocache": self.autocache}, settings_file)
+        except OSError:
+            pass
+        return self.autocache
