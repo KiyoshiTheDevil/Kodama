@@ -36,6 +36,71 @@ def song_meta(video_id):
         return jsonify({"error": str(e)}), 502
 
 
+@blueprint.route("/song/info/<video_id>")
+def song_info(video_id):
+    """Return albumBrowseId and artistBrowseId for a given video ID."""
+    try:
+        client = music_session().get_active_client()
+        data = client.get_song(video_id)
+        details = data.get("videoDetails", {})
+        artist_id = ""
+        # Try to get browse ids from a matching search hit
+        try:
+            result = client.search(
+                f"{details.get('title', '')} {details.get('author', '')}",
+                filter="songs", limit=1
+            )
+            if result:
+                hit = result[0]
+                al = hit.get("artists", [])
+                artist_id = (al[0].get("id") or "") if al else ""
+                album = hit.get("album") or {}
+                album_id = (album.get("id") or "")
+            else:
+                album_id = ""
+        except Exception:
+            album_id = ""
+        return jsonify({
+            "artistBrowseId": artist_id,
+            "albumBrowseId": album_id,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@blueprint.route("/song/stats/<video_id>")
+def song_stats(video_id):
+    try:
+        r = requests.get(
+            f"https://returnyoutubedislikeapi.com/votes?videoId={video_id}",
+            timeout=5,
+            headers={"Accept": "application/json"}
+        )
+        if r.status_code == 200:
+            d = r.json()
+
+            def fmt_num(n):
+                if n is None:
+                    return None
+                n = int(n)
+                if n >= 1_000_000:
+                    return f"{n/1_000_000:.1f}M"
+                if n >= 1_000:
+                    return f"{n/1_000:.1f}K"
+                return str(n)
+            return jsonify({
+                "views":    fmt_num(d.get("viewCount")),
+                "likes":    fmt_num(d.get("likes")),
+                "dislikes": fmt_num(d.get("dislikes")),
+                "viewsRaw":    d.get("viewCount"),
+                "likesRaw":    d.get("likes"),
+                "dislikesRaw": d.get("dislikes"),
+            })
+        return jsonify({"error": "stats unavailable"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @blueprint.route("/song/credits/<video_id>")
 def get_song_credits(video_id):
     # Serve from cache if available

@@ -17,9 +17,17 @@ The following route families are already registered by the app factory:
 - Streaming: `src/routes/streaming/`
 - Music library and detail pages: `src/routes/library/`
 - Download, export, and tool updates: `src/routes/downloads/`
+- Discovery: `src/routes/discovery/`
 
 The matching legacy handlers have been removed from `server.py` after each
 family was ported.
+
+The discovery family (`/podcast/*`, `/mood/*`) lives under
+`src/routes/discovery/` (`podcast`, `mood`); the mood page parser
+`_parse_two_row_item` is a module-level helper in `discovery/mood.py`. The two
+remaining `/song/*` detail routes (`/song/info`, `/song/stats`) were folded into
+`library/song.py` alongside `/song/meta` and `/song/credits` rather than into
+discovery, since they are song-detail lookups, not content discovery.
 
 The download/export/tools family (`/song/download/*`, `/song/cached/*`,
 `/downloads/queue`, `/song/export/*`, `/ffmpeg/*`, `/ytdlp/*`) lives under
@@ -71,11 +79,7 @@ Non-route infrastructure ported out of `server.py`'s module top-level:
 The remaining `server.py` routes should be migrated by coherent subject, not in
 file order:
 
-1. Discovery
-   - `/podcast/*`, `/mood/*`
-   - Any remaining response-normalization helpers they require.
-
-2. Operations and integrations
+1. Operations and integrations
    - `/debug/info`
    - `/overlay/*`
    - `/remote/*`
