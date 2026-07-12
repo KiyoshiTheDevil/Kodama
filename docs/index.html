@@ -66,6 +66,13 @@
     .feat h3 { font-size:15px; font-weight:600; margin:0 0 6px; }
     .feat p { color:var(--t2); font-size:13.5px; margin:0; line-height:1.5; }
 
+    /* Live stats (active users + downloads) */
+    .stats { display:flex; justify-content:center; gap:14px; margin:2px auto 26px; flex-wrap:wrap; }
+    .stat { background:rgba(255,255,255,0.04); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+      border-radius:12px; padding:13px 26px; min-width:132px; text-align:center; }
+    .stat b { display:block; font-size:26px; font-weight:600; color:var(--t1); line-height:1.1; font-variant-numeric:tabular-nums; }
+    .stat span { display:block; font-size:12px; color:var(--t3); margin-top:3px; }
+
     .below { text-align:center; margin-top:40px; }
     .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
     .btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
@@ -113,6 +120,10 @@
   </div>
 
   <div class="wrap below">
+    <div class="stats" id="stats" hidden>
+      <div class="stat" id="statMauBox"><b id="statMau">–</b><span>active this month</span></div>
+      <div class="stat" id="statDlBox"><b id="statDl">–</b><span>downloads</span></div>
+    </div>
     <div class="cta">
       <a class="btn primary" href="https://github.com/KiyoshiTheDevil/Kodama/releases/latest" target="_blank" rel="noopener">Download Kodama</a>
       <a class="btn secondary" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">View on GitHub</a>
@@ -194,6 +205,30 @@
     resize();
     window.addEventListener('resize', function(){ resize(); if (reduce) frame(0); });
     frame(0); // initial synchronous draw; frame() self-schedules the RAF loop when animated
+  })();
+  </script>
+  <script>
+  (function(){
+    var STATS_URL = 'https://kodama-stats.kiyoshidesign.workers.dev';
+    var REPO = 'KiyoshiTheDevil/Kodama';
+    function human(n){ if(n>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'M'; if(n>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'k'; return String(n); }
+    var box = document.getElementById('stats');
+    function reveal(){ if (box && box.hidden) box.hidden = false; }
+    function countUp(el, target){
+      var t0 = performance.now(), dur = 900;
+      (function step(t){ var p = Math.min(1,(t-t0)/dur); el.textContent = human(Math.round((1-Math.pow(1-p,3))*target)); if (p<1) requestAnimationFrame(step); })(performance.now());
+    }
+    function fill(boxId, numId, val){
+      var b = document.getElementById(boxId);
+      if (val == null || val <= 0){ if (b) b.style.display = 'none'; return; }
+      reveal(); countUp(document.getElementById(numId), val);
+    }
+    fetch(STATS_URL + '/count').then(function(r){ return r.json(); })
+      .then(function(d){ fill('statMauBox','statMau', d && d.mau); })
+      .catch(function(){ fill('statMauBox','statMau', 0); });
+    fetch('https://api.github.com/repos/' + REPO + '/releases').then(function(r){ return r.json(); })
+      .then(function(rs){ var t = 0; (rs||[]).forEach(function(rel){ (rel.assets||[]).forEach(function(a){ t += a.download_count||0; }); }); fill('statDlBox','statDl', t); })
+      .catch(function(){ fill('statDlBox','statDl', 0); });
   })();
   </script>
 </body>
