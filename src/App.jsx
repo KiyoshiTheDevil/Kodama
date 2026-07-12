@@ -87,9 +87,12 @@ import { storageCodecs, usePersistedState } from "./shared/hooks/use-persisted-s
 import { matchesShortcut, serializeShortcut } from "./shared/lib/shortcuts.js";
 import { compareVersions } from "./shared/lib/version.js";
 import { useNews } from "./app/hooks/use-news.js";
+import { useNetworkStatus } from "./app/hooks/use-network-status.js";
 import { useAppUpdate } from "./app/hooks/use-app-update.js";
 import { useObsOverlay } from "./features/overlay/hooks/use-obs-overlay.js";
 import { useRemoteControl } from "./features/remote/hooks/use-remote-control.js";
+import { useDownloadManager } from "./features/downloads/hooks/use-download-manager.js";
+import { useProfiles } from "./features/profiles/hooks/use-profiles.js";
 import { LANGUAGES, translate, translationProgress } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import OverlayEditor from "./overlay/OverlayEditor.jsx";
@@ -16182,19 +16185,10 @@ export default function App() {
   const [addToPlaylistFor, setAddToPlaylistFor] = useState(null); // { tracks: [...] } — opens the add-to-playlist modal
   const [renameDialog, setRenameDialog] = useState(null); // { playlistId, title }
   const [deleteDialog, setDeleteDialog] = useState(null); // { playlistId, title }
-  const [cachedSongIds, setCachedSongIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
-  const [downloadingIds, setDownloadingIds] = useState(new Set());
-  const [premiumSongIds, setPremiumSongIds] = useState(new Set());
-  const [offlineMode, setOfflineMode] = useState(
-    () => localStorage.getItem("kiyoshi-offline") === "true"
-  );
-  const [isActuallyOffline, setIsActuallyOffline] = useState(() => !navigator.onLine);
+  // Download/cache state + operations live in features/downloads/hooks/use-download-manager.js.
+  // Network status + offline mode live in app/hooks/use-network-status.js.
   const [debugFloat, setDebugFloat] = useState(false);
-  const [downloadQueue, setDownloadQueue] = useState([]); // [{videoId, title, artists, thumbnail, status, progress}]
-  const [downloadBatches, setDownloadBatches] = useState([]); // [{id, title, thumbnail, artists, videoIds[], completedCount, errorCount}]
-  const [pendingDownloadQueue, setPendingDownloadQueue] = useState([]); // tracks waiting for a free slot
-  const [downloadQueueMin, setDownloadQueueMin] = useState(false); // download queue card minimized
   const mutePrevVolumeRef = useRef(0.5);
 
   // ─── Toast Notifications (HeroUI toast system) ───────────────────────────────
@@ -16964,243 +16958,24 @@ export default function App() {
     };
   }, [playByVideoId]);
 
-  // Global queue poll — runs whenever there are active downloads
-  useEffect(() => {
-    if (downloadingIds.size === 0) return;
-    const poll = setInterval(async () => {
-      try {
-        const r = await fetch(`${API}/downloads/queue`);
-        const d = await r.json();
-        const queue = d.queue || [];
-        setDownloadQueue(queue);
-        const doneIds = queue.filter((i) => i.status === "done").map((i) => i.videoId);
-        const errorIds = queue.filter((i) => i.status === "error").map((i) => i.videoId);
-        const premiumIds = queue
-          .filter((i) => i.status === "error" && i.error_type === "premium_only")
-          .map((i) => i.videoId);
-        const finishedIds = [...doneIds, ...errorIds];
-        if (doneIds.length)
-          setCachedSongIds((prev) => {
-            const s = new Set(prev);
-            doneIds.forEach((id) => s.add(id));
-            return s;
-          });
-        if (premiumIds.length)
-          setPremiumSongIds((prev) => {
-            const s = new Set(prev);
-            premiumIds.forEach((id) => s.add(id));
-            return s;
-          });
-        if (finishedIds.length) {
-          setDownloadingIds((prev) => {
-            const s = new Set(prev);
-            finishedIds.forEach((id) => s.delete(id));
-            return s;
-          });
-          setDownloadBatches((prev) =>
-            prev.map((b) => {
-              const added = doneIds.filter((id) => b.videoIds.includes(id)).length;
-              const addedErr = errorIds.filter((id) => b.videoIds.includes(id)).length;
-              return added || addedErr
-                ? {
-                    ...b,
-                    completedCount: b.completedCount + added,
-                    errorCount: b.errorCount + addedErr,
-                  }
-                : b;
-            })
-          );
-        }
-      } catch {}
-    }, 1500);
-    return () => clearInterval(poll);
-  }, [downloadingIds.size]);
-
-  // Remove fully-finished batches after a short delay
-  useEffect(() => {
-    const done = downloadBatches.filter(
-      (b) => b.completedCount + b.errorCount >= b.videoIds.length
-    );
-    if (!done.length) return;
-    const t = setTimeout(() => {
-      setDownloadBatches((prev) =>
-        prev.filter((b) => b.completedCount + b.errorCount < b.videoIds.length)
-      );
-    }, 2500);
-    return () => clearTimeout(t);
-  }, [downloadBatches]);
-
-  // Drain pending queue — start next tracks whenever a slot opens up (max 5 concurrent)
-  const MAX_CONCURRENT_DOWNLOADS = 5;
-  useEffect(() => {
-    if (pendingDownloadQueue.length === 0) return;
-    const slots = MAX_CONCURRENT_DOWNLOADS - downloadingIds.size;
-    if (slots <= 0) return;
-    const toStart = pendingDownloadQueue.slice(0, slots);
-    setPendingDownloadQueue((prev) => prev.slice(toStart.length));
-    toStart.forEach((track) => handleDownloadSong(track));
-  }, [pendingDownloadQueue.length, downloadingIds.size]);
-
-  const handleDownloadSong = useCallback(
-    async (track) => {
-      if (!track?.videoId || downloadingIds.has(track.videoId) || cachedSongIds.has(track.videoId))
-        return;
-      setDownloadingIds((prev) => new Set(prev).add(track.videoId));
-      try {
-        await fetch(`${API}/song/download/${track.videoId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: track.title,
-            artists: track.artists,
-            album: track.album,
-            duration: track.duration,
-            thumbnail: track.thumbnail,
-          }),
-        });
-      } catch {
-        setDownloadingIds((prev) => {
-          const s = new Set(prev);
-          s.delete(track.videoId);
-          return s;
-        });
-      }
-    },
-    [downloadingIds, cachedSongIds]
-  );
-
-  const handleDownloadAll = useCallback(
-    (tracks, meta = {}) => {
-      const eligible = tracks.filter(
-        (t) => !cachedSongIds.has(t.videoId) && !downloadingIds.has(t.videoId)
-      );
-      if (!eligible.length) return;
-      const batchId = Date.now().toString();
-      setDownloadBatches((prev) => [
-        ...prev,
-        {
-          id: batchId,
-          title: meta.title || "",
-          thumbnail: meta.thumbnail || "",
-          artists: meta.artists || "",
-          videoIds: eligible.map((t) => t.videoId),
-          completedCount: 0,
-          errorCount: 0,
-        },
-      ]);
-      setPendingDownloadQueue((prev) => [...prev, ...eligible]);
-    },
-    [cachedSongIds, downloadingIds]
-  );
-
-  // Cancel a download batch: drop it from the UI + remove its not-yet-started tracks
-  // from the pending queue. (In-flight server downloads can't be aborted backend-side.)
-  const handleCancelBatch = useCallback((batchId) => {
-    setDownloadBatches((prev) => {
-      const batch = prev.find((b) => b.id === batchId);
-      if (batch) {
-        const ids = new Set(batch.videoIds);
-        setPendingDownloadQueue((pq) => pq.filter((t) => !ids.has(t.videoId)));
-        setDownloadingIds((di) => {
-          const s = new Set(di);
-          batch.videoIds.forEach((id) => s.delete(id));
-          return s;
-        });
-      }
-      return prev.filter((b) => b.id !== batchId);
-    });
-  }, []);
-
-  const handleRemoveAllDownloads = useCallback(
-    async (tracks) => {
-      const videoIds = tracks.filter((t) => cachedSongIds.has(t.videoId)).map((t) => t.videoId);
-      if (!videoIds.length) return;
-      try {
-        await fetch(`${API}/songs/cached/delete-batch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoIds }),
-        });
-        setCachedSongIds((prev) => {
-          const s = new Set(prev);
-          videoIds.forEach((id) => s.delete(id));
-          return s;
-        });
-      } catch {}
-    },
-    [cachedSongIds]
-  );
-
   const [language, setLanguage] = useState(() => getInitialLang());
 
-  const handleExportSong = useCallback(
-    async (track, format) => {
-      if (!track?.videoId) return;
-      try {
-        if (format === "mp3") {
-          const ffRes = await fetch(`${API}/song/export/ffmpeg-available`)
-            .then((r) => r.json())
-            .catch(() => ({ available: false }));
-          if (!ffRes.available) {
-            addToast(translate(language, "noFfmpeg"), "error");
-            return;
-          }
-        }
-        const { save } = await import("@tauri-apps/plugin-dialog");
-        const artistStr = Array.isArray(track.artists)
-          ? track.artists.map((a) => (typeof a === "string" ? a : a.name)).join(", ")
-          : track.artists || "Unknown";
-        const ext = format === "mp3" ? "mp3" : "opus";
-        const defaultName = `${artistStr} - ${track.title || "Song"}.${ext}`;
-        const defaultDir = localStorage.getItem("kiyoshi-mp3-dir") || undefined;
-        const filePath = await save({
-          title: translate(language, format === "mp3" ? "saveAsMp3" : "saveAsOpus"),
-          defaultPath: defaultDir ? `${defaultDir}\\${defaultName}` : defaultName,
-          filters:
-            format === "mp3"
-              ? [{ name: "MP3", extensions: ["mp3"] }]
-              : [{ name: "OPUS", extensions: ["opus", "webm"] }],
-        });
-        if (!filePath) return;
-        const dir = filePath.replace(/[\\/][^\\/]+$/, "");
-        if (dir) localStorage.setItem("kiyoshi-mp3-dir", dir);
-        const artistStr2 = Array.isArray(track.artists)
-          ? track.artists.map((a) => (typeof a === "string" ? a : a.name)).join(", ")
-          : track.artists || "";
-        await fetch(`${API}/song/export/${track.videoId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            output_path: filePath,
-            format,
-            title: track.title || "",
-            artists: artistStr2,
-            album: track.album || "",
-            year: track.year || "",
-            albumBrowseId: track.albumBrowseId || "",
-            thumbnail: track.thumbnail || "",
-          }),
-        });
-        addToast(translate(language, "exportStarted"), "info");
-        const poll = setInterval(async () => {
-          try {
-            const r = await fetch(`${API}/song/export/status/${track.videoId}`);
-            const d = await r.json();
-            if (d.status === "done") {
-              clearInterval(poll);
-              addToast(translate(language, "exportDone"), "success");
-            } else if (d.status === "error") {
-              clearInterval(poll);
-              addToast(translate(language, "exportError"), "error");
-            }
-          } catch {
-            clearInterval(poll);
-          }
-        }, 2000);
-      } catch {}
-    },
-    [language, addToast]
-  );
+  // ── Downloads + local cache (see features/downloads/hooks/use-download-manager.js) ──
+  const {
+    cachedSongIds,
+    downloadingIds,
+    premiumSongIds,
+    downloadBatches,
+    downloadQueueMin,
+    setDownloadQueueMin,
+    handleDownloadSong,
+    handleDownloadAll,
+    handleCancelBatch,
+    handleRemoveAllDownloads,
+    handleExportSong,
+    removeCachedSong,
+    markPremium,
+  } = useDownloadManager({ addToast, language });
 
   const handleSearch = useCallback((q) => {
     setSearchQuery(q);
@@ -17596,249 +17371,42 @@ export default function App() {
   }, []);
 
   // ── Profile / Auth ──
-  const [profiles, setProfiles] = useState([]);
-  const [hasProfile, setHasProfile] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const sessionWarnedRef = useRef(null); // profile name we've already shown the "session expired" toast for
-  const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem("kiyoshi-lang"));
-  const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
-  const [addingProfile, setAddingProfile] = useState(false);
-  const [reauthName, setReauthName] = useState(null); // re-login an existing profile via OAuth under its own name
-  const [currentProfile, setCurrentProfile] = useState(null);
-
-  // ── fetchProfiles + loadCachedProfile must be declared before any effect that uses them ──
-
-  const fetchProfiles = useCallback(async () => {
-    try {
-      const r = await fetch(`${API}/profiles`);
-      const d = await r.json();
-      // Persist for offline fallback
-      try {
-        localStorage.setItem(
-          "kiyoshi-profiles-cache",
-          JSON.stringify({ profiles: d.profiles || [], current: d.current || null })
-        );
-      } catch {}
-      setProfiles(d.profiles || []);
-      setCurrentProfile(d.current || null);
-      setHasProfile((d.profiles || []).length > 0 && d.current);
-      if (d.current) {
-        window.__activeProfile = d.current;
-        try {
-          setPinnedIds(
-            JSON.parse(localStorage.getItem(`kiyoshi-pinned-${d.current}`) || "[]").map(
-              (p) => p.playlistId || p.browseId
-            )
-          );
-        } catch {}
-      }
-      // Notify once when the active (real) account's session has expired, so the user knows to
-      // refresh it. Reset when it's valid again so a later expiry warns anew.
-      const active = (d.profiles || []).find((p) => p.name === d.current);
-      if (active && active.type !== "local" && active.loggedOut) {
-        if (sessionWarnedRef.current !== active.name) {
-          sessionWarnedRef.current = active.name;
-          setReauthName(active.name); // target the settings re-auth / login at this account
-          const lang = localStorage.getItem("kiyoshi-lang") || "de";
-          addToast(translate(lang, "sessionExpired"), "error");
-        }
-      } else if (active && !active.loggedOut) {
-        sessionWarnedRef.current = null;
-      }
-    } catch {}
-  }, [addToast]);
-
-  // Keep the YT-Music session alive long-term: a hidden "session-keeper" WebView (a real
-  // browser engine) rotates the *SIDTS timestamp cookies that plain HTTP requests cannot, and
-  // pushes the fresh set to the backend. Only runs for real accounts — ensure_session_keeper
-  // throws for local/offline profiles (no auth data dir), which cleanly skips it.
-  useEffect(() => {
-    if (!currentProfile) return;
-    let interval = null,
-      firstTimer = null,
-      cancelled = false;
-    (async () => {
-      let invoke;
-      try {
-        ({ invoke } = await import("@tauri-apps/api/core"));
-      } catch {
-        return;
-      }
-      try {
-        await invoke("ensure_session_keeper", { profileName: currentProfile });
-      } catch {
-        return;
-      }
-      if (cancelled) return;
-      const rotate = () =>
-        invoke("rotate_session_cookies", { profileName: currentProfile }).catch(() => {});
-      firstTimer = setTimeout(() => {
-        if (!cancelled) rotate();
-      }, 25000);
-      interval = setInterval(
-        () => {
-          if (!cancelled) rotate();
-        },
-        20 * 60 * 1000
-      );
-    })();
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-      if (firstTimer) clearTimeout(firstTimer);
-      import("@tauri-apps/api/core")
-        .then(({ invoke }) => invoke("stop_session_keeper"))
-        .catch(() => {});
-    };
-  }, [currentProfile]);
-
-  // ── Account/profile actions — shared by the Sidebar quick-switcher dropdown
-  //    and the Account settings tab. Single source of truth for the app-wide
-  //    side effects (reset view/queue, show login, etc.). ──────────────────────
-  const handleAccountSwitch = useCallback(
-    async (name) => {
-      await fetch(`${API}/profiles/switch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      await fetchProfiles();
-      setView("home");
-      setCurrentTrack(null);
-      setQueue([]);
-      setCollection(null);
-      setOverlayOpen(false);
-      setQueueOpen(false);
-      setSearchQuery("");
-      setAppKey((k) => k + 1);
-      window.__activeProfile = name;
-      window.dispatchEvent(new CustomEvent("profile-switched"));
-    },
-    [fetchProfiles]
-  );
-
-  const handleAccountAdd = useCallback(async () => {
-    try {
-      await fetch(`${API}/auth/begin-add`, { method: "POST" });
-    } catch {}
-    setAddingProfile(true);
-    setShowLogin(true);
-  }, []);
-
-  const handleAccountReauth = useCallback((name) => {
-    // Re-login an existing (expired/revoked) profile via OAuth, keeping its name & data.
-    setReauthName(name);
-    setAddingProfile(true);
-    setShowLogin(true);
-  }, []);
-
-  const handleAccountRemove = useCallback(
-    async (name) => {
-      const wasActive = profiles.find((p) => p.name === name)?.active;
-      await fetch(`${API}/profiles/delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const remaining = profiles.filter((p) => p.name !== name);
-      if (remaining.length === 0) {
-        setView("home");
-        setCurrentTrack(null);
-        setQueue([]);
-        setCollection(null);
-        setOverlayOpen(false);
-        setQueueOpen(false);
-        setHasProfile(false);
-        setShowLogin(true);
-      } else if (wasActive) {
-        const next = remaining[0];
-        await fetch(`${API}/profiles/switch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: next.name }),
-        });
-        await fetchProfiles();
-        setView("home");
-        setCurrentTrack(null);
-        setQueue([]);
-        setCollection(null);
-        setOverlayOpen(false);
-        setQueueOpen(false);
-        window.__activeProfile = next.name;
-        window.dispatchEvent(new CustomEvent("profile-switched"));
-        setAppKey((k) => k + 1);
-      } else {
-        await fetchProfiles();
-      }
-    },
-    [profiles, fetchProfiles]
-  );
-
-  const handleAccountRename = useCallback(
-    async (name, displayName) => {
-      const dn = (displayName || "").trim();
-      if (!dn) return;
-      await fetch(`${API}/profiles/rename`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, displayName: dn }),
-      });
-      await fetchProfiles();
-    },
-    [fetchProfiles]
-  );
-
-  const handleAccountAvatarChange = useCallback(
-    async (name, avatar) => {
-      await fetch(`${API}/profiles/avatar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, avatar: avatar || "" }),
-      });
-      await fetchProfiles();
-    },
-    [fetchProfiles]
-  );
-
-  const handleAccountLogout = useCallback(async () => {
-    try {
-      await fetch(`${API}/auth/logout`, { method: "POST" });
-    } catch (e) {
-      console.error("logout failed:", e);
-    }
-    await fetchProfiles();
-    setCurrentTrack(null);
-    setQueue([]);
-    setCollection(null);
-    setOverlayOpen(false);
-    setQueueOpen(false);
-    setHasProfile(false);
-    setShowLogin(true);
-  }, [fetchProfiles]);
-
-  // Load cached profile data when backend is unreachable (offline / slow start)
-  const loadCachedProfile = useCallback(() => {
-    try {
-      const raw = localStorage.getItem("kiyoshi-profiles-cache");
-      if (!raw) return false;
-      const { profiles: cp, current } = JSON.parse(raw);
-      if (!cp?.length || !current) return false;
-      setProfiles(cp);
-      setCurrentProfile(current);
-      setHasProfile(true);
-      window.__activeProfile = current;
-      try {
-        setPinnedIds(
-          JSON.parse(localStorage.getItem(`kiyoshi-pinned-${current}`) || "[]").map(
-            (p) => p.playlistId || p.browseId
-          )
-        );
-      } catch {}
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
+  // ── Profiles / auth / session (see features/profiles/hooks/use-profiles.js) ──
+  // The account switch/remove/logout commands reset app-wide UI as a single business
+  // sequence; those state cells are still App-owned, so their setters are injected while
+  // the ordering stays in the profile domain.
+  const {
+    profiles,
+    showLogin,
+    setShowLogin,
+    showLangPicker,
+    setShowLangPicker,
+    showProfileSwitcher,
+    setShowProfileSwitcher,
+    addingProfile,
+    setAddingProfile,
+    reauthName,
+    setReauthName,
+    fetchProfiles,
+    handleAccountSwitch,
+    handleAccountAdd,
+    handleAccountReauth,
+    handleAccountRemove,
+    handleAccountRename,
+    handleAccountAvatarChange,
+    handleAccountLogout,
+  } = useProfiles({
+    addToast,
+    setPinnedIds,
+    setView,
+    setSearchQuery,
+    setAppKey,
+    setCurrentTrack,
+    setQueue,
+    setCollection,
+    setOverlayOpen,
+    setQueueOpen,
+  });
 
   // Keepalive ping to prevent server connection timeout
   useEffect(() => {
@@ -17848,24 +17416,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load cached song IDs on mount (with retry for slow backend startup)
-  useEffect(() => {
-    let cancelled = false;
-    const load = (attempt = 0) => {
-      fetch(`${API}/song/cached/list`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (!cancelled) setCachedSongIds(new Set((d.songs || []).map((s) => s.videoId)));
-        })
-        .catch(() => {
-          if (!cancelled && attempt < 20) setTimeout(() => load(attempt + 1), 1500);
-        });
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Cached-song id loading now lives in features/downloads/hooks/use-download-manager.js.
 
   // Load liked song IDs on mount
   useEffect(() => {
@@ -17933,22 +17484,12 @@ export default function App() {
     [likedIds]
   );
 
-  // Detect real network connectivity changes
-  useEffect(() => {
-    const onOnline = () => {
-      setIsActuallyOffline(false);
-      // Refresh profiles + force all views to re-fetch after coming back online
-      fetchProfiles();
-      setAppKey((k) => k + 1);
-    };
-    const onOffline = () => setIsActuallyOffline(true);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, [fetchProfiles]);
+  // ── Network status + offline mode (see app/hooks/use-network-status.js) ──
+  const { offlineMode, isActuallyOffline, isOffline, handleToggleOffline } = useNetworkStatus({
+    fetchProfiles,
+    setAppKey,
+    setView,
+  });
 
   // Debug float window toggle
   useEffect(() => {
@@ -17957,93 +17498,8 @@ export default function App() {
     return () => window.removeEventListener("kiyoshi-debug-float", handler);
   }, []);
 
-  const isOffline = offlineMode || isActuallyOffline;
-
-  const handleToggleOffline = useCallback(() => {
-    setOfflineMode((prev) => {
-      const next = !prev;
-      localStorage.setItem("kiyoshi-offline", String(next));
-      if (next) setView("downloads");
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    let bgIntervalId = null;
-
-    // Show cached profile immediately so sidebar isn't empty during backend startup
-    loadCachedProfile();
-
-    // Check if we have a valid authenticated profile
-    const checkAuth = async (retries = 15) => {
-      try {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 3000); // 3s timeout per attempt
-        const r = await fetch(`${API}/auth/validate`, { signal: ctrl.signal });
-        clearTimeout(tid);
-        const d = await r.json();
-        if (!d.valid && d.reason !== "adding_account") {
-          // Auth invalid. If a real account existed (cached), its session expired — target the
-          // login at it so it shows the "session expired" copy instead of the generic welcome.
-          let expired = null;
-          try {
-            const c = JSON.parse(localStorage.getItem("kiyoshi-profiles-cache") || "{}");
-            const cur = (c.profiles || []).find((p) => p.name === c.current);
-            if (cur && cur.type !== "local") expired = cur;
-          } catch {}
-          try {
-            localStorage.removeItem("kiyoshi-profiles-cache");
-          } catch {}
-          if (expired) setReauthName(expired.name);
-          setShowLogin(true);
-        } else {
-          fetchProfiles();
-          // Re-fetch after a short delay to pick up background avatar writes
-          setTimeout(() => fetchProfiles(), 4000);
-        }
-      } catch {
-        // Backend not ready yet - retry
-        if (retries > 0) {
-          setTimeout(() => checkAuth(retries - 1), 1500);
-        } else {
-          // All retries exhausted — cache already loaded above, show login only if no cache
-          const raw = localStorage.getItem("kiyoshi-profiles-cache");
-          let hasCache = false;
-          try {
-            const p = JSON.parse(raw || "{}");
-            hasCache = p.profiles?.length > 0 && p.current;
-          } catch {}
-          if (!hasCache) setShowLogin(true);
-          // Keep pinging in background; once backend responds, sync live data
-          bgIntervalId = setInterval(async () => {
-            try {
-              const ctrl = new AbortController();
-              const tid = setTimeout(() => ctrl.abort(), 2000);
-              const r = await fetch(`${API}/auth/validate`, { signal: ctrl.signal });
-              clearTimeout(tid);
-              const d = await r.json();
-              if (bgIntervalId) {
-                clearInterval(bgIntervalId);
-                bgIntervalId = null;
-              }
-              if (d.valid || d.reason === "adding_account") {
-                fetchProfiles();
-              }
-            } catch {}
-          }, 3000);
-        }
-      }
-    };
-    // Give server time to start and load profiles (retries cover any remaining startup time)
-    setTimeout(() => checkAuth(), 1000);
-
-    return () => {
-      if (bgIntervalId) {
-        clearInterval(bgIntervalId);
-        bgIntervalId = null;
-      }
-    };
-  }, [fetchProfiles, loadCachedProfile]);
+  // Auth bootstrap (validate → cache fallback → background poll) lives in
+  // features/profiles/hooks/use-profiles.js.
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang);
@@ -18439,89 +17895,11 @@ export default function App() {
                       currentProfileData={profiles.find((p) => p.active)}
                       onOpenProfileSwitcher={() => setShowProfileSwitcher(true)}
                       profiles={profiles}
-                      onSwitchProfile={async (name) => {
-                        await fetch(`${API}/profiles/switch`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ name }),
-                        });
-                        await fetchProfiles();
-                        setView("home");
-                        setCurrentTrack(null);
-                        setQueue([]);
-                        setCollection(null);
-                        setOverlayOpen(false);
-                        setQueueOpen(false);
-                        setSearchQuery("");
-                        setAppKey((k) => k + 1);
-                        window.__activeProfile = name;
-                        window.dispatchEvent(new CustomEvent("profile-switched"));
-                      }}
-                      onAddProfile={async () => {
-                        try {
-                          await fetch(`${API}/auth/begin-add`, { method: "POST" });
-                        } catch {}
-                        setAddingProfile(true);
-                        setShowLogin(true);
-                      }}
-                      onReauthProfile={(name) => {
-                        setReauthName(name);
-                        setAddingProfile(true);
-                        setShowLogin(true);
-                      }}
-                      onDeleteProfile={async (name) => {
-                        const wasActive = profiles.find((p) => p.name === name)?.active;
-                        await fetch(`${API}/profiles/delete`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ name }),
-                        });
-                        const remaining = profiles.filter((p) => p.name !== name);
-                        if (remaining.length === 0) {
-                          setView("home");
-                          setCurrentTrack(null);
-                          setQueue([]);
-                          setCollection(null);
-                          setOverlayOpen(false);
-                          setQueueOpen(false);
-                          setHasProfile(false);
-                          setShowLogin(true);
-                        } else if (wasActive) {
-                          const next = remaining[0];
-                          await fetch(`${API}/profiles/switch`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ name: next.name }),
-                          });
-                          await fetchProfiles();
-                          setView("home");
-                          setCurrentTrack(null);
-                          setQueue([]);
-                          setCollection(null);
-                          setOverlayOpen(false);
-                          setQueueOpen(false);
-                          window.__activeProfile = next.name;
-                          window.dispatchEvent(new CustomEvent("profile-switched"));
-                          setAppKey((k) => k + 1);
-                        } else {
-                          await fetchProfiles();
-                        }
-                      }}
-                      onLogout={async () => {
-                        try {
-                          await fetch(`${API}/auth/logout`, { method: "POST" });
-                        } catch (e) {
-                          console.error("logout failed:", e);
-                        }
-                        await fetchProfiles();
-                        setCurrentTrack(null);
-                        setQueue([]);
-                        setCollection(null);
-                        setOverlayOpen(false);
-                        setQueueOpen(false);
-                        setHasProfile(false);
-                        setShowLogin(true);
-                      }}
+                      onSwitchProfile={handleAccountSwitch}
+                      onAddProfile={handleAccountAdd}
+                      onReauthProfile={handleAccountReauth}
+                      onDeleteProfile={handleAccountRemove}
+                      onLogout={handleAccountLogout}
                       onCreatePlaylist={() => setCreatePlaylistOpen(true)}
                       updateInfo={updateInfo}
                       offlineMode={offlineMode}
@@ -19130,9 +18508,7 @@ export default function App() {
                           isCustomLyrics={isCustomLyrics}
                           onImportLyrics={() => importLyricsRef.current?.()}
                           onRemoveCustomLyrics={() => removeCustomLyricsRef.current?.()}
-                          onPremiumDetected={(videoId) =>
-                            setPremiumSongIds((prev) => new Set(prev).add(videoId))
-                          }
+                          onPremiumDetected={markPremium}
                           onCreatePlaylist={() => setCreatePlaylistOpen(true)}
                           onAddToPlaylist={(tracks) => setAddToPlaylistFor({ tracks })}
                         />
@@ -20002,16 +19378,7 @@ export default function App() {
                           });
                         } catch {}
                       };
-                      const removeDownload = async () => {
-                        try {
-                          await fetch(`${API}/song/cached/${track.videoId}`, { method: "DELETE" });
-                          setCachedSongIds((prev) => {
-                            const s = new Set(prev);
-                            s.delete(track.videoId);
-                            return s;
-                          });
-                        } catch {}
-                      };
+                      const removeDownload = () => removeCachedSong(track.videoId);
 
                       return (
                         <ContextMenu
