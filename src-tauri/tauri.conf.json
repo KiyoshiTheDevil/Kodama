@@ -58,13 +58,6 @@
     ],
     "resources": {
       "../public/App-Icons/*.png": "App-Icons/"
-    },
-    "appimage": {
-      "bundleDesktopEntry": true,
-      "bundleAppImage": true
-    },
-    "deb": {
-      "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
     }
   }
 }
