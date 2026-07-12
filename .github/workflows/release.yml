@@ -299,7 +299,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          args: --target x86_64-unknown-linux-gnu --bundles appimage
+          args: --config src-tauri/tauri.linux.conf.json --target x86_64-unknown-linux-gnu --bundles appimage
       - name: Collect Linux artifacts
         shell: bash
         run: |
