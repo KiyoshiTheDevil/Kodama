@@ -9,7 +9,7 @@ class AppStartupTests(unittest.TestCase):
     def test_app_startup_restores_a_saved_profile(self) -> None:
         startup_steps = []
         with ExitStack() as patches:
-            patches.enter_context(patch("src.setup_ipv4_first"))
+            patches.enter_context(patch("src.NetworkSettings"))
             load_feedback_webhook = patches.enter_context(
                 patch("src.load_feedback_webhook", return_value="https://hooks.example.test")
             )

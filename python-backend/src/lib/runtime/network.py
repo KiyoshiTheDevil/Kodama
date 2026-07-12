@@ -1,4 +1,4 @@
-"""Outbound network preferences applied during application startup."""
+"""Runtime preferences for outbound network resolution."""
 
 import socket
 
@@ -32,8 +32,8 @@ def _ipv4_first_getaddrinfo(
     return ipv4 or results
 
 
-def setup_ipv4_first() -> None:
-    """Prefer IPv4 for all outbound connections when enabled.
+def setup_ipv4_first(enabled: bool = Config.PREFER_IPV4) -> None:
+    """Enable or disable IPv4-first resolution for outbound connections.
 
     On machines with broken/blackholed IPv6, Python's socket stack tries the
     IPv6 address first and stalls ~40s waiting for it to time out before falling
@@ -41,10 +41,26 @@ def setup_ipv4_first() -> None:
     every outbound fetch — Google thumbnail CDN, YouTube Music — hang for ~40s.
     Filtering getaddrinfo to IPv4 removes the stall; harmless where IPv6 works.
 
-    Disable by setting ``Config.PREFER_IPV4 = False``.
+    Restoring the original resolver when disabled lets the frontend change the
+    preference without restarting the backend.
     """
-    if not Config.PREFER_IPV4:
+    if not enabled:
+        if socket.getaddrinfo is _ipv4_first_getaddrinfo:
+            socket.getaddrinfo = _original_getaddrinfo
+        print("[net] IPv4-first outbound resolution disabled.", flush=True)
         return
 
     socket.getaddrinfo = _ipv4_first_getaddrinfo
     print("[net] IPv4-first outbound resolution enabled.", flush=True)
+
+
+class NetworkSettings:
+    """Owns the user-toggleable outbound resolver preference."""
+
+    def __init__(self, ipv4_first_enabled: bool = Config.PREFER_IPV4) -> None:
+        self.ipv4_first_enabled = ipv4_first_enabled
+        setup_ipv4_first(ipv4_first_enabled)
+
+    def set_ipv4_first_enabled(self, enabled: bool) -> None:
+        self.ipv4_first_enabled = enabled
+        setup_ipv4_first(enabled)

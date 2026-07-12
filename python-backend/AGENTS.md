@@ -18,12 +18,12 @@ as the source of truth; do not add route handlers or application state to
 
 ## Project Layout
 
-| Location | Responsibility |
-| --- | --- |
+| Location               | Responsibility                                            |
+|------------------------|-----------------------------------------------------------|
 | `src/routes/<domain>/` | Flask blueprints, request validation, and HTTP responses. |
-| `src/lib/<domain>/` | Reusable domain logic and stateful services. |
-| `src/config.py` | Application configuration and filesystem locations. |
-| `tests/` | Route and runtime tests using isolated fakes. |
+| `src/lib/<domain>/`    | Reusable domain logic and stateful services.              |
+| `src/config.py`        | Application configuration and filesystem locations.       |
+| `tests/`               | Route and runtime tests using isolated fakes.             |
 
 Route families are organized by domain: `auth`, `profiles`, `library`,
 `streaming`, `discovery`, `downloads`, `lyrics`, `composer`, `cache`, `lastFm`,

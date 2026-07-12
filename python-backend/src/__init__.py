@@ -15,6 +15,7 @@ from src.lib import (
     FFmpeg,
     LyricsService,
     MusixMatch,
+    NetworkSettings,
     OverlayServer,
     Playlist,
     Profile,
@@ -25,7 +26,6 @@ from src.lib import (
     YTDLP,
     load_feedback_webhook,
     setup_debug,
-    setup_ipv4_first,
     setup_log_tee,
     setup_logger,
 )
@@ -46,13 +46,12 @@ def create_app() -> Flask:
     try:
         setup_log_tee()
         setup_logger()
-        setup_ipv4_first()
-
         app = Flask(__name__)
         app.config.from_object(Config)
         CORS(app, origins=CORS_ORIGINS)
         app.extensions["server_start_time"] = time.time()
         app.extensions["feedback_webhook_url"] = load_feedback_webhook()
+        app.extensions["network_settings"] = NetworkSettings()
         app.extensions["song_credits_cache"] = SongCreditsCache()
 
         profile_repository = Profile()

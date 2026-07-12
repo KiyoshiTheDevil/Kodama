@@ -429,6 +429,14 @@ class FakeCacheSettings:
         self.enabled.update(values)
 
 
+class FakeNetworkSettings:
+    def __init__(self) -> None:
+        self.ipv4_first_enabled = True
+
+    def set_ipv4_first_enabled(self, enabled: bool) -> None:
+        self.ipv4_first_enabled = enabled
+
+
 class FakeLastFM:
     def __init__(self) -> None:
         self.calls = []
@@ -857,6 +865,7 @@ class RouteTestCase(unittest.TestCase):
         self.profile_repository = FakeProfileRepository(self.root)
         self.music_session = FakeMusicSession()
         self.cache_settings = FakeCacheSettings()
+        self.network_settings = FakeNetworkSettings()
         self.lastfm = FakeLastFM()
         self.lyrics = FakeLyricsService()
         self.composer = FakeComposerBridge(self.root)
@@ -875,6 +884,7 @@ class RouteTestCase(unittest.TestCase):
                 "profile_repository": self.profile_repository,
                 "youtube_music_session": self.music_session,
                 "cache_settings": self.cache_settings,
+                "network_settings": self.network_settings,
                 "lastfm_client": self.lastfm,
                 "lyrics_service": self.lyrics,
                 "composer_bridge": self.composer,

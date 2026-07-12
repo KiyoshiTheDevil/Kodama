@@ -4,6 +4,25 @@ from route_test_support import RouteTestCase
 
 
 class OperationsRouteTests(RouteTestCase):
+    def test_ipv4_first_setting_can_be_read_and_changed(self) -> None:
+        self.assertEqual(self.client.get("/network/ipv4-first").json, {"enabled": True})
+
+        disabled = self.client.post("/network/ipv4-first", json={"enabled": False})
+        self.assertEqual(disabled.status_code, 200)
+        self.assertEqual(disabled.json, {"enabled": False})
+        self.assertFalse(self.network_settings.ipv4_first_enabled)
+
+        enabled = self.client.post("/network/ipv4-first", json={"enabled": True})
+        self.assertEqual(enabled.status_code, 200)
+        self.assertEqual(enabled.json, {"enabled": True})
+        self.assertTrue(self.network_settings.ipv4_first_enabled)
+
+    def test_ipv4_first_setting_requires_a_boolean(self) -> None:
+        response = self.client.post("/network/ipv4-first", json={"enabled": "false"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json, {"error": "enabled must be a boolean"})
+
     def test_debug_info_route_reports_runtime_context(self) -> None:
         with patch("src.routes.operations.debug.time.time", return_value=1065.0), patch(
             "src.routes.operations.debug.shutil.which", return_value="/usr/bin/node"
