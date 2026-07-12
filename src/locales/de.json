@@ -274,6 +274,8 @@
   "closeTrayDesc": "Fenster schließen minimiert in den System-Tray statt die App zu beenden",
   "discordRpc": "Discord Rich Presence",
   "discordRpcDesc": "Zeigt den aktuellen Song in deinem Discord-Profil an",
+  "ipv4First": "IPv4 bevorzugen",
+  "ipv4FirstDesc": "Versucht Netzwerkverbindungen zuerst über IPv4. Deaktivieren, wenn dein Netzwerk mit IPv6 zuerst besser funktioniert.",
   "fontSize": "Schriftgröße",
   "fontSizeDesc": "Aktuelle Größe",
   "translationFontSize": "Übersetzungs-Schriftgröße",

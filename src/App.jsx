@@ -127,6 +127,25 @@ import { particleBurst, dissolve } from "./effects/particle-burst.js";
 import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "./ui/settings-controls.jsx";
 
+const IPV4_FIRST_ENDPOINTS = ["/operation/network/ipv4-first", "/network/ipv4-first"];
+
+async function fetchIpv4FirstSetting(options = {}) {
+  let lastError = null;
+  for (const path of IPV4_FIRST_ENDPOINTS) {
+    try {
+      const res = await fetch(`${API}${path}`, options);
+      if (!res.ok) {
+        lastError = new Error(`HTTP ${res.status}`);
+        continue;
+      }
+      return res.json();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("IPv4-first setting request failed");
+}
+
 
 async function openOverlayEditor() {
   const existing = await WebviewWindow.getByLabel("overlay-editor");
@@ -3543,7 +3562,7 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
 
 function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
-  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, ipv4First, onIpv4FirstChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -4400,6 +4419,9 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
               <>
                 <SettingRow label={t("discordRpc")} description={t("discordRpcDesc")} icon={<ShareNodes />}>
                   <Toggle value={discordRpc} onChange={onDiscordRpcChange} />
+                </SettingRow>
+                <SettingRow label={t("ipv4First")} description={t("ipv4FirstDesc")} icon={<WifiHigh />}>
+                  <Toggle value={ipv4First} onChange={onIpv4FirstChange} />
                 </SettingRow>
                 <LastfmRow />
                 <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
@@ -10917,6 +10939,28 @@ export default function App() {
   const [playbackProgressive, setPlaybackProgressive] = useState(
     () => localStorage.getItem("kodama-playback-mode") !== "classic"
   );
+  const [ipv4First, setIpv4First] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    fetchIpv4FirstSetting()
+      .then(d => { if (!cancelled) setIpv4First(!!d.enabled); })
+      .catch(e => console.error("[Network] IPv4-first load failed:", e));
+    return () => { cancelled = true; };
+  }, []);
+  const toggleIpv4First = useCallback((enabled) => {
+    const previous = ipv4First;
+    setIpv4First(enabled);
+    fetchIpv4FirstSetting({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    })
+      .then(d => setIpv4First(!!d.enabled))
+      .catch(e => {
+        console.error("[Network] IPv4-first toggle failed:", e);
+        setIpv4First(previous);
+      });
+  }, [ipv4First]);
 
   // ── LAN remote control ──
   // Default off; enabling starts the token-gated phone endpoints on the (already 0.0.0.0)
@@ -12108,6 +12152,8 @@ export default function App() {
             onCloseTrayChange={v => { setCloseTray(v); localStorage.setItem("kiyoshi-close-tray", String(v)); import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: v }).catch(() => {})); }}
             discordRpc={discordRpc}
             onDiscordRpcChange={(v) => { setDiscordRpc(v); localStorage.setItem("kiyoshi-discord-rpc", v); if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
+            ipv4First={ipv4First}
+            onIpv4FirstChange={toggleIpv4First}
             language={language}
             onLanguageChange={handleLanguageChange}
             updateInfo={updateInfo}

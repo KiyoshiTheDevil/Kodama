@@ -75,6 +75,8 @@
   "crossfadeDesc": "o wan e ante kalama",
   "discordRpc": "kepeken pi ilo Discord",
   "discordRpcDesc": "ilo Discord li ken sona e kute sina",
+  "ipv4First": "o olin e IPv4",
+  "ipv4FirstDesc": "ilo li alasa open kepeken IPv4 lon nasin kulupu.",
   "fontSize": "suli nimi",
   "fontSizeDesc": "suli kepeken",
   "lyricsProviders": "tan pi toki kalama",
