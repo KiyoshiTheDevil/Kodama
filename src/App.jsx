@@ -86,6 +86,10 @@ import { thumb } from "./shared/api/thumbnails.js";
 import { storageCodecs, usePersistedState } from "./shared/hooks/use-persisted-state.js";
 import { matchesShortcut, serializeShortcut } from "./shared/lib/shortcuts.js";
 import { compareVersions } from "./shared/lib/version.js";
+import { useNews } from "./app/hooks/use-news.js";
+import { useAppUpdate } from "./app/hooks/use-app-update.js";
+import { useObsOverlay } from "./features/overlay/hooks/use-obs-overlay.js";
+import { useRemoteControl } from "./features/remote/hooks/use-remote-control.js";
 import { LANGUAGES, translate, translationProgress } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import OverlayEditor from "./overlay/OverlayEditor.jsx";
@@ -387,48 +391,7 @@ const _MAX_FRONTEND_LOGS = 500;
 // source of truth, so this never drifts from the shipped version.
 const APP_VERSION = __APP_VERSION__;
 
-// Published news feed (edit + commit updates/news.json in the public Kodama repo).
-const NEWS_URL =
-  "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/news.json";
-
-// Anonymous active-user heartbeat endpoint (Cloudflare Worker, see analytics/).
-// Leave "" until the Worker is deployed — the heartbeat no-ops while empty.
-// NOTE: when set, add this host to CSP connect-src in index.html + tauri.conf.json.
-const STATS_URL = "https://kodama-stats.kiyoshidesign.workers.dev";
-
-// Anonymous, opt-out active-user heartbeat. Fires at most once per UTC day per
-// install. The raw install id never leaves the device — only a daily/monthly
-// rotating SHA-256 token is sent, so the server can count unique actives without
-// being able to reverse the token or link a device across days. See analytics/.
-async function _sha256Hex(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-async function sendHeartbeat() {
-  try {
-    if (!STATS_URL) return; // not configured yet
-    if (localStorage.getItem("kodama-anon-stats") === "false") return; // opted out
-    const day = new Date().toISOString().slice(0, 10);
-    const month = day.slice(0, 7);
-    if (localStorage.getItem("kodama-hb-day") === day) return; // already pinged today
-    let id = localStorage.getItem("kodama-install-id");
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem("kodama-install-id", id);
-    }
-    const [d, m] = await Promise.all([_sha256Hex(`${id}:${day}`), _sha256Hex(`${id}:${month}`)]);
-    await fetch(`${STATS_URL}/ping`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ d, m, v: APP_VERSION }),
-    });
-    localStorage.setItem("kodama-hb-day", day); // only mark sent on success
-  } catch {
-    /* analytics is best-effort — never disturb the app */
-  }
-}
+// News feed + anonymous heartbeat now live in app/hooks/use-news.js.
 
 // macOS uses a native titled window (traffic lights + native drag), so the custom
 // titlebar/drag-region is Windows-only. (Borderless windows swallow clicks on macOS.)
@@ -16232,11 +16195,6 @@ export default function App() {
   const [downloadBatches, setDownloadBatches] = useState([]); // [{id, title, thumbnail, artists, videoIds[], completedCount, errorCount}]
   const [pendingDownloadQueue, setPendingDownloadQueue] = useState([]); // tracks waiting for a free slot
   const [downloadQueueMin, setDownloadQueueMin] = useState(false); // download queue card minimized
-  const [updateInfo, setUpdateInfo] = useState(null); // { version, changelog, releasedAt, _update }
-  const [updateDownloading, setUpdateDownloading] = useState(false);
-  const [updateDownloadProgress, setUpdateDownloadProgress] = useState(null);
-  const [updateDownloaded, setUpdateDownloaded] = useState(false);
-  const updateDownloadAbortRef = useRef(null);
   const mutePrevVolumeRef = useRef(0.5);
 
   // ─── Toast Notifications (HeroUI toast system) ───────────────────────────────
@@ -16247,85 +16205,21 @@ export default function App() {
     else toast(message, { timeout: 3500 });
   }, []);
 
-  // ─── Update Check (Tauri plugin-updater) ────────────────────────────────────
-  // showFeedback=true: show toasts on "up to date" and on error (manual check)
-  // showFeedback=false (default): silent — only sets updateInfo if update is found (startup)
-  const checkForUpdates = useCallback(
-    async (showFeedback = false) => {
-      const lang = localStorage.getItem("kiyoshi-lang") || "de";
-      try {
-        const { check } = await import("@tauri-apps/plugin-updater");
-        const update = await check();
-        if (update?.available) {
-          setUpdateInfo({
-            version: update.version,
-            changelog: update.body || "",
-            releasedAt: update.date || null,
-            _update: update,
-          });
-        } else {
-          setUpdateInfo(null);
-          if (showFeedback) addToast(translate(lang, "upToDate"), "info");
-        }
-      } catch (e) {
-        console.error("[Updater] check failed:", e);
-        if (showFeedback) addToast(translate(lang, "updateCheckFailed"), "error");
-      }
-    },
-    [addToast]
-  );
+  // ─── App update lifecycle (see app/hooks/use-app-update.js) ──────────────────
+  // Owns the plugin-updater check/download/install and the silent startup check.
+  const {
+    updateInfo,
+    updateDownloading,
+    updateDownloadProgress,
+    updateDownloaded,
+    checkForUpdates,
+    downloadUpdate,
+    installUpdate,
+    cancelUpdateDownload,
+  } = useAppUpdate({ addToast, getInitialLang });
 
-  const downloadUpdate = useCallback(async () => {
-    if (!updateInfo?._update) return;
-    setUpdateDownloading(true);
-    setUpdateDownloadProgress(0);
-    setUpdateDownloaded(false);
-    try {
-      let downloaded = 0;
-      let total = 0;
-      await updateInfo._update.download((event) => {
-        if (event.event === "Started") total = event.data.contentLength ?? 0;
-        if (event.event === "Progress") {
-          downloaded += event.data.chunkLength ?? 0;
-          setUpdateDownloadProgress(total > 0 ? Math.round((downloaded / total) * 100) : null);
-        }
-        if (event.event === "Finished") setUpdateDownloadProgress(100);
-      });
-      setUpdateDownloaded(true);
-    } catch {
-      const lang = getInitialLang();
-      addToast(translate(lang, "downloadFailed"), "error");
-      setUpdateDownloadProgress(null);
-    } finally {
-      setUpdateDownloading(false);
-    }
-  }, [updateInfo, addToast]);
-
-  const installUpdate = useCallback(async () => {
-    if (!updateInfo?._update) return;
-    try {
-      // Stop the Python backend before the NSIS installer runs,
-      // otherwise it holds file locks and the installation fails.
-      const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("stop_server_cmd").catch(() => {});
-      await updateInfo._update.install();
-      const { relaunch } = await import("@tauri-apps/plugin-process");
-      await relaunch();
-    } catch {
-      const lang = getInitialLang();
-      addToast(translate(lang, "downloadFailed"), "error");
-    }
-  }, [updateInfo, addToast]);
-
-  const cancelUpdateDownload = useCallback(() => {
-    // plugin-updater hat keinen Abort — State zurücksetzen reicht
-    setUpdateDownloading(false);
-    setUpdateDownloadProgress(null);
-    setUpdateDownloaded(false);
-  }, []);
-
+  // Start Rust audio-level collection on mount (the update check runs from the hook).
   useEffect(() => {
-    checkForUpdates();
     startAudioLevels();
   }, []);
 
@@ -16357,17 +16251,9 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsClosing, setSettingsClosing] = useState(false);
 
-  // ── News feed + bug report ──────────────────────────────────────────────────
-  const [newsItems, setNewsItems] = useState([]);
-  const [newsSeenIds, setNewsSeenIds] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem("kiyoshi-news-seen") || "[]"));
-    } catch {
-      return new Set();
-    }
-  });
-  const [newsOpen, setNewsOpen] = useState(false);
-  const [newsUnreadSnapshot, setNewsUnreadSnapshot] = useState(() => new Set());
+  // ── News feed (see app/hooks/use-news.js) + bug report ──────────────────────
+  const { newsItems, newsOpen, setNewsOpen, newsUnreadSnapshot, newsUnreadCount, loadNews, openNews } =
+    useNews();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackShot, setFeedbackShot] = useState(null);
   // Capture the app window first (so the screenshot shows the app, not the report form),
@@ -16384,69 +16270,6 @@ export default function App() {
     setFeedbackShot(shot);
     setFeedbackOpen(true);
   }, []);
-  const lastNewsLoadRef = useRef(0);
-  const loadNews = useCallback(async () => {
-    lastNewsLoadRef.current = Date.now();
-    // Prefer the remote feed (live publishing); fall back to the backend's bundled copy
-    // (dev/offline) so news still shows when the remote isn't reachable.
-    let items = null;
-    try {
-      const r = await fetch(NEWS_URL, { cache: "no-cache" });
-      if (r.ok) items = await r.json();
-    } catch {}
-    if (!Array.isArray(items) || items.length === 0) {
-      try {
-        const r2 = await fetch(`${API}/news`);
-        if (r2.ok) items = await r2.json();
-      } catch {}
-    }
-    if (!Array.isArray(items)) return;
-    // Keep only entries whose version range covers this build (min_version / max_version).
-    setNewsItems(
-      items.filter(
-        (n) =>
-          n &&
-          n.id &&
-          (!n.min_version || compareVersions(APP_VERSION, n.min_version) >= 0) &&
-          (!n.max_version || compareVersions(APP_VERSION, n.max_version) <= 0)
-      )
-    );
-  }, []);
-  useEffect(() => {
-    loadNews();
-    sendHeartbeat(); // anonymous, opt-out, at most once/day — see analytics/
-    // Re-check periodically + when the window regains focus, so newly published news shows up
-    // without restarting the app (the raw GitHub feed is CDN-cached ~5 min anyway).
-    const interval = setInterval(loadNews, 15 * 60 * 1000);
-    const onFocus = () => {
-      if (Date.now() - lastNewsLoadRef.current > 5 * 60 * 1000) loadNews();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [loadNews]);
-  const newsUnreadCount = newsItems.reduce((n, it) => n + (newsSeenIds.has(it.id) ? 0 : 1), 0);
-  // Auto-open once on startup if there's an unread entry flagged important.
-  const newsAutoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (newsAutoOpenedRef.current || !newsItems.length) return;
-    const importantUnread = newsItems.some((it) => it.important && !newsSeenIds.has(it.id));
-    if (importantUnread) {
-      newsAutoOpenedRef.current = true;
-      openNews();
-    }
-  }, [newsItems]); // eslint-disable-line react-hooks/exhaustive-deps
-  const openNews = useCallback(() => {
-    setNewsUnreadSnapshot(
-      new Set(newsItems.filter((it) => !newsSeenIds.has(it.id)).map((it) => it.id))
-    );
-    setNewsOpen(true);
-    const allIds = newsItems.map((it) => it.id);
-    setNewsSeenIds(new Set(allIds));
-    localStorage.setItem("kiyoshi-news-seen", JSON.stringify(allIds));
-  }, [newsItems, newsSeenIds]);
   const [settingsTab, setSettingsTab] = useState("darstellung");
   // Scroll-spy for the settings sub-nav lives in an external store (see setSettingsSectionStore)
   // so it never re-renders App. Clicking a sub-entry just scrolls; the content observer updates
@@ -16733,51 +16556,9 @@ export default function App() {
     );
   }, []);
 
-  const [obsEnabled, setObsEnabled] = useState(
-    () => localStorage.getItem("kiyoshi-obs-enabled") === "true"
-  );
-  const [obsPort, setObsPort] = useState(() =>
-    parseInt(localStorage.getItem("kiyoshi-obs-port") || "9848", 10)
-  );
-  const [obsPortInput, setObsPortInput] = useState(
-    () => localStorage.getItem("kiyoshi-obs-port") || "9848"
-  );
-
-  // Sync the active overlay document (v2) to the backend on mount, so OBS shows
-  // the right thing after an app/server restart even before the editor is opened.
-  // Prefers the editor's saved v2 doc; falls back to migrating the legacy v1 config.
-  useEffect(() => {
-    let doc = null;
-    try {
-      const v2 = JSON.parse(localStorage.getItem("kiyoshi-overlay-doc"));
-      if (v2 && v2.version === 2 && Array.isArray(v2.layers)) doc = v2;
-    } catch {}
-    if (!doc) {
-      try {
-        doc = normalizeOverlayDoc(JSON.parse(localStorage.getItem("kiyoshi-obs-config")));
-      } catch {
-        doc = normalizeOverlayDoc(null);
-      }
-    }
-    fetch(`${API}/overlay/config`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(doc),
-    }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleObs = async (enabled) => {
-    setObsEnabled(enabled);
-    localStorage.setItem("kiyoshi-obs-enabled", enabled);
-    if (enabled) {
-      await fetch(`${API}/overlay/server/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ port: obsPort }),
-      }).catch(() => {});
-    } else {
-      await fetch(`${API}/overlay/server/stop`, { method: "POST" }).catch(() => {});
-    }
-  };
+  // ── OBS overlay server (see features/overlay/hooks/use-obs-overlay.js) ──
+  const { obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, saveObsPort } =
+    useObsOverlay();
   const [queue, setQueue] = useState([]);
   const queueRef = useRef([]);
   useEffect(() => {
@@ -17746,113 +17527,20 @@ export default function App() {
     [ipv4First]
   );
 
-  // ── LAN remote control ──
-  // Default off; enabling starts the token-gated phone endpoints on the (already 0.0.0.0)
-  // backend. The Player pushes now-playing state + drains commands while enabled.
-  const [remoteEnabled, setRemoteEnabled] = useState(false);
-  const [remoteInfo, setRemoteInfo] = useState(null); // { token, ips, port }
-  const [remoteDevices, setRemoteDevices] = useState([]);
-  // Remembered devices persist across app restarts. The backend state is in-memory, so the
-  // desktop keeps the stable token + trusted device list in localStorage and re-supplies both
-  // on enable — remembered phones then auto-approve without re-pairing after a restart.
-  const [remoteTrusted, setRemoteTrusted] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("kodama-remote-trusted") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const remoteTrustedIds = useMemo(() => new Set(remoteTrusted.map((x) => x.id)), [remoteTrusted]);
-  const toggleRemote = useCallback(async (on) => {
-    try {
-      let trusted = [];
-      try {
-        trusted = JSON.parse(localStorage.getItem("kodama-remote-trusted") || "[]");
-      } catch {}
-      const savedToken = localStorage.getItem("kodama-remote-token") || "";
-      const d = await fetch(`${API}/remote/_enable`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          enabled: on,
-          token: on ? savedToken : "",
-          trusted: on ? trusted : [],
-        }),
-      }).then((r) => r.json());
-      setRemoteEnabled(!!d.enabled);
-      setRemoteInfo(d.enabled ? { token: d.token, ips: d.ips || [], port: d.port } : null);
-      if (d.enabled && d.token) {
-        try {
-          localStorage.setItem("kodama-remote-token", d.token);
-        } catch {}
-      }
-      if (!d.enabled) setRemoteDevices([]);
-    } catch (e) {
-      console.error("[Remote] toggle failed:", e);
-    }
-  }, []);
-  const remoteDeviceAction = useCallback((id, action) => {
-    fetch(`${API}/remote/_device`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
-    }).catch(() => {});
-    // Forget a removed/denied device so it doesn't get re-seeded as approved next restart.
-    if (action === "remove" || action === "deny") {
-      setRemoteTrusted((prev) => {
-        const next = prev.filter((x) => x.id !== id);
-        try {
-          localStorage.setItem("kodama-remote-trusted", JSON.stringify(next));
-        } catch {}
-        return next;
-      });
-    }
-  }, []);
-  const remoteRememberDevice = useCallback((id, name, on) => {
-    setRemoteTrusted((prev) => {
-      const next = on
-        ? [...prev.filter((x) => x.id !== id), { id, name }]
-        : prev.filter((x) => x.id !== id);
-      try {
-        localStorage.setItem("kodama-remote-trusted", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  }, []);
-  // Pairing modal open state — declared before the device poll so the poll can speed up
-  // while it's open (for snappy scan detection) and stay slow otherwise (for performance).
-  const [pairModalOpen, setPairModalOpen] = useState(false);
-  // While enabled, poll the device list (for the desktop approval UI). Adaptive rate:
-  // fast (2s) while pairing so a scan is detected quickly, slow (5s) when idle.
-  useEffect(() => {
-    if (!remoteEnabled) return;
-    let stop = false;
-    // Only update state when the device list actually changed — a fresh array reference
-    // every poll would re-render the whole app even when nothing changed.
-    const sig = (arr) => (arr || []).map((x) => `${x.id}:${x.status}:${x.online}`).join("|");
-    const tick = () =>
-      fetch(`${API}/remote/_status`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (stop || !d || !d.devices) return;
-          setRemoteDevices((prev) => (sig(prev) === sig(d.devices) ? prev : d.devices));
-        })
-        .catch(() => {});
-    tick();
-    const iv = setInterval(tick, pairModalOpen ? 2000 : 5000);
-    return () => {
-      stop = true;
-      clearInterval(iv);
-    };
-  }, [remoteEnabled, pairModalOpen]);
-
-  useEffect(() => {
-    if (!remoteEnabled) setPairModalOpen(false);
-  }, [remoteEnabled]);
-  const hasPending = remoteDevices.some((d) => d.status === "pending");
-  useEffect(() => {
-    if (hasPending) setPairModalOpen(true);
-  }, [hasPending]);
+  // ── LAN remote control (see features/remote/hooks/use-remote-control.js) ──
+  // Enabling starts the token-gated phone endpoints on the (already 0.0.0.0) backend.
+  // The Player pushes now-playing state + drains commands while enabled.
+  const {
+    remoteEnabled,
+    remoteInfo,
+    remoteDevices,
+    remoteTrustedIds,
+    pairModalOpen,
+    setPairModalOpen,
+    toggleRemote,
+    remoteDeviceAction,
+    remoteRememberDevice,
+  } = useRemoteControl();
 
   // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
   // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
@@ -18193,24 +17881,7 @@ export default function App() {
     };
   }, []);
 
-  // Auto-start OBS overlay server on mount if it was enabled in last session
-  useEffect(() => {
-    if (!obsEnabled) return;
-    let cancelled = false;
-    const start = (attempt = 0) => {
-      fetch(`${API}/overlay/server/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ port: obsPort }),
-      }).catch(() => {
-        if (!cancelled && attempt < 15) setTimeout(() => start(attempt + 1), 1500);
-      });
-    };
-    start();
-    return () => {
-      cancelled = true;
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // OBS overlay auto-start on mount lives in features/overlay/hooks/use-obs-overlay.js.
 
   // Toggle like for a track from playlist rows
   const handleToggleLike = useCallback(
@@ -19990,24 +19661,7 @@ export default function App() {
                         obsPortInput={obsPortInput}
                         setObsPortInput={setObsPortInput}
                         toggleObs={toggleObs}
-                        onObsPortSave={(val) => {
-                          const p = parseInt(val, 10);
-                          if (p > 1024 && p < 65535) {
-                            setObsPort(p);
-                            localStorage.setItem("kiyoshi-obs-port", p);
-                            if (obsEnabled) {
-                              fetch(`${API}/overlay/server/stop`, { method: "POST" })
-                                .then(() =>
-                                  fetch(`${API}/overlay/server/start`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ port: p }),
-                                  })
-                                )
-                                .catch(() => {});
-                            }
-                          }
-                        }}
+                        onObsPortSave={saveObsPort}
                         customShortcuts={customShortcuts}
                         shortcutLabels={shortcutLabels}
                         recordingShortcut={recordingShortcut}
