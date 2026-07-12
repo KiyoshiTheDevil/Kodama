@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kodama — Versions &amp; Changelog</title>
+  <meta name="description" content="Every release of Kodama with its changelog and downloads.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a href="index.html"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
+      </nav>
+    </header>
+
+    <div class="vhead">
+      <h1>Versions</h1>
+      <p class="sub">Every release of Kodama, newest first.</p>
+    </div>
+
+    <div id="releases" class="releases">
+      <p id="relMsg" class="sub" style="text-align:center">Loading releases…</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Kodama — an independent project. Not affiliated with YouTube or Google.</span>
+      <span>
+        <a href="index.html">Home</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    var REPO = 'KiyoshiTheDevil/Kodama';
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    // Minimal inline markdown: **bold**, `code`, [text](url).
+    function inline(s){
+      s = esc(s);
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return s;
+    }
+    // Block markdown: #-headings + -/* lists + paragraphs (matches our CHANGELOG style).
+    function renderMd(src){
+      var lines = String(src||'').replace(/\r/g,'').split('\n'), out = [], inList = false;
+      function closeList(){ if (inList){ out.push('</ul>'); inList = false; } }
+      for (var i=0;i<lines.length;i++){
+        var l = lines[i];
+        var hm = l.match(/^(#{1,6})\s+(.*)$/);
+        var lm = l.match(/^\s*[-*]\s+(.*)$/);
+        if (hm){ closeList(); out.push('<h4>' + inline(hm[2]) + '</h4>'); }
+        else if (lm){ if (!inList){ out.push('<ul>'); inList = true; } out.push('<li>' + inline(lm[1]) + '</li>'); }
+        else if (l.trim() === ''){ closeList(); }
+        else { closeList(); out.push('<p>' + inline(l) + '</p>'); }
+      }
+      closeList();
+      return out.join('');
+    }
+    function fmtDate(s){ try { return new Date(s).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }); } catch(e){ return ''; } }
+    function assetUrl(assets, re){ for (var i=0;i<assets.length;i++){ if (re.test(assets[i].name)) return assets[i].browser_download_url; } return null; }
+
+    fetch('https://api.github.com/repos/' + REPO + '/releases')
+      .then(function(r){ return r.json(); })
+      .then(function(rs){
+        rs = (rs || []).filter(function(r){ return !r.draft; });
+        var box = document.getElementById('releases');
+        if (!rs.length){ document.getElementById('relMsg').textContent = 'No releases yet.'; return; }
+        box.innerHTML = '';
+        rs.forEach(function(rel, idx){
+          var assets = rel.assets || [];
+          var win = assetUrl(assets, /setup\.exe$|\.exe$/i);
+          var mac = assetUrl(assets, /\.dmg$/i);
+          var dl = '';
+          if (win) dl += '<a class="win" href="' + win + '">Windows (.exe)</a>';
+          if (mac) dl += '<a href="' + mac + '">macOS (.dmg)</a>';
+          if (!win && !mac) dl += '<a href="' + rel.html_url + '" target="_blank" rel="noopener">View on GitHub</a>';
+
+          var art = document.createElement('article');
+          art.className = 'rel' + (idx === 0 ? ' latest' : '');
+          art.innerHTML =
+            '<div class="rel-head">' +
+              '<h2 class="rel-ver">' + esc(rel.tag_name) + (idx === 0 ? ' <span class="rel-badge">Latest</span>' : '') + '</h2>' +
+              '<span class="rel-date">' + fmtDate(rel.published_at) + '</span>' +
+            '</div>' +
+            '<div class="rel-body">' + (rel.body && rel.body.trim() ? renderMd(rel.body) : '<p>No release notes.</p>') + '</div>' +
+            '<div class="rel-dl">' + dl + '</div>';
+          box.appendChild(art);
+        });
+      })
+      .catch(function(){ document.getElementById('relMsg').textContent = 'Could not load releases.'; });
+  })();
+  </script>
+</body>
+</html>
