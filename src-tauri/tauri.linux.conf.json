@@ -1,67 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kodama",
-  "version": "1.0.0-alpha.29",
-  "identifier": "dev.kodama.music",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
-    "devUrl": "http://localhost:1421",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Kodama",
-        "width": 1100,
-        "height": 700,
-        "minWidth": 960,
-        "minHeight": 560,
-        "fullscreen": false,
-        "resizable": true,
-        "decorations": true
-      }
-    ],
-    "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' ipc: http://ipc.localhost http://localhost:9847 https://music.youtube.com; frame-src 'self'"
-    }
-  },
-  "plugins": {
-    "deep-link": {
-      "desktop": {
-        "schemes": ["kodama"]
-      }
-    },
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFQjUzNzM1QzBDRTJCRjYKUldUMks4N0FOVGUxdml4eE1YWnVqTVNkd1MvUVlQeDVmOVdXSEpkQ21QOWtHM2hDR2JwTkw5Q24K",
-      "endpoints": [
-        "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/latest.json"
-      ]
-    }
-  },
   "bundle": {
-    "active": true,
-    "createUpdaterArtifacts": true,
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "externalBin": [
-      "binaries/kodama-server-x86_64-unknown-linux-gnu"
-    ],
-    "resources": {
-      "../public/App-Icons/*.png": "App-Icons/"
-    },
-    "appimage": {
-      "bundleDesktopEntry": true,
-      "bundleAppImage": true
-    },
-    "deb": {
-      "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
+    "linux": {
+      "appimage": {
+        "bundleDesktopEntry": true,
+        "bundleAppImage": true
+      },
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
+      }
     }
   }
 }
