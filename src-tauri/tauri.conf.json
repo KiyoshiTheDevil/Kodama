@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' ipc: http://ipc.localhost http://localhost:9847 http://127.0.0.1:9847 http://127.0.0.1:8888 https://translate.googleapis.com https://api.github.com https://raw.githubusercontent.com https://kodama-stats.kiyoshidesign.workers.dev; img-src 'self' data: https: http: blob:; media-src 'self' file: blob: https:; font-src 'self' tauri: data: https://fonts.gstatic.com; frame-src http://localhost:*"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' ipc: http://ipc.localhost http://localhost:9847 https://music.youtube.com; frame-src 'self'"
     }
   },
   "plugins": {
@@ -34,7 +34,7 @@
       }
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFQjUzNzM1QzBDRTJCRjYKUldUMks4N0FOVGUxdml4eE1YWnVqTVNkd1MvUVlQeDVmOVdXSEpkQ21QOWtHM2hDR2JwTkw5Q24K",
+      "pubkey": "dW50cnVydGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFQjUzNzM1QzBDRTJCRjYKUldUMks4N0FOVGUxdml4eE1YWnVqTVNkd1MvUVlQeDVmOVdXSEpkQ21QOWtHM2hDR2JwTkw5Q24K",
       "endpoints": [
         "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/latest.json"
       ],
@@ -60,11 +60,11 @@
       "../public/App-Icons/*.png": "App-Icons/"
     },
     "appimage": {
-    "bundleDesktopEntry": true,
-    "bundleAppImage": true
-  },
-  "deb": {
-    "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
-  }
+      "bundleDesktopEntry": true,
+      "bundleAppImage": true
+    },
+    "deb": {
+      "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
+    }
   }
 }
