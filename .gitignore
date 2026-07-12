@@ -102,3 +102,6 @@ dist_token.txt
 
 # Maintainer-only tooling (news editor mit GitHub-Publish etc.) — nicht ins Public-Repo
 tools/
+
+# Source recordings/screenshots for the landing page (web versions live in docs/shots/)
+raw-media/
