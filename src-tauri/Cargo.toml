@@ -52,7 +52,3 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-# GTK integration for native file dialogs + window integration on Linux.
-gtk = "0.17"
