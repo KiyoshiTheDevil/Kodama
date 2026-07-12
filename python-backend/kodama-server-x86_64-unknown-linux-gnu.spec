@@ -14,6 +14,11 @@ _composer_dist = os.path.abspath(os.path.join(SPECPATH, '..', 'composer', 'dist'
 _feedback_cfg = os.path.join(SPECPATH, 'feedback_config.json')
 _extra_datas = [(_feedback_cfg, '.')] if os.path.exists(_feedback_cfg) else []
 
+# Last.fm API key + secret (gitignored, same pattern as feedback). CI writes it from secrets.
+_lastfm_cfg = os.path.join(SPECPATH, 'lastfm_config.json')
+if os.path.exists(_lastfm_cfg):
+    _extra_datas.append((_lastfm_cfg, '.'))
+
 # PO-token stack: bundle the bgutil yt-dlp plugin + the yt-dlp-ejs solver scripts so the
 # frozen server can discover them (plugins via the yt_dlp_plugins namespace, EJS via its
 # data files). The node generator itself ships separately as a Tauri resource (potgen/).
@@ -54,7 +59,7 @@ exe = EXE(
     name='kodama-server-x86_64-unknown-linux-gnu',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=True,  # Strip binaries on Linux for smaller size
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
