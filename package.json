@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write src vite.config.js package.json eslint.config.mjs .prettierrc.json",
