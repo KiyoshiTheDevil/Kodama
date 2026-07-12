@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, createContext, useContext, useSyncExternalStore } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
 import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, Dropdown, DropdownTrigger, DropdownPopover, DropdownMenu, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, ModalRoot, ModalBackdrop, ModalContainer, ModalDialog, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, TextArea, SwitchRoot, SwitchControl, SwitchThumb, CardRoot,
@@ -72,6 +72,7 @@ import {
   WaveformLines,
   Radio,
   Sparkles,
+  Flask,
   ShareNodes,
   DeviceMobile,
   Globe,
@@ -101,9 +102,9 @@ import {
   PaperPlaneTilt,
 } from "./icons.jsx";
 
-import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale } from "./context.jsx";
+import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
-import { NewsModal } from "./modals/news-modal.jsx";
+import { NewsModal, renderNewsBody } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
 import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
 import { RemotePairModal, RemoteControlPanel } from "./ui/remote-control.jsx";
@@ -123,6 +124,7 @@ import { HistoryView } from "./views/history-view.jsx";
 import { LikedView } from "./views/liked-view.jsx";
 import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
+import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "./ui/settings-controls.jsx";
 
 
@@ -216,6 +218,38 @@ const APP_VERSION = __APP_VERSION__;
 
 // Published news feed (edit + commit updates/news.json in the public Kodama repo).
 const NEWS_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/news.json";
+
+// Anonymous active-user heartbeat endpoint (Cloudflare Worker, see analytics/).
+// Leave "" until the Worker is deployed — the heartbeat no-ops while empty.
+// NOTE: when set, add this host to CSP connect-src in index.html + tauri.conf.json.
+const STATS_URL = "https://kodama-stats.kiyoshidesign.workers.dev";
+
+// Anonymous, opt-out active-user heartbeat. Fires at most once per UTC day per
+// install. The raw install id never leaves the device — only a daily/monthly
+// rotating SHA-256 token is sent, so the server can count unique actives without
+// being able to reverse the token or link a device across days. See analytics/.
+async function _sha256Hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function sendHeartbeat() {
+  try {
+    if (!STATS_URL) return;                                        // not configured yet
+    if (localStorage.getItem("kodama-anon-stats") === "false") return; // opted out
+    const day = new Date().toISOString().slice(0, 10);
+    const month = day.slice(0, 7);
+    if (localStorage.getItem("kodama-hb-day") === day) return;     // already pinged today
+    let id = localStorage.getItem("kodama-install-id");
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem("kodama-install-id", id); }
+    const [d, m] = await Promise.all([_sha256Hex(`${id}:${day}`), _sha256Hex(`${id}:${month}`)]);
+    await fetch(`${STATS_URL}/ping`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ d, m, v: APP_VERSION }),
+    });
+    localStorage.setItem("kodama-hb-day", day); // only mark sent on success
+  } catch { /* analytics is best-effort — never disturb the app */ }
+}
 
 // Compare dotted version strings (e.g. "1.0.0" vs "0.9.40-beta"). Returns -1 / 0 / 1.
 function cmpVersion(a, b) {
@@ -811,6 +845,21 @@ const QUEUE_MAX = 620;          // max when dragging
 
 function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
   const [query, setQuery] = useState("");
+  // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
+  const [suggestions, setSuggestions] = useState([]);
+  const [sugOpen, setSugOpen] = useState(false);
+  const sugBlurRef = useRef(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setSuggestions([]); return; }
+    const id = setTimeout(() => {
+      fetch(`${API}/search/suggestions?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(d => setSuggestions(Array.isArray(d.suggestions) ? d.suggestions : []))
+        .catch(() => {});
+    }, 180);
+    return () => clearTimeout(id);
+  }, [query]);
   const [tooltip, setTooltip] = useState(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [tetoVisible, setTetoVisible] = useState(false);
@@ -877,6 +926,19 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
   const handleSubmit = (value) => {
     const q = value.trim();
     if (!q) return;
+    setSugOpen(false);
+    // Paste a YouTube / YT Music playlist link (or a bare playlist id) -> open it
+    // directly. Works for unlisted "link only" playlists, which never show in search.
+    let plId = null;
+    const urlM = q.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (urlM && /(?:music\.)?youtube\.com|youtu\.be/i.test(q)) plId = urlM[1];
+    else if (/^(VL)?(PL|OLAK5uy_|RDCLAK|RDAMPL)[A-Za-z0-9_-]{10,}$/.test(q)) plId = q;
+    if (plId) {
+      onCloseOverlay?.();
+      onOpenPlaylist?.({ playlistId: plId.replace(/^VL/, "") });
+      setQuery("");
+      return;
+    }
     onSearch(q);
     setView("search");
     onCloseOverlay?.();
@@ -888,6 +950,36 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
       hideTeto();
     }
   };
+
+  const pickSuggestion = (s) => { setQuery(s); handleSubmit(s); };
+  // Dropdown of live suggestions, positioned under the (relatively-positioned) field wrapper.
+  const suggestionsBox = (sugOpen && query.trim().length >= 2 && suggestions.length > 0) ? (
+    <div
+      onMouseDown={e => e.preventDefault()} /* keep field focus so onClick fires before blur */
+      style={{
+        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 4,
+        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.35)", overflow: "hidden", padding: 4,
+      }}
+    >
+      {suggestions.map((s, i) => (
+        <div key={i} onClick={() => pickSuggestion(s)}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 6,
+            cursor: "default", fontSize: "var(--t13)", color: "var(--text-secondary)",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = "var(--bg-hover)"}
+          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        >
+          <MagnifyingGlass size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{s}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+  const sugFocus = () => { clearTimeout(sugBlurRef.current); setSugOpen(true); };
+  const sugBlur = () => { sugBlurRef.current = setTimeout(() => setSugOpen(false), 150); };
 
   const mainNavItems = [
     { id: "home",    label: t("home"),    iconEl: <House size={16} /> },
@@ -1135,7 +1227,8 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
 
         {!collapsed && (IS_MAC ? (
           <>
-            <div className="flex-1 min-w-0" style={{ contain: "layout style" }}>
+            <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
+              onFocus={sugFocus} onBlur={sugBlur}>
               <SearchFieldRoot value={query} onChange={setQuery} onSubmit={handleSubmit} className="w-full">
                 <SearchFieldGroup>
                   <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
@@ -1143,6 +1236,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
                   <SearchFieldClearButton />
                 </SearchFieldGroup>
               </SearchFieldRoot>
+              {suggestionsBox}
             </div>
             <Button variant="ghost" size="sm" isIconOnly onPress={onRefreshView} className="shrink-0 rounded-full" title={t("refresh")} style={{ contain: "layout style" }}>
               <ArrowClockwise size={14} />
@@ -1174,7 +1268,8 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
           contain:layout style isolates React Aria's data-attribute updates from app-wide
           style recalcs without the paint-clipping of contain:content. */}
       {!collapsed && !IS_MAC && (
-        <div className="px-3 mb-3" style={{ contain: "layout style" }}>
+        <div className="px-3 mb-3" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
+          onFocus={sugFocus} onBlur={sugBlur}>
           <SearchFieldRoot
             value={query}
             onChange={setQuery}
@@ -1189,6 +1284,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
               <SearchFieldClearButton />
             </SearchFieldGroup>
           </SearchFieldRoot>
+          {suggestionsBox}
         </div>
       )}
 
@@ -1669,10 +1765,14 @@ const MAX_CACHE_STEPS = [100, 250, 500, 1000, 2000, 5000, 0]; // 0 = unlimited
 function StorageTab({ t }) {
   return (
     <div>
-      <SettingsSectionLabel>{t("storageDownloads")}</SettingsSectionLabel>
-      <DownloadsTab t={t} />
-      <SettingsSectionLabel style={{ marginTop: 28 }}>{t("storageCache")}</SettingsSectionLabel>
-      <CacheTab t={t} />
+      <div id="set-sec-storage-downloads" data-settings-section="storage-downloads" style={{ scrollMarginTop: 8 }}>
+        <SettingsSectionLabel>{t("storageDownloads")}</SettingsSectionLabel>
+        <DownloadsTab t={t} />
+      </div>
+      <div id="set-sec-storage-cache" data-settings-section="storage-cache" style={{ scrollMarginTop: 8 }}>
+        <SettingsSectionLabel style={{ marginTop: 28 }}>{t("storageCache")}</SettingsSectionLabel>
+        <CacheTab t={t} />
+      </div>
     </div>
   );
 }
@@ -2958,7 +3058,24 @@ function CornerGridMixed({ tl, tr, bl, br, onChangeType, onChangeValue, min = 0,
 }
 
 
-function SettingsSidebarContent({ tab, setTab, updateInfo, onClose, collapsed, closing }) {
+// Tiny external store for the active settings sub-section. The scroll-spy writes here and only
+// the settings sidebar subscribes (useSyncExternalStore) — so scrolling never re-renders the
+// whole App tree (which caused a brief lag when the section state lived in App).
+const _settingsSection = { v: null, listeners: new Set() };
+// After a sub-nav click we scroll smoothly to the target; suppress the scroll-spy briefly so it
+// doesn't flicker to intermediate sections while the smooth scroll passes over them.
+let _settingsSectionLockUntil = 0;
+function lockSettingsSection(ms = 600) { _settingsSectionLockUntil = Date.now() + ms; }
+function setSettingsSectionStore(v) {
+  if (v === _settingsSection.v) return;
+  _settingsSection.v = v;
+  _settingsSection.listeners.forEach(l => l());
+}
+function subscribeSettingsSection(l) { _settingsSection.listeners.add(l); return () => _settingsSection.listeners.delete(l); }
+function getSettingsSection() { return _settingsSection.v; }
+
+function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing }) {
+  const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
   const anim = useAnimations();
   const [debugUnlocked, setDebugUnlocked] = useState(() => localStorage.getItem("kiyoshi-debug-unlocked") === "true");
@@ -2990,17 +3107,40 @@ function SettingsSidebarContent({ tab, setTab, updateInfo, onClose, collapsed, c
   };
 
   const navItems = [
-    { id: "account",       label: t("account"),       iconEl: <UserCircle size={18} /> },
-    { id: "darstellung",   label: t("appearance"),    iconEl: <PaintBrushBroad size={18} /> },
-    { id: "visualizer",    label: t("visualizer"),    iconEl: <WaveformLines size={18} /> },
+    { id: "account",       label: t("account"),       iconEl: <UserCircle size={18} />, sections: [
+      { id: "account-overview",   label: t("accOverview") },
+      { id: "account-accounts",   label: t("accAccounts") },
+      { id: "account-statistics", label: t("statistics") },
+    ] },
+    { id: "darstellung",   label: t("appearance"),    iconEl: <PaintBrushBroad size={18} />, sections: [
+      { id: "ap-theme",  label: t("theme") },
+      { id: "ap-icon",   label: t("appIcon") },
+      { id: "ap-colors", label: t("apColors") },
+      { id: "ap-others", label: t("apOthers") },
+    ] },
+    { id: "accessibility", label: t("accessibility"), iconEl: <PersonArmsSpread size={18} />, sections: [
+      { id: "acc-visual",    label: t("accVisual") },
+      { id: "acc-behaviour", label: t("behaviour") },
+    ] },
+    { id: "connections",   label: t("connections"),   iconEl: <Link size={18} /> },
+    { id: "lyrics",        label: t("lyrics"),        iconEl: <ChatText size={18} />, sections: [
+      { id: "lyrics-visual",    label: t("lyrVisual") },
+      { id: "lyrics-effects",   label: t("lyrEffects") },
+      { id: "lyrics-providers", label: t("lyricsProviders") },
+      { id: "lyrics-unison",    label: t("unisonIdentity") },
+      { id: "lyrics-composer",  label: t("composer") },
+    ] },
     { id: "wiedergabe",    label: t("playback"),      iconEl: <Play size={18} /> },
-    { id: "lyrics",        label: t("lyrics"),        iconEl: <ChatText size={18} /> },
-    { id: "accessibility", label: t("accessibility"), iconEl: <PersonArmsSpread size={18} /> },
-    { id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> },
-    { id: "language",      label: t("language"),      iconEl: <Translate size={18} /> },
-    { id: "storage",       label: t("storage"),       iconEl: <HardDrives size={18} /> },
+    { id: "visualizer",    label: t("visualizer"),    iconEl: <WaveformLines size={18} /> },
+    { id: "storage",       label: t("storage"),       iconEl: <HardDrives size={18} />, sections: [
+      { id: "storage-downloads", label: t("storageDownloads") },
+      { id: "storage-cache",     label: t("storageCache") },
+    ] },
     { id: "sicherheit",    label: t("security"),      iconEl: <Lock size={18} /> },
     { id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    { id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> },
+    { id: "experimental",  label: t("experimental"),  iconEl: <Flask size={18} /> },
+    { id: "language",      label: t("language"),      iconEl: <Translate size={18} /> },
     { id: "update",        label: t("update"),        iconEl: <ArrowsClockwise size={18} /> },
     { id: "about",         label: t("about"),         iconEl: <Info size={18} /> },
     ...(debugUnlocked ? [{ id: "debug", label: t("debug"), iconEl: <Bug size={18} /> }] : []),
@@ -3040,31 +3180,52 @@ function SettingsSidebarContent({ tab, setTab, updateInfo, onClose, collapsed, c
         <ListBox
           aria-label={t("appSettings")}
           selectionMode="none"
-          onAction={(key) => setTab(key)}
+          onAction={(key) => { const k = String(key); if (k.startsWith("sec:")) onSectionSelect?.(k.slice(4)); else setTab(k); }}
           className="w-full"
         >
-          {navItems.map(item => (
-            <ListBoxItem
-              key={item.id}
-              id={item.id}
-              textValue={item.label}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                "text-t13 min-h-10 rounded-xl",
-                tab === item.id && "bg-accent-dim text-accent",
-                collapsed && "justify-center"
-              )}
-            >
-              <span className="shrink-0 w-5 flex items-center justify-center">{item.iconEl}</span>
-              {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-              {!collapsed && item.badge && (
-                <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-accent text-white uppercase">{item.badge}</span>
-              )}
-              {!collapsed && item.id === "update" && updateInfo && !item.badge && (
-                <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-full bg-accent" />
-              )}
-            </ListBoxItem>
-          ))}
+          {navItems.flatMap(item => {
+            const parent = (
+              <ListBoxItem
+                key={item.id}
+                id={item.id}
+                textValue={item.label}
+                title={collapsed ? item.label : undefined}
+                className={cn(
+                  "text-t13 min-h-10 rounded-xl",
+                  tab === item.id && "bg-accent-dim text-accent",
+                  collapsed && "justify-center"
+                )}
+              >
+                <span className="shrink-0 w-5 flex items-center justify-center">{item.iconEl}</span>
+                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                {!collapsed && item.badge && (
+                  <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-accent text-white uppercase">{item.badge}</span>
+                )}
+                {!collapsed && item.id === "update" && updateInfo && !item.badge && (
+                  <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-full bg-accent" />
+                )}
+              </ListBoxItem>
+            );
+            // Discord-style sub-nav: when this page is active, list its sections as indented
+            // children with a vertical tree line; the active one (scroll-spy) is highlighted.
+            if (collapsed || tab !== item.id || !item.sections) return [parent];
+            const children = item.sections.map(sec => (
+              <ListBoxItem
+                key={"sec:" + sec.id}
+                id={"sec:" + sec.id}
+                textValue={sec.label}
+                className={cn(
+                  "text-t12 min-h-8 rounded-lg pl-9 relative",
+                  activeSection === sec.id ? "text-accent font-medium" : "text-secondary"
+                )}
+              >
+                <span aria-hidden className="absolute left-[17px] top-0 bottom-0 w-px"
+                  style={{ background: activeSection === sec.id ? "var(--accent)" : "var(--stroke)" }} />
+                <span className="flex-1 truncate">{sec.label}</span>
+              </ListBoxItem>
+            ));
+            return [parent, ...children];
+          })}
         </ListBox>
       </div>
 
@@ -3189,6 +3350,7 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
 
   return (
     <div className="flex flex-col gap-6 text-primary max-w-[560px]">
+      <div id="set-sec-account-overview" data-settings-section="account-overview" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Active account card */}
       {active && (
         <div className="flex items-center gap-4 p-4 rounded-2xl bg-elevated">
@@ -3237,6 +3399,8 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
         <Toggle value={hideUserHandle} onChange={onToggleHideUserHandle} />
       </SettingRow>
 
+      </div>
+      <div id="set-sec-account-accounts" data-settings-section="account-accounts" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Accounts list */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -3301,6 +3465,8 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
         </div>
       )}
 
+      </div>
+      <div id="set-sec-account-statistics" data-settings-section="account-statistics" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Usage statistics */}
       <div className="flex flex-col gap-2">
         <span className="text-t12 font-semibold text-muted uppercase tracking-wider">{t("statistics")}</span>
@@ -3322,6 +3488,8 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
             {t("clearPlaybackHistory")}
           </Button>
         </div>
+      </div>
+
       </div>
 
       {/* Clear history confirmation */}
@@ -3373,20 +3541,47 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
   );
 }
 
-function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
+function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
-  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
   tab, setTab }) {
   const anim = useAnimations();
   const t = useLang();
+  // Scroll-spy for the Discord-style sub-nav: watch the [data-settings-section] blocks in the
+  // scroll container and report which one sits in the top band as the active section.
+  const contentScrollRef = useRef(null);
+  useEffect(() => {
+    const root = contentScrollRef.current;
+    if (!root || !onSectionChange) return;
+    const secs = [...root.querySelectorAll("[data-settings-section]")];
+    if (!secs.length) { onSectionChange(null); return; }
+    const compute = () => {
+      if (Date.now() < _settingsSectionLockUntil) return; // don't fight a click's smooth scroll
+      // Discord-style proportional "reading line": it sits at the container's top when scrolled to
+      // the very top and glides down to the container's bottom as you reach the end of the scroll.
+      // The active section is the last one whose top is above that line — so sections light up in
+      // order while scrolling and the last one is reached exactly at the bottom (no trailing space).
+      const rect = root.getBoundingClientRect();
+      const maxScroll = root.scrollHeight - root.clientHeight;
+      const progress = maxScroll > 0 ? Math.min(1, root.scrollTop / maxScroll) : 0;
+      const line = rect.top + root.clientHeight * progress;
+      let active = secs[0];
+      for (const s of secs) { if (s.getBoundingClientRect().top <= line) active = s; else break; }
+      onSectionChange(active.dataset.settingsSection);
+    };
+    compute();
+    root.addEventListener("scroll", compute, { passive: true });
+    return () => root.removeEventListener("scroll", compute);
+  }, [tab, onSectionChange]);
   // Visualizer preview scales with the window height (live on resize) so on short windows it
   // shrinks — both the box AND the cover — leaving room to reach the options below.
   const [winH, setWinH] = useState(() => window.innerHeight);
+  const [winW, setWinW] = useState(() => window.innerWidth);
   useEffect(() => {
-    const onResize = () => setWinH(window.innerHeight);
+    const onResize = () => { setWinH(window.innerHeight); setWinW(window.innerWidth); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -3394,6 +3589,66 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
   const vizCoverSize = Math.round(Math.max(130, Math.min(260, vizPreviewH * 0.42)));
   const [vizPreviewOpen, setVizPreviewOpen] = useState(() => localStorage.getItem("kodama-viz-preview") !== "collapsed");
   const toggleVizPreview = () => setVizPreviewOpen(o => { const n = !o; localStorage.setItem("kodama-viz-preview", n ? "open" : "collapsed"); return n; });
+  // Scaled-replica preview: render at the same proportions as the fullscreen cover view (coverSize
+  // 260, window-sized container) but shrunk by s = previewWidth / windowWidth. Scaling the pixel
+  // config values (barLength/gap/thickness) along with the cover + container makes the preview a
+  // true 1:1 miniature of the real visualizer, including the linear bar spread.
+  const vizPreviewRef = useRef(null);
+  const [vizPreviewW, setVizPreviewW] = useState(0);
+  useEffect(() => {
+    const el = vizPreviewRef.current;
+    if (!el || !vizPreviewOpen) return;
+    const ro = new ResizeObserver(() => setVizPreviewW(el.clientWidth));
+    ro.observe(el);
+    setVizPreviewW(el.clientWidth);
+    return () => ro.disconnect();
+  }, [vizPreviewOpen]);
+  const vizScale = (vizPreviewW > 0 && winW > 0) ? vizPreviewW / winW : (vizCoverSize / 260);
+  const vizPreviewHReplica = (vizPreviewW > 0 && winW > 0) ? Math.round(vizPreviewW * winH / winW) : vizPreviewH;
+  const vizPreviewCover = Math.max(60, Math.round(260 * vizScale));
+
+  // Visualizer presets — save/apply/import/export named snapshots of the config (same pattern as
+  // the Overlay Editor's design profiles). Stored locally as { id, name, savedAt, config }.
+  const [vizPresets, setVizPresets] = useState(() => { try { return JSON.parse(localStorage.getItem("kodama-visualizer-presets") || "[]"); } catch { return []; } });
+  const persistVizPresets = (next) => { setVizPresets(next); try { localStorage.setItem("kodama-visualizer-presets", JSON.stringify(next)); } catch {} };
+  const [vizPresetName, setVizPresetName] = useState("");
+  const vizImportRef = useRef(null);
+  const saveVizPreset = () => {
+    const name = vizPresetName.trim() || (t("preset") || "Preset");
+    persistVizPresets([{ id: crypto.randomUUID(), name, savedAt: new Date().toISOString(), config: { ...vizConfig } }, ...vizPresets]);
+    setVizPresetName("");
+  };
+  const applyVizPreset = (p) => onUpdateViz({ ...VIZ_DEFAULTS, ...p.config });
+  const deleteVizPreset = (id) => persistVizPresets(vizPresets.filter(p => p.id !== id));
+  const exportVizPreset = (p) => {
+    const blob = new Blob([JSON.stringify({ name: p.name, savedAt: p.savedAt, config: p.config }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(p.name || "visualizer").replace(/[^\w\s-]/g, "").trim() || "visualizer"}.kodama-visualizer.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const handleVizImport = (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    Promise.all(files.map(f => f.text())).then(texts => {
+      const imported = [];
+      for (const text of texts) {
+        try {
+          const parsed = JSON.parse(text);
+          const items = Array.isArray(parsed) ? parsed : [parsed];
+          for (const item of items) {
+            const cfg = item && (item.config || item);
+            if (cfg && typeof cfg === "object" && ("shape" in cfg || "barCount" in cfg || "barLength" in cfg)) {
+              imported.push({ id: crypto.randomUUID(), name: item.name || (t("preset") || "Preset"), savedAt: new Date().toISOString(), config: cfg });
+            }
+          }
+        } catch { /* skip malformed files */ }
+      }
+      if (imported.length > 0) persistVizPresets([...imported, ...vizPresets]);
+    });
+  };
   const [debugUnlocked, setDebugUnlocked] = useState(() => localStorage.getItem("kiyoshi-debug-unlocked") === "true");
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [debugToast, setDebugToast] = useState(null); // "unlocked" | "already" | null
@@ -3615,11 +3870,13 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
     { id: "wiedergabe",     label: t("playback"),      iconEl: <Play size={18} /> },
     { id: "lyrics",         label: t("lyrics"),        iconEl: <ChatText size={18} /> },
     { id: "accessibility",  label: t("accessibility"), iconEl: <PersonArmsSpread size={18} /> },
+    { id: "connections",    label: t("connections"),   iconEl: <Link size={18} /> },
     { id: "shortcuts",   label: t("shortcuts"),   iconEl: <Keyboard size={18} /> },
     { id: "language",    label: t("language"),    iconEl: <Translate size={18} /> },
     { id: "storage",    label: t("storage"),     iconEl: <HardDrives size={18} /> },
     { id: "sicherheit", label: t("security"),   iconEl: <Lock size={18} /> },
     { id: "overlay",    label: t("overlay"),     iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    { id: "experimental", label: t("experimental"), iconEl: <Flask size={18} /> },
     { id: "update",     label: t("update"),      iconEl: <ArrowsClockwise size={18} /> },
     { id: "about",      label: t("about"),       iconEl: <Info size={18} /> },
     ...(debugUnlocked ? [{ id: "debug", label: t("debug"), iconEl: <Bug size={18} /> }] : []),
@@ -3774,7 +4031,7 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
 
         {/* Right Content */}
         <div style={{ flex: 1, background: "var(--bg-base)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "24px 32px 0", flexShrink: 0 }}>
+          <div style={{ padding: "24px max(32px, calc((100% - 760px) / 2)) 0", flexShrink: 0 }}>
             <div style={{ fontSize: "var(--t20)", fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
               {navItems.find(i => i.id === tab)?.label}
               {navItems.find(i => i.id === tab)?.badge && (
@@ -3789,7 +4046,7 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
             <div style={{ height: 1, background: "var(--border)", marginTop: 20 }} />
           </div>
 
-          <div key={tab} className="scrollable" style={{ flex: 1, overflowY: "auto", padding: "8px 32px 32px", animation: anim ? "fadeSlideIn 0.22s cubic-bezier(0.4,0,0.2,1)" : "none" }}>
+          <div ref={contentScrollRef} key={tab} className="scrollable" style={{ flex: 1, overflowY: "auto", padding: "8px max(32px, calc((100% - 760px) / 2)) 32px", animation: anim ? "fadeSlideIn 0.22s cubic-bezier(0.4,0,0.2,1)" : "none" }}>
 
             {tab === "account" && (
               <AccountSettingsTab
@@ -3804,14 +4061,15 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                 {/* Live preview — reflects the current track + config in real time.
                     Collapsible so the options below are always reachable on short windows. */}
                 {vizPreviewOpen ? (
-                  <div className="mb-4 rounded-xl overflow-hidden border border-border sticky z-10 shrink-0" style={{ height: vizPreviewH, top: -8, background: "var(--bg-base)" }}>
+                  <div ref={vizPreviewRef} className="mb-4 rounded-xl overflow-hidden border border-border sticky z-10 shrink-0" style={{ height: vizPreviewHReplica, top: -8, background: "var(--bg-base)" }}>
                     {vizPreviewTrack?.thumbnail && (<>
                       <div style={{ position: "absolute", inset: "-10%", backgroundImage: `url(${thumb(vizPreviewTrack.thumbnail)})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(56px) saturate(1.4) brightness(0.7)", transform: "scale(1.2)" }} />
                       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.42)" }} />
                     </>)}
                     <div style={{ position: "absolute", inset: 0 }}>
                       {vizPreviewTrack
-                        ? <CoverView track={vizPreviewTrack} isPlaying={vizPreviewPlaying} onClose={() => {}} ambientVisualizer vizConfig={vizConfig} coverSize={vizCoverSize} />
+                        ? <CoverView track={vizPreviewTrack} isPlaying={vizPreviewPlaying} onClose={() => {}} ambientVisualizer coverSize={vizPreviewCover}
+                            vizConfig={{ ...vizConfig, barLength: (vizConfig.barLength ?? 90) * vizScale, gap: (vizConfig.gap ?? 8) * vizScale, barThickness: Math.max(1, (vizConfig.barThickness ?? 3) * vizScale) }} />
                         : <div className="flex items-center justify-center h-full text-t13 text-muted">{t("visualizerPreviewHint") || "Play a song to preview the visualizer"}</div>}
                     </div>
                     <button onClick={toggleVizPreview} title={t("hidePreview") || "Vorschau einklappen"}
@@ -3827,6 +4085,31 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                     <Eye size={16} />{t("showPreview") || "Vorschau anzeigen"}<CaretDown size={13} />
                   </button>
                 )}
+                {/* Presets — save / apply / import / export named visualizer configs. */}
+                <div className="mb-5">
+                  <div className="text-t13 font-semibold mb-2.5" style={{ color: "var(--text-secondary)" }}>{t("visualizerPresets") || "Presets"}</div>
+                  <div className="flex gap-2 items-center mb-2">
+                    <input value={vizPresetName} onChange={(e) => setVizPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }}
+                      placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
+                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: 8, fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "0.5px solid var(--border)", outline: "none" }} />
+                    <Button variant="secondary" size="sm" className="shrink-0" onPress={saveVizPreset}>{t("save") || "Speichern"}</Button>
+                    <Button variant="ghost" size="sm" className="gap-1.5 shrink-0" onPress={() => vizImportRef.current?.click()}>
+                      <DownloadSimple size={13} className="rotate-180" />{t("import") || "Importieren"}
+                    </Button>
+                    <input ref={vizImportRef} type="file" accept=".json" multiple className="hidden" onChange={handleVizImport} />
+                  </div>
+                  {vizPresets.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      {vizPresets.map((p) => (
+                        <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                          <button className="flex-1 min-w-0 text-left text-t13 font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
+                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} title={t("export") || "Exportieren"}><DownloadSimple size={13} /></Button>
+                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[#f44336]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <SettingRow label={t("visualizer")} description={t("visualizerDesc")} icon={<WaveformLines />}>
                   <Toggle value={ambientVisualizer} onChange={onToggleAmbientVisualizer} />
                 </SettingRow>
@@ -3918,11 +4201,17 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                 <SettingRow label={t("visualizerBlobs") || "Ambient blobs"} icon={<Sparkles />}>
                   <Toggle value={vizConfig.blobs !== false} onChange={(v) => onUpdateViz({ blobs: v })} />
                 </SettingRow>
+                <div className="flex justify-end mt-4">
+                  <Button variant="secondary" size="sm" className="gap-1.5" onPress={() => onUpdateViz({ ...VIZ_DEFAULTS })}>
+                    <ArrowClockwise size={13} /> {t("resetToDefault") || "Auf Standard zurücksetzen"}
+                  </Button>
+                </div>
               </>
             )}
 
             {tab === "darstellung" && (
               <>
+                <div id="set-sec-ap-theme" data-settings-section="ap-theme" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>{t("theme")}</SectionLabel>
                 <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
                   {[
@@ -3964,29 +4253,9 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                     </CardRoot>
                   ))}
                 </div>
-
-                <SectionLabel>{t("accentColor")}</SectionLabel>
-                <div className="flex gap-1.5 mb-3">
-                  <Button variant={!accentDynamic ? "secondary" : "ghost"} size="sm" onPress={() => onAccentDynamicChange(false)}>{t("accentCustom") || "Custom"}</Button>
-                  <Button variant={accentDynamic ? "secondary" : "ghost"} size="sm" onPress={() => onAccentDynamicChange(true)}>{t("visualizerDynamic") || "Dynamic"}</Button>
                 </div>
-                {accentDynamic ? (
-                  <>
-                    <div className="flex items-center gap-3 mb-2 rounded-xl border border-border px-4 py-3.5" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)" }}>
-                      <span className="w-8 h-8 rounded-full shrink-0" style={{ background: "var(--accent)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" }} />
-                      <span style={{ fontSize: "var(--t13)", color: "var(--text-secondary)" }}>{t("accentDynamicDesc") || "The accent colour is derived live from the current track's cover art."}</span>
-                    </div>
-                    <SettingRow label={t("accentVibrancy") || "Vibrancy"} icon={<PaintBrushBroad />}>
-                      <Slider min={0} max={100} step={5} value={Math.round((accentSat ?? 0.5) * 100)} onChange={(v) => onAccentSatChange(v / 100)} width={200} />
-                    </SettingRow>
-                    <SettingRow label={t("accentBrightness") || "Brightness"} icon={<Sparkles />}>
-                      <Slider min={30} max={85} step={5} value={Math.round((accentLight ?? 0.6) * 100)} onChange={(v) => onAccentLightChange(v / 100)} width={200} />
-                    </SettingRow>
-                  </>
-                ) : (
-                  <AccentColorPicker value={accent} onChange={onAccentChange} />
-                )}
 
+                <div id="set-sec-ap-icon" data-settings-section="ap-icon" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {t("appIcon")}
@@ -4019,8 +4288,34 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                     </div>
                   </div>
                 ))}
+                </div>
 
-                <SectionLabel>{t("appearance")}</SectionLabel>
+                <div id="set-sec-ap-colors" data-settings-section="ap-colors" style={{ scrollMarginTop: 8 }}>
+                <SectionLabel>{t("apColors")}</SectionLabel>
+                <div className="flex gap-1.5 mb-3">
+                  <Button variant={!accentDynamic ? "secondary" : "ghost"} size="sm" onPress={() => onAccentDynamicChange(false)}>{t("accentCustom") || "Custom"}</Button>
+                  <Button variant={accentDynamic ? "secondary" : "ghost"} size="sm" onPress={() => onAccentDynamicChange(true)}>{t("visualizerDynamic") || "Dynamic"}</Button>
+                </div>
+                {accentDynamic ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-2 rounded-xl border border-border px-4 py-3.5" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)" }}>
+                      <span className="w-8 h-8 rounded-full shrink-0" style={{ background: "var(--accent)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" }} />
+                      <span style={{ fontSize: "var(--t13)", color: "var(--text-secondary)" }}>{t("accentDynamicDesc") || "The accent colour is derived live from the current track's cover art."}</span>
+                    </div>
+                    <SettingRow label={t("accentVibrancy") || "Vibrancy"} icon={<PaintBrushBroad />}>
+                      <Slider min={0} max={100} step={5} value={Math.round((accentSat ?? 0.5) * 100)} onChange={(v) => onAccentSatChange(v / 100)} width={200} />
+                    </SettingRow>
+                    <SettingRow label={t("accentBrightness") || "Brightness"} icon={<Sparkles />}>
+                      <Slider min={30} max={85} step={5} value={Math.round((accentLight ?? 0.6) * 100)} onChange={(v) => onAccentLightChange(v / 100)} width={200} />
+                    </SettingRow>
+                  </>
+                ) : (
+                  <AccentColorPicker value={accent} onChange={onAccentChange} />
+                )}
+                </div>
+
+                <div id="set-sec-ap-others" data-settings-section="ap-others" style={{ scrollMarginTop: 8 }}>
+                <SectionLabel>{t("apOthers")}</SectionLabel>
                 <SettingRow label={t("animations")} description={t("animationsDesc")} icon={<Sparkles />}>
                   <Toggle value={animations} onChange={onAnimationsChange} />
                 </SettingRow>
@@ -4048,6 +4343,7 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                     </div>
                   </div>
                 </SettingRow>
+                </div>
               </>
             )}
 
@@ -4090,8 +4386,18 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                 <SettingRow label={t("hideExplicit")} description={t("hideExplicitDesc")} icon={<EyeSlash />}>
                   <Toggle value={hideExplicit} onChange={onHideExplicitChange} />
                 </SettingRow>
+                <SettingRow label={t("trackNumbers")} description={t("trackNumbersDesc")} icon={<i className="fa-solid fa-list-ol" style={{ fontSize: 15 }} aria-hidden="true" />}>
+                  <Toggle value={showTrackNumbers} onChange={onTrackNumbersChange} />
+                </SettingRow>
+                <SettingRow label={t("anonStats")} description={t("anonStatsDesc")} icon={<i className="fa-solid fa-chart-simple" style={{ fontSize: 15 }} aria-hidden="true" />}>
+                  <Toggle value={anonStats} onChange={onAnonStatsChange} />
+                </SettingRow>
 
-                <SectionLabel>{t("connection")}</SectionLabel>
+              </>
+            )}
+
+            {tab === "connections" && (
+              <>
                 <SettingRow label={t("discordRpc")} description={t("discordRpcDesc")} icon={<ShareNodes />}>
                   <Toggle value={discordRpc} onChange={onDiscordRpcChange} />
                 </SettingRow>
@@ -4107,58 +4413,69 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
 
             {tab === "lyrics" && (
               <>
-                <SectionLabel>{t("general")}</SectionLabel>
-                <SettingRow label={t("fontSize")} description={`${t("fontSizeDesc")}: ${lyricsFontSize}px`} icon={<TextSize />}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Slider min={18} max={52} step={2} value={lyricsFontSize} onChange={onLyricsFontSizeChange} width={120} />
-                    <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsFontSize}px</span>
-                  </div>
-                </SettingRow>
-                <SettingRow label={t("translationFontSize")} description={`${t("fontSizeDesc")}: ${lyricsTranslationFontSize}px`} icon={<Translate />}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Slider min={12} max={40} step={2} value={lyricsTranslationFontSize} onChange={onLyricsTranslationFontSizeChange} width={120} />
-                    <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsTranslationFontSize}px</span>
-                  </div>
-                </SettingRow>
-                <SettingRow label={t("showRomaji")} description={t("romajiLyrics")} icon={<Globe />}>
-                  <Toggle value={showRomaji} onChange={onToggleRomaji} />
-                </SettingRow>
-                <SettingRow label={t("showAgentTags")} description={t("showAgentTagsDesc")} icon={<Tag />}>
-                  <Toggle value={showAgentTags} onChange={onToggleAgentTags} />
-                </SettingRow>
-                <SettingRow label={t("syllableZoom")} description={t("syllableZoomDesc")} icon={<Sparkles />}>
-                  <Toggle value={syllableZoom} onChange={onToggleSyllableZoom} />
-                </SettingRow>
-                <SettingRow label={t("fluidLyrics")} description={t("fluidLyricsDesc")} icon={<WaveformLines />}>
-                  <Toggle value={fluidLyrics} onChange={onToggleFluidLyrics} />
-                </SettingRow>
-                <SettingRow label={t("romajiFontSize")} description={`${t("fontSizeDesc")}: ${lyricsRomajiFontSize}px`} icon={<TextSize />}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Slider min={12} max={40} step={2} value={lyricsRomajiFontSize} onChange={onLyricsRomajiFontSizeChange} width={120} />
-                    <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsRomajiFontSize}px</span>
-                  </div>
-                </SettingRow>
-                <SectionLabel>{t("lyricsProviders")}</SectionLabel>
-                <SectionDesc>{t("lyricsProvidersDesc")}</SectionDesc>
-                <LyricsProviderList providers={lyricsProviders || DEFAULT_LYRICS_PROVIDERS} onChange={onLyricsProvidersChange} />
-                <UnisonIdentitySection />
-                <ComposerSettingsSection />
+                <div id="set-sec-lyrics-visual" data-settings-section="lyrics-visual" style={{ scrollMarginTop: 8 }}>
+                  <SectionLabel style={{ marginTop: 4 }}>{t("lyrVisual")}</SectionLabel>
+                  <SettingRow label={t("fontSize")} description={`${t("fontSizeDesc")}: ${lyricsFontSize}px`} icon={<TextSize />}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Slider min={18} max={52} step={2} value={lyricsFontSize} onChange={onLyricsFontSizeChange} width={120} />
+                      <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsFontSize}px</span>
+                    </div>
+                  </SettingRow>
+                  <SettingRow label={t("translationFontSize")} description={`${t("fontSizeDesc")}: ${lyricsTranslationFontSize}px`} icon={<Translate />}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Slider min={12} max={40} step={2} value={lyricsTranslationFontSize} onChange={onLyricsTranslationFontSizeChange} width={120} />
+                      <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsTranslationFontSize}px</span>
+                    </div>
+                  </SettingRow>
+                  <SettingRow label={t("romajiFontSize")} description={`${t("fontSizeDesc")}: ${lyricsRomajiFontSize}px`} icon={<TextSize />}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Slider min={12} max={40} step={2} value={lyricsRomajiFontSize} onChange={onLyricsRomajiFontSizeChange} width={120} />
+                      <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 36 }}>{lyricsRomajiFontSize}px</span>
+                    </div>
+                  </SettingRow>
+                  <SettingRow label={t("showRomaji")} description={t("romajiLyrics")} icon={<Globe />}>
+                    <Toggle value={showRomaji} onChange={onToggleRomaji} />
+                  </SettingRow>
+                  <SettingRow label={t("showAgentTags")} description={t("showAgentTagsDesc")} icon={<Tag />}>
+                    <Toggle value={showAgentTags} onChange={onToggleAgentTags} />
+                  </SettingRow>
+                </div>
+
+                <div id="set-sec-lyrics-effects" data-settings-section="lyrics-effects" style={{ scrollMarginTop: 8 }}>
+                  <SectionLabel>{t("lyrEffects")}</SectionLabel>
+                  <SettingRow label={t("syllableZoom")} description={t("syllableZoomDesc")} icon={<Sparkles />}>
+                    <Toggle value={syllableZoom} onChange={onToggleSyllableZoom} />
+                  </SettingRow>
+                  <SettingRow label={t("fluidLyrics")} description={t("fluidLyricsDesc")} icon={<WaveformLines />}>
+                    <Toggle value={fluidLyrics} onChange={onToggleFluidLyrics} />
+                  </SettingRow>
+                </div>
+
+                <div id="set-sec-lyrics-providers" data-settings-section="lyrics-providers" style={{ scrollMarginTop: 8 }}>
+                  <SectionLabel>{t("lyricsProviders")}</SectionLabel>
+                  <SectionDesc>{t("lyricsProvidersDesc")}</SectionDesc>
+                  <LyricsProviderList providers={lyricsProviders || DEFAULT_LYRICS_PROVIDERS} onChange={onLyricsProvidersChange} />
+                </div>
+
+                <div id="set-sec-lyrics-unison" data-settings-section="lyrics-unison" style={{ scrollMarginTop: 8 }}>
+                  <UnisonIdentitySection />
+                </div>
+
+                <div id="set-sec-lyrics-composer" data-settings-section="lyrics-composer" style={{ scrollMarginTop: 8 }}>
+                  <ComposerSettingsSection />
+                </div>
               </>
             )}
 
             {tab === "accessibility" && (
               <>
-                <SectionLabel>{t("appearance")}</SectionLabel>
+                <div id="set-sec-acc-visual" data-settings-section="acc-visual" style={{ scrollMarginTop: 8 }}>
+                <SectionLabel style={{ marginTop: 4 }}>{t("accVisual")}</SectionLabel>
                 <SettingRow label={t("highContrast")} description={t("highContrastDesc")} icon={<CircleHalf />}>
                   <Toggle value={highContrast} onChange={onToggleHighContrast} />
                 </SettingRow>
                 <SettingRow label={t("ambientBackground")} description={t("ambientBackgroundDesc")} icon={<Sparkles />}>
                   <Toggle value={ambientBackground} onChange={onToggleAmbientBackground} />
-                </SettingRow>
-
-                <SectionLabel>{t("behaviour")}</SectionLabel>
-                <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
-                  <Toggle value={closeTray} onChange={onCloseTrayChange} />
                 </SettingRow>
 
                 <SectionLabel>{t("appFont")}</SectionLabel>
@@ -4183,6 +4500,14 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                       {appFont === f.id && <Check size={16} className="text-accent shrink-0 ml-3" />}
                     </CardRoot>
                   ))}
+                </div>
+                </div>
+
+                <div id="set-sec-acc-behaviour" data-settings-section="acc-behaviour" style={{ scrollMarginTop: 8 }}>
+                <SectionLabel style={{ marginTop: 4 }}>{t("behaviour")}</SectionLabel>
+                <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
+                  <Toggle value={closeTray} onChange={onCloseTrayChange} />
+                </SettingRow>
                 </div>
               </>
             )}
@@ -4447,6 +4772,17 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
               </div>
             )}
 
+            {tab === "experimental" && (
+              <div className="flex flex-col gap-4">
+                <SettingsSectionDesc style={{ marginTop: 0 }}>{t("experimentalDesc")}</SettingsSectionDesc>
+                <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+                  <Flask size={40} className="text-muted" />
+                  <span className="text-t14 font-semibold text-secondary">{t("experimentalEmptyTitle")}</span>
+                  <span className="text-t12 text-muted max-w-sm leading-relaxed">{t("experimentalEmptyHint")}</span>
+                </div>
+              </div>
+            )}
+
             {tab === "update" && (
               <>
                 {/* Current version row */}
@@ -4472,7 +4808,7 @@ function SettingsPanel({ onClose, accent, onAccentChange, accentDynamic, onAccen
                         <>
                           <div className="h-px my-2.5" style={{ background: "color-mix(in srgb, var(--accent) 25%, transparent)" }} />
                           <div className="text-t11 font-semibold text-muted mb-1.5">{t("changelog")}</div>
-                          <div className="text-t12 text-secondary leading-relaxed whitespace-pre-wrap">{updateInfo.changelog}</div>
+                          <div className="text-t12 text-secondary leading-relaxed">{renderNewsBody(updateInfo.changelog)}</div>
                         </>
                       )}
                     </CardRoot>
@@ -5543,6 +5879,28 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return () => { clearInterval(iv); };
   }, [remoteEnabled]);
 
+  // Big Picture bridge: expose playback commands (re-registered each render so they close over
+  // current state) + push a formatted now-playing snapshot to the in-process store.
+  useEffect(() => {
+    bpRegisterCommands({
+      action: runPlaybackAction,
+      seek: (sec) => { const a = audioRef.current; if (a) a.currentTime = Math.max(0, sec); },
+    });
+    bpRegisterAudio(audioRef.current); // hand the IpcAudio clock to Big Picture's lyrics view
+  });
+  useEffect(() => {
+    const tr = track;
+    const artists = Array.isArray(tr?.artists)
+      ? tr.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
+      : (tr?.artists || "");
+    bpSetNowPlaying({
+      title: tr?.title || "", artists, thumbnail: tr?.thumbnail || "",
+      isPlaying: !!isPlaying, position: Math.floor(progress || 0), duration: Math.floor(duration || 0),
+      hasTrack: !!tr, shuffle: !!shuffle, repeat: repeat || "none",
+      track: tr || null, // raw track object so Big Picture's lyrics view can fetch for it
+    });
+  }, [track, isPlaying, progress, duration, shuffle, repeat]);
+
   // Seek drag state for the HeroUI seek slider (seconds while dragging, else null).
   const [seekDrag, setSeekDrag] = useState(null);
 
@@ -5636,12 +5994,19 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             animation: anim && track ? "coverPop 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none",
           }}>
             {track?.thumbnail
-              ? <img src={thumb(track.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <img src={thumb(hiResThumb(track.thumbnail))} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <div style={{ width: "100%", height: "100%", background: track ? "linear-gradient(135deg,#2a1535,#1a0a25)" : "transparent" }} />}
           </div>
           <div style={{ overflow: "hidden" }}>
             <div style={{ fontSize: "var(--t13)", fontWeight: 500, display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
-              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{loading ? t("loading") : track?.title}</span>
+              {loading ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <Spinner size="sm" />
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{t("loading")}</span>
+                </span>
+              ) : (
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{track?.title}</span>
+              )}
               {track?.isExplicit && <ExplicitBadge />}
             </div>
             <div style={{ fontSize: "var(--t11)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -6419,7 +6784,7 @@ function paintLineWords(line, els, wordIdxRef, t, zoomMaxRef = null, glow = fals
   paintWordSeq(bgWords,   bgEls,   wordIdxRef, "bgCurrent", t, null, glow, wordGroupIndices(line.bgWords));
 }
 
-function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, showTranslation = false, translationLang = "DE", translationFontSize = 20, showRomaji = false, romajiFontSize = 18, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, showAgentTags = true, ambientVisualizer = true, syllableZoom = false, fluidLyrics = false, ambientBackground = false, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
+export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, showTranslation = false, translationLang = "DE", translationFontSize = 20, showRomaji = false, romajiFontSize = 18, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, showAgentTags = true, ambientVisualizer = true, syllableZoom = false, fluidLyrics = false, ambientBackground = false, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
   // bottom-anchored chips above it while it's visible so they aren't covered.
   const chipBottomLift = (fullscreen && playerBarVisible) ? 104 : 0;
@@ -6476,6 +6841,7 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
   useEffect(() => { if (source) wakeScrollbar(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps
   const rafRef = useRef(null);
   const lyricsDataRef = useRef(null); // rAF loop reads lyrics without closure
+  const syncedRef = useRef(false);    // whether the current lyrics have real timestamps (not plain)
   const lastIdxRef = useRef(-1);       // tracks active line to detect changes
   const prevTRef = useRef(0);          // previous loop time — to detect backward seeks/restarts
   const inGapRef = useRef(false);      // tracks inter-line gap state without closure
@@ -6497,7 +6863,12 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
   const audioSnapRef = useRef({ ct: 0, pt: 0, playing: false });
 
   // Keep lyricsDataRef in sync with state
-  useEffect(() => { lyricsDataRef.current = lyrics; }, [lyrics]);
+  useEffect(() => {
+    lyricsDataRef.current = lyrics;
+    // Plain (unsynced) lyrics have time -1 on every line; only treat as synced if at least one
+    // line carries a real timestamp.
+    syncedRef.current = !!(lyrics && lyrics.some(l => (l.time ?? -1) >= 0));
+  }, [lyrics]);
 
   // Fetch translations when showTranslation is enabled, lyrics change, or target language changes
   useEffect(() => {
@@ -6572,7 +6943,9 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
       const lyr = lyricsDataRef.current;
 
       // Line detection — React re-render only when line changes
-      const newIdx = lyr ? lyr.reduce((b, l, i) => l.time <= t ? i : b, -1) : -1;
+      // Plain lyrics: every line has time -1, so the reduce would mark the LAST line active and
+      // auto-scroll to the bottom. No timestamps → no active line, no scroll.
+      const newIdx = (lyr && syncedRef.current) ? lyr.reduce((b, l, i) => l.time <= t ? i : b, -1) : -1;
 
       // Backward seek / restart (e.g. "previous" restarting the current song): time jumped
       // back >1s. videoId is unchanged so the song-change reset doesn't fire — handle it here.
@@ -6685,7 +7058,11 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
   useLayoutEffect(() => {
     const idx = lastIdxRef.current;
     if (idx >= 0) {
-      const lineEl = document.querySelector(`[data-lyric-idx="${idx}"]`);
+      // Scope to this instance's own container — Big Picture mounts a second LyricsOverlay while
+      // the desktop one may still be in the DOM, and a global querySelector would grab the wrong
+      // (earlier-in-document) instance's spans, leaving this instance's words unpainted.
+      const root = containerRef.current || document;
+      const lineEl = root.querySelector(`[data-lyric-idx="${idx}"]`);
       wordElsRef.current = lineEl
         ? Array.from(lineEl.querySelectorAll("[data-word-bright]"))
         : [];
@@ -6700,7 +7077,7 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
     // syllables stay bright (no 1-frame dim flash) while the line finishes its wipe.
     const tIdx = trailingIdxRef.current;
     if (tIdx >= 0) {
-      const trailEl = document.querySelector(`[data-lyric-idx="${tIdx}"]`);
+      const trailEl = (containerRef.current || document).querySelector(`[data-lyric-idx="${tIdx}"]`);
       trailWordElsRef.current = trailEl
         ? Array.from(trailEl.querySelectorAll("[data-word-bright]"))
         : [];
@@ -6861,6 +7238,7 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
   }, [track, refetchKey, forcedProvider, customLyricsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeIdx = lastIdxRef.current;
+  const lyricsSynced = !!(lyrics && lyrics.some(l => (l.time ?? -1) >= 0));
 
   // Unique agents in order of first appearance (only when ≥2 distinct named agents)
   const lyricsAgents = useMemo(() => {
@@ -7227,11 +7605,12 @@ function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DE
           // The existing CSS transition (0.4s) will carry it smoothly into the past
           // style once trailingIdx clears when endTime is reached.
           let blur, opacity;
-          if (isActive || isTrailing) { blur = 0;   opacity = 1; }
+          if (!lyricsSynced)          { blur = 0;   opacity = 0.9; } // plain lyrics: all readable, no active line
+          else if (isActive || isTrailing) { blur = 0;   opacity = 1; }
           else if (isPast)            { blur = 3;   opacity = 0.4; }
           else                        { blur = 0;   opacity = 0.35; }
           // Fluid: upcoming (future) lines sit darker than already-sung ones.
-          if (fluidLyrics && isFuture) opacity = 0.22;
+          if (lyricsSynced && fluidLyrics && isFuture) opacity = 0.22;
 
           const seekable = line.time >= 0;
           const agentRole = line.agentRole; // "lead", "featured", "group", or null
@@ -7578,7 +7957,7 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
 
 
 function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onOpenPlaylist, onContextMenu, onTrackContextMenu, hideExplicit }) {
-  const [filter, setFilter] = useState("songs");
+  const [filter, setFilter] = useState("all");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -7600,14 +7979,83 @@ function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOp
   }, [query, filter]);
 
   const tabs = [
-    { id: "songs",   label: t("filterSongs") },
-    { id: "artists", label: t("filterArtists") },
-    { id: "albums",  label: t("filterAlbums") },
+    { id: "all",       label: t("filterAll") },
+    { id: "songs",     label: t("filterSongs") },
+    { id: "artists",   label: t("filterArtists") },
+    { id: "albums",    label: t("filterAlbums") },
+    { id: "playlists", label: t("filterPlaylists") },
   ];
 
   if (!query) return (
     <div style={{ padding: 28, color: "var(--text-secondary)" }}>
       {t("searchPrompt")}
+    </div>
+  );
+
+  // Backend tags every item with `type`. Filter explicit songs out up front.
+  const visible = results.filter(r => r.type !== "song" || !hideExplicit || !r.isExplicit);
+  const byType = (ty) => visible.filter(r => r.type === ty);
+  const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 16, padding: "0 16px" };
+
+  const renderSong = (song) => (
+    <TrackRow
+      key={song.videoId}
+      track={song}
+      isPlaying={isPlaying && currentTrack?.videoId === song.videoId}
+      onPlay={() => onPlay(song, byType("song"))}
+      onOpenArtist={onOpenArtist}
+      onContextMenu={onTrackContextMenu}
+    />
+  );
+  const renderArtist = (a, i) => (
+    <div key={a.browseId || i} onClick={() => a.browseId && onOpenArtist?.({ browseId: a.browseId, artist: a.title })}
+      style={{ cursor: "default", borderRadius: 8, padding: "12px 0", textAlign: "center" }}
+      onMouseEnter={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--accent)"}
+      onMouseLeave={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--text-primary)"}
+    >
+      <div style={{ width: 100, height: 100, borderRadius: "50%", overflow: "hidden", background: "var(--bg-elevated)", margin: "0 auto 10px" }}>
+        {a.thumbnail
+          ? <img src={thumb(a.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)" }} />}
+      </div>
+      <div className="sr-title" style={{ fontSize: "var(--t13)", fontWeight: 500, transition: "color 0.15s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+      {a.subtitle && <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginTop: 3 }}>{a.subtitle}</div>}
+    </div>
+  );
+  const renderAlbum = (a, i) => (
+    <GridCard key={a.browseId || i}
+      thumbnail={a.thumbnail}
+      title={a.title}
+      subtitle={`${a.artists}${a.year ? ` · ${a.year}` : ""}`}
+      onClick={() => a.browseId && onOpenAlbum?.({ browseId: a.browseId, title: a.title, thumbnail: a.thumbnail })}
+      onContextMenu={a.browseId ? (e) => onContextMenu?.(e, { browseId: a.browseId, title: a.title, thumbnail: a.thumbnail, type: "album" }) : undefined}
+    />
+  );
+  const renderPlaylist = (p, i) => {
+    const pid = p.playlistId || p.browseId;
+    return (
+      <GridCard key={pid || i}
+        thumbnail={p.thumbnail}
+        title={p.title}
+        subtitle={p.subtitle}
+        onClick={() => pid && onOpenPlaylist?.({ playlistId: pid, title: p.title, thumbnail: p.thumbnail })}
+        onContextMenu={pid ? (e) => onContextMenu?.(e, { playlistId: pid, browseId: p.browseId, owned: false, title: p.title, thumbnail: p.thumbnail, type: "playlist" }) : undefined}
+      />
+    );
+  };
+
+  // A titled section for the mixed "all" view, with a "show all" jump to that tab.
+  const section = (label, tabId, node) => (
+    <div key={tabId} style={{ marginBottom: 26 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", marginBottom: 10 }}>
+        <div style={{ fontSize: "var(--t15)", fontWeight: 600 }}>{label}</div>
+        <button onClick={() => setFilter(tabId)}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "var(--t12)", fontFamily: "var(--font)", cursor: "default", transition: "color 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.color = "var(--accent)"}
+          onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
+        >{t("showAll")}</button>
+      </div>
+      {node}
     </div>
   );
 
@@ -7619,7 +8067,7 @@ function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOp
           {t("searchResultsFor")} „{query}"
         </div>
         {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {tabs.map(tab_ => (
             <button key={tab_.id} onClick={() => setFilter(tab_.id)} style={{
               background: filter === tab_.id ? "var(--accent)" : "var(--bg-elevated)",
@@ -7634,65 +8082,27 @@ function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOp
 
       {loading && <div style={{ padding: "0 16px", color: "var(--text-secondary)" }}>{t("loadingDots")}</div>}
       {error && <div style={{ padding: "0 16px", color: "#f44336" }}>{t("errorLoading")}: {error}</div>}
-      {!loading && !error && results.length === 0 && (
+      {!loading && !error && visible.length === 0 && (
         <div style={{ padding: "0 16px", color: "var(--text-muted)" }}>{t("noResults")}</div>
       )}
 
-      {/* Songs */}
-      {filter === "songs" && results.filter(s => !hideExplicit || !s.isExplicit).map(song => (
-        <TrackRow
-          key={song.videoId}
-          track={song}
-          isPlaying={isPlaying && currentTrack?.videoId === song.videoId}
-          onPlay={() => onPlay(song, results.filter(s => !hideExplicit || !s.isExplicit))}
-          onOpenArtist={onOpenArtist}
-          onContextMenu={onTrackContextMenu}
-        />
-      ))}
+      {/* Mixed "all" view — a few of each, grouped into sections. */}
+      {filter === "all" && !loading && (() => {
+        const songs = byType("song"), artists = byType("artist"), albums = byType("album"), playlists = byType("playlist");
+        return (
+          <>
+            {songs.length > 0 && section(t("filterSongs"), "songs", <div>{songs.slice(0, 4).map(renderSong)}</div>)}
+            {artists.length > 0 && section(t("filterArtists"), "artists", <div style={gridStyle}>{artists.slice(0, 5).map(renderArtist)}</div>)}
+            {albums.length > 0 && section(t("filterAlbums"), "albums", <div style={gridStyle}>{albums.slice(0, 5).map(renderAlbum)}</div>)}
+            {playlists.length > 0 && section(t("filterPlaylists"), "playlists", <div style={gridStyle}>{playlists.slice(0, 5).map(renderPlaylist)}</div>)}
+          </>
+        );
+      })()}
 
-      {/* Artists */}
-      {filter === "artists" && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
-          gap: 16, padding: "0 16px",
-        }}>
-          {results.map((a, i) => (
-            <div key={i} onClick={() => a.browseId && onOpenArtist?.({ browseId: a.browseId, artist: a.title })}
-              style={{ cursor: "default", borderRadius: 8, padding: "12px 0", textAlign: "center" }}
-              onMouseEnter={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--accent)"}
-              onMouseLeave={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--text-primary)"}
-            >
-              <div style={{ width: 100, height: 100, borderRadius: "50%", overflow: "hidden", background: "var(--bg-elevated)", margin: "0 auto 10px" }}>
-                {a.thumbnail
-                  ? <img src={thumb(a.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)" }} />}
-              </div>
-              <div className="sr-title" style={{ fontSize: "var(--t13)", fontWeight: 500, transition: "color 0.15s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
-              {a.subtitle && <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginTop: 3 }}>{a.subtitle}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Albums */}
-      {filter === "albums" && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
-          gap: 16, padding: "0 16px",
-        }}>
-          {results.map((a, i) => (
-            <GridCard key={i}
-              thumbnail={a.thumbnail}
-              title={a.title}
-              subtitle={`${a.artists}${a.year ? ` · ${a.year}` : ""}`}
-              onClick={() => a.browseId && onOpenAlbum?.({ browseId: a.browseId, title: a.title, thumbnail: a.thumbnail })}
-              onContextMenu={a.browseId ? (e) => onContextMenu?.(e, { browseId: a.browseId, title: a.title, thumbnail: a.thumbnail, type: "album" }) : undefined}
-            />
-          ))}
-        </div>
-      )}
+      {filter === "songs" && byType("song").map(renderSong)}
+      {filter === "artists" && <div style={gridStyle}>{byType("artist").map(renderArtist)}</div>}
+      {filter === "albums" && <div style={gridStyle}>{byType("album").map(renderAlbum)}</div>}
+      {filter === "playlists" && <div style={gridStyle}>{byType("playlist").map(renderPlaylist)}</div>}
     </div>
   );
 }
@@ -8690,21 +9100,27 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
         {/* ── Start ── */}
         {step === "start" && (
           <>
-            <div style={{ fontSize: "var(--t20)", fontWeight: 700, textAlign: "center", marginBottom: 8 }}>{t("welcome")}</div>
+            <div style={{ fontSize: "var(--t20)", fontWeight: 700, textAlign: "center", marginBottom: 8 }}>{forcedProfileName ? t("reauthTitle") : t("welcome")}</div>
             <div style={{ fontSize: "var(--t13)", color: "var(--text-muted)", textAlign: "center", marginBottom: 28, lineHeight: 1.6 }}>
-              {t("loginDesc")}
+              {forcedProfileName ? t("reauthDesc") : t("loginDesc")}
             </div>
             <Btn onClick={startLogin}>
               {t("loginButton")}
             </Btn>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)" }}>{t("orSignInWithGoogle") ? t("orSignInWithGoogle").split(" ").slice(-2).join(" ") : "oder"}</span>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            </div>
-            <Btn onClick={() => setStep("local-create")} secondary>
-              {t("createLocalProfile")}
-            </Btn>
+            {/* Hide "create local profile" for a cancelable re-auth (from settings — it has an X);
+                keep it at startup as an escape hatch even when re-auth is targeted. */}
+            {!(forcedProfileName && onCancel) && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                  <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)" }}>{t("orSignInWithGoogle") ? t("orSignInWithGoogle").split(" ").slice(-2).join(" ") : "oder"}</span>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                </div>
+                <Btn onClick={() => setStep("local-create")} secondary>
+                  {t("createLocalProfile")}
+                </Btn>
+              </>
+            )}
             <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", textAlign: "center", marginTop: 14, lineHeight: 1.6 }}>
               {t("loginHint")}
             </div>
@@ -9528,6 +9944,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     loadNews();
+    sendHeartbeat(); // anonymous, opt-out, at most once/day — see analytics/
     // Re-check periodically + when the window regains focus, so newly published news shows up
     // without restarting the app (the raw GitHub feed is CDN-cached ~5 min anyway).
     const interval = setInterval(loadNews, 15 * 60 * 1000);
@@ -9551,6 +9968,14 @@ export default function App() {
     localStorage.setItem("kiyoshi-news-seen", JSON.stringify(allIds));
   }, [newsItems, newsSeenIds]);
   const [settingsTab, setSettingsTab] = useState("darstellung");
+  // Scroll-spy for the settings sub-nav lives in an external store (see setSettingsSectionStore)
+  // so it never re-renders App. Clicking a sub-entry just scrolls; the content observer updates
+  // the store, and only the sidebar subscribes.
+  const selectSettingsSection = useCallback((id) => {
+    lockSettingsSection();
+    setSettingsSectionStore(id);
+    document.getElementById("set-sec-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
   const closeSettings = useCallback(() => {
     setSettingsClosing(true);
@@ -10078,6 +10503,40 @@ export default function App() {
     }
   }, []);
 
+  // Enqueue a track for Big Picture's context menu: "next" inserts it right after the current
+  // track, "end" appends it. The queue is the source of truth for next/prev (getAdjacentTrack),
+  // so a plain splice is enough. With nothing playing yet, just start it.
+  const enqueue = useCallback((track, mode) => {
+    if (!track?.videoId) return;
+    if (!currentTrack) { handlePlay(track, [track]); return; }
+    if (track.videoId === currentTrack.videoId) return;
+    setQueue(q => {
+      const n = q.filter(x => x.videoId !== track.videoId); // move if already queued
+      const i = n.findIndex(x => x.videoId === currentTrack.videoId);
+      const at = mode === "next" ? (i < 0 ? n.length : i + 1) : n.length;
+      n.splice(at, 0, track);
+      return n;
+    });
+  }, [currentTrack, handlePlay]);
+
+  // Big Picture bridge: expose "play this track" + enqueue (the Player already owns transport/seek).
+  useEffect(() => { bpRegisterCommands({ play: handlePlay, enqueue }); }, [handlePlay, enqueue]);
+
+  // Start an autoplay radio/mix seeded from a single track. Reads the language from localStorage
+  // (not the `language` state, which is declared further down → would be a TDZ ref here).
+  const startSongRadio = useCallback(async (track) => {
+    if (!track?.videoId) return;
+    const fail = () => addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "radioFailed"), "error");
+    try {
+      const r = await fetch(`${API}/radio/_?videoId=${encodeURIComponent(track.videoId)}`);
+      const d = await r.json();
+      if (d.tracks?.length) handlePlay(d.tracks[0], d.tracks);
+      else fail();
+    } catch {
+      fail();
+    }
+  }, [handlePlay, addToast]);
+
   // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
   // metadata so the player has a title/cover, then play. Falls back to a bare track.
   const playByVideoId = useCallback(async (videoId) => {
@@ -10350,6 +10809,11 @@ export default function App() {
     return isNaN(s) ? 18 : s;
   });
   const [hideExplicit, setHideExplicit] = useState(() => localStorage.getItem("kiyoshi-hide-explicit") === "true");
+  const [showTrackNumbers, setShowTrackNumbers] = useState(() => localStorage.getItem("kodama-track-numbers") === "true");
+  const handleTrackNumbersChange = useCallback((on) => { setShowTrackNumbers(on); localStorage.setItem("kodama-track-numbers", String(on)); }, []);
+  // Anonymous active-user stats: default ON, one-click opt-out. See analytics/.
+  const [anonStats, setAnonStats] = useState(() => localStorage.getItem("kodama-anon-stats") !== "false");
+  const handleAnonStatsChange = useCallback((on) => { setAnonStats(on); localStorage.setItem("kodama-anon-stats", String(on)); }, []);
   const [hideUserHandle, setHideUserHandle] = useState(() => localStorage.getItem("kiyoshi-hide-handle") === "true");
   const [uiZoom, setUiZoom] = useState(() => {
     const saved = parseFloat(localStorage.getItem("kiyoshi-ui-zoom"));
@@ -10572,6 +11036,7 @@ export default function App() {
   const [profiles, setProfiles] = useState([]);
   const [hasProfile, setHasProfile] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const sessionWarnedRef = useRef(null); // profile name we've already shown the "session expired" toast for
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem("kiyoshi-lang"));
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
@@ -10593,8 +11058,21 @@ export default function App() {
         window.__activeProfile = d.current;
         try { setPinnedIds(JSON.parse(localStorage.getItem(`kiyoshi-pinned-${d.current}`) || "[]").map(p => p.playlistId || p.browseId)); } catch {}
       }
+      // Notify once when the active (real) account's session has expired, so the user knows to
+      // refresh it. Reset when it's valid again so a later expiry warns anew.
+      const active = (d.profiles || []).find(p => p.name === d.current);
+      if (active && active.type !== "local" && active.loggedOut) {
+        if (sessionWarnedRef.current !== active.name) {
+          sessionWarnedRef.current = active.name;
+          setReauthName(active.name); // target the settings re-auth / login at this account
+          const lang = localStorage.getItem("kiyoshi-lang") || "de";
+          addToast(translate(lang, "sessionExpired"), "error");
+        }
+      } else if (active && !active.loggedOut) {
+        sessionWarnedRef.current = null;
+      }
     } catch {}
-  }, []);
+  }, [addToast]);
 
   // Keep the YT-Music session alive long-term: a hidden "session-keeper" WebView (a real
   // browser engine) rotates the *SIDTS timestamp cookies that plain HTTP requests cannot, and
@@ -10828,8 +11306,12 @@ export default function App() {
         clearTimeout(tid);
         const d = await r.json();
         if (!d.valid && d.reason !== "adding_account") {
-          // Auth invalid — clear stale cache and show login
+          // Auth invalid. If a real account existed (cached), its session expired — target the
+          // login at it so it shows the "session expired" copy instead of the generic welcome.
+          let expired = null;
+          try { const c = JSON.parse(localStorage.getItem("kiyoshi-profiles-cache") || "{}"); const cur = (c.profiles || []).find(p => p.name === c.current); if (cur && cur.type !== "local") expired = cur; } catch {}
           try { localStorage.removeItem("kiyoshi-profiles-cache"); } catch {}
+          if (expired) setReauthName(expired.name);
           setShowLogin(true);
         } else {
           fetchProfiles();
@@ -11009,6 +11491,10 @@ export default function App() {
       // arrow keys nudge the selected layer, Space/etc. belong to the editor.
       if (document.querySelector("[data-overlay-editor]")) return;
 
+      // Same for Big Picture mode: its own navigation (arrows/enter) owns the keyboard while open,
+      // so the desktop shortcuts (arrow = prev/next track, etc.) must stay out of the way.
+      if (document.querySelector("[data-bigpicture]")) return;
+
       const sc = customShortcutsRef.current;
 
       if (matchShortcut(sc.playPause, e)) {
@@ -11101,6 +11587,7 @@ export default function App() {
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
     <LangContext.Provider value={language}>
+    <TrackNumberContext.Provider value={showTrackNumbers}>
     <AnimationContext.Provider value={animations}>
     <FontScaleContext.Provider value={appFontScale}>
     <ZoomContext.Provider value={uiZoom}>
@@ -11192,6 +11679,7 @@ export default function App() {
             <SettingsSidebarContent
               tab={settingsTab}
               setTab={setSettingsTab}
+              onSectionSelect={selectSettingsSection}
               updateInfo={updateInfo}
               onClose={closeSettings}
               collapsed={sidebarCollapsed}
@@ -11574,6 +12062,7 @@ export default function App() {
         }}>
           <SettingsPanel
             onClose={closeSettings}
+            onSectionChange={setSettingsSectionStore}
             accounts={profiles} activeAccount={profiles.find(p => p.active)}
             onAccountSwitch={handleAccountSwitch} onAccountAdd={handleAccountAdd}
             onAccountReauth={handleAccountReauth} onAccountRemove={handleAccountRemove}
@@ -11633,6 +12122,10 @@ export default function App() {
             setTab={setSettingsTab}
             hideExplicit={hideExplicit}
             onHideExplicitChange={v => { setHideExplicit(v); localStorage.setItem("kiyoshi-hide-explicit", v); }}
+            showTrackNumbers={showTrackNumbers}
+            onTrackNumbersChange={handleTrackNumbersChange}
+            anonStats={anonStats}
+            onAnonStatsChange={handleAnonStatsChange}
             hideUserHandle={hideUserHandle}
             onToggleHideUserHandle={v => { setHideUserHandle(v); localStorage.setItem("kiyoshi-hide-handle", String(v)); }}
             uiZoom={uiZoom}
@@ -11728,6 +12221,7 @@ export default function App() {
             onClose={() => setFeedbackOpen(false)}
             t={(key) => translate(language, key)}
             version={APP_VERSION}
+            currentTrack={currentTrack ? { videoId: currentTrack.videoId, title: currentTrack.title } : null}
           />
         )}
 
@@ -11923,6 +12417,13 @@ export default function App() {
                 <CtxItem icon={<Plus size={15} />} label={translate(language, "addToPlaylist")}
                   onSelect={() => setAddToPlaylistFor({ tracks: [track] })} />
 
+                <CtxItem icon={<Queue size={15} />} label={translate(language, "playNext")}
+                  onSelect={() => { enqueue(track, "next"); addToast(translate(language, "addedNext") || "Als Nächstes eingereiht", "success"); }} />
+                <CtxItem icon={<Queue size={15} />} label={translate(language, "addToQueue")}
+                  onSelect={() => { enqueue(track, "end"); addToast(translate(language, "addedQueue") || "Zur Warteschlange hinzugefügt", "success"); }} />
+                <CtxItem icon={<Radio size={15} />} label={translate(language, "startRadio")}
+                  onSelect={() => startSongRadio(track)} />
+
                 <DropdownItem textValue={ctxLiked ? translate(language, "unlike") : translate(language, "like")}
                   onAction={() => handleToggleLike(track)}
                   className={ctxLiked ? "text-accent! data-[focused]:text-accent! data-[hovered]:text-accent!" : undefined}>
@@ -12020,7 +12521,11 @@ export default function App() {
           const isPinned = pinnedIds.includes(itemId(pl));
           const showAlbumNav = pl?.browseId && pl?.type !== "artist";
           const showArtistNav = !!pl?.artistBrowseId;
-          const isUserPlaylist = pl?.playlistId && pl?.type !== "album";
+          const isUserPlaylist = pl?.playlistId && pl?.type !== "album" && pl?.owned !== false;
+          // Playlists are shareable (not albums/artists). The raw list id is the
+          // playlistId, or the search browseId with its "VL" prefix stripped.
+          const isPlaylistShare = pl && pl.type !== "album" && pl.type !== "artist" && (pl.playlistId || pl.browseId);
+          const plShareId = (pl?.playlistId || pl?.browseId || "").replace(/^VL/, "");
           return (
             <ContextMenu x={globalContextMenu.x} y={globalContextMenu.y} zoom={uiZoom}
               onClose={() => setGlobalContextMenu(null)} ariaLabel="Playlist" minWidth={190}>
@@ -12035,6 +12540,14 @@ export default function App() {
                     else openPlaylist(pl, view);
                   }} />
               </DropdownSection>
+              {isPlaylistShare && plShareId ? (
+                <DropdownSection className="w-full border-t border-border mt-1 pt-1">
+                  <CtxItem icon={<ShareNodes size={15} />} label={translate(language, "copyYtMusicLink")}
+                    onSelect={() => navigator.clipboard.writeText(`https://music.youtube.com/playlist?list=${plShareId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})} />
+                  <CtxItem icon={<Copy size={15} />} label={translate(language, "copyYoutubeLink")}
+                    onSelect={() => navigator.clipboard.writeText(`https://youtube.com/playlist?list=${plShareId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})} />
+                </DropdownSection>
+              ) : null}
               {(showAlbumNav || showArtistNav) ? (
                 <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                   {showAlbumNav ? (
@@ -12109,6 +12622,7 @@ export default function App() {
     </ZoomContext.Provider>
     </FontScaleContext.Provider>
     </AnimationContext.Provider>
+    </TrackNumberContext.Provider>
     </LangContext.Provider>
     </IconContext.Provider>
   );

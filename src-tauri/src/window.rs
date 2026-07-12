@@ -119,6 +119,11 @@ fn auth_data_dir(profile: &str) -> std::path::PathBuf {
     std::env::temp_dir().join("kodama-auth-webview").join(safe)
 }
 
+#[cfg(target_os = "macos")]
+const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15";
+#[cfg(not(target_os = "macos"))]
+const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 #[tauri::command]
 pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("login") {
@@ -149,11 +154,10 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
     )
     .title("Kodama – Anmelden")
     .inner_size(900.0, 680.0)
-    .center()
+        .center()
     .decorations(true)
-    // Force a Chrome UA: the default macOS WKWebView UA is Safari-like and YT Music/Google
-    // shows a "browser not optimized" wall. Matches the UA used for /auth/cookie-login.
-    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    // Platform-matched UA. Also replayed to /auth/cookie-login.
+    .user_agent(LOGIN_USER_AGENT)
     .data_directory(login_data_dir)
     .build()
     .map_err(|e| e.to_string())?;
@@ -180,47 +184,41 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
                 continue;
             }
 
-            // Read auth cookies. On Windows cookies_for_url is reliable; on macOS WKWebView
-            // it often returns an empty/partial set, so fall back to cookies() (whole store)
-            // filtered to the youtube.com domain. eprintln so a terminal run shows the state.
-            let mut found: Vec<_> = match win.cookies_for_url(yt_url.clone()) {
-                Ok(cs) => {
-                    eprintln!("[login] cookies_for_url -> {} cookies", cs.len());
-                    cs
-                }
-                Err(e) => {
-                    eprintln!("[login] cookies_for_url ERR: {}", e);
-                    Vec::new()
-                }
-            };
-            if !found.iter().any(|c| c.name() == "SAPISID") {
-                match win.cookies() {
-                    Ok(cs) => {
-                        eprintln!(
-                            "[login] cookies() all -> {} cookies; names={:?}",
-                            cs.len(),
-                            cs.iter().map(|c| c.name().to_string()).collect::<Vec<_>>()
-                        );
-                        let yt: Vec<_> = cs
+            // Read auth cookies on the MAIN thread. On macOS wry's cookie retrieval pumps
+            // the main run loop to receive WKHTTPCookieStore's async callback, so it only
+            // returns anything when invoked on the main thread. This detection loop runs on
+            // a background task, so calling win.cookies() directly here times out and returns
+            // nothing — which is why login was never detected on macOS. Hop to the main thread
+            // and send owned (name, value) pairs back through a channel.
+            let (ctx, crx) = std::sync::mpsc::channel::<Vec<(String, String)>>();
+            let cwin = win.clone();
+            let cyt = yt_url.clone();
+            let _ = app_clone.run_on_main_thread(move || {
+                let mut cs = cwin.cookies_for_url(cyt).unwrap_or_default();
+                if !cs.iter().any(|c| c.name() == "SAPISID") {
+                    if let Ok(all) = cwin.cookies() {
+                        let yt: Vec<_> = all
                             .into_iter()
                             .filter(|c| c.domain().map(|d| d.contains("youtube.com")).unwrap_or(false))
                             .collect();
                         if yt.iter().any(|c| c.name() == "SAPISID") {
-                            found = yt;
+                            cs = yt;
                         }
                     }
-                    Err(e) => eprintln!("[login] cookies() ERR: {}", e),
                 }
-            }
+                let _ = ctx.send(cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect());
+            });
+            let found: Vec<(String, String)> = crx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap_or_default();
 
-            let has_auth = found.iter().any(|c| c.name() == "SAPISID");
-            eprintln!("[login] url={} has_auth={}", current_url, has_auth);
+            let has_auth = found.iter().any(|(n, _)| n == "SAPISID");
+            eprintln!("[login] url={} has_auth={} cookies={}", current_url, has_auth, found.len());
             {
-                let cookies = found;
                 if has_auth {
-                    let cookie_str = cookies
+                    let cookie_str = found
                         .iter()
-                        .map(|c| format!("{}={}", c.name(), c.value()))
+                        .map(|(n, v)| format!("{}={}", n, v))
                         .collect::<Vec<_>>()
                         .join("; ");
 
@@ -230,7 +228,7 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
                         .json(&serde_json::json!({
                             "cookie": cookie_str,
                             "profile_name": profile,
-                            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                            "user_agent": LOGIN_USER_AGENT
                         }))
                         .send()
                         .await;
@@ -279,6 +277,7 @@ pub async fn ensure_session_keeper(app: tauri::AppHandle, profile_name: String) 
     .inner_size(900.0, 680.0)
     .visible(false)
     .skip_taskbar(true)
+    .user_agent(LOGIN_USER_AGENT)
     .data_directory(dir)
     .build()
     .map_err(|e| e.to_string())?;
@@ -309,18 +308,29 @@ pub async fn rotate_session_cookies(app: tauri::AppHandle, profile_name: String)
     }
     tokio::time::sleep(std::time::Duration::from_secs(9)).await;
     let yt_url: url::Url = "https://music.youtube.com".parse().unwrap();
-    let cookies = win.cookies_for_url(yt_url).map_err(|e| e.to_string())?;
-    if !cookies.iter().any(|c| c.name() == "SAPISID") {
+    // Read cookies on the main thread — see the note in open_login_window: wry's macOS
+    // cookie retrieval only returns anything when invoked on the main thread.
+    let (ctx, crx) = std::sync::mpsc::channel::<Vec<(String, String)>>();
+    let cwin = win.clone();
+    app.run_on_main_thread(move || {
+        let cs = cwin.cookies_for_url(yt_url).unwrap_or_default();
+        let _ = ctx.send(cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect());
+    })
+    .map_err(|e| e.to_string())?;
+    let cookies: Vec<(String, String)> = crx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .map_err(|_| "timed out reading keeper cookies".to_string())?;
+    if !cookies.iter().any(|(n, _)| n == "SAPISID") {
         return Err("keeper not authenticated".into());
     }
     let cookie_str = cookies
         .iter()
-        .map(|c| format!("{}={}", c.name(), c.value()))
+        .map(|(n, v)| format!("{}={}", n, v))
         .collect::<Vec<_>>()
         .join("; ");
     let has_ts = cookies
         .iter()
-        .any(|c| c.name() == "__Secure-1PSIDTS" || c.name() == "__Secure-3PSIDTS");
+        .any(|(n, _)| n == "__Secure-1PSIDTS" || n == "__Secure-3PSIDTS");
     let client = reqwest::Client::new();
     let _ = client
         .post("http://localhost:9847/auth/refresh-cookies")

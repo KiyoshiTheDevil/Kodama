@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Build vendored Composer
         working-directory: composer
         run: |
@@ -61,7 +61,27 @@ jobs:
             --workpath build_tmp/kodama-server-x86_64-pc-windows-msvc
       - name: Download node.exe
         run: |
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v20.11.0/win-x64/node.exe" -OutFile "src-tauri/resources/node.exe"
+          # v22+ required: yt-dlp EJS (signature/n-sig solving for the web_music PO-token path)
+          # needs Node >= 22. This is the runtime node the sidecar spawns.
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.18.0/win-x64/node.exe" -OutFile "src-tauri/resources/node.exe"
+      - name: Build PO-token generator (bgutil, Windows)
+        shell: bash
+        run: |
+          git clone --single-branch --branch 1.3.1 --depth 1 \
+            https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git potgen-src
+          cd potgen-src/server
+          npm ci
+          npx tsc
+          npm prune --omit=dev
+          DEST="$GITHUB_WORKSPACE/src-tauri/resources/potgen/server"
+          mkdir -p "$DEST"
+          cp -r build package.json node_modules "$DEST/"
+          echo "generator bundled -> $DEST"; ls "$DEST"
+          # Register the generator as a Tauri resource for THIS build only. Kept out of the
+          # committed config so local `tauri dev`/`build` never requires this CI artifact.
+          CFG="$GITHUB_WORKSPACE/src-tauri/tauri.windows.conf.json"
+          jq '.bundle.resources["resources/potgen/server"]="potgen/server"' "$CFG" > "$CFG.tmp" && mv "$CFG.tmp" "$CFG"
+          echo "merged potgen resource into windows conf"
       - name: Install frontend dependencies
         run: npm install
       - name: Setup Rust
@@ -101,7 +121,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Build vendored Composer
         working-directory: composer
         run: |
@@ -133,6 +153,30 @@ jobs:
             --distpath ../src-tauri/binaries \
             --workpath build_tmp/kodama-server-aarch64-apple-darwin
           chmod +x ../src-tauri/binaries/kodama-server-aarch64-apple-darwin
+      - name: Download node (macOS arm64)
+        run: |
+          # v22+ runtime node for the yt-dlp EJS + bgutil PO-token path (macOS had none before).
+          curl -sL "https://nodejs.org/dist/v22.18.0/node-v22.18.0-darwin-arm64.tar.gz" -o node.tar.gz
+          tar -xzf node.tar.gz
+          cp node-v22.18.0-darwin-arm64/bin/node src-tauri/resources/node
+          chmod +x src-tauri/resources/node
+      - name: Build PO-token generator (bgutil, macOS)
+        run: |
+          git clone --single-branch --branch 1.3.1 --depth 1 \
+            https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git potgen-src
+          cd potgen-src/server
+          npm ci
+          npx tsc
+          npm prune --omit=dev
+          DEST="$GITHUB_WORKSPACE/src-tauri/resources/potgen/server"
+          mkdir -p "$DEST"
+          cp -r build package.json node_modules "$DEST/"
+          echo "generator bundled -> $DEST"; ls "$DEST"
+          # Register the generator as a Tauri resource for THIS build only. Kept out of the
+          # committed config so local `tauri dev`/`build` never requires this CI artifact.
+          CFG="$GITHUB_WORKSPACE/src-tauri/tauri.macos.conf.json"
+          jq '.bundle.resources["resources/potgen/server"]="potgen/server"' "$CFG" > "$CFG.tmp" && mv "$CFG.tmp" "$CFG"
+          echo "merged potgen resource into macos conf"
       - name: Install frontend dependencies
         run: npm install
       - name: Setup Rust

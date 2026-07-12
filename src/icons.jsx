@@ -160,6 +160,7 @@ export const CircleHalf         = fa("circle-half-stroke");
 export const WaveformLines      = fa("waveform-lines");
 export const Radio              = fa("radio");
 export const Sparkles           = fa("wand-magic-sparkles");
+export const Flask               = fa("flask");
 export const ShareNodes         = fa("share-nodes");
 export const Globe              = fa("globe");
 export const Lock               = fa("lock");

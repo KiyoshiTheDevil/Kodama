@@ -3,6 +3,12 @@ flask
 flask-cors
 requests
 yt-dlp
+# EJS challenge-solver scripts (signature / n-sig) — required for the web_music
+# client used by the PO-token path. Ships the JS the bundled node runtime runs.
+yt-dlp-ejs
+# bgutil PO-token provider plugin (Python side). Pinned to match the node
+# generator we build+bundle at the same tag (see release.yml + analytics note).
+bgutil-ytdlp-pot-provider==1.3.1
 mutagen
 Pillow
 pykakasi

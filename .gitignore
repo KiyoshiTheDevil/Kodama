@@ -91,6 +91,9 @@ python-backend/feedback_config.json
 python-backend/composer_settings.json
 python-backend/custom_lyrics/
 python-backend/ytdlp/
+# Locally-built bgutil PO-token generator (node_modules is huge; CI rebuilds it)
+python-backend/potgen/
+src-tauri/resources/potgen/
 # Stray scratch/temp files
 hard_0116.txt
 *analyze_b64.txt

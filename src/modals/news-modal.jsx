@@ -23,17 +23,20 @@ function renderInline(text, kp) {
   return out;
 }
 
-// Lightweight block markdown for news bodies: ## headings, - bullet lists, paragraphs.
-function renderNewsBody(body) {
+// Lightweight block markdown for news bodies + changelogs: #/##/### headings, - bullet lists,
+// paragraphs. Exported so the update/changelog panel renders markdown instead of raw text.
+export function renderNewsBody(body) {
   if (!body) return null;
   const blocks = [];
   let list = null;
   const flush = () => { if (list) { blocks.push(<ul key={`ul-${blocks.length}`} className="list-disc pl-5 my-1 flex flex-col gap-0.5">{list}</ul>); list = null; } };
+  const HCLS = { 1: "text-t15 font-bold mt-2.5 mb-1", 2: "text-t13 font-semibold mt-2 mb-0.5", 3: "text-t12 font-semibold mt-1.5 mb-0.5" };
   body.split("\n").forEach((line, idx) => {
     const s = line.trim();
     if (!s) { flush(); return; }
-    if (s.startsWith("## ")) { flush(); blocks.push(<div key={idx} className="text-t13 font-semibold mt-2 mb-0.5 text-primary">{renderInline(s.slice(3), `h${idx}`)}</div>); return; }
-    if (s.startsWith("- ")) { if (!list) list = []; list.push(<li key={idx}>{renderInline(s.slice(2), `li${idx}`)}</li>); return; }
+    const hm = s.match(/^(#{1,3})\s+(.*)$/);
+    if (hm) { flush(); const lvl = hm[1].length; blocks.push(<div key={idx} className={`${HCLS[lvl]} text-primary`}>{renderInline(hm[2], `h${idx}`)}</div>); return; }
+    if (s.startsWith("- ") || s.startsWith("* ")) { if (!list) list = []; list.push(<li key={idx}>{renderInline(s.slice(2), `li${idx}`)}</li>); return; }
     flush();
     blocks.push(<p key={idx} className="my-1">{renderInline(s, `p${idx}`)}</p>);
   });

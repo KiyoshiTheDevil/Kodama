@@ -14,12 +14,28 @@ _composer_dist = os.path.abspath(os.path.join(SPECPATH, '..', 'composer', 'dist'
 _feedback_cfg = os.path.join(SPECPATH, 'feedback_config.json')
 _extra_datas = [(_feedback_cfg, '.')] if os.path.exists(_feedback_cfg) else []
 
+# PO-token stack: bundle the bgutil yt-dlp plugin + the yt-dlp-ejs solver scripts so the
+# frozen server can discover them (plugins via the yt_dlp_plugins namespace, EJS via its
+# data files). The node generator itself ships separately as a Tauri resource (potgen/).
+from PyInstaller.utils.hooks import collect_all as _collect_all
+_pot_datas = []
+_pot_hidden = [
+    "yt_dlp_plugins",
+    "yt_dlp_plugins.extractor.getpot_bgutil",
+    "yt_dlp_plugins.extractor.getpot_bgutil_http",
+    "yt_dlp_plugins.extractor.getpot_bgutil_script",
+]
+for _pkg in ("yt_dlp_ejs", "yt_dlp_plugins"):
+    _pd, _pb, _ph = _collect_all(_pkg)
+    _pot_datas += _pd
+    _pot_hidden += _ph
+
 a = Analysis(
     ['server.py'],
     pathex=[],
     binaries=[],
-    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas,
-    hiddenimports=["pykakasi", "jaconv"],
+    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas + _pot_datas,
+    hiddenimports=["pykakasi", "jaconv"] + _pot_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

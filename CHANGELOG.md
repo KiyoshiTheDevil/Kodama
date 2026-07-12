@@ -8,6 +8,25 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 > Changes landing after the latest release accumulate here.
 
+## [1.0.0-alpha.29] — 2026-07-11
+
+### Added
+- **More reliable playback** — a proof-of-origin token path lets the app fetch many tracks that previously failed with *"not available"*, a Premium wall, or a *"confirm you're not a bot"* check.
+- **Search overhaul** — a mixed *All* results view, a **Playlists** tab, live autocomplete, and paste a playlist link (including unlisted "link only" ones) to open it directly.
+- **Share playlists** — copy a YouTube Music / YouTube link for a whole playlist from its menu.
+- **Visualizer presets** — save, import and export visualizer setups (plus a reset-to-default).
+- **Anonymous usage stats** — an opt-out active-user counter (rotating token, no personal data).
+- **Quick actions** — track numbering, start a playlist shuffled, and add-to-queue / play-next / start-radio in the track menu.
+
+### Changed
+- **Loading spinner** in the player bar while a track resolves.
+- **Higher-resolution cover art** in the player.
+
+### Fixed
+- **Google sign-in on macOS** no longer blocked with *"browser may not be secure"* (thanks @SchmidtiTv).
+- **Audio crackle** at the very start of playback.
+- **Search "0 songs"** on some playlists and a playlist-cache glitch.
+
 ## [1.0.0-alpha.28] — 2026-07-07
 
 ### Fixed

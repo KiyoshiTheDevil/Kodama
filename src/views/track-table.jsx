@@ -2,12 +2,12 @@
 // PlaylistLayout (used by playlist / album / liked / downloads / history). Extracted from App.jsx.
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { thumb, useLang, useAnimations } from "../context.jsx";
+import { thumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
-import { ArrowClockwise, ArrowLeft, CheckCircle, ClockCounterClockwise, Crown, DownloadSimple, Heart, MagnifyingGlass, Pause, Play, Trash } from "../icons.jsx";
+import { ArrowClockwise, ArrowLeft, CheckCircle, ClockCounterClockwise, Crown, DownloadSimple, Heart, MagnifyingGlass, Pause, Play, Shuffle, Trash } from "../icons.jsx";
 
 function formatTotalDuration(tracks) {
   const totalSecs = tracks.reduce((sum, t) => sum + (parseDurationToSeconds(t.duration) || 0), 0);
@@ -56,6 +56,7 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
 export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect }) {
   const anim = useAnimations();
   const t = useLang();
+  const showNum = useTrackNumbers();
 
   const gridCols = onToggleSelect
     ? (isAlbum ? "28px minmax(0,2fr) minmax(0,1fr) 28px 52px" : "28px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px")
@@ -87,6 +88,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
       )}
       {/* Title */}
       <div className="flex items-center gap-3 min-w-0">
+        {showNum && <span className={`w-6 text-right shrink-0 text-t12 tabular-nums ${isPlaying ? "text-accent" : "text-muted"}`}>{index + 1}</span>}
         <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-md bg-elevated">
           {track.thumbnail
             ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
@@ -304,7 +306,8 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
 
             {/* Action buttons — play left, secondary right */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              {/* Left: play */}
+              {/* Left: play + shuffle */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => tracks.length && onPlay(tracks[0], tracks)} style={{
                 background: `rgba(${accentColor},0.18)`,
                 border: `1px solid rgba(${accentColor},0.38)`,
@@ -320,6 +323,22 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                 <Play size={14} weight="fill" style={{ color: "var(--accent)" }} />
                 {t("playAll")}
               </button>
+              {/* Shuffle: start the collection in a shuffled order without touching the player-bar shuffle toggle */}
+              <button title={t("shuffle")} onClick={() => { if (!tracks.length) return; const sh = [...tracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }} style={{
+                background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)",
+                borderRadius: 28, height: 50, padding: "0 22px",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+                cursor: "default", transition: "background 0.18s, transform 0.15s",
+                fontSize: "var(--t14)", fontWeight: 600, color: "var(--text-secondary)",
+                fontFamily: "var(--font)",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.transform = "scale(1.03)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "scale(1)"; }}
+              >
+                <Shuffle size={15} />
+                {t("shuffle")}
+              </button>
+              </div>
 
               {/* Right: secondary actions */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

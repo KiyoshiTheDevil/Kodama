@@ -6,6 +6,8 @@
   <p>An unofficial desktop player for YouTube Music.</p>
 
   [![Version](https://img.shields.io/github/v/release/KiyoshiTheDevil/Kodama?include_prereleases&style=for-the-badge&color=a855f7&label=version)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
+  [![Downloads](https://img.shields.io/github/downloads/KiyoshiTheDevil/Kodama/total?style=for-the-badge&color=a855f7&label=downloads)](https://github.com/KiyoshiTheDevil/Kodama/releases)
+  [![Active users](https://img.shields.io/endpoint?style=for-the-badge&url=https%3A%2F%2Fkodama-stats.kiyoshidesign.workers.dev%2Fbadge%3Fmetric%3Dmau)](https://github.com/KiyoshiTheDevil/Kodama)
   [![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS-0078d4?style=for-the-badge)](https://github.com/KiyoshiTheDevil/Kodama/releases/latest)
   [![Tauri](https://img.shields.io/badge/Tauri-2.x-24c8db?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app)
   [![Crowdin](https://img.shields.io/badge/translate-Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=white)](https://crowdin.com/project/kiyoshi-music)

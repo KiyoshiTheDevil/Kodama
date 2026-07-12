@@ -1,4 +1,9 @@
 {
+  "bundle": {
+    "resources": {
+      "resources/node": "node"
+    }
+  },
   "app": {
     "windows": [
       {

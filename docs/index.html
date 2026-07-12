@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kodama — A desktop player for YouTube Music</title>
+  <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
+  <style>
+    @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Semibold.ttf') format('truetype'); font-weight:600; font-display:swap; }
+    :root {
+      --accent:#e040fb; --bg-base:#0d0d0d; --t1:#f5f5f5; --t2:#b4b4b4; --t3:#7a7a7a;
+      --hover:rgba(255,255,255,0.06);
+      --font:'MiSans Latin',-apple-system,"Segoe UI",Roboto,sans-serif;
+      color-scheme:dark;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; font-family:var(--font); color:var(--t1); line-height:1.5;
+      background:radial-gradient(80% 55% at 50% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg-base);
+      background-attachment:fixed; min-height:100vh;
+    }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width:1100px; margin:0 auto; padding:0 24px; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
+    header img { height:28px; }
+    header nav a { color:var(--t2); font-size:14px; margin-left:22px; transition:color .12s; }
+    header nav a:hover { color:var(--t1); }
+    .hero { text-align:center; padding:34px 0 52px; }
+    .tagline { font-size:clamp(15px,2.3vw,18px); color:var(--t2); max-width:540px; margin:0 auto 30px; }
+    .tagline b { color:var(--t1); font-weight:600; }
+
+    /* ── App window mockup ─────────────────────────────────────── */
+    .device {
+      position:relative; margin:0 auto; max-width:1000px; aspect-ratio:1.78;
+      border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.08);
+      box-shadow:0 50px 120px rgba(0,0,0,0.62);
+      display:flex; flex-direction:column; text-align:left; font-size:13px;
+      background:
+        radial-gradient(36% 42% at 70% 14%, rgba(255,120,70,0.34), transparent 62%),
+        radial-gradient(42% 50% at 88% 66%, rgba(70,200,150,0.20), transparent 62%),
+        radial-gradient(48% 56% at 22% 90%, rgba(224,64,251,0.24), transparent 62%),
+        radial-gradient(40% 50% at 8% 16%, rgba(90,120,255,0.18), transparent 62%),
+        #0c0c0e;
+    }
+    .device::after { content:""; position:absolute; inset:0; background:rgba(8,8,10,0.30); pointer-events:none; }
+    .device > * { position:relative; z-index:1; }
+    .icon { width:17px; height:17px; flex:none; stroke:currentColor; stroke-width:1.7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+    .winctl { position:absolute; top:9px; right:12px; z-index:3; display:flex; gap:17px; color:var(--t3); }
+
+    .body { flex:1; display:flex; min-height:0; }
+
+    /* Sidebar */
+    .sidebar { width:220px; flex:none; display:flex; flex-direction:column; gap:2px; padding:10px 10px 8px; }
+    .sb-head { display:flex; align-items:center; gap:9px; padding:2px 6px 10px; color:var(--t2); }
+    .sb-head .logo { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; color:var(--t1); }
+    .sb-head .logo .mark { width:17px; height:17px; border-radius:5px; background:var(--accent); display:inline-block; }
+    .sb-head .ref { margin-left:auto; color:var(--t3); }
+    .search { display:flex; align-items:center; gap:8px; margin:0 2px 9px; padding:8px 10px; border-radius:10px;
+      background:rgba(255,255,255,0.06); color:var(--t3); font-size:12px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+    .nav { display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:10px; color:var(--t2); font-size:13px; }
+    .nav:hover { background:var(--hover); color:var(--t1); }
+    .divider { height:1px; background:rgba(255,255,255,0.07); margin:7px 8px; }
+    .seclabel { display:flex; align-items:center; gap:6px; font-size:9.5px; font-weight:600; letter-spacing:.09em; color:var(--t3); text-transform:uppercase; margin:12px 10px 5px; }
+    .seclabel .chev { margin-left:auto; }
+    .pin { display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:10px; color:var(--t2); }
+    .pin:hover { background:var(--hover); }
+    .pin .cv { width:30px; height:30px; border-radius:7px; flex:none; background:linear-gradient(135deg,#ff7eb3,#a23cff); display:flex; align-items:center; justify-content:center; }
+    .newpl { display:flex; align-items:center; gap:11px; padding:8px 10px; color:var(--t2); font-size:13px; margin-top:6px; }
+    .update { display:flex; align-items:center; gap:8px; margin:8px 2px 4px; padding:7px 10px; border-radius:9px; font-size:11.5px; color:var(--accent);
+      background:color-mix(in srgb, var(--accent) 14%, transparent); }
+    .acct { display:flex; align-items:center; gap:10px; padding:8px 6px 2px; }
+    .acct .av { width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,#ff9a3c,#e0408b); }
+    .acct .nm { font-size:12px; font-weight:600; }
+    .acct .hd { font-size:10.5px; color:var(--t3); }
+    .acct .bell { margin-left:auto; color:var(--t3); }
+
+    /* Main — full-width synced lyrics */
+    .main { flex:1; min-width:0; overflow:hidden; display:flex; flex-direction:column; justify-content:center; gap:18px; padding:0 7% 0 6%; }
+    .ly .m { font-size:clamp(15px,2.6vw,26px); font-weight:600; line-height:1.18; }
+    .ly .t { font-size:clamp(10px,1.4vw,14px); margin-top:3px; }
+    .ly { color:var(--t1); }
+    .ly.far { opacity:.32; filter:blur(1.1px); }
+    .ly.near { opacity:.6; }
+    .ly .t { color:var(--t3); }
+    .ly.act .m { color:#fff; }
+    .ly.act .t { color:var(--accent); font-weight:600; }
+
+    /* Player bar */
+    .player { flex:none; position:relative; height:74px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; padding:0 18px; }
+    .seek { position:absolute; top:0; left:0; right:0; height:4px; background:rgba(255,255,255,0.13); }
+    .seek i { display:block; height:100%; width:30%; background:var(--accent); }
+    .pl-left { display:flex; align-items:center; gap:11px; min-width:0; }
+    .pl-left .cv { width:48px; height:48px; border-radius:9px; flex:none; background:linear-gradient(150deg,#ff5ea8,#9b3cff 60%,#3a2bd8); }
+    .pl-left .ti { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pl-left .ar { font-size:11px; color:var(--t2); }
+    .pl-left .tm { font-size:10px; color:var(--t3); margin-top:1px; }
+    .pl-left .hk { color:var(--accent); margin-left:2px; }
+    .ctrls { display:flex; align-items:center; gap:18px; color:var(--t1); }
+    .ctrls .muted { color:var(--t2); }
+    .playbtn { width:44px; height:44px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex:none;
+      box-shadow:0 6px 20px color-mix(in srgb, var(--accent) 42%, transparent); }
+    .playbtn .icon { fill:#fff; stroke:none; width:16px; height:16px; }
+    .pl-right { display:flex; align-items:center; justify-content:flex-end; gap:15px; color:var(--t2); }
+    .vol { display:flex; align-items:center; gap:8px; }
+    .volbar { width:58px; height:4px; border-radius:3px; background:rgba(255,255,255,0.14); overflow:hidden; }
+    .volbar i { display:block; width:60%; height:100%; background:var(--t2); }
+
+    .below { text-align:center; margin-top:40px; }
+    .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+    .btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px; transition:transform .12s, background .12s, filter .12s; }
+    .btn:active { transform:scale(.985); }
+    .primary { background:var(--accent); color:#fff; box-shadow:0 8px 26px color-mix(in srgb, var(--accent) 35%, transparent); }
+    .primary:hover { filter:brightness(1.08); }
+    .secondary { background:rgba(255,255,255,0.07); color:var(--t1); }
+    .secondary:hover { background:rgba(255,255,255,0.12); }
+    .platforms { margin-top:15px; font-size:13px; color:var(--t3); }
+    footer { border-top:1px solid rgba(255,255,255,0.07); margin-top:64px; padding:26px 0 40px; color:var(--t3); font-size:12.5px; }
+    footer .wrap { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    footer a { color:var(--t2); margin-left:18px; }
+    footer a:hover { color:var(--t1); }
+
+    @media (max-width:760px) {
+      .device { aspect-ratio:auto; }
+      .sidebar { display:none; }
+      .main { padding:26px 24px; gap:14px; }
+      .pl-right .vol, .pl-right .x { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="s/Kodama-Logo-Full.svg" alt="Kodama">
+      <nav>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases/latest" target="_blank" rel="noopener">Download</a>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <p class="tagline">A desktop player for <b>YouTube Music</b> — synced lyrics, deep personalization, and more.</p>
+
+      <div class="device" role="img" aria-label="Kodama app interface — synced lyrics view">
+        <div class="winctl">
+          <svg class="icon" viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8"/></svg>
+          <svg class="icon" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>
+          <svg class="icon" viewBox="0 0 16 16"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </div>
+
+        <div class="body">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div class="sb-head">
+              <svg class="icon" viewBox="0 0 16 16" style="width:15px;height:15px"><polyline points="9 4 5 8 9 12"/><polyline points="13 4 9 8 13 12"/></svg>
+              <span class="logo"><span class="mark"></span>Kodama</span>
+              <svg class="icon ref" viewBox="0 0 16 16" style="width:14px;height:14px"><path d="M13 8a5 5 0 1 1-1.5-3.5"/><polyline points="13 2 13 5 10 5"/></svg>
+            </div>
+            <div class="search">
+              <svg class="icon" viewBox="0 0 16 16" style="width:14px;height:14px"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg> Search…
+            </div>
+            <div class="nav"><svg class="icon" viewBox="0 0 16 16"><path d="M2.5 7L8 2.5 13.5 7v6a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1z"/></svg> Home</div>
+            <div class="nav"><svg class="icon" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4" height="11" rx="1"/><rect x="9.5" y="2.5" width="4" height="11" rx="1"/></svg> Library</div>
+            <div class="divider"></div>
+            <div class="nav"><svg class="icon" viewBox="0 0 16 16"><path d="M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 0 1 8 5a2.7 2.7 0 0 1 5.5 1.2C13.5 10 8 13.5 8 13.5z"/></svg> Liked Songs</div>
+            <div class="nav"><svg class="icon" viewBox="0 0 16 16"><path d="M8 3a5 5 0 1 1-4.7 3.3"/><polyline points="3 3 3 6.2 6 6.2"/><polyline points="8 5.5 8 8 10 9.2"/></svg> History</div>
+            <div class="nav"><svg class="icon" viewBox="0 0 16 16"><path d="M8 2.5v7"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="13" x2="13" y2="13"/></svg> Downloads</div>
+            <div class="seclabel">Recently opened <svg class="icon chev" viewBox="0 0 16 16" style="width:12px;height:12px"><polyline points="4 10 8 6 12 10"/></svg></div>
+            <div class="pin"><span class="cv"><svg class="icon" viewBox="0 0 16 16" style="width:15px;height:15px;color:#fff"><path d="M6 7v6H3.5V7zM6 7l2.5-4.5c1 0 1.6.8 1.4 1.7L9.4 7H12a1 1 0 0 1 1 1.2l-1 4a1 1 0 0 1-1 .8H6"/></svg></span> Liked Music</div>
+            <div class="newpl"><svg class="icon" viewBox="0 0 16 16"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg> New Playlist</div>
+            <div style="margin-top:auto"></div>
+            <div class="update"><svg class="icon" viewBox="0 0 16 16" style="width:13px;height:13px"><path d="M8 2.5v7"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="13" x2="13" y2="13"/></svg> Update available</div>
+            <div class="acct">
+              <span class="av"></span>
+              <span><div class="nm">Kiyoshi The Devil</div><div class="hd">@kiyoshi_the_devil</div></span>
+              <svg class="icon bell" viewBox="0 0 16 16" style="width:14px;height:14px"><path d="M4 6.5a4 4 0 0 1 8 0c0 3 1 4 1 4H3s1-1 1-4z"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0"/></svg>
+            </div>
+          </div>
+
+          <!-- Lyrics -->
+          <div class="main">
+            <div class="ly far"><div class="m">夜空に消えていく</div><div class="t">Fading into the night sky</div></div>
+            <div class="ly near"><div class="m">君の声を探して</div><div class="t">Searching for your voice</div></div>
+            <div class="ly act"><div class="m">二人で歩いた道</div><div class="t">The road we walked together</div></div>
+            <div class="ly near"><div class="m">朝が来るまで</div><div class="t">Until the morning comes</div></div>
+            <div class="ly far"><div class="m">もう一度だけ</div><div class="t">Just one more time</div></div>
+          </div>
+        </div>
+
+        <!-- Player bar -->
+        <div class="player">
+          <div class="seek"><i></i></div>
+          <div class="pl-left">
+            <span class="cv"></span>
+            <span style="min-width:0">
+              <div class="ti">夜明けまで — Until Dawn</div>
+              <div class="ar">Aoi Hoshino</div>
+              <div class="tm">0:37 / 2:02</div>
+            </span>
+            <svg class="icon hk" viewBox="0 0 16 16" style="fill:currentColor;stroke:none;width:15px;height:15px"><path d="M8 14S2 10.5 2 6.4A2.9 2.9 0 0 1 8 5a2.9 2.9 0 0 1 6 1.4C14 10.5 8 14 8 14z"/></svg>
+          </div>
+          <div class="ctrls">
+            <svg class="icon muted" viewBox="0 0 16 16"><path d="M2 4h3l6 8h3"/><path d="M2 12h3l2.5-3.4"/><polyline points="12 2 14 4 12 6"/><polyline points="12 10 14 12 12 14"/></svg>
+            <svg class="icon" viewBox="0 0 16 16" style="fill:currentColor;stroke:none"><path d="M5 3v10M13 3L6.5 8 13 13z"/></svg>
+            <span class="playbtn"><svg class="icon" viewBox="0 0 16 16"><rect x="4" y="3" width="3" height="10" rx="1"/><rect x="9" y="3" width="3" height="10" rx="1"/></svg></span>
+            <svg class="icon" viewBox="0 0 16 16" style="fill:currentColor;stroke:none"><path d="M11 3v10M3 3l6.5 5L3 13z"/></svg>
+            <svg class="icon muted" viewBox="0 0 16 16"><polyline points="4 2 6 4 4 6"/><path d="M6 4H4.5A2.5 2.5 0 0 0 2 6.5V8"/><polyline points="12 14 10 12 12 10"/><path d="M10 12h1.5A2.5 2.5 0 0 0 14 9.5V8"/></svg>
+          </div>
+          <div class="pl-right">
+            <div class="vol x"><svg class="icon" viewBox="0 0 16 16"><path d="M3 6v4h2.5L9 13V3L5.5 6z"/><path d="M11 6.5a2.2 2.2 0 0 1 0 3"/></svg><span class="volbar"><i></i></span></div>
+            <svg class="icon" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/></svg>
+            <svg class="icon x" viewBox="0 0 16 16"><circle cx="8" cy="3.5" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="8" cy="12.5" r="1"/></svg>
+            <svg class="icon" viewBox="0 0 16 16"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="9" y2="12"/></svg>
+            <svg class="icon" viewBox="0 0 16 16"><path d="M3 6V4a1 1 0 0 1 1-1h2"/><path d="M13 6V4a1 1 0 0 0-1-1h-2"/><path d="M3 10v2a1 1 0 0 0 1 1h2"/><path d="M13 10v2a1 1 0 0 1-1 1h-2"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap below">
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/KiyoshiTheDevil/Kodama/releases/latest" target="_blank" rel="noopener">Download Kodama</a>
+      <a class="btn secondary" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+    <div class="platforms">Windows &amp; macOS · Free · Open beta</div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Kodama — an independent project. Not affiliated with YouTube or Google.</span>
+      <span>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
+      </span>
+    </div>
+  </footer>
+</body>
+</html>
