@@ -10488,19 +10488,21 @@ export default function App() {
         method: "POST", headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(500), body: JSON.stringify(payload),
       }).catch(() => {});
-      // Built-in overlay server
-      if (obsEnabled) {
-        fetch(`${API}/overlay/push`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(500), body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
+      // Built-in overlay backend state. Pushed unconditionally (cheap localhost POST, 1/s):
+      // it feeds the overlay-editor live preview and the OBS overlay page, both of which read
+      // the backend's _ov_state. Gating this on obsEnabled meant the editor preview showed
+      // "No Music" whenever the OBS server toggle happened to be off (incl. when it was only
+      // enabled in the separate editor window, which has its own obsEnabled state).
+      fetch(`${API}/overlay/push`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(500), body: JSON.stringify(payload),
+      }).catch(() => {});
     };
 
     report();
     const id = setInterval(report, 1000);
     return () => clearInterval(id);
-  }, [currentTrack, isPlaying, obsEnabled]);
+  }, [currentTrack, isPlaying]);
 
   const handlePlay = useCallback((track, trackList) => {
     setCurrentTrack(track);
