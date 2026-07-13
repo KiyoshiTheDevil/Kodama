@@ -2,10 +2,6 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "linux": {
-      "appimage": {
-        "bundleDesktopEntry": true,
-        "bundleAppImage": true
-      },
       "deb": {
         "depends": ["libwebkit2gtk-4.1", "libssl3", "libgtk-3-0"]
       }
