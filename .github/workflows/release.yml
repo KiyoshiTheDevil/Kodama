@@ -343,6 +343,41 @@ jobs:
           done < <(find squashfs-root/usr/lib -name '*.so*' -type f)
           echo "replaced $count bundled libs with system copies"
 
+          # WebKitGTK spawns its helper processes (WebKitNetworkProcess/WebKitWebProcess/...)
+          # from a libexec dir that's compiled in as an ABSOLUTE path
+          # (/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1), which doesn't exist on the target
+          # (confirmed on Steam Deck: "Failed to spawn ... No such file or directory"). WebKit
+          # honors the WEBKIT_EXEC_PATH env var to override that, so wrap the real binary in a
+          # tiny launcher script that points it at the AppImage's own bundled copy. Make sure
+          # that bundled copy actually exists first (it's executables, not *.so*, so the lib
+          # sync above never touched it).
+          SYS_WK_DIR=/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+          BUNDLE_WK_DIR=squashfs-root/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+          if [ -d "$SYS_WK_DIR" ]; then
+            mkdir -p "$BUNDLE_WK_DIR"
+            cp -a "$SYS_WK_DIR"/. "$BUNDLE_WK_DIR"/
+            echo "synced webkit2gtk helper processes from system:"; ls "$BUNDLE_WK_DIR"
+          else
+            echo "::error::system webkit2gtk-4.1 helper dir not found at $SYS_WK_DIR"; exit 1
+          fi
+
+          DESKTOP=$(find squashfs-root -maxdepth 1 -name '*.desktop' | head -1)
+          BIN_NAME=$(grep '^Exec=' "$DESKTOP" | head -1 | sed 's/^Exec=//' | awk '{print $1}')
+          BIN_PATH="squashfs-root/usr/bin/$BIN_NAME"
+          if [ -f "$BIN_PATH" ]; then
+            mv "$BIN_PATH" "$BIN_PATH.bin"
+            cat > "$BIN_PATH" <<WRAP
+#!/bin/sh
+HERE="\$(cd "\$(dirname "\$(readlink -f "\$0")")" && pwd)"
+export WEBKIT_EXEC_PATH="\$HERE/../lib/x86_64-linux-gnu/webkit2gtk-4.1"
+exec "\$HERE/$BIN_NAME.bin" "\$@"
+WRAP
+            chmod +x "$BIN_PATH"
+            echo "wrapped $BIN_NAME to export WEBKIT_EXEC_PATH"
+          else
+            echo "::error::binary $BIN_PATH not found (parsed from $DESKTOP)"; exit 1
+          fi
+
           curl -fsSL -o appimagetool.AppImage \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool.AppImage
@@ -370,6 +405,20 @@ jobs:
           }
           check libglib-2.0.so.0 g_memdup2
           check libcairo.so.2 cairo_xlib_surface_get_display
+
+          if ls squashfs-root/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess >/dev/null 2>&1; then
+            echo "OK: webkit2gtk helper processes are bundled"
+          else
+            echo "::error::webkit2gtk-4.1 helper processes missing from bundle"; fail=1
+          fi
+          DESKTOP=$(find squashfs-root -maxdepth 1 -name '*.desktop' | head -1)
+          BIN_NAME=$(grep '^Exec=' "$DESKTOP" | head -1 | sed 's/^Exec=//' | awk '{print $1}')
+          if grep -q WEBKIT_EXEC_PATH "squashfs-root/usr/bin/$BIN_NAME" 2>/dev/null; then
+            echo "OK: $BIN_NAME wrapper exports WEBKIT_EXEC_PATH"
+          else
+            echo "::error::$BIN_NAME is not wrapped with WEBKIT_EXEC_PATH"; fail=1
+          fi
+
           rm -rf squashfs-root
           exit $fail
       - name: Collect Linux artifacts
