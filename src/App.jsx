@@ -4738,9 +4738,17 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                       </div>
                       <div className="ml-auto flex items-center gap-3 shrink-0">
                         {lang.comingSoon ? (
-                          <ChipRoot size="sm" variant="secondary">
-                            <ChipLabel className="text-[10px]">{t("comingSoon")}</ChipLabel>
-                          </ChipRoot>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              <ProgressBar aria-label="Translation progress" value={pct} className="w-28 gap-0!">
+                                <ProgressBarTrack className="h-1.5!">
+                                  <ProgressBarFill />
+                                </ProgressBarTrack>
+                              </ProgressBar>
+                              <span className="text-[10px] text-muted tabular-nums shrink-0">{pct}%</span>
+                            </div>
+                            <span className="text-[10px] text-muted">{t("comingSoon")}</span>
+                          </div>
                         ) : pct < 100 ? (
                           <div className="flex items-center gap-2">
                             <ProgressBar aria-label="Translation progress" value={pct} className="w-28 gap-0!">
