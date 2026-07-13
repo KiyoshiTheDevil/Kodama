@@ -5,110 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kodama — A desktop player for YouTube Music</title>
   <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
-  <style>
-    @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
-    @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Semibold.ttf') format('truetype'); font-weight:600; font-display:swap; }
-    :root {
-      --accent:#0AFFFB; --bg-base:#0d0d0d; --t1:#f5f5f5; --t2:#b4b4b4; --t3:#7a7a7a;
-      --hover:rgba(255,255,255,0.06);
-      --font:'MiSans Latin',-apple-system,"Segoe UI",Roboto,sans-serif;
-      color-scheme:dark;
-    }
-    * { box-sizing:border-box; }
-    body {
-      margin:0; font-family:var(--font); color:var(--t1); line-height:1.5;
-      background:radial-gradient(80% 55% at 50% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg-base);
-      background-attachment:fixed; min-height:100vh; position:relative; overflow-x:hidden;
-    }
-    a { color:inherit; text-decoration:none; }
-    .wrap { max-width:1100px; margin:0 auto; padding:0 24px; position:relative; z-index:1; }
-    /* Ambient decorative visualizer behind the hero, full page width. */
-    .hero-viz { position:absolute; top:0; left:0; width:100%; height:860px; z-index:0; pointer-events:none; }
-    header { display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
-    header img { height:28px; }
-    header nav a { color:var(--t2); font-size:14px; margin-left:22px; transition:color .12s; }
-    header nav a:hover { color:var(--t1); }
-    .hero { text-align:center; padding:34px 0 52px; }
-    .tagline { font-size:clamp(15px,2.3vw,18px); color:var(--t2); max-width:540px; margin:0 auto 30px; }
-    .tagline b { color:var(--t1); font-weight:600; }
-
-    /* ── App window mockup ─────────────────────────────────────── */
-    .device {
-      position:relative; margin:0 auto; max-width:1000px;
-      border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.10);
-      box-shadow:0 50px 120px rgba(0,0,0,0.62); line-height:0;
-    }
-    .shot { display:block; width:100%; height:auto; }
-
-    /* Feature showcase */
-    .section { padding:78px 0 6px; }
-    .section h2 { font-size:clamp(22px,3.4vw,32px); font-weight:600; margin:0 0 10px; text-align:center; }
-    .section .sub { color:var(--t2); text-align:center; max-width:560px; margin:0 auto 34px; font-size:15px; }
-    .showcase { max-width:1000px; margin:0 auto; border-radius:14px; overflow:hidden; line-height:0;
-      border:1px solid rgba(255,255,255,0.09); box-shadow:0 40px 90px rgba(0,0,0,0.5); }
-    .showcase img, .showcase video { display:block; width:100%; height:auto; }
-    .showcase .scv-static { display:none; }
-    /* Respect reduced-motion: show the static poster instead of the looping video. */
-    @media (prefers-reduced-motion: reduce) {
-      .showcase video { display:none; }
-      .showcase .scv-static { display:block; }
-    }
-    .feat-grid { display:grid; grid-template-columns:repeat(3,minmax(240px,1fr)); gap:18px; margin-top:46px; }
-    .feat { position:relative; overflow:hidden; background:rgba(255,255,255,0.04); border-radius:12px; padding:20px;
-      -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-      transition:transform .15s ease, background .15s; }
-    .feat:hover { transform:translateY(-2px); background:rgba(255,255,255,0.065); }
-    .feat h3, .feat p { position:relative; z-index:1; }
-    /* Large watermark icon, bleeding off the bottom-right corner. */
-    .feat-ic { position:absolute; right:-14px; bottom:-18px; width:112px; height:112px; z-index:0;
-      color:var(--t1); opacity:0.08; pointer-events:none; }
-    .feat-ic svg { width:100%; height:100%; display:block; }
-    .feat h3 { font-size:15px; font-weight:600; margin:0 0 6px; }
-    .feat p { color:var(--t2); font-size:13.5px; margin:0; line-height:1.5; }
-
-    /* Live stats (active users + downloads) */
-    .stats { display:flex; justify-content:center; gap:14px; margin:2px auto 26px; flex-wrap:wrap; }
-    .stat { background:rgba(255,255,255,0.04); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-      border-radius:12px; padding:13px 26px; min-width:132px; text-align:center; }
-    .stat b { display:block; font-size:26px; font-weight:600; color:var(--t1); line-height:1.1; font-variant-numeric:tabular-nums; }
-    .stat span { display:block; font-size:12px; color:var(--t3); margin-top:3px; }
-
-    .below { text-align:center; margin-top:40px; }
-    .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-    .btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
-      transition:transform .50s ease, background .15s, box-shadow .18s, border-color .15s, filter .12s; }
-    .btn:active { transform:scale(.97); }  /* the app's tactile press */
-    /* Primary: flat accent fill like the app's regular buttons (no glow). */
-    .primary { background:var(--accent); color:#000000; border-radius:12px 4px 4px 12px; }
-    .primary:hover { filter:brightness(1.06); }
-    /* Secondary is a borderless glass surface like the app's translucent buttons. */
-    .secondary { background:rgba(255,255,255,0.05); color:var(--t1);
-      -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-radius:4px 12px 12px 4px; font-weight:400;}
-    .secondary:hover { background:rgba(255,255,255,0.10); }
-    .platforms { margin-top:15px; font-size:13px; color:var(--t3); }
-    footer { border-top:1px solid rgba(255,255,255,0.07); margin-top:64px; padding:26px 0 40px; color:var(--t3); font-size:12.5px; }
-    footer .wrap { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-    footer a { color:var(--t2); margin-left:18px; }
-    footer a:hover { color:var(--t1); }
-
-    @media (max-width:760px) {
-      .feat-grid { grid-template-columns:1fr 1fr; }
-      .section { padding:52px 0 4px; }
-    }
-    @media (max-width:460px) {
-      .feat-grid { grid-template-columns:1fr; }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <canvas class="hero-viz" aria-hidden="true"></canvas>
   <div class="wrap">
     <header>
       <img src="s/Kodama-Logo-Full.svg" alt="Kodama">
-      <nav>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases/latest" target="_blank" rel="noopener">Download</a>
-      </nav>
+      <div class="hdr-right">
+        <span class="hstats" id="stats" hidden>
+          <span id="statMauBox"><b id="statMau">–</b> active this month</span>
+          <span id="statSep">·</span>
+          <span id="statDlBox"><b id="statDl">–</b> downloads</span>
+        </span>
+        <nav>
+          <a href="versions.html">Changelog</a>
+          <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
+        </nav>
+      </div>
     </header>
 
     <div class="hero">
@@ -120,12 +35,9 @@
   </div>
 
   <div class="wrap below">
-    <div class="stats" id="stats" hidden>
-      <div class="stat" id="statMauBox"><b id="statMau">–</b><span>active this month</span></div>
-      <div class="stat" id="statDlBox"><b id="statDl">–</b><span>downloads</span></div>
-    </div>
+    <div class="dl-version" id="dlVersion"></div>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/KiyoshiTheDevil/Kodama/releases/latest" target="_blank" rel="noopener">Download Kodama</a>
+      <a class="btn primary" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Download Kodama</a>
       <a class="btn secondary" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">View on GitHub</a>
     </div>
     <div class="platforms">Windows &amp; macOS · Free · Open alpha</div>
@@ -218,16 +130,37 @@
       var t0 = performance.now(), dur = 900;
       (function step(t){ var p = Math.min(1,(t-t0)/dur); el.textContent = human(Math.round((1-Math.pow(1-p,3))*target)); if (p<1) requestAnimationFrame(step); })(performance.now());
     }
+    function syncSep(){
+      var sep = document.getElementById('statSep'); if (!sep) return;
+      var mv = document.getElementById('statMauBox').style.display !== 'none';
+      var dv = document.getElementById('statDlBox').style.display !== 'none';
+      sep.style.display = (mv && dv) ? '' : 'none';
+    }
     function fill(boxId, numId, val){
       var b = document.getElementById(boxId);
-      if (val == null || val <= 0){ if (b) b.style.display = 'none'; return; }
-      reveal(); countUp(document.getElementById(numId), val);
+      if (val == null || val <= 0){ if (b) b.style.display = 'none'; }
+      else { reveal(); countUp(document.getElementById(numId), val); }
+      syncSep();
     }
     fetch(STATS_URL + '/count').then(function(r){ return r.json(); })
       .then(function(d){ fill('statMauBox','statMau', d && d.mau); })
       .catch(function(){ fill('statMauBox','statMau', 0); });
     fetch('https://api.github.com/repos/' + REPO + '/releases').then(function(r){ return r.json(); })
-      .then(function(rs){ var t = 0; (rs||[]).forEach(function(rel){ (rel.assets||[]).forEach(function(a){ t += a.download_count||0; }); }); fill('statDlBox','statDl', t); })
+      .then(function(rs){
+        rs = rs || [];
+        var t = 0; rs.forEach(function(rel){ (rel.assets||[]).forEach(function(a){ t += a.download_count||0; }); });
+        fill('statDlBox','statDl', t);
+        // Latest published release -> version label + OS-aware direct download.
+        var latest = null; for (var i=0;i<rs.length;i++){ if (!rs[i].draft){ latest = rs[i]; break; } }
+        if (!latest) return;
+        var vEl = document.getElementById('dlVersion');
+        if (vEl) vEl.innerHTML = 'Latest version <b>' + latest.tag_name + '</b>';
+        var ua = navigator.userAgent, assets = latest.assets || [];
+        function pick(re){ for (var j=0;j<assets.length;j++){ if (re.test(assets[j].name)) return assets[j].browser_download_url; } return null; }
+        var url = /Mac/i.test(ua) ? pick(/\.dmg$/i) : /Win/i.test(ua) ? pick(/setup\.exe$|\.exe$/i) : null;
+        var btn = document.getElementById('dlBtn');
+        if (btn && url){ btn.href = url; btn.removeAttribute('target'); } // direct download
+      })
       .catch(function(){ fill('statDlBox','statDl', 0); });
   })();
   </script>

@@ -1,0 +1,127 @@
+/* Shared styles for the Kodama landing + versions pages. */
+@font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
+@font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Semibold.ttf') format('truetype'); font-weight:600; font-display:swap; }
+:root {
+  --accent:#0AFFFB; --bg-base:#0d0d0d; --t1:#f5f5f5; --t2:#b4b4b4; --t3:#7a7a7a;
+  --hover:rgba(255,255,255,0.06);
+  --font:'MiSans Latin',-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; font-family:var(--font); color:var(--t1); line-height:1.5;
+  background:radial-gradient(80% 55% at 50% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg-base);
+  background-attachment:fixed; min-height:100vh; position:relative; overflow-x:hidden;
+}
+a { color:inherit; text-decoration:none; }
+.wrap { max-width:1100px; margin:0 auto; padding:0 24px; position:relative; z-index:1; }
+/* Ambient decorative visualizer behind the hero, full page width. */
+.hero-viz { position:absolute; top:0; left:0; width:100%; height:860px; z-index:0; pointer-events:none; }
+header { display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
+header img { height:28px; }
+header nav a { color:var(--t2); font-size:14px; margin-left:22px; transition:color .12s; }
+header nav a:hover { color:var(--t1); }
+.hero { text-align:center; padding:34px 0 52px; }
+.tagline { font-size:clamp(15px,2.3vw,18px); color:var(--t2); max-width:540px; margin:0 auto 30px; }
+.tagline b { color:var(--t1); font-weight:600; }
+
+/* ── App window mockup ─────────────────────────────────────── */
+.device {
+  position:relative; margin:0 auto; max-width:1000px;
+  border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.10);
+  box-shadow:0 50px 120px rgba(0,0,0,0.62); line-height:0;
+}
+.shot { display:block; width:100%; height:auto; }
+
+/* Feature showcase */
+.section { padding:78px 0 6px; }
+.section h2 { font-size:clamp(22px,3.4vw,32px); font-weight:600; margin:0 0 10px; text-align:center; }
+.section .sub { color:var(--t2); text-align:center; max-width:560px; margin:0 auto 34px; font-size:15px; }
+.showcase { max-width:1000px; margin:0 auto; border-radius:14px; overflow:hidden; line-height:0;
+  border:1px solid rgba(255,255,255,0.09); box-shadow:0 40px 90px rgba(0,0,0,0.5); }
+.showcase img, .showcase video { display:block; width:100%; height:auto; }
+.showcase .scv-static { display:none; }
+/* Respect reduced-motion: show the static poster instead of the looping video. */
+@media (prefers-reduced-motion: reduce) {
+  .showcase video { display:none; }
+  .showcase .scv-static { display:block; }
+}
+.feat-grid { display:grid; grid-template-columns:repeat(3,minmax(240px,1fr)); gap:18px; margin-top:46px; }
+.feat { position:relative; overflow:hidden; background:rgba(255,255,255,0.04); border-radius:12px; padding:20px;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  transition:transform .15s ease, background .15s; }
+.feat:hover { transform:translateY(-2px); background:rgba(255,255,255,0.065); }
+.feat h3, .feat p { position:relative; z-index:1; }
+/* Large watermark icon, bleeding off the bottom-right corner. */
+.feat-ic { position:absolute; right:-14px; bottom:-18px; width:112px; height:112px; z-index:0;
+  color:var(--t1); opacity:0.08; pointer-events:none; }
+.feat-ic svg { width:100%; height:100%; display:block; }
+.feat h3 { font-size:15px; font-weight:600; margin:0 0 6px; }
+.feat p { color:var(--t2); font-size:13.5px; margin:0; line-height:1.5; }
+
+/* Live stats in the header (active users + downloads) */
+.hdr-right { display:flex; align-items:center; gap:22px; }
+.hstats { color:var(--t3); font-size:13px; align-items:center; gap:8px; }
+.hstats:not([hidden]) { display:inline-flex; }
+.hstats b { color:var(--t1); font-weight:600; font-variant-numeric:tabular-nums; }
+@media (max-width:640px){ .hstats:not([hidden]) { display:none; } }
+
+.below { text-align:center; margin-top:40px; }
+.cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
+  transition:transform .50s ease, background .15s, box-shadow .18s, border-color .15s, filter .12s; }
+.btn:active { transform:scale(.97); }  /* the app's tactile press */
+/* Primary: flat accent fill like the app's regular buttons (no glow). */
+.primary { background:var(--accent); color:#000000; border-radius:12px 4px 4px 12px; }
+.primary:hover { filter:brightness(1.06); }
+/* Secondary is a borderless glass surface like the app's translucent buttons. */
+.secondary { background:rgba(255,255,255,0.05); color:var(--t1);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-radius:4px 12px 12px 4px; font-weight:400;}
+.secondary:hover { background:rgba(255,255,255,0.10); }
+.dl-version { font-size:13px; color:var(--t3); margin-bottom:12px; min-height:1em; }
+.dl-version b { color:var(--t2); font-weight:600; }
+.platforms { margin-top:15px; font-size:13px; color:var(--t3); }
+footer { border-top:1px solid rgba(255,255,255,0.07); margin-top:64px; padding:26px 0 40px; color:var(--t3); font-size:12.5px; }
+footer .wrap { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+footer a { color:var(--t2); margin-left:18px; }
+footer a:hover { color:var(--t1); }
+
+@media (max-width:760px) {
+  .feat-grid { grid-template-columns:1fr 1fr; }
+  .section { padding:52px 0 4px; }
+}
+@media (max-width:460px) {
+  .feat-grid { grid-template-columns:1fr; }
+}
+
+/* ── Versions / changelog page ─────────────────────────────── */
+.vhead { text-align:center; padding:26px 0 30px; }
+.vhead h1 { font-size:clamp(26px,4vw,38px); font-weight:600; margin:0 0 8px; }
+.releases { max-width:760px; margin:0 auto 40px; display:flex; flex-direction:column; gap:18px; }
+.rel { background:rgba(255,255,255,0.03); border-radius:14px; padding:22px 24px;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+.rel.latest { background:color-mix(in srgb, var(--accent) 7%, rgba(255,255,255,0.03));
+  box-shadow:0 30px 70px rgba(0,0,0,0.4); }
+.rel-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.rel-ver { font-size:20px; font-weight:600; margin:0; display:flex; align-items:center; gap:10px; }
+.rel-badge { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:#000; background:var(--accent); border-radius:6px; padding:2px 7px; }
+.rel-date { color:var(--t3); font-size:13px; }
+.rel-body { color:var(--t2); font-size:14px; margin-top:12px; }
+.rel-body h2, .rel-body h3, .rel-body h4 { color:var(--t1); font-size:14px; font-weight:600; margin:14px 0 6px; }
+.rel-body ul { margin:6px 0; padding-left:20px; }
+.rel-body li { margin:3px 0; }
+.rel-body p { margin:6px 0; }
+.rel-body strong { color:var(--t1); }
+.rel-body code { background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:4px; font-size:.9em; }
+.rel-body a { color:var(--accent); }
+.rel-dl { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.rel-dl a { font-size:13px; font-weight:600; padding:8px 16px; border-radius:9px; color:var(--t1);
+  background:rgba(255,255,255,0.06); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); transition:background .15s; }
+.rel-dl a:hover { background:rgba(255,255,255,0.12); }
+.rel.latest .rel-dl a.win { background:var(--accent); color:#000; }
+.mac-install { display:flex; flex-direction:column; gap:6px; }
+.mac-install code { font-size:12.5px; color:var(--t1); background:rgba(255,255,255,0.06);
+  border-radius:9px; padding:8px 14px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  white-space:nowrap; overflow-x:auto; max-width:100%; }
+.mac-install .mac-note { margin:0; font-size:12px; color:var(--t3); max-width:440px; }
