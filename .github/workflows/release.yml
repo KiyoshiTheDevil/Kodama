@@ -380,7 +380,7 @@ jobs:
               echo 'WEBKIT_DIR="$HERE/../lib/x86_64-linux-gnu/webkit2gtk-4.1"'
               echo "REAL_BIN=\"\$HERE/$BIN_NAME.bin\""
               echo 'if command -v bwrap >/dev/null 2>&1 && [ -d "$WEBKIT_DIR" ]; then'
-              echo '  exec bwrap --dev-bind / / --bind "$WEBKIT_DIR" /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 -- "$REAL_BIN" "$@"'
+              echo '  exec bwrap --dev-bind / / --tmp-overlay /usr/lib/x86_64-linux-gnu --bind "$WEBKIT_DIR" /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 -- "$REAL_BIN" "$@"'
               echo 'else'
               echo '  export WEBKIT_EXEC_PATH="$WEBKIT_DIR"'
               echo '  exec "$REAL_BIN" "$@"'
