@@ -636,6 +636,7 @@
   "ovlRadius": "Radius",
   "ovlCorners": "Corners",
   "ovlCornerType": "Corner type",
+  "ovlCornersIndividual": "Individual corners",
   "ovlRound": "Round",
   "ovlBevel": "Bevel",
   "ovlPlaceholder": "Placeholder",

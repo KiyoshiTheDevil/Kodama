@@ -636,6 +636,7 @@
   "ovlRadius": "Radius",
   "ovlCorners": "Ecken",
   "ovlCornerType": "Eckentyp",
+  "ovlCornersIndividual": "Einzelne Ecken",
   "ovlRound": "Rund",
   "ovlBevel": "Abgeschrägt",
   "ovlPlaceholder": "Platzhalter",

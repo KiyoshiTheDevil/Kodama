@@ -211,7 +211,7 @@ function PillNum({ prefix, value, onChange, min, max, step = 1 }) {
   };
   return (
     <div className="flex items-center h-8 w-full min-w-0 rounded-md bg-[var(--surface-2)] border border-border focus-within:border-accent">
-      <span onPointerDown={onScrub} className="shrink-0 w-7 pl-2 text-t11 text-muted select-none" style={{ cursor: "ew-resize" }}>{prefix}</span>
+      <span onPointerDown={onScrub} className="shrink-0 px-2 text-t11 text-muted select-none whitespace-nowrap" style={{ cursor: "ew-resize" }}>{prefix}</span>
       <div className="w-px h-4 bg-border shrink-0" />
       <input
         value={text}
@@ -629,6 +629,8 @@ export default function OverlayEditor({
   const [drawRect, setDrawRect] = useState(null); // live preview while drawing
   const [aspectLock, setAspectLock] = useState(false);
   const aspectLockRef = useRef(false);
+  const [canvasCornersInd, setCanvasCornersInd] = useState(false); // uniform ↔ per-corner radius (canvas)
+  const [layerCornersInd, setLayerCornersInd] = useState(false); // uniform ↔ per-corner radius (layer)
   aspectLockRef.current = aspectLock;
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -1390,36 +1392,63 @@ export default function OverlayEditor({
               <div className="text-t12 font-semibold text-primary mb-1">{t("ovlCanvas")}</div>
               <div className="text-t11 text-muted mb-3 leading-snug">{t("ovlNoSelection")}</div>
               <Section title={t("ovlSize")}>
-                <NumField label={t("ovlWidth")} value={doc.canvas.width} min={40} max={3840} onChange={(v) => updateCanvas({ width: v })} />
-                <NumField label={t("ovlHeight")} value={doc.canvas.height} min={20} max={2160} onChange={(v) => updateCanvas({ height: v })} />
+                <div className="grid grid-cols-2 gap-2">
+                  <PillNum prefix="W" value={doc.canvas.width} min={40} max={3840} onChange={(v) => updateCanvas({ width: v })} />
+                  <PillNum prefix="H" value={doc.canvas.height} min={20} max={2160} onChange={(v) => updateCanvas({ height: v })} />
+                </div>
                 <SwitchField label={t("overlayAutoHide")} checked={doc.canvas.autoHide} onChange={(v) => updateCanvas({ autoHide: v })} />
               </Section>
               <Section title={t("ovlBackground")}>
-                <ColorField label={t("ovlColor")} value={doc.canvas.bg?.color} onChange={(v) => updateCanvasBg({ color: v })} />
-                <NumField label={t("ovlOpacity")} value={doc.canvas.bg?.opacity} min={0} max={100} onChange={(v) => updateCanvasBg({ opacity: v })} />
+                <ColorField label={t("ovlColor")} value={doc.canvas.bg?.color} onChange={(v) => updateCanvasBg({ color: v })}
+                  opacity={doc.canvas.bg?.opacity} onOpacity={(v) => updateCanvasBg({ opacity: v })} />
                 <SwitchField label={t("ovlBlurFromCover")} checked={doc.canvas.bg?.blurFromCover} onChange={(v) => updateCanvasBg({ blurFromCover: v })} />
                 {doc.canvas.bg?.blurFromCover && (
-                  <NumField label={t("ovlBlur")} value={doc.canvas.bg?.blur} min={0} max={60} onChange={(v) => updateCanvasBg({ blur: v })} />
+                  <PillNum prefix={t("ovlBlur")} value={doc.canvas.bg?.blur} min={0} max={60} onChange={(v) => updateCanvasBg({ blur: v })} />
                 )}
               </Section>
-              <Section title={t("ovlCorners")}>
-                <NumField label={t("ovlRadius")} value={doc.canvas.corners?.TL} min={0} max={400}
-                  onChange={(v) => updateCanvas({ corners: uniformCorners(v, doc.canvas.corners?.typeTL || "r") })} />
-                <SelectField label={t("ovlCornerType")} value={doc.canvas.corners?.typeTL || "r"} options={CORNER_OPTS(t)}
-                  onChange={(v) => updateCanvas({ corners: uniformCorners(doc.canvas.corners?.TL ?? 0, v) })} />
+              <Section title={t("ovlCorners")} right={
+                <Button variant="ghost" size="sm" isIconOnly
+                  aria-label={t("ovlCornersIndividual") || "Individual corners"}
+                  onPress={() => setCanvasCornersInd((v) => !v)}
+                  className={canvasCornersInd ? "text-accent!" : ""}>
+                  <ArrowsOut size={13} />
+                </Button>}>
+                {!canvasCornersInd ? (
+                  <PillNum prefix={t("ovlRadius")} value={doc.canvas.corners?.TL} min={0} max={400}
+                    onChange={(v) => updateCanvas({ corners: uniformCorners(v, doc.canvas.corners?.typeTL || "r") })} />
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <PillNum prefix="TL" value={doc.canvas.corners?.TL ?? 0} min={0} max={400}
+                      onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TL: v } })} />
+                    <PillNum prefix="TR" value={doc.canvas.corners?.TR ?? 0} min={0} max={400}
+                      onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TR: v } })} />
+                    <PillNum prefix="BL" value={doc.canvas.corners?.BL ?? 0} min={0} max={400}
+                      onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BL: v } })} />
+                    <PillNum prefix="BR" value={doc.canvas.corners?.BR ?? 0} min={0} max={400}
+                      onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BR: v } })} />
+                  </div>
+                )}
+                <SelectField value={doc.canvas.corners?.typeTL || "r"} options={CORNER_OPTS(t)}
+                  onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), typeTL: v, typeTR: v, typeBR: v, typeBL: v } })} />
               </Section>
-              <Section title={t("ovlBorder")}>
-                <SwitchField label={t("ovlBorder")} checked={doc.canvas.border?.on} onChange={(v) => updateCanvasSub("border", { on: v })} />
+              <Section title={t("ovlBorder")} right={
+                <Switch isSelected={!!doc.canvas.border?.on} onChange={(v) => updateCanvasSub("border", { on: v })} aria-label={t("ovlBorder")}>
+                  <Switch.Control><Switch.Thumb /></Switch.Control>
+                </Switch>}>
                 {doc.canvas.border?.on && (<>
                   <ColorField label={t("ovlColor")} value={doc.canvas.border?.color} onChange={(v) => updateCanvasSub("border", { color: v })} />
-                  <NumField label={t("ovlBorderWidth")} value={doc.canvas.border?.width} min={0} max={40} step={0.5} onChange={(v) => updateCanvasSub("border", { width: v })} />
-                  <NumField label={t("ovlGlow")} value={doc.canvas.border?.glow} min={0} max={40} onChange={(v) => updateCanvasSub("border", { glow: v })} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <PillNum prefix={t("ovlBorderWidth")} value={doc.canvas.border?.width} min={0} max={40} step={0.5} onChange={(v) => updateCanvasSub("border", { width: v })} />
+                    <PillNum prefix={t("ovlGlow")} value={doc.canvas.border?.glow} min={0} max={40} onChange={(v) => updateCanvasSub("border", { glow: v })} />
+                  </div>
                 </>)}
               </Section>
-              <Section title={t("ovlShadow")}>
-                <SwitchField label={t("ovlShadow")} checked={doc.canvas.shadow?.on} onChange={(v) => updateCanvasSub("shadow", { on: v })} />
+              <Section title={t("ovlShadow")} right={
+                <Switch isSelected={!!doc.canvas.shadow?.on} onChange={(v) => updateCanvasSub("shadow", { on: v })} aria-label={t("ovlShadow")}>
+                  <Switch.Control><Switch.Thumb /></Switch.Control>
+                </Switch>}>
                 {doc.canvas.shadow?.on && (
-                  <NumField label={t("ovlStrength")} value={Math.round((doc.canvas.shadow?.strength ?? 0.35) * 100)} min={0} max={100}
+                  <PillNum prefix={t("ovlStrength")} value={Math.round((doc.canvas.shadow?.strength ?? 0.35) * 100)} min={0} max={100}
                     onChange={(v) => updateCanvasSub("shadow", { strength: clamp(v / 100, 0, 1) })} />
                 )}
               </Section>
@@ -1485,16 +1514,29 @@ export default function OverlayEditor({
               <Section title={t("ovlAppearance") || "Appearance"}>
                 <PillNum prefix="O" value={selected.opacity} min={0} max={100} onChange={(v) => setLayer(selected.id, { opacity: v })} />
                 <SelectField label={t("ovlBlend") || "Blend"} value={selected.blend || "normal"} options={BLEND_OPTS()} onChange={(v) => setLayer(selected.id, { blend: v })} />
-                {hasCorners && (<>
+              </Section>
+              {hasCorners && (
+              <Section title={t("ovlCorners")} right={
+                <Button variant="ghost" size="sm" isIconOnly
+                  aria-label={t("ovlCornersIndividual") || "Individual corners"}
+                  onPress={() => setLayerCornersInd((v) => !v)}
+                  className={layerCornersInd ? "text-accent!" : ""}>
+                  <ArrowsOut size={13} />
+                </Button>}>
+                {!layerCornersInd ? (
+                  <PillNum prefix={t("ovlRadius")} value={sc?.TL ?? 0} min={0} max={400}
+                    onChange={(v) => setStyle(selected.id, { corners: uniformCorners(v, cornerType) })} />
+                ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <PillNum prefix="TL" value={sc?.TL ?? 0} min={0} max={400} onChange={(v) => setCorner("TL", v)} />
                     <PillNum prefix="TR" value={sc?.TR ?? 0} min={0} max={400} onChange={(v) => setCorner("TR", v)} />
                     <PillNum prefix="BL" value={sc?.BL ?? 0} min={0} max={400} onChange={(v) => setCorner("BL", v)} />
                     <PillNum prefix="BR" value={sc?.BR ?? 0} min={0} max={400} onChange={(v) => setCorner("BR", v)} />
                   </div>
-                  <Segmented value={cornerType} onChange={setCornersType} options={[{ value: "r", label: t("ovlRound") }, { value: "b", label: t("ovlBevel") }]} />
-                </>)}
+                )}
+                <Segmented value={cornerType} onChange={setCornersType} options={[{ value: "r", label: t("ovlRound") }, { value: "b", label: t("ovlBevel") }]} />
               </Section>
+              )}
 
               <Section>
                 <SwitchField label={t("ovlVisible")} checked={selected.visible !== false} onChange={(v) => toggleLayer(selected.id, { visible: v })} />
