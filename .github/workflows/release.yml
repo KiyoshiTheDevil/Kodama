@@ -246,6 +246,17 @@ jobs:
             libdbus-1-dev \
             patchelf \
             build-essential curl wget file
+      - name: Diagnose glib sources (debug)
+        run: |
+          echo "=== every libglib-2.0.so.0 on the runner + does it export g_memdup2? ==="
+          for f in $(find / -name 'libglib-2.0.so.0*' 2>/dev/null); do
+            echo -n "$f  ->  g_memdup2: "; strings "$f" 2>/dev/null | grep -c g_memdup2
+          done
+          echo "=== ldconfig cache (glib family) ==="
+          ldconfig -p | grep -E 'libglib-2.0|libgio-2.0|libgobject-2.0'
+          echo "=== extra library paths ==="
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          cat /etc/ld.so.conf.d/*.conf 2>/dev/null | grep -v '^#' | sort -u
       - name: Install Python dependencies
         working-directory: python-backend
         run: pip install -r requirements.txt pyinstaller
