@@ -361,6 +361,14 @@ jobs:
             echo "::error::system webkit2gtk-4.1 helper dir not found at $SYS_WK_DIR"; exit 1
           fi
 
+          # Confirmed on Steam Deck: setting WEBKIT_EXEC_PATH directly and unambiguously (even
+          # bypassing the wrapper entirely) still hits the exact same error — this webkit2gtk-4.1
+          # build (Ubuntu 22.04's package) does not honor that override at all, the libexec path
+          # is a hard compiled-in constant. Use a private mount namespace instead (via bwrap, the
+          # same tool WebKit itself uses for its own process sandboxing, so it's very likely
+          # already present anywhere webkit2gtk-4.1 sandboxing works) to bind our bundled
+          # webkit2gtk-4.1 dir directly over the absolute path the binary expects, regardless of
+          # whether that path exists on the real (often read-only/immutable) host at all.
           DESKTOP=$(find squashfs-root -maxdepth 1 -name '*.desktop' | head -1)
           BIN_NAME=$(grep '^Exec=' "$DESKTOP" | head -1 | sed 's/^Exec=//' | awk '{print $1}')
           BIN_PATH="squashfs-root/usr/bin/$BIN_NAME"
@@ -369,11 +377,17 @@ jobs:
             {
               echo '#!/bin/sh'
               echo 'HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"'
-              echo 'export WEBKIT_EXEC_PATH="$HERE/../lib/x86_64-linux-gnu/webkit2gtk-4.1"'
-              echo "exec \"\$HERE/$BIN_NAME.bin\" \"\$@\""
+              echo 'WEBKIT_DIR="$HERE/../lib/x86_64-linux-gnu/webkit2gtk-4.1"'
+              echo "REAL_BIN=\"\$HERE/$BIN_NAME.bin\""
+              echo 'if command -v bwrap >/dev/null 2>&1 && [ -d "$WEBKIT_DIR" ]; then'
+              echo '  exec bwrap --dev-bind / / --bind "$WEBKIT_DIR" /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 -- "$REAL_BIN" "$@"'
+              echo 'else'
+              echo '  export WEBKIT_EXEC_PATH="$WEBKIT_DIR"'
+              echo '  exec "$REAL_BIN" "$@"'
+              echo 'fi'
             } > "$BIN_PATH"
             chmod +x "$BIN_PATH"
-            echo "wrapped $BIN_NAME to export WEBKIT_EXEC_PATH"
+            echo "wrapped $BIN_NAME to bind-mount webkit2gtk-4.1 via bwrap (WEBKIT_EXEC_PATH as fallback)"
           else
             echo "::error::binary $BIN_PATH not found (parsed from $DESKTOP)"; exit 1
           fi
@@ -413,10 +427,10 @@ jobs:
           fi
           DESKTOP=$(find squashfs-root -maxdepth 1 -name '*.desktop' | head -1)
           BIN_NAME=$(grep '^Exec=' "$DESKTOP" | head -1 | sed 's/^Exec=//' | awk '{print $1}')
-          if grep -q WEBKIT_EXEC_PATH "squashfs-root/usr/bin/$BIN_NAME" 2>/dev/null; then
-            echo "OK: $BIN_NAME wrapper exports WEBKIT_EXEC_PATH"
+          if grep -q bwrap "squashfs-root/usr/bin/$BIN_NAME" 2>/dev/null; then
+            echo "OK: $BIN_NAME wrapper bind-mounts webkit2gtk-4.1 via bwrap"
           else
-            echo "::error::$BIN_NAME is not wrapped with WEBKIT_EXEC_PATH"; fail=1
+            echo "::error::$BIN_NAME is not wrapped with the bwrap bind-mount"; fail=1
           fi
 
           rm -rf squashfs-root
