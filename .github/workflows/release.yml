@@ -309,35 +309,39 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --config src-tauri/tauri.linux.conf.json --target x86_64-unknown-linux-gnu --bundles appimage
-      - name: Fix bundled glib family + re-sign AppImage
+      - name: Fix bundled libs consistency + re-sign AppImage
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -e
-          # linuxdeploy bundles a glib that is inconsistent with itself (old libglib next to
-          # newer libgio/libgobject -> "undefined symbol: g_memdup2" on the target, confirmed
-          # on Steam Deck / SteamOS 3.8.5), even though the runner's OWN system glib (checked
-          # via ldconfig) is a single consistent 2.72.4. Root cause is inside linuxdeploy's own
-          # dependency bundling, not this build machine. Work around it by force-replacing the
-          # whole glib family in the built AppImage with the runner's system copies, then
-          # repacking + re-signing so the Tauri updater's signature stays valid.
+          # linuxdeploy bundles a GTK/glib/cairo stack that is internally inconsistent (e.g. an
+          # old libglib next to a newer libgio -> "undefined symbol: g_memdup2"; a libcairo built
+          # without xlib next to a libgdk that expects it -> "undefined symbol:
+          # cairo_xlib_surface_get_display"), confirmed on Steam Deck / SteamOS 3.8.5, even though
+          # the runner's OWN system libs (installed via apt on this same job) are a single
+          # consistent set. Root cause is inside linuxdeploy's own dependency bundling, not this
+          # build machine. Work around it wholesale: for every .so bundled in the AppImage that
+          # also exists under the system lib dir, force-replace it with the system copy, so the
+          # whole stack is self-consistent by construction. Then repack + re-sign so the Tauri
+          # updater's signature stays valid.
           cd src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage
           APP=$(ls *.AppImage | head -1)
-          echo "Repacking $APP with system glib family..."
+          echo "Repacking $APP with consistent system libs..."
           "./$APP" --appimage-extract >/dev/null
 
-          for lib in libglib-2.0 libgio-2.0 libgobject-2.0 libgmodule-2.0 libgthread-2.0; do
-            for src in /usr/lib/x86_64-linux-gnu/"$lib".so.0*; do
-              [ -e "$src" ] || continue
-              dst="squashfs-root/usr/lib/$(basename "$src")"
-              if [ -e "$dst" ]; then
-                echo "replacing $dst <- $src"
-                cp -L "$src" "$dst"
-              fi
-            done
-          done
+          SYSLIB=/usr/lib/x86_64-linux-gnu
+          count=0
+          while IFS= read -r dst; do
+            base=$(basename "$dst")
+            src="$SYSLIB/$base"
+            if [ -f "$src" ] && ! cmp -s "$src" "$dst"; then
+              cp -L "$src" "$dst"
+              count=$((count+1))
+            fi
+          done < <(find squashfs-root/usr/lib -name '*.so*' -type f)
+          echo "replaced $count bundled libs with system copies"
 
           curl -fsSL -o appimagetool.AppImage \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
@@ -347,21 +351,27 @@ jobs:
           rm -rf squashfs-root appimagetool.AppImage
 
           npx tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$APP"
-      - name: Verify bundled glib is consistent
+      - name: Verify bundled libs are consistent
         shell: bash
         run: |
           cd src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage
           APP=$(ls *.AppImage | head -1)
           "./$APP" --appimage-extract >/dev/null
-          GLIB=squashfs-root/usr/lib/libglib-2.0.so.0
-          ls -la "$GLIB" || { echo "::error::bundled libglib missing"; exit 1; }
-          if strings "$GLIB" | grep -q g_memdup2; then
-            echo "OK: bundled libglib exports g_memdup2 (consistent glib bundle)"
-          else
-            echo "::error::bundled libglib is MISSING g_memdup2 — inconsistent glib bundle"
-            exit 1
-          fi
+          fail=0
+          check() {
+            local lib="$1" sym="$2"
+            local f="squashfs-root/usr/lib/$lib"
+            if [ ! -f "$f" ]; then echo "::error::$lib missing from bundle"; fail=1; return; fi
+            if strings "$f" | grep -q "$sym"; then
+              echo "OK: $lib exports $sym"
+            else
+              echo "::error::$lib is MISSING $sym — inconsistent bundle"; fail=1
+            fi
+          }
+          check libglib-2.0.so.0 g_memdup2
+          check libcairo.so.2 cairo_xlib_surface_get_display
           rm -rf squashfs-root
+          exit $fail
       - name: Collect Linux artifacts
         shell: bash
         run: |
