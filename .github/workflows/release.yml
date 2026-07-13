@@ -322,6 +322,9 @@ jobs:
 
   publish:
     needs: [build-windows, build-macos, build-linux]
+    # Never publish a public release or push updates/latest.json for throwaway
+    # test tags (e.g. v1.0.0-test) — that would offer real users a bogus update.
+    if: ${{ !contains(github.ref_name, 'test') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
