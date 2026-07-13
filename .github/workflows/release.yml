@@ -242,6 +242,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev \
+            libasound2-dev \
+            libdbus-1-dev \
             patchelf \
             build-essential curl wget file
       - name: Install Python dependencies
