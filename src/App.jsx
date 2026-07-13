@@ -4718,10 +4718,11 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                     return (
                     <CardRoot
                       key={lang.code}
-                      onClick={() => onLanguageChange(lang.code)}
+                      onClick={lang.comingSoon ? undefined : () => onLanguageChange(lang.code)}
                       variant="secondary"
                       className={cn(
                         "flex flex-row items-center gap-3.5 px-4 py-3 cursor-default border-2 transition-colors",
+                        lang.comingSoon ? "opacity-50 pointer-events-none" :
                         language === lang.code ? "border-accent bg-accent-dim" : "border-transparent bg-surface-1 hover:bg-hover"
                       )}
                     >
@@ -4736,7 +4737,11 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                         )}
                       </div>
                       <div className="ml-auto flex items-center gap-3 shrink-0">
-                        {pct < 100 && (
+                        {lang.comingSoon ? (
+                          <ChipRoot size="sm" variant="secondary">
+                            <ChipLabel className="text-[10px]">{t("comingSoon")}</ChipLabel>
+                          </ChipRoot>
+                        ) : pct < 100 ? (
                           <div className="flex items-center gap-2">
                             <ProgressBar aria-label="Translation progress" value={pct} className="w-28 gap-0!">
                               <ProgressBarTrack className="h-1.5!">
@@ -4745,7 +4750,7 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                             </ProgressBar>
                             <span className="text-[10px] text-muted tabular-nums shrink-0">{pct}%</span>
                           </div>
-                        )}
+                        ) : null}
                         {language === lang.code && <Check size={14} className="text-accent" />}
                       </div>
                     </CardRoot>
@@ -9231,7 +9236,7 @@ function LanguagePickerScreen({ currentLanguage, onConfirm }) {
 
         {/* Language rows */}
         <div className="scrollable" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22, overflowY: "auto", minHeight: 0 }}>
-          {LANGUAGES.map(lang => {
+          {LANGUAGES.filter(lang => !lang.comingSoon).map(lang => {
             const active = selected === lang.code;
             return (
               <button key={lang.code} onClick={() => setSelected(lang.code)}

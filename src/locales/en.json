@@ -837,6 +837,7 @@
   "overlayLocalUnavailable": "Local fonts not available",
   "overlayLocalUnavailableDesc": "Your browser doesn't support the Local Font Access API or permission was denied.",
   "machineTranslated": "Machine translated",
+  "comingSoon": "Coming soon",
   "contributeTranslation": "Help improve this translation on Crowdin",
   "about": "About",
   "viewOnWikipedia": "View on Wikipedia",
