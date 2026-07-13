@@ -28,6 +28,7 @@ const editorWindow = getCurrentWebviewWindow();
 import {
   isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners,
 } from "./schema.js";
+import { ColorPicker } from "../ui/color-picker.jsx";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -240,9 +241,7 @@ function ColorField({ label, value, onChange, opacity, onOpacity }) {
   const hex = typeof value === "string" && value[0] === "#" ? value.slice(0, 7) : "#000000";
   return (
     <div className="flex items-center gap-2 h-8 px-1.5 rounded-md bg-[var(--surface-2)] border border-border">
-      <label className="relative w-4 h-4 rounded shrink-0 overflow-hidden border border-border cursor-pointer" style={{ background: value || "#000" }}>
-        <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" aria-label={label} />
-      </label>
+      <ColorPicker value={hex} onChange={onChange} swatch={{ width: 16, height: 16, borderRadius: 4, border: "1px solid var(--border)" }} />
       <input value={(value ?? "").replace(/^#/, "")} onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
         className="flex-1 min-w-0 bg-transparent outline-none text-t12 font-mono text-primary uppercase" aria-label={(label || "") + " hex"} />
       {onOpacity ? (
