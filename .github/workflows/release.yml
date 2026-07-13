@@ -307,8 +307,28 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # setup-python pollutes LD_LIBRARY_PATH with its own lib dir, which made the
+          # AppImage bundler (ldd) pick up a mismatched/old libglib next to the system
+          # libgio/libgobject -> "undefined symbol: g_memdup2" on the target. Clear it so
+          # the whole glib family is bundled consistently from /usr/lib.
+          LD_LIBRARY_PATH: ""
         with:
           args: --config src-tauri/tauri.linux.conf.json --target x86_64-unknown-linux-gnu --bundles appimage
+      - name: Verify bundled glib is consistent
+        shell: bash
+        run: |
+          cd src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage
+          APP=$(ls *.AppImage | head -1)
+          "./$APP" --appimage-extract >/dev/null
+          GLIB=squashfs-root/usr/lib/libglib-2.0.so.0
+          ls -la "$GLIB" || { echo "::error::bundled libglib missing"; exit 1; }
+          if strings "$GLIB" | grep -q g_memdup2; then
+            echo "OK: bundled libglib exports g_memdup2 (consistent glib bundle)"
+          else
+            echo "::error::bundled libglib is MISSING g_memdup2 — inconsistent glib bundle"
+            exit 1
+          fi
+          rm -rf squashfs-root
       - name: Collect Linux artifacts
         shell: bash
         run: |
