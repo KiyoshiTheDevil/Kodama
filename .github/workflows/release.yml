@@ -247,16 +247,22 @@ jobs:
             patchelf \
             build-essential curl wget file
       - name: Diagnose glib sources (debug)
+        shell: bash
         run: |
-          echo "=== every libglib-2.0.so.0 on the runner + does it export g_memdup2? ==="
-          for f in $(find / -name 'libglib-2.0.so.0*' 2>/dev/null); do
-            echo -n "$f  ->  g_memdup2: "; strings "$f" 2>/dev/null | grep -c g_memdup2
-          done
-          echo "=== ldconfig cache (glib family) ==="
+          set +e
+          echo "=== ldconfig resolution (glib family) ==="
           ldconfig -p | grep -E 'libglib-2.0|libgio-2.0|libgobject-2.0'
-          echo "=== extra library paths ==="
+          echo "=== what does LD_LIBRARY_PATH contain? ==="
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          ls -la /opt/hostedtoolcache/Python/*/x64/lib/libg*.so* 2>/dev/null
+          echo "=== every libglib-2.0.so.0 under common lib roots + g_memdup2? ==="
+          find /usr /opt /home /lib -name 'libglib-2.0.so.0*' 2>/dev/null | while read -r f; do
+            n=$(strings "$f" 2>/dev/null | grep -c g_memdup2)
+            echo "$f  ->  g_memdup2=$n"
+          done
+          echo "=== ld.so.conf.d ==="
           cat /etc/ld.so.conf.d/*.conf 2>/dev/null | grep -v '^#' | sort -u
+          true
       - name: Install Python dependencies
         working-directory: python-backend
         run: pip install -r requirements.txt pyinstaller
