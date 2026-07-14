@@ -16,7 +16,7 @@
 
 ---
 
-> Kodama is in active **alpha**.
+> AI notice: This app has been created with an LLM called **Claude Code**. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.
 
 ## Features
 
