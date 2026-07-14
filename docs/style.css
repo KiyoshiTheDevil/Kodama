@@ -15,8 +15,12 @@ body {
 }
 a { color:inherit; text-decoration:none; }
 .wrap { max-width:1100px; margin:0 auto; padding:0 24px; position:relative; z-index:1; }
-/* Ambient decorative visualizer behind the hero, full page width. */
+/* Ambient decorative visualizer behind the hero, full page width. Its fixed 860px height
+   is tuned for the desktop hero's proportions; on narrower layouts the hero is much
+   shorter relative to viewport width, so the canvas pokes out past the device mockup
+   into the CTA area below. Purely decorative — just hide it on mobile/tablet. */
 .hero-viz { position:absolute; top:0; left:0; width:100%; height:860px; z-index:0; pointer-events:none; }
+@media (max-width:900px) { .hero-viz { display:none; } }
 header { display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
 header img { height:28px; }
 header nav a { color:var(--t2); font-size:14px; margin-left:22px; transition:color .12s; }
@@ -79,11 +83,10 @@ header nav a:hover { color:var(--t1); }
 .hstats:not([hidden]) { display:inline-flex; }
 .hstats b { color:var(--t1); font-weight:600; font-variant-numeric:tabular-nums; }
 #statMauBox, #statDlBox { white-space:nowrap; }
-@media (max-width:640px){ .hstats:not([hidden]) { display:none; } }
 
 .below { text-align:center; margin-top:40px; }
 .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-.btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
   transition:transform .50s ease, background .15s, box-shadow .18s, border-color .15s, filter .12s; }
 .btn:active { transform:scale(.97); }  /* the app's tactile press */
 /* Primary: flat accent fill like the app's regular buttons (no glow). */
@@ -93,6 +96,15 @@ header nav a:hover { color:var(--t1); }
 .secondary { background:rgba(255,255,255,0.05); color:var(--t1);
   -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-radius:4px 12px 12px 4px; font-weight:400;}
 .secondary:hover { background:rgba(255,255,255,0.10); }
+/* The two buttons are shaped as one joined pill (rounded outer corners, sharp inner
+   corners where they meet) — that only reads correctly side by side. Below the width
+   where they still fit on one line, stack them full-width with plain rounded corners
+   instead of leaving each with one "cut off"-looking sharp edge. */
+@media (max-width:560px) {
+  .cta { flex-direction:column; }
+  .btn { width:100%; }
+  .primary, .secondary { border-radius:12px; }
+}
 .dl-version { font-size:13px; color:var(--t3); margin-bottom:12px; min-height:1em; }
 .dl-version b { color:var(--t2); font-weight:600; }
 .platforms { margin-top:15px; font-size:13px; color:var(--t3); }
