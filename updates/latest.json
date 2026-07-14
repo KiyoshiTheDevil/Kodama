@@ -1,15 +1,15 @@
 {
-  "version": "v1.0.0-alpha.29",
-  "pub_date": "2026-07-11T22:24:20Z",
-  "notes": "### Added\n- **More reliable playback** — a proof-of-origin token path lets the app fetch many tracks that previously failed with *\"not available\"*, a Premium wall, or a *\"confirm you're not a bot\"* check.\n- **Search overhaul** — a mixed *All* results view, a **Playlists** tab, live autocomplete, and paste a playlist link (including unlisted \"link only\" ones) to open it directly.\n- **Share playlists** — copy a YouTube Music / YouTube link for a whole playlist from its menu.\n- **Visualizer presets** — save, import and export visualizer setups (plus a reset-to-default).\n- **Anonymous usage stats** — an opt-out active-user counter (rotating token, no personal data).\n- **Quick actions** — track numbering, start a playlist shuffled, and add-to-queue / play-next / start-radio in the track menu.\n### Changed\n- **Loading spinner** in the player bar while a track resolves.\n- **Higher-resolution cover art** in the player.\n### Fixed\n- **Google sign-in on macOS** no longer blocked with *\"browser may not be secure\"* (thanks @SchmidtiTv).\n- **Audio crackle** at the very start of playback.\n- **Search \"0 songs\"** on some playlists and a playlist-cache glitch.",
+  "version": "v1.0.0-alpha.30",
+  "pub_date": "2026-07-14T06:48:49Z",
+  "notes": "### Added\n- **YouTube brand account login** — switch to a brand/channel account during sign-in instead of always landing on the default Google account.\n### Changed\n- **Overlay editor overhaul** — Figma-style inspector (prefix fields, per-corner radius), a built-in color picker, refined canvas interaction (hover outlines, multi-select, resizable panels, proper dropdown menus).\n- **Account switching** now shows a loading overlay instead of a blank flash.\n- Settings sub-navigation unfolds with a subtle animation instead of a hard cut.\n### Fixed\n- **Home feed** no longer gets stuck on \"No suggestions available.\" after a slow app start — it retries automatically, and now offers a direct refresh button.\n- Overlay editor's live preview now always reflects the currently playing track.",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.29/Kodama_1.0.0-alpha.29_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm9GdFA3anJpaDhET1ZUMkVObjVIWXJuOWZNeWFBMGNqL3dTOFEzcG5ZMWwwZDg2WHZBQ3Z4M0QycW45UmlJaE5XNmx5OWU4VVJiNzRiL2dZMGY0L0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODA4NTg3CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjI5X3g2NC1zZXR1cC5leGUKSmJ0TFdaZFJGaTBlRzZuVDh1UEVvN1FPdVRSVVVhTU1qcnFvVzkrT2ROajM2RlNZQlZBMEdGNnQ2a1FtdWpISnRQQ09CTW91eGoyalpMZEljak9SQkE9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.30/Kodama_1.0.0-alpha.30_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnBpc3lLZHEwb1d0cTl6UHpGQUgxOCtoTkpPMFpSeHNJdG1LM0xCOFYzeFVmcVI1Z0N5RUlsV0laZjRuMzdKcHFwQk9rK3ErUXRiWmlEL2ZZbWpDOXdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MDExNjU5CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjMwX3g2NC1zZXR1cC5leGUKYlVqTjRVeVVja1BEQ2ZMekNuNXFmcGhGNHIybXpsUmlVeC9BaFRrbGdnOHlmLy9wMENuWkhRRFcxenlmR1htZW5qMDNLelB3ckhVaWViYzV5K3I4REE9PQo="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.29/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm9MdDVia1BaNjczUWhxcWo1Y001Y1ZyN0swTDB0U2ZrcWhnbnRNdnFuWFRBc3FlR2pCL0xyMVBBOSs0UWt3ZSt4Q3B6Rm5lQlNrdExPcjlDM0JyV1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODA4MDA1CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKYVZFNTBrbUR5bHVDbHpkeXBMRGZyRUZjQ21JcmhXcjJrT3JEVko5dnl1UDM1M2ZpaGsxbjFoWG11NEZZVCtJQzdIdXlXVytPU3dDN05hV2JpaWdqQ2c9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.30/Kodama.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm1PSjJPc0tvQ0tOdTNRREU5RFhBS21UTWFNUkdycGQ0WFdoU1lUN3V5dlp2WUtBS2dGMVg5N0YydGFWb052alBoRmpjWFpreURNK2NOVVl2b2Z4L3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MDExMDI5CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKKzBlSmQ0RjJqeEdjbEcrQ2VEcDZjMVl2QTd6WkM2RVdSMWZxOTNmWnJHbzhmNVZITDNPeXV6QlphbDFoVUhNU0pRU2NETGNHU2VZckV0K2k5bEU4QXc9PQo="
     }
   }
 }
