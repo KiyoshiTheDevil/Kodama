@@ -51,6 +51,12 @@ No screenshot available... yet.
 > A Google account is not required to use the player, Premium isn't required either.
 > Please be aware, that some content might be inaccessable due to Premium restrictions.
 
+## NEW! Discord Server
+
+Hey! I made a dedicated Discord server for the App, where you can chat about the project and send in bugs and suggestions more directly
+
+>> https://discord.gg/PzSsPF7KW
+
 ## For Developers
 
 ### Prerequisites
