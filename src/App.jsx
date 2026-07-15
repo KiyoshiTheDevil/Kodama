@@ -6641,6 +6641,13 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const [inGap, setInGap] = useState(false);
   const [trailingIdx, setTrailingIdx] = useState(-1); // previous line still visible after new line starts
   const [scrollActive, setScrollActive] = useState(false); // auto-hide scrollbar (hover + idle)
+  // Manual scroll pauses auto-centering indefinitely (rather than snapping back under the
+  // user's cursor the next time the active line advances) until they explicitly resume via
+  // the "Resume autoscroll" button. userScrollingRef is the synchronous source of truth read
+  // by the centering effect and the fluid rAF loop; userScrolling (state) just drives the
+  // button's visibility.
+  const [userScrolling, setUserScrolling] = useState(false);
+  const userScrollingRef = useRef(false);
   const t = useLang();
   const containerRef = useRef(null);
   const scrollIdleRef = useRef(null);
@@ -7096,7 +7103,6 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const scrollPosRef = useRef(0);
   const scrollVelRef = useRef(0);
   const scrollLastTimeRef = useRef(0);
-  const userScrollUntilRef = useRef(0);
   const scrollHistRef = useRef([]); // recent {t,s} scroll positions for the staggered drift
   const activeIdxRef = useRef(activeIdx);
   activeIdxRef.current = activeIdx; // read live in the scroll rAF (which doesn't re-run per line)
@@ -7114,7 +7120,8 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     scrollTargetRef.current = 0;
     scrollVelRef.current = 0;
     scrollHistRef.current = [];
-    userScrollUntilRef.current = 0;
+    userScrollingRef.current = false;
+    setUserScrolling(false);
     lastIdxRef.current = -1;
     lastCenteredIdxRef.current = -1;
     prevTRef.current = 0;
@@ -7126,6 +7133,9 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   }, [track?.videoId]);
 
   useEffect(() => {
+    // Paused while the user is manually scrolling — resumed explicitly via the "Resume
+    // autoscroll" button (which flips userScrolling back off, re-running this effect).
+    if (userScrolling) return;
     if (activeIdx < 0 || !containerRef.current) return;
     const container = containerRef.current;
     // Fluid wraps each line in a will-change:transform div (its own offsetParent), so the
@@ -7160,7 +7170,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         else { scrollTargetRef.current = t2; scrollPosRef.current = t2; scrollVelRef.current = 0; container.scrollTop = t2; }
       });
     }
-  }, [activeIdx, fluidLyrics]);
+  }, [activeIdx, fluidLyrics, userScrolling]);
 
   useEffect(() => {
     if (!fluidLyrics) return;
@@ -7173,7 +7183,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     const wraps = container.querySelectorAll("[data-lyricdrift]");
     let raf = 0;
     const onUserScroll = () => {
-      userScrollUntilRef.current = performance.now() + 2000;
+      if (!userScrollingRef.current) { userScrollingRef.current = true; setUserScrolling(true); }
       scrollPosRef.current = container.scrollTop;
       scrollVelRef.current = 0;
     };
@@ -7201,7 +7211,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       const dt = Math.min((now - scrollLastTimeRef.current) / 1000, 0.04);
       scrollLastTimeRef.current = now;
 
-      if (now < userScrollUntilRef.current) {
+      if (userScrollingRef.current) {
         scrollPosRef.current = container.scrollTop;
       } else {
         const target = scrollTargetRef.current;
@@ -7242,6 +7252,31 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       wraps.forEach(w => { w.style.transform = ""; });
     };
   }, [fluidLyrics, lyrics]);
+
+  // Manual-scroll detection for non-fluid mode (fluid mode's own rAF loop above already
+  // covers this, plus its physics bookkeeping). Only wheel/touchmove count as "the user
+  // scrolled" — not the native `scroll` event, which also fires for our own programmatic
+  // container.scrollTo()/scrollTop writes and would immediately re-pause right after we
+  // resume.
+  useEffect(() => {
+    if (fluidLyrics) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const onUserScroll = () => {
+      if (!userScrollingRef.current) { userScrollingRef.current = true; setUserScrolling(true); }
+    };
+    container.addEventListener("wheel", onUserScroll, { passive: true });
+    container.addEventListener("touchmove", onUserScroll, { passive: true });
+    return () => {
+      container.removeEventListener("wheel", onUserScroll);
+      container.removeEventListener("touchmove", onUserScroll);
+    };
+  }, [fluidLyrics]);
+
+  const resumeAutoscroll = useCallback(() => {
+    userScrollingRef.current = false;
+    setUserScrolling(false);
+  }, []);
 
   return (
     <div
@@ -7353,6 +7388,26 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               </ChipRoot>
             );
           })}
+        </div>
+      )}
+
+      {/* Resume-autoscroll pill — shown while the user has scrolled away manually, instead of
+          auto-centering just snapping back under their cursor the next time the active line
+          advances. Sits above the agent-tags row so the two never overlap. */}
+      {userScrolling && (
+        <div style={{ position: "absolute", bottom: 64 + chipBottomLift, left: "50%", transform: "translateX(-50%)", zIndex: 2, transition: "bottom 0.4s ease" }}
+          className="animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]">
+          <div className="relative rounded-full shadow-[0_6px_22px_rgba(0,0,0,0.45)]">
+            <div className="absolute inset-0 rounded-full bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
+            <Button
+              variant="ghost" size="sm"
+              onPress={resumeAutoscroll}
+              className="relative gap-2 h-9! px-4 rounded-full text-t13 font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
+            >
+              <CaretDown size={13} weight="bold" />
+              {t("resumeAutoscroll") || "Resume autoscroll"}
+            </Button>
+          </div>
         </div>
       )}
 

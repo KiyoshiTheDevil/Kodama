@@ -364,6 +364,7 @@
   "noProfile": "Kein Profil",
   "switchProfile": "Profil wechseln",
   "lyricsLoading": "Songtext werden geladen…",
+  "resumeAutoscroll": "Automatisches Scrollen fortsetzen",
   "noLyrics": "Kein Songetext verfügbar",
   "noLyricsHint": "Erstelle eigene Songtexte mit einem dieser Tools:",
   "createLyrics": "Songtext erstellen",
