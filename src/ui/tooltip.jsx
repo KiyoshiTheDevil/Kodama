@@ -1,6 +1,7 @@
-// Hover tooltip (delayed show, portalled to <body>). Extracted from App.jsx.
+// Hover tooltip (delayed show, portalled). Extracted from App.jsx.
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useZoom, usePortalRoot } from "../context.jsx";
 
 export function Tooltip({ text, children }) {
   const [visible, setVisible] = useState(false);
@@ -8,6 +9,8 @@ export function Tooltip({ text, children }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const showTimer = useRef(null);
   const hideTimer = useRef(null);
+  const zoom = useZoom();
+  const portalRootRef = usePortalRoot();
   if (!text) return children;
 
   const hide = () => {
@@ -34,7 +37,12 @@ export function Tooltip({ text, children }) {
       {children}
       {visible && createPortal(
         <div style={{
-          position: "fixed", left: pos.x, top: pos.y - 6,
+          position: "fixed",
+          // getBoundingClientRect() above returns real (already-zoomed) screen pixels, but this
+          // portals into the zoomed app root (see App.jsx's PortalRootContext), so its own
+          // local coordinate system is scaled by `zoom` again — divide back down to local
+          // units, same convention as ContextMenu's anchor positioning.
+          left: pos.x / zoom, top: (pos.y - 6) / zoom,
           transform: "translate(-50%, -100%)",
           background: "var(--bg-elevated)", color: "var(--text-primary)",
           padding: "5px 9px", borderRadius: 6,
@@ -45,7 +53,7 @@ export function Tooltip({ text, children }) {
           boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
           animation: `${leaving ? "tooltipOut" : "tooltipIn"} 0.12s ease forwards`,
         }}>{text}</div>,
-        document.body
+        portalRootRef?.current || document.body
       )}
     </span>
   );

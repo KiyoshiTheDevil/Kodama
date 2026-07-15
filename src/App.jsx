@@ -5,6 +5,7 @@ import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, Disclo
  ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, KbdRoot, KbdContent,
  Skeleton, ToggleButton, ToggleButtonGroupRoot, ScrollShadowRoot, ChipRoot, ChipLabel } from "@heroui/react";
 import { parseColor } from "react-aria-components";
+import { UNSAFE_PortalProvider } from "react-aria";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 const appWindow = getCurrentWebviewWindow();
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -102,7 +103,7 @@ import {
   PaperPlaneTilt,
 } from "./icons.jsx";
 
-import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale, TrackNumberContext } from "./context.jsx";
+import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale, TrackNumberContext, PortalRootContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
 import { NewsModal, renderNewsBody } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
@@ -818,11 +819,10 @@ function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200, child
         style={{ left: x / zoom, top: y / zoom }}
       />
       <DropdownPopover triggerRef={anchorRef} placement="bottom start" className={CTX_POPOVER_ANIM}>
-        {/* Scale the menu content with the app zoom — the popover itself is portalled to
-            <body> (outside the zoomed app container), so without this it would render at
-            100% while the rest of the UI is zoomed. Zooming the content (not the
-            positioned popover) keeps react-aria's anchor placement correct. */}
-        <DropdownMenu aria-label={ariaLabel} style={{ minWidth, zoom }}>
+        {/* The popover now portals inside the zoomed app root (see the UNSAFE_PortalProvider
+            wrapping the app), so it inherits `zoom` from its ancestor automatically — no
+            manual re-application needed here anymore (that would double it). */}
+        <DropdownMenu aria-label={ariaLabel} style={{ minWidth }}>
           {children}
         </DropdownMenu>
       </DropdownPopover>
@@ -6256,6 +6256,8 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
   const playingRef = useRef(isPlaying); playingRef.current = isPlaying;
   const cfgRef = useRef(null); cfgRef.current = { ...VIZ_DEFAULTS, ...(vizConfig || {}) };
   const coverColorRef = useRef(null);
+  const zoom = useZoom();
+  const zoomRef = useRef(zoom); zoomRef.current = zoom;
 
   // Extract a vibrant colour from the cover for the "dynamic" colour mode.
   useEffect(() => {
@@ -6346,7 +6348,18 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
 
       let bx = (w - 260) / 2, by = (h - 260) / 2, bw = 260, bh = 260;
       const cover = coverRef.current;
-      if (cover) { const r = cover.getBoundingClientRect(), cr = cv.getBoundingClientRect(); bx = r.left - cr.left; by = r.top - cr.top; bw = r.width; bh = r.height; }
+      if (cover) {
+        // getBoundingClientRect() returns real, already-zoomed screen pixels, but the canvas's
+        // own drawing coordinate system is calibrated to clientWidth/clientHeight (w/h above),
+        // which — unlike getBoundingClientRect — do NOT reflect an ancestor's CSS `zoom` and
+        // stay in local/unzoomed units. Feeding zoomed rect diffs straight into local-unit
+        // drawing coords double-applies the zoom (the canvas itself is also zoomed when
+        // rendered), visibly shifting/misscaling the visualizer at any zoom level other than
+        // 100%. Divide back down to local units to match.
+        const z = zoomRef.current || 1;
+        const r = cover.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+        bx = (r.left - cr.left) / z; by = (r.top - cr.top) / z; bw = r.width / z; bh = r.height / z;
+      }
 
       if (cfg.shape === "ring") {
         const cx = bx + bw / 2, cy = by + bh / 2, R0 = bw / 2 + gap;
@@ -9518,6 +9531,9 @@ function AmbientBackdrop({ thumbnail }) {
 }
 
 export default function App() {
+  // Dedicated portal target for react-aria-components overlays (Dropdown/Modal popovers,
+  // Toasts) — see the UNSAFE_PortalProvider wrapping below for why this exists.
+  const portalRootRef = useRef(null);
   const [showSplash, setShowSplash] = useState(true);
   const [splashFading, setSplashFading] = useState(false);
   // Skip FFmpeg screen if we already confirmed it available in a previous run.
@@ -11494,6 +11510,15 @@ export default function App() {
     <AnimationContext.Provider value={animations}>
     <FontScaleContext.Provider value={appFontScale}>
     <ZoomContext.Provider value={uiZoom}>
+    {/* react-aria-components' Popover/Modal/Toast overlays portal straight to document.body
+        by default, which sits outside the CSS `zoom`-scaled app root below — so at any UI
+        zoom other than 100% they render at the wrong (unscaled) size while everything else
+        in the app is bigger/smaller. Redirecting their portal target to a dedicated node
+        *inside* the zoomed root (via UNSAFE_PortalProvider) makes them real DOM descendants
+        of the zoomed element again, so they inherit the same zoom naturally — same fix
+        applied manually to Tooltip (src/ui/tooltip.jsx) since it portals itself. */}
+    <UNSAFE_PortalProvider getContainer={() => portalRootRef.current}>
+    <PortalRootContext.Provider value={portalRootRef}>
       <style>{GLOBAL_KEYFRAMES}</style>
       {!animations && (
         <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
@@ -12532,7 +12557,15 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Portal target for UNSAFE_PortalProvider above — stays inside the zoomed root so
+            portalled overlays inherit `zoom`. No size/background of its own (pointer-events:
+            none) so it never intercepts clicks meant for whatever's underneath; overlay
+            libraries set pointer-events back to auto on their own content. */}
+        <div ref={portalRootRef} style={{ position: "fixed", inset: 0, overflow: "visible", pointerEvents: "none" }} />
       </div>
+    </PortalRootContext.Provider>
+    </UNSAFE_PortalProvider>
     </ZoomContext.Provider>
     </FontScaleContext.Provider>
     </AnimationContext.Provider>

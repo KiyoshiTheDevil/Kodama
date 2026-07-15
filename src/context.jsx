@@ -38,6 +38,14 @@ export const useAnimations = () => useContext(AnimationContext);
 export const ZoomContext = createContext(1);
 export const useZoom = () => useContext(ZoomContext);
 
+// ─── Portal Root Context ──────────────────────────────────────────────────────
+// A ref to the dedicated portal-target node rendered inside the zoomed app root (see
+// App.jsx). Anything that portals itself directly (createPortal, bypassing react-aria's
+// own UNSAFE_PortalProvider) should target this instead of document.body, so it inherits
+// the ancestor `zoom` like the rest of the UI instead of always rendering at 100%.
+export const PortalRootContext = createContext({ current: null });
+export const usePortalRoot = () => useContext(PortalRootContext);
+
 // ─── Font Scale Context ───────────────────────────────────────────────────────
 export const FontScaleContext = createContext(1);
 export const useFontScale = () => useContext(FontScaleContext);
