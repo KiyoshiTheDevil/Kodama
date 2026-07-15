@@ -52,7 +52,10 @@ header nav a:hover { color:var(--t1); }
 .shot { display:block; width:100%; height:auto; }
 
 /* Feature showcase */
-.section { padding:78px 0 6px; }
+/* padding-top/bottom only (not the shorthand) — this element is also .wrap, and a
+   shorthand here would clobber .wrap's horizontal padding since both rules have equal
+   specificity and this one comes later in the cascade, regardless of viewport width. */
+.section { padding-top:78px; padding-bottom:6px; }
 .section h2 { font-size:clamp(22px,3.4vw,32px); font-weight:600; margin:0 0 10px; text-align:center; }
 .section .sub { color:var(--t2); text-align:center; max-width:560px; margin:0 auto 34px; font-size:15px; }
 .showcase { max-width:1000px; margin:0 auto; border-radius:14px; overflow:hidden; line-height:0;
@@ -115,7 +118,7 @@ footer a:hover { color:var(--t1); }
 
 @media (max-width:760px) {
   .feat-grid { grid-template-columns:1fr 1fr; }
-  .section { padding:52px 0 4px; }
+  .section { padding-top:52px; padding-bottom:4px; }
 }
 @media (max-width:460px) {
   .feat-grid { grid-template-columns:1fr; }
