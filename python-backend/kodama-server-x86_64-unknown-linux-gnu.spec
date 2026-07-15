@@ -30,12 +30,18 @@ for _pkg in ("yt_dlp_ejs", "yt_dlp_plugins"):
     _pot_datas += _pd
     _pot_hidden += _ph
 
+# pykakasi (romaji conversion) ships its kana/hepburn dictionaries as package data
+# (pykakasi/data/*.db) — hiddenimports alone only pulls in the code, not those .db
+# files, so romaji silently failed in packaged builds while working in dev (where the
+# data files are just sitting on disk next to the installed package).
+_kakasi_datas, _kakasi_binaries, _kakasi_hidden = _collect_all("pykakasi")
+
 a = Analysis(
     ['server.py'],
     pathex=[],
-    binaries=[],
-    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas + _pot_datas,
-    hiddenimports=["pykakasi", "jaconv"] + _pot_hidden,
+    binaries=_kakasi_binaries,
+    datas=[(_ytm_locales, 'ytmusicapi/locales'), (_composer_dist, 'composer_dist')] + _extra_datas + _pot_datas + _kakasi_datas,
+    hiddenimports=["jaconv"] + _pot_hidden + _kakasi_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
