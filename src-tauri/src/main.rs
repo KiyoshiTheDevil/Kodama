@@ -158,6 +158,23 @@ fn main() {
                 window::remove_window_border(&w);
             }
 
+            // macOS: keep the native traffic lights centered against the sidebar's search
+            // bar. Tauri's own `traffic_light_position()` only applies once at window
+            // construction, so anything that recomputes the titlebar (fullscreen, restoring
+            // from maximize, some resizes) snapped the buttons back to their default top-left
+            // spot — apply on creation and re-apply on every resize/move so it sticks.
+            #[cfg(target_os = "macos")]
+            if let Some(w) = app.get_webview_window("main") {
+                window::apply_mac_traffic_light_inset(&w);
+                let w_for_event = w.clone();
+                w.on_window_event(move |event| match event {
+                    tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                        window::apply_mac_traffic_light_inset(&w_for_event);
+                    }
+                    _ => {}
+                });
+            }
+
             // Deep-link (kodama://song/<id>): the bundler registers the scheme on release
             // installs, but Linux and Windows-dev need a runtime registration.
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]

@@ -542,3 +542,76 @@ pub async fn open_composer_window(
     Ok(())
 }
 
+// Desired traffic-light inset on macOS: x = distance from the left edge, y = extra height
+// added on top of the buttons' own height (i.e. how far down their vertical center sits).
+// Kept in one place so it's easy to retune against the sidebar's search-bar row without
+// hunting through the positioning code. Must match (or drive) the `pl-[72px]` left padding
+// on the macOS search-bar row in App.jsx — keep the two in sync when tuning.
+#[cfg(target_os = "macos")]
+const MAC_TRAFFIC_LIGHT_INSET: (f64, f64) = (24.0, 24.0);
+
+// Tauri's own `traffic_light_position()` only applies once at window construction — wry's
+// underlying window re-applies its stored inset continuously (on every webview redraw), but
+// that live re-application isn't exposed on the public `tauri::WebviewWindow` API, only on an
+// internal runtime trait. Without it, anything that recomputes the titlebar (leaving/entering
+// fullscreen, restoring from maximize, some resizes) snaps the buttons back to their native
+// top-left spot — which is exactly the bug an earlier attempt at this hit and abandoned.
+// So we reimplement wry's own algorithm (tao's `inset_traffic_lights`) ourselves and re-run it
+// on resize/move, which is cheap and idempotent.
+#[cfg(target_os = "macos")]
+pub unsafe fn reposition_traffic_lights(window: &tauri::WebviewWindow, x: f64, y: f64) {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::NSRect;
+    use objc::{msg_send, sel, sel_impl};
+
+    let Ok(ns_window) = window.ns_window() else { return };
+    let ns_window = ns_window as id;
+    if ns_window == nil {
+        return;
+    }
+
+    // NSWindowButton: CloseButton = 0, MiniaturizeButton = 1, ZoomButton = 2.
+    let close: id = msg_send![ns_window, standardWindowButton: 0u64];
+    let miniaturize: id = msg_send![ns_window, standardWindowButton: 1u64];
+    let zoom: id = msg_send![ns_window, standardWindowButton: 2u64];
+    if close == nil || miniaturize == nil || zoom == nil {
+        return;
+    }
+
+    let close_frame: NSRect = msg_send![close, frame];
+    let miniaturize_frame: NSRect = msg_send![miniaturize, frame];
+
+    // The three buttons share a titlebar container view two levels up; resizing/repositioning
+    // it (rather than just the buttons) is what makes the vertical inset take effect.
+    let button_superview: id = msg_send![close, superview];
+    let title_bar_container_view: id = msg_send![button_superview, superview];
+    if title_bar_container_view == nil {
+        return;
+    }
+
+    let title_bar_frame_height = close_frame.size.height + y;
+    let mut title_bar_rect: NSRect = msg_send![title_bar_container_view, frame];
+    let window_frame: NSRect = msg_send![ns_window, frame];
+    title_bar_rect.size.height = title_bar_frame_height;
+    title_bar_rect.origin.y = window_frame.size.height - title_bar_frame_height;
+    let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
+
+    // Preserve Apple's own spacing between the three dots, just shift the whole group.
+    let space_between = miniaturize_frame.origin.x - close_frame.origin.x;
+    for (i, button) in [close, miniaturize, zoom].into_iter().enumerate() {
+        let mut frame: NSRect = msg_send![button, frame];
+        frame.origin.x = x + (i as f64 * space_between);
+        let _: () = msg_send![button, setFrameOrigin: frame.origin];
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn apply_mac_traffic_light_inset(window: &tauri::WebviewWindow) {
+    let (x, y) = MAC_TRAFFIC_LIGHT_INSET;
+    let window = window.clone();
+    let _ = window.clone().run_on_main_thread(move || unsafe {
+        reposition_traffic_lights(&window, x, y);
+    });
+}
+
+

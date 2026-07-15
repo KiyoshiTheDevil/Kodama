@@ -6958,12 +6958,19 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     setLyrics(null);
     setIsCustomLyrics(false);
 
+    // Rapid track skips fire several overlapping lyrics fetches; whichever one resolves
+    // LAST used to win regardless of which track it was for, so quick successive skips
+    // could leave a stale/old song's lyrics showing. Guard every async callback against
+    // a track change that happened while it was in flight.
+    let cancelled = false;
+
     const cacheKey = `kiyoshi-lyrics-${track.videoId}`;
 
     // Check for custom lyrics first
     fetch(`${API}/lyrics/custom/${track.videoId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (cancelled) return;
         if (data?.content) {
           const parsed = data.format === "ttml" ? parseTtml(data.content) : parseLrc(data.content);
           if (parsed.length) {
@@ -6978,13 +6985,14 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         // No custom lyrics — proceed with normal fetch
         continueWithProviders();
       })
-      .catch(() => continueWithProviders());
+      .catch(() => { if (!cancelled) continueWithProviders(); });
 
     function continueWithProviders() {
     // Forced provider: skip cache, fetch only that one provider
     if (forcedProvider) {
       const singleProviders = DEFAULT_LYRICS_PROVIDERS.map(p => ({ ...p, enabled: p.id === forcedProvider }));
       fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), singleProviders, track.videoId || "").then(res => {
+        if (cancelled) return;
         if (res?.lrc) { setLyrics(res.lrc); setSource(res.source); setSubmitterName(res.submitterName || null); setAppliedVersionId(null); onSourceChange?.(res.source); }
         else { setLyrics(null); setSubmitterName(null); onSourceChange?.(""); onProviderFailed?.(forcedProvider); }
         setLoading(false);
@@ -7016,6 +7024,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
           } else {
             // Old cache entry — check availability silently in background
             fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "").then(res => {
+              if (cancelled) return;
               const ids = res?.failedIds || [];
               ids.forEach(id => onProviderFailed?.(id));
               try { localStorage.setItem(cacheKey, JSON.stringify({ lrc, source, submitterName: cachedSubmitter || null, failedIds: ids })); } catch {}
@@ -7030,6 +7039,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     }
 
     fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "").then(res => {
+      if (cancelled) return;
       if (res?.lrc) {
         setLyrics(res.lrc);
         setSource(res.source);
@@ -7043,6 +7053,8 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       setLoading(false);
     });
     } // end continueWithProviders
+
+    return () => { cancelled = true; };
   }, [track, refetchKey, forcedProvider, customLyricsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeIdx = lastIdxRef.current;
@@ -10152,7 +10164,16 @@ export default function App() {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       return;
     }
+    // Hiding the player bar shifts layout under a stationary cursor (translateY sliding it
+    // off-screen). Some WebViews fire a synthetic mousemove when the element under an unmoved
+    // cursor changes (confirmed reproducible on macOS/WKWebView for this bug report, not on
+    // Windows/WebView2 here). That synthetic event then re-showed the bar, which hid again
+    // after 3s, shifting layout again — a self-triggering loop. Only treat it as real activity
+    // if the pointer's coordinates actually changed.
+    let lastX = null, lastY = null;
     const onMove = (e) => {
+      if (e.clientX === lastX && e.clientY === lastY) return;
+      lastX = e.clientX; lastY = e.clientY;
       setPlayerVisible(true);
       setCursorVisible(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
