@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { Button, Spinner, toast, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalCloseTrigger } from "@heroui/react";
 import { ModalDialog } from "../ui/zoomed-heroui.jsx";
 import { Playlist, MagnifyingGlass, Plus } from "../icons.jsx";
-import { API, thumb, useLang } from "../context.jsx";
+import { API, thumb, useLang, useZoom } from "../context.jsx";
 
 export function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) {
   const t = useLang();
+  const zoom = useZoom();
   const [playlists, setPlaylists] = useState(null);
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState(null);
@@ -70,7 +71,11 @@ export function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) 
                   {t("newPlaylist")}
                 </Button>
 
-                <div className="h-[46vh] overflow-y-auto -mx-1 px-1">
+                {/* Fixed height (not max-height, unlike the other modals' lists) — this one also
+                    centers a loading spinner via a `h-full` child, which needs a definite parent
+                    height. vh alone doesn't react to the ancestor ModalDialog's `zoom`, so divide
+                    by it to keep the same effective on-screen size at any app zoom level. */}
+                <div className="overflow-y-auto -mx-1 px-1" style={{ height: `${46 / zoom}vh` }}>
                   {playlists === null ? (
                     <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
                   ) : filtered.length === 0 ? (

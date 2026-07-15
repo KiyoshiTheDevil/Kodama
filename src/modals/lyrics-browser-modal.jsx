@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { cn, Button, Spinner, toast, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
 import { DropdownMenu, ModalDialog } from "../ui/zoomed-heroui.jsx";
 import { Microphone, Flag, Check, CaretUp, CaretDown } from "../icons.jsx";
-import { API, useLang } from "../context.jsx";
+import { API, useLang, useZoom } from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
 import { parseTtml, parseLrc, parseDurationToSeconds } from "../lyrics/parse.js";
@@ -17,6 +17,7 @@ const UNISON_REPORT_REASONS = ["wrong_song", "bad_sync", "offensive", "spam", "o
 
 function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter, currentVersionId, onApply, onClose }) {
   const t = useLang();
+  const zoom = useZoom();
   const [results, setResults] = useState(null); // null = loading, [] = none
   const [votes, setVotes] = useState({});       // { [versionId]: { my: -1|0|1, count } }
 
@@ -124,7 +125,13 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
               </ModalHeading>
             </ModalHeader>
             <ModalBody>
-              <div className="h-[48vh] overflow-y-auto overflow-x-hidden px-0.5">
+              {/* max-height (not a fixed height) in vh, divided by zoom: ModalDialog (the
+                  ancestor) has `zoom` applied via CSS, and a plain vh unit doesn't react to
+                  that — it'd stay pegged to the real viewport regardless of app zoom, forcing
+                  this box to its full height (and to scroll) even with just a couple of short
+                  results, and growing past the dialog's own cap once zoomed further, showing
+                  a second, redundant scrollbar on the dialog itself. */}
+              <div className="overflow-y-auto overflow-x-hidden px-0.5" style={{ maxHeight: `${48 / zoom}vh` }}>
                 {results === null ? (
                   <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
                 ) : results.length === 0 ? (
