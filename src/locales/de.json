@@ -419,6 +419,8 @@
   "removeFromSidebar": "Aus Sidebar entfernen",
   "refetchLyrics": "Lyrics neu laden",
   "browseLyrics": "Lyrics durchsuchen",
+  "lyricsPreview": "Vorschau",
+  "selectLyricsVersion": "Übernehmen",
   "votes": "Stimmen",
   "copy": "Kopieren",
   "unisonIdentity": "Unison-Identität",
