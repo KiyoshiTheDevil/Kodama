@@ -125,13 +125,14 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
               </ModalHeading>
             </ModalHeader>
             <ModalBody>
-              {/* max-height (not a fixed height) in vh, divided by zoom: ModalDialog (the
-                  ancestor) has `zoom` applied via CSS, and a plain vh unit doesn't react to
-                  that — it'd stay pegged to the real viewport regardless of app zoom, forcing
-                  this box to its full height (and to scroll) even with just a couple of short
-                  results, and growing past the dialog's own cap once zoomed further, showing
-                  a second, redundant scrollbar on the dialog itself. */}
-              <div className="overflow-y-auto overflow-x-hidden px-0.5" style={{ maxHeight: `${48 / zoom}vh` }}>
+              {/* Fixed height (not max-height): the loading/empty states below center a spinner
+                  or message via a `h-full` child, which needs a definite parent height — with
+                  only a maxHeight cap the parent has no definite height while those short
+                  states are showing, making that `h-full` ambiguous (observed as the spinner
+                  jittering and the scrollbar flickering on/off). vh alone doesn't react to the
+                  ancestor ModalDialog's `zoom` though, so divide by it to keep the same
+                  effective on-screen size at any app zoom level. */}
+              <div className="overflow-y-auto overflow-x-hidden px-0.5" style={{ height: `${48 / zoom}vh` }}>
                 {results === null ? (
                   <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
                 ) : results.length === 0 ? (
