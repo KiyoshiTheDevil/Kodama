@@ -273,10 +273,11 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                 <Button variant="ghost" size="sm" className="flex-1 gap-1.5" isDisabled={!selected} onPress={handleCopy}>
                   <Copy size={14} />{t("copyLyrics")}
                 </Button>
-                {/* Accent background kept, just the icon/text recoloured to grey instead of
-                    the variant's default white (--button-fg is what the button's own CSS
-                    reads for its foreground colour). */}
-                <Button variant="primary" size="sm" className="flex-1 gap-1.5" style={{ "--button-fg": "var(--text-secondary)" }}
+                {/* Accent background kept, just the icon/text recoloured to a dark grey
+                    matching the modal's own background instead of the variant's default
+                    white (--button-fg is what the button's own CSS reads for its
+                    foreground colour). */}
+                <Button variant="primary" size="sm" className="flex-1 gap-1.5" style={{ "--button-fg": "var(--bg-elevated)" }}
                   isDisabled={!selected} onPress={handleSelect}>
                   <Check size={14} weight="bold" />{t("selectLyricsVersion")}
                 </Button>
