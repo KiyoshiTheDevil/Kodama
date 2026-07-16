@@ -5589,7 +5589,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // emit a `media-control` event from Rust; drive the player from it. Subscribe once and read
   // the latest handlers through a ref so we don't re-bind the listener on every render.
   const mediaCtlRef = useRef({});
-  mediaCtlRef.current = { togglePlay, getAdjacentTrack, setTrack, setIsPlaying };
+  mediaCtlRef.current = { togglePlay, getAdjacentTrack, setTrack, setIsPlaying, queue };
   useEffect(() => {
     let unlisten;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -5614,25 +5614,48 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
 
   // LAN remote bridge: while enabled, push now-playing state to the backend and drain
   // commands the phone enqueued — executed through the same playback controls as media keys.
-  const runPlaybackAction = (action) => {
+  // Commands are {action, ...payload} objects (seek/volume/queueJump carry extra fields);
+  // plain playback toggles just carry {action}.
+  const runPlaybackAction = (cmd) => {
     const h = mediaCtlRef.current;
+    const action = typeof cmd === "string" ? cmd : cmd?.action;
     if (action === "playpause") h.togglePlay();
     else if (action === "next") { const tk = h.getAdjacentTrack("next"); if (tk) h.setTrack(tk); }
     else if (action === "prev") { const tk = h.getAdjacentTrack("prev"); if (tk) h.setTrack(tk); }
     else if (action === "shuffle") setShuffle(s => !s);
     else if (action === "repeat") cycleRepeat();
+    else if (action === "like") h.toggleLike?.();
+    else if (action === "seek" && typeof cmd.position === "number") {
+      const a = audioRef.current;
+      if (a) a.currentTime = Math.max(0, cmd.position);
+    } else if (action === "volume" && typeof cmd.value === "number") {
+      const v = Math.max(0, Math.min(1, cmd.value / 100));
+      setVolume(v);
+      if (audioRef.current) audioRef.current.volume = volCurve(v);
+    } else if (action === "queueJump" && cmd.videoId) {
+      const tk = (h.queue || []).find(q => q.videoId === cmd.videoId);
+      if (tk) h.setTrack(tk);
+    }
   };
   const remoteNpRef = useRef({});
-  remoteNpRef.current = { track, isPlaying, progress, duration, shuffle, repeat };
+  remoteNpRef.current = { track, isPlaying, progress, duration, shuffle, repeat, volume, isLiked, queue };
   useEffect(() => {
     if (!remoteEnabled) return;
     // One combined request per tick (push state + receive pending commands) instead of two
     // separate polling loops — keeps background activity (and its GC churn) low.
     const sync = () => {
-      const { track: t, isPlaying: p, progress: pos, duration: dur, shuffle: sh, repeat: rp } = remoteNpRef.current;
+      const { track: t, isPlaying: p, progress: pos, duration: dur, shuffle: sh, repeat: rp, volume: vol, isLiked: liked, queue: q } = remoteNpRef.current;
       const artists = Array.isArray(t?.artists)
         ? t.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
         : (t?.artists || "");
+      // Trimmed to the essentials + capped at 20 upcoming tracks so the payload stays small
+      // for a request that fires every second.
+      const queueSlice = (q || []).slice(0, 20).map(qt => ({
+        videoId: qt.videoId,
+        title: qt.title || "",
+        artists: Array.isArray(qt.artists) ? qt.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ") : (qt.artists || ""),
+        thumbnail: qt.thumbnail || "",
+      }));
       fetch(`${API}/remote/_sync`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -5640,6 +5663,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             title: t?.title || "", artists, thumbnail: t?.thumbnail || "",
             isPlaying: !!p, position: Math.floor(pos || 0), duration: Math.floor(dur || 0), hasTrack: !!t,
             shuffle: !!sh, repeat: rp || "none",
+            volume: Math.round((vol ?? 1) * 100), isLiked: !!liked, queue: queueSlice,
           },
         }),
       }).then(r => r.json()).then(d => (d.commands || []).forEach(runPlaybackAction)).catch(() => {});
@@ -5708,6 +5732,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       setIsLiked(isLiked); // revert on error
     }
   };
+  mediaCtlRef.current.toggleLike = toggleLike; // added post-declaration, see mediaCtlRef above
 
   const cycleRepeat = () => {
     setRepeat(r => r === "none" ? "all" : r === "all" ? "one" : "none");

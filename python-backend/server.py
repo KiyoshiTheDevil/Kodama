@@ -5746,6 +5746,7 @@ _remote_state = {
     "title": "", "artists": "", "thumbnail": "",
     "isPlaying": False, "position": 0, "duration": 0, "hasTrack": False,
     "shuffle": False, "repeat": "none",
+    "volume": 100, "isLiked": False, "queue": [],
 }
 _remote_cmds = []                 # pending command strings, drained by the app frontend
 _remote_devices = {}              # deviceId -> {name, status: pending|approved, last_seen}
@@ -5770,9 +5771,16 @@ _REMOTE_HTML = """<!DOCTYPE html>
   .cover { width:min(72vw,280px); aspect-ratio:1; border-radius:18px; object-fit:cover; margin:0 auto 22px;
     background:linear-gradient(150deg,#ff5ea8,#9b3cff 60%,#3a2bd8); box-shadow:0 20px 50px rgba(0,0,0,.5); display:block; }
   .ti { font-size:19px; font-weight:600; line-height:1.25; }
-  .ar { font-size:14px; color:var(--t2); margin-top:3px; }
-  .bar { height:5px; border-radius:3px; background:rgba(255,255,255,.13); overflow:hidden; margin:22px 0 6px; }
-  .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .25s linear; }
+  .info { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:3px; }
+  .ar { font-size:14px; color:var(--t2); }
+  .like { background:none; border:none; padding:4px; margin:-4px; cursor:pointer; color:var(--t3); display:flex; flex-shrink:0; }
+  .like.on { color:var(--accent); }
+  .like svg { width:18px; height:18px; fill:currentColor; }
+  .bar { height:5px; border-radius:3px; background:rgba(255,255,255,.13); margin:22px 0 6px; cursor:pointer;
+    position:relative; }
+  .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .25s linear; pointer-events:none; border-radius:3px; }
+  /* Invisible taller hit-area so the thin bar is still easy to tap on a phone. */
+  .bar::before { content:""; position:absolute; left:0; right:0; top:-10px; bottom:-10px; }
   .times { display:flex; justify-content:space-between; font-size:11px; color:var(--t3); }
   .ctrls { display:flex; align-items:center; justify-content:center; gap:20px; margin-top:26px; }
   .ctrls button { background:none; border:none; color:var(--t1); padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -5783,6 +5791,22 @@ _REMOTE_HTML = """<!DOCTYPE html>
   .play { width:92px; height:58px; border-radius:30px; background:var(--accent); display:flex; align-items:center; justify-content:center;
     box-shadow:0 8px 26px color-mix(in srgb, var(--accent) 42%, transparent); }
   .play svg { width:26px; height:26px; fill:#fff; }
+  .vol { display:flex; align-items:center; gap:10px; margin-top:26px; }
+  .vol svg { width:16px; height:16px; fill:var(--t3); flex-shrink:0; }
+  .vol input[type=range] { flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:rgba(255,255,255,.13); outline:none; margin:0; }
+  .vol input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; }
+  .vol input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); border:none; cursor:pointer; }
+  .qtoggle { margin-top:22px; background:none; border:none; color:var(--t3); font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; justify-content:center; width:100%; padding:6px 0; }
+  .qtoggle svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:transform .2s; }
+  .qtoggle.open svg { transform:rotate(180deg); }
+  .qlist { display:none; margin-top:10px; max-height:260px; overflow-y:auto; text-align:left; }
+  .qlist.open { display:block; }
+  .qitem { display:flex; align-items:center; gap:10px; padding:8px 4px; cursor:pointer; border-radius:10px; }
+  .qitem:active { background:rgba(255,255,255,.06); }
+  .qitem img, .qitem .ph { width:38px; height:38px; border-radius:8px; object-fit:cover; flex-shrink:0; background:rgba(255,255,255,.08); }
+  .qitem .qi-t { font-size:13px; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qitem .qi-a { font-size:11px; color:var(--t3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qempty { padding:14px 4px; color:var(--t3); font-size:13px; text-align:center; }
   .brand { position:fixed; top:16px; left:0; right:0; display:flex; align-items:center; justify-content:center; gap:9px; }
   .brand svg { height:22px; width:auto; }
   .brand .rt { font-weight:600; font-size:15px; color:var(--t2); letter-spacing:.02em; }
@@ -5804,8 +5828,11 @@ _REMOTE_HTML = """<!DOCTYPE html>
   <div class="player" id="player">
     <img class="cover" id="cover" alt="">
     <div class="ti" id="ti">—</div>
-    <div class="ar" id="ar"></div>
-    <div class="bar"><i id="fill"></i></div>
+    <div class="info">
+      <span class="ar" id="ar"></span>
+      <button class="like" id="like" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M12 21s-6.9-4.35-9.5-8.02C.87 10.24 1.5 6.5 4.8 5.1 7.2 4.08 9.8 4.9 12 7.5c2.2-2.6 4.8-3.42 7.2-2.4 3.3 1.4 3.93 5.14 2.3 7.88C18.9 16.65 12 21 12 21z"/></svg></button>
+    </div>
+    <div class="bar" id="bar"><i id="fill"></i></div>
     <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
     <div class="ctrls">
       <button class="sr" id="shuf" aria-label="Shuffle"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></button>
@@ -5814,6 +5841,12 @@ _REMOTE_HTML = """<!DOCTYPE html>
       <button id="next" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M17 5v14h-2V5zM4 5l9 7-9 7z"/></svg></button>
       <button class="sr" id="rep" aria-label="Repeat"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
     </div>
+    <div class="vol">
+      <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+      <input type="range" id="vol" min="0" max="100" value="100" aria-label="Volume">
+    </div>
+    <button class="qtoggle" id="qtoggle"><span>Queue</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="qlist" id="qlist"></div>
   </div>
 <script>
   var token = location.hash.replace(/^#/, "");
@@ -5864,6 +5897,21 @@ _REMOTE_HTML = """<!DOCTYPE html>
     return fetch("/remote/hello", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: token, deviceId: did, name: name }) }).then(function (r) { return r.json(); }).catch(function () { return {}; });
   }
+  var esc = function (s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); };
+  var lastDuration = 0;
+  var volDragging = false;
+  function renderQueue(q) {
+    var list = document.getElementById("qlist");
+    if (!q || !q.length) { list.innerHTML = '<div class="qempty">Queue is empty</div>'; return; }
+    list.innerHTML = q.map(function (t) {
+      var thumb = t.thumbnail ? '<img src="' + t.thumbnail + '">' : '<div class="ph"></div>';
+      return '<div class="qitem" data-id="' + esc(t.videoId) + '">' + thumb +
+        '<div style="min-width:0;flex:1"><div class="qi-t">' + esc(t.title) + '</div><div class="qi-a">' + esc(t.artists) + '</div></div></div>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".qitem"), function (el) {
+      el.onclick = function () { cmd("queueJump", { videoId: el.getAttribute("data-id") }); };
+    });
+  }
   function render(st) {
     document.getElementById("ti").textContent = st.title || "Nothing playing";
     document.getElementById("ar").textContent = st.artists || "";
@@ -5871,20 +5919,40 @@ _REMOTE_HTML = """<!DOCTYPE html>
     if (st.thumbnail) { if (c.src !== st.thumbnail) c.src = st.thumbnail; }
     document.getElementById("cur").textContent = fmt(st.position);
     document.getElementById("dur").textContent = fmt(st.duration);
+    lastDuration = st.duration || 0;
     document.getElementById("fill").style.width = (st.duration ? Math.min(100, st.position / st.duration * 100) : 0) + "%";
     document.getElementById("ppi").innerHTML = st.isPlaying ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
     document.getElementById("shuf").classList.toggle("on", !!st.shuffle);
     document.getElementById("rep").classList.toggle("on", !!st.repeat && st.repeat !== "none");
+    document.getElementById("like").classList.toggle("on", !!st.isLiked);
+    if (!volDragging && typeof st.volume === "number") document.getElementById("vol").value = st.volume;
+    renderQueue(st.queue);
   }
-  function cmd(action) {
+  function cmd(action, extra) {
+    var body = { token: token, deviceId: did, action: action };
+    if (extra) for (var k in extra) body[k] = extra[k];
     fetch("/remote/cmd", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: token, deviceId: did, action: action }) }).then(function () { setTimeout(loop, 250); }).catch(function () {});
+      body: JSON.stringify(body) }).then(function () { setTimeout(loop, 250); }).catch(function () {});
   }
   document.getElementById("prev").onclick = function () { cmd("prev"); };
   document.getElementById("next").onclick = function () { cmd("next"); };
   document.getElementById("pp").onclick = function () { cmd("playpause"); };
   document.getElementById("shuf").onclick = function () { cmd("shuffle"); };
   document.getElementById("rep").onclick = function () { cmd("repeat"); };
+  document.getElementById("like").onclick = function () { cmd("like"); };
+  document.getElementById("bar").onclick = function (e) {
+    if (!lastDuration) return;
+    var rect = this.getBoundingClientRect();
+    var ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    cmd("seek", { position: Math.round(ratio * lastDuration) });
+  };
+  var volEl = document.getElementById("vol");
+  volEl.addEventListener("input", function () { volDragging = true; });
+  volEl.addEventListener("change", function () { cmd("volume", { value: parseInt(volEl.value, 10) }); volDragging = false; });
+  document.getElementById("qtoggle").onclick = function () {
+    var open = this.classList.toggle("open");
+    document.getElementById("qlist").classList.toggle("open", open);
+  };
   function loop() {
     fetch("/remote/state?token=" + encodeURIComponent(token) + "&deviceId=" + encodeURIComponent(did))
       .then(function (r) { return r.json(); })
@@ -6062,8 +6130,26 @@ def remote_cmd():
         return jsonify({"error": "not_allowed"}), 403
     d["last_seen"] = time.time()
     action = data.get("action")
-    if action in ("playpause", "next", "prev", "shuffle", "repeat"):
-        _remote_cmds.append(action)
+    if action in ("playpause", "next", "prev", "shuffle", "repeat", "like"):
+        _remote_cmds.append({"action": action})
+        return jsonify({"ok": True})
+    if action == "seek":
+        position = data.get("position")
+        if not isinstance(position, (int, float)):
+            return jsonify({"error": "bad_position"}), 400
+        _remote_cmds.append({"action": "seek", "position": position})
+        return jsonify({"ok": True})
+    if action == "volume":
+        value = data.get("value")
+        if not isinstance(value, (int, float)):
+            return jsonify({"error": "bad_value"}), 400
+        _remote_cmds.append({"action": "volume", "value": value})
+        return jsonify({"ok": True})
+    if action == "queueJump":
+        video_id = data.get("videoId")
+        if not video_id:
+            return jsonify({"error": "bad_video_id"}), 400
+        _remote_cmds.append({"action": "queueJump", "videoId": video_id})
         return jsonify({"ok": True})
     return jsonify({"error": "bad_action"}), 400
 
