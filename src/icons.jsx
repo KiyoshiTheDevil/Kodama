@@ -94,6 +94,7 @@ export const MusicNote          = fa("music");
 export const Playlist           = fa("list-music");
 export const ImageSquare        = fa("image");
 export const Microphone         = fa("microphone");
+export const MicrophoneStand    = fa("microphone-stand");
 export const Headphones         = fa("headphones");
 export const PodcastIcon        = fa("podcast");
 export const Heart              = fa("heart");
