@@ -174,7 +174,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
             {/* Left pane — source list */}
             <div className="flex flex-col w-[320px] shrink-0 min-h-0">
               <div className="flex items-center gap-2 px-4 pt-4 pb-3 shrink-0">
-                <MicrophoneStand size={17} />
+                <MicrophoneStand size={17} weight="fill" />
                 <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("browseLyrics")}</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 flex flex-col gap-1.5">
