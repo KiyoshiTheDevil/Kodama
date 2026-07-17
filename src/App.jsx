@@ -4650,9 +4650,11 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                       <Globe size={14} />
                       GitHub
                     </Button>
+                    {/* Temporarily removed — re-enable by uncommenting.
                     <Button size="sm" className="bg-[#FFDD00]! text-black! font-semibold" onPress={() => openUrl("https://buymeacoffee.com/kiyoshi_the_devil")}>
                       ☕ Buy me a coffee
                     </Button>
+                    */}
                   </div>
                 </div>
 
