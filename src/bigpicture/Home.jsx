@@ -78,7 +78,14 @@ export function Home({ chrome, onOpenCard }) {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => { const t = setTimeout(() => focusSelf(), 0); return () => clearTimeout(t); }, [focusSelf]);
+  // focusSelf() needs an actual focusable card to land on — firing it unconditionally on mount
+  // raced the async /home fetch (sections still []), so it landed on nothing and never retried
+  // once real content arrived. Re-run it once history or the fetched sections are non-empty.
+  useEffect(() => {
+    if (!history.length && !sections.length) return;
+    const t = setTimeout(() => focusSelf(), 0);
+    return () => clearTimeout(t);
+  }, [focusSelf, history.length, sections.length]);
 
   return (
     <FocusContext.Provider value={focusKey}>
