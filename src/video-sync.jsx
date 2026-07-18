@@ -110,9 +110,9 @@ export function VideoSyncVideo({ src, offsetSeconds, audioRef, isPlaying, style 
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false }) {
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000" }}>
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : 16 }}>
       {videoSync.ready && (
         // offsetSeconds is 0 here, not videoSync.offsetSeconds — App.jsx's audio-switching effect
         // already applies that offset ONCE, as the seek target when swapping the Rust audio source

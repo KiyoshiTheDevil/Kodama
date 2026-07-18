@@ -88,6 +88,7 @@ import {
   Gamepad,
   ClapperboardPlay,
   HeadphonesSimple,
+  Columns,
   Eyedropper,
   Info,
   WarningCircle,
@@ -11980,6 +11981,10 @@ export default function App() {
                 setOverlayOpen(true);
                 setSplitView(false);
                 setShowLyricsManual(true);
+              } else if (showVideoView) {
+                // Video mode: no cover/split cycle to run — just show/hide lyrics alongside
+                // the video (as a split, for now — more styles land once captions exist).
+                setShowLyricsManual(l => !l);
               } else if (fullscreen) {
                 // Cycle: lyrics → cover → split → lyrics
                 autoCoverRef.current = false;
@@ -12070,9 +12075,14 @@ export default function App() {
             <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
           </>)}
           {currentTrack && (() => {
-            // Split (fullscreen only): cover/visualizer left, lyrics right. Both stay mounted —
-            // only width/opacity animate, so there's no remount/refetch when switching modes.
-            const splitActive = fullscreen && splitView;
+            // Split: cover/visualizer OR video left, lyrics right. Both sides of whichever split
+            // is active stay mounted — only width/opacity animate, so there's no remount/refetch
+            // when switching modes. Cover-split is fullscreen-only (existing behaviour); video's
+            // lyrics-alongside-video works in the normal expanded view too, driven by the same
+            // showLyrics the Lyrics button already toggles (no separate on/off setting).
+            const coverSplitActive = fullscreen && splitView && !showVideoView;
+            const videoSplitActive = showVideoView && showLyrics;
+            const anySplitActive = coverSplitActive || videoSplitActive;
             const coverPct = `${(splitRatio * 100).toFixed(2)}%`;
             const lyricsPct = `${((1 - splitRatio) * 100).toFixed(2)}%`;
             // No width animation while dragging (snappy), otherwise the smooth mode transition.
@@ -12081,41 +12091,47 @@ export default function App() {
             return (<>
               <div style={{
                 position: "absolute", top: 0, bottom: 0, right: 0,
-                width: splitActive ? lyricsPct : "100%",
-                opacity: showVideoView ? 0 : (splitActive ? 1 : (showLyrics ? 1 : 0)),
+                width: anySplitActive ? lyricsPct : "100%",
+                opacity: showVideoView ? (videoSplitActive ? 1 : 0) : (coverSplitActive ? 1 : (showLyrics ? 1 : 0)),
                 transition: paneTransition,
-                pointerEvents: showVideoView ? "none" : ((splitActive || showLyrics) ? "all" : "none"),
+                pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
               }}>
                 <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} showTranslation={showLyricsTranslation} translationLang={lyricsTranslationLang} translationFontSize={lyricsTranslationFontSize} showRomaji={showRomaji} romajiFontSize={lyricsRomajiFontSize} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} showAgentTags={showAgentTags} ambientVisualizer={ambientVisualizer} syllableZoom={syllableZoom} fluidLyrics={fluidLyrics} ambientBackground={ambientBackground} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} />
               </div>
               <div style={{
                 position: "absolute", top: 0, bottom: 0, left: 0,
-                width: splitActive ? coverPct : "100%",
-                opacity: showVideoView ? 0 : (splitActive ? 1 : (showLyrics ? 0 : 1)),
+                width: coverSplitActive ? coverPct : "100%",
+                opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
-                pointerEvents: showVideoView ? "none" : ((splitActive || !showLyrics) ? "all" : "none"),
-                borderRight: splitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
+                pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
+                borderRight: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
-                <CoverView track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} vizConfig={vizConfig} narrow={splitActive} />
+                <CoverView track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} vizConfig={vizConfig} narrow={coverSplitActive} />
               </div>
-              {/* Dedicated video pane — replaces both lyrics and cover panes while active */}
+              {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
+                  when the video-split setting is on. Replaces the cover pane while active. */}
               <div style={{
-                position: "absolute", inset: 0,
+                position: "absolute", top: 0, bottom: 0, left: 0,
+                width: videoSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
-                transition: "opacity 0.35s ease",
+                transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
-              {splitActive && (
+              {anySplitActive && (
                 <div
                   onMouseDown={startSplitResize}
                   style={{ position: "absolute", top: 0, bottom: 0, left: coverPct, width: 12, marginLeft: -6, cursor: "ew-resize", zIndex: 6 }}
                   onMouseEnter={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = "1"; }}
                   onMouseLeave={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = splitResizing ? "1" : "0"; }}
                 >
-                  <div style={{ position: "absolute", left: 5, top: 0, bottom: 0, width: 2, background: "rgba(255,255,255,0.55)", opacity: splitResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none" }} />
+                  <div style={{
+                    position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+                    width: 3, height: 44, borderRadius: 2, background: "var(--accent)",
+                    opacity: splitResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
+                  }} />
                 </div>
               )}
             </>);

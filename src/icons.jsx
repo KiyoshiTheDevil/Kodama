@@ -100,6 +100,7 @@ export const HeadphonesSimple   = fa("headphones-simple");
 export const PodcastIcon        = fa("podcast");
 export const Gamepad            = fa("gamepad");
 export const ClapperboardPlay   = fa("clapperboard-play");
+export const Columns            = fa("table-columns");
 export const Heart              = fa("heart");
 export const Crown              = fa("crown");
 export const UserPlus           = fa("user-plus");
