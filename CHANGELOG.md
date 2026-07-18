@@ -8,6 +8,20 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 > Changes landing after the latest release accumulate here.
 
+## [1.0.0-alpha.30] — 2026-07-14
+
+### Added
+- **YouTube brand account login** — switch to a brand/channel account during sign-in instead of always landing on the default Google account.
+
+### Changed
+- **Overlay editor overhaul** — Figma-style inspector (prefix fields, per-corner radius), a built-in color picker, refined canvas interaction (hover outlines, multi-select, resizable panels, proper dropdown menus).
+- **Account switching** now shows a loading overlay instead of a blank flash.
+- Settings sub-navigation unfolds with a subtle animation instead of a hard cut.
+
+### Fixed
+- **Home feed** no longer gets stuck on "No suggestions available." after a slow app start — it retries automatically, and now offers a direct refresh button.
+- Overlay editor's live preview now always reflects the currently playing track.
+
 ## [1.0.0-alpha.29] — 2026-07-11
 
 ### Added

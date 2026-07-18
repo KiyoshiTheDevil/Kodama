@@ -69,6 +69,17 @@ class Profile:
             if os.path.exists(path):
                 os.remove(path)
 
+    # Old server.py: _brand_user_id
+    def brand_user_id(self, name: str) -> Optional[str]:
+        """The brand-account user id stored for a profile, or None.
+
+        Passed to YTMusic as `user=` so requests act on behalf of a brand
+        account (ytmusicapi's onBehalfOfUser). Captured at login from the
+        WebView's ytcfg DELEGATED_SESSION_ID.
+        """
+        brand_id = self._read_metadata(name).get("brandUserId")
+        return str(brand_id).strip() or None if brand_id else None
+
     # Old server.py: is_local_profile
     def is_local(self, name: Optional[str]) -> bool:
         if not name:

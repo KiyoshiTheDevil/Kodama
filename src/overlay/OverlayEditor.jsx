@@ -25,6 +25,12 @@ import {
   ListBox,
   ListBoxItem,
   SeparatorRoot,
+  Dropdown,
+  DropdownTrigger,
+  DropdownPopover,
+  DropdownMenu,
+  DropdownItem,
+  DropdownSection,
 } from "@heroui/react";
 import {
   ImageSquare,
@@ -63,6 +69,7 @@ import {
   LAYER_FACTORIES,
   uniformCorners,
 } from "./schema.js";
+import { ColorPicker } from "../ui/color-picker.jsx";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -72,6 +79,7 @@ const TYPE_META = {
   shape: { icon: PaintBrushBroad, label: "Shape" },
 };
 const ADD_TYPES = ["text", "albumArt", "progress", "image", "shape"];
+const PAN_SPEED = 0.5; // wheel-scroll pan damping (raw wheel deltas feel too coarse at 1:1)
 
 // Fonts preloaded by the engine HTML (must match the <link> in server.py).
 const FONT_LIST = [
@@ -428,7 +436,7 @@ function PillNum({ prefix, value, onChange, min, max, step = 1 }) {
     <div className="flex items-center h-8 w-full min-w-0 rounded-md bg-[var(--surface-2)] border border-border focus-within:border-accent">
       <span
         onPointerDown={onScrub}
-        className="shrink-0 w-7 pl-2 text-t11 text-muted select-none"
+        className="shrink-0 px-2 text-t11 text-muted select-none whitespace-nowrap"
         style={{ cursor: "ew-resize" }}
       >
         {prefix}
@@ -475,19 +483,12 @@ function OvlTextField({ label, value, onChange, placeholder }) {
 function ColorField({ label, value, onChange, opacity, onOpacity }) {
   const hex = typeof value === "string" && value[0] === "#" ? value.slice(0, 7) : "#000000";
   return (
-    <div className="flex items-center gap-2 h-8 px-1.5 rounded-md bg-[var(--surface-2)] border border-border">
-      <label
-        className="relative w-4 h-4 rounded shrink-0 overflow-hidden border border-border cursor-pointer"
-        style={{ background: value || "#000" }}
-      >
-        <input
-          type="color"
-          value={hex}
-          onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 opacity-0 cursor-pointer"
-          aria-label={label}
-        />
-      </label>
+    <div className="flex items-center gap-2 h-8 px-1.5 rounded-md bg-[var(--surface-2)] border border-border transition-colors hover:border-[#555] focus-within:border-accent">
+      <ColorPicker
+        value={hex}
+        onChange={onChange}
+        swatch={{ width: 16, height: 16, borderRadius: 4, border: "1px solid var(--border)" }}
+      />
       <input
         value={(value ?? "").replace(/^#/, "")}
         onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
@@ -835,32 +836,6 @@ function EffectList({ t, effects, onChange }) {
         </div>
       ))}
     </Section>
-  );
-}
-
-// ── Menu bar helpers ──────────────────────────────────────────────────────────
-function MenuSep() {
-  return <div className="mx-2 my-0.5 h-px bg-border" />;
-}
-function MenuItem({ icon, label, shortcut, onAction, disabled, checked }) {
-  return (
-    <button
-      type="button"
-      onClick={disabled ? undefined : onAction}
-      className={[
-        "flex items-center gap-2 w-full text-left px-3 py-1.5 text-t12 transition-colors",
-        disabled
-          ? "text-muted cursor-default pointer-events-none"
-          : "text-primary hover:bg-[var(--bg-hover)] cursor-pointer",
-      ].join(" ")}
-      style={{ background: "none", border: "none" }}
-    >
-      <span className="w-4 shrink-0 flex items-center justify-center text-muted">
-        {checked ? <Check size={12} className="text-accent" /> : icon || null}
-      </span>
-      <span className="flex-1">{label}</span>
-      {shortcut && <span className="text-t11 text-muted ml-2 shrink-0">{shortcut}</span>}
-    </button>
   );
 }
 
@@ -1282,17 +1257,51 @@ export default function OverlayEditor({
   standalone = false,
 }) {
   const [doc, setDoc] = useState(loadInitialDoc);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  // `selectedId` (compat) is the single selection — non-null only when exactly one layer is
+  // selected, so the detailed inspector + resize/rotate handles show for single selection.
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const setSelectedId = (id) => setSelectedIds(id == null ? [] : [id]);
   const [copied, setCopied] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [addOpen, setAddOpen] = useState(false);
-  const [shapeMenu, setShapeMenu] = useState(false);
   const [tool, setTool] = useState(null); // null = select; { type, shape? } = draw mode
   const [drawRect, setDrawRect] = useState(null); // live preview while drawing
+  const [marquee, setMarquee] = useState(null); // left-drag selection box (canvas coords)
+  const [hoveredId, setHoveredId] = useState(null); // canvas hover → show grey outline only then
+  const [leftW, setLeftW] = useState(() => Number(localStorage.getItem("ovl-left-w")) || 184); // layers panel width
+  const [rightW, setRightW] = useState(() => Number(localStorage.getItem("ovl-right-w")) || 248); // inspector width
+  useEffect(() => {
+    localStorage.setItem("ovl-left-w", String(leftW));
+  }, [leftW]);
+  useEffect(() => {
+    localStorage.setItem("ovl-right-w", String(rightW));
+  }, [rightW]);
+  // Drag a panel's inner edge to resize it (Figma-style). `side` is which panel.
+  const startPanelResize = (side, e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = side === "left" ? leftW : rightW;
+    const move = (ev) => {
+      const delta = side === "left" ? ev.clientX - startX : startX - ev.clientX;
+      const w = Math.max(160, Math.min(420, startW + delta));
+      (side === "left" ? setLeftW : setRightW)(w);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+    };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const [aspectLock, setAspectLock] = useState(false);
   const aspectLockRef = useRef(false);
+  const [canvasCornersInd, setCanvasCornersInd] = useState(false); // uniform ↔ per-corner radius (canvas)
+  const [layerCornersInd, setLayerCornersInd] = useState(false); // uniform ↔ per-corner radius (layer)
   aspectLockRef.current = aspectLock;
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -1316,7 +1325,6 @@ export default function OverlayEditor({
   const [fontPickerSearch, setFontPickerSearch] = useState("");
   const [fontPickerCategory, setFontPickerCategory] = useState("all");
   const [localFonts, setLocalFonts] = useState(null); // null = not yet fetched
-  const [menuOpen, setMenuOpen] = useState(null); // { name: "file"|"edit"|"view", x, y }
 
   const [viewportRef, viewportSize] = useElementSize();
   const iframeRef = useRef(null);
@@ -1533,6 +1541,14 @@ export default function OverlayEditor({
     commit({ ...doc, layers: doc.layers.filter((l) => l.id !== id) }, doc);
     setSelectedId(null);
   };
+  const deleteSelected = () => {
+    const del = new Set(
+      doc.layers.filter((l) => selectedIds.includes(l.id) && !l.locked).map((l) => l.id)
+    );
+    if (!del.size) return;
+    commit({ ...doc, layers: doc.layers.filter((l) => !del.has(l.id)) }, doc);
+    setSelectedIds([]);
+  };
   const duplicateSelected = useCallback(() => {
     if (!selectedId) return;
     const l = doc.layers.find((x) => x.id === selectedId);
@@ -1606,12 +1622,16 @@ export default function OverlayEditor({
 
   // Pixel-precise keyboard nudging (uses the shared live-edit burst infra).
   const nudge = (dx, dy) => {
-    if (!selectedId) return;
-    const cur = (liveDocRef.current || doc).layers.find((x) => x.id === selectedId);
-    if (!cur || cur.locked) return;
+    if (!selectedIds.length) return;
+    const movable = new Set(
+      (liveDocRef.current || doc).layers
+        .filter((x) => selectedIds.includes(x.id) && !x.locked)
+        .map((x) => x.id)
+    );
+    if (!movable.size) return;
     liveEdit((b) => ({
       ...b,
-      layers: b.layers.map((x) => (x.id === selectedId ? { ...x, x: x.x + dx, y: x.y + dy } : x)),
+      layers: b.layers.map((x) => (movable.has(x.id) ? { ...x, x: x.x + dx, y: x.y + dy } : x)),
     }));
   };
 
@@ -1670,14 +1690,11 @@ export default function OverlayEditor({
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-        const l = doc.layers.find((x) => x.id === selectedId);
-        if (l && !l.locked) {
-          e.preventDefault();
-          deleteLayer(selectedId);
-        }
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
+        e.preventDefault();
+        deleteSelected();
       } else if (
-        selectedId &&
+        selectedIds.length &&
         (e.key === "ArrowUp" ||
           e.key === "ArrowDown" ||
           e.key === "ArrowLeft" ||
@@ -1698,33 +1715,76 @@ export default function OverlayEditor({
   const onWheel = (e) => {
     if (e.target.closest?.("[data-ovl-panel]")) return; // let floating panels scroll normally
     e.preventDefault();
-    const rect = viewportRef.current.getBoundingClientRect();
-    const mx = e.clientX - rect.left,
-      my = e.clientY - rect.top;
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    const nz = clamp(zoom * factor, 0.1, 5);
-    const cx = (mx - pan.x) / zoom,
-      cy = (my - pan.y) / zoom;
-    setPan({ x: mx - cx * nz, y: my - cy * nz });
-    setZoom(nz);
+    // Ctrl/Cmd+scroll = zoom (cursor-anchored); Shift+scroll = horizontal pan; plain = pan.
+    if (e.ctrlKey || e.metaKey) {
+      const d = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+      const rect = viewportRef.current.getBoundingClientRect();
+      const mx = e.clientX - rect.left,
+        my = e.clientY - rect.top;
+      const factor = Math.exp(-d * 0.0015);
+      const nz = clamp(zoom * factor, 0.1, 5);
+      const cx = (mx - pan.x) / zoom,
+        cy = (my - pan.y) / zoom;
+      setPan({ x: mx - cx * nz, y: my - cy * nz });
+      setZoom(nz);
+    } else if (e.shiftKey) {
+      // Windows already reports Shift+wheel as a horizontal delta; accept whichever axis fired.
+      const d = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      setPan((p) => ({ x: p.x - d * PAN_SPEED, y: p.y }));
+    } else {
+      setPan((p) => ({ x: p.x - e.deltaX * PAN_SPEED, y: p.y - e.deltaY * PAN_SPEED }));
+    }
   };
+  // Pan the canvas (middle-mouse drag, anywhere).
   const startPan = (e) => {
-    // Only when the empty canvas (not a layer box) is pressed.
+    e.preventDefault();
     const start = { x: e.clientX, y: e.clientY },
       p0 = { ...pan };
-    let moved = false;
-    const move = (ev) => {
-      const dx = ev.clientX - start.x,
-        dy = ev.clientY - start.y;
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-      setPan({ x: p0.x + dx, y: p0.y + dy });
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      if (!moved) setSelectedId(null); // click on empty = deselect
-    };
+    const move = (ev) =>
+      setPan({ x: p0.x + (ev.clientX - start.x), y: p0.y + (ev.clientY - start.y) });
+    const up = () => window.removeEventListener("pointermove", move);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up, { once: true });
+  };
+
+  // Left-drag on empty canvas draws a selection box; on release, selects the topmost
+  // visible layer it intersects (single-selection editor), or deselects on an empty click.
+  const startMarquee = (e) => {
+    e.preventDefault();
+    const rect = viewportRef.current.getBoundingClientRect();
+    const toCanvas = (cx, cy) => ({
+      x: (cx - rect.left - pan.x) / zoom,
+      y: (cy - rect.top - pan.y) / zoom,
+    });
+    const p0 = toCanvas(e.clientX, e.clientY);
+    let moved = false;
+    const onMove = (ev) => {
+      const p = toCanvas(ev.clientX, ev.clientY);
+      const w = Math.abs(p.x - p0.x),
+        h = Math.abs(p.y - p0.y);
+      if (w + h > 3) moved = true;
+      setMarquee({ x: Math.min(p0.x, p.x), y: Math.min(p0.y, p.y), w, h });
+    };
+    const onUp = (ev) => {
+      window.removeEventListener("pointermove", onMove);
+      setMarquee(null);
+      if (!moved) {
+        setSelectedId(null);
+        return;
+      }
+      const p = toCanvas(ev.clientX, ev.clientY);
+      const bx = Math.min(p0.x, p.x),
+        by = Math.min(p0.y, p.y),
+        bw = Math.abs(p.x - p0.x),
+        bh = Math.abs(p.y - p0.y);
+      const hits = doc.layers
+        .filter((l) => l.visible !== false && !l.locked)
+        .filter((l) => l.x < bx + bw && l.x + l.w > bx && l.y < by + bh && l.y + l.h > by)
+        .map((l) => l.id);
+      setSelectedIds(hits);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
   };
 
   // ── Draw tools (Figma-style: pick a tool, drag to draw, revert to select) ──────
@@ -1800,7 +1860,14 @@ export default function OverlayEditor({
     e.preventDefault();
     if (layer.locked) return;
     flushLive();
-    setSelectedId(layer.id);
+    // Dragging a member of a multi-selection moves the whole group; otherwise select just it.
+    const multiMove = mode === "move" && selectedIds.length > 1 && selectedIds.includes(layer.id);
+    if (!multiMove) setSelectedId(layer.id);
+    const startPositions = multiMove
+      ? doc.layers
+          .filter((l) => selectedIds.includes(l.id) && !l.locked)
+          .map((l) => ({ id: l.id, x: l.x, y: l.y }))
+      : null;
     const rect = viewportRef.current.getBoundingClientRect();
     const z = zoom,
       p = { ...pan },
@@ -1920,6 +1987,23 @@ export default function OverlayEditor({
       if (mode === "move") {
         const dx = (ev.clientX - startClient.x) / z,
           dy = (ev.clientY - startClient.y) / z;
+        if (startPositions) {
+          // Multi-selection: shift every selected layer by the same delta (no snapping).
+          const rdx = Math.round(dx),
+            rdy = Math.round(dy);
+          changed = true;
+          lastDoc = {
+            ...doc,
+            layers: doc.layers.map((l) => {
+              const sp = startPositions.find((s) => s.id === l.id);
+              return sp ? { ...l, x: sp.x + rdx, y: sp.y + rdy } : l;
+            }),
+          };
+          setDoc(lastDoc);
+          liveToIframe(lastDoc);
+          setSnapLines({ x: null, y: null });
+          return;
+        }
         let nx = Math.round(L0.x + dx),
           ny = Math.round(L0.y + dy),
           gx = null,
@@ -2096,12 +2180,6 @@ export default function OverlayEditor({
   const HS = 9 / zoom,
     BW = 1.5 / zoom; // handle size / border width in canvas px (visually constant)
 
-  const openMenu = (name, e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setMenuOpen((prev) => (prev?.name === name ? null : { name, x: r.left, y: r.bottom }));
-  };
-  const closeMenu = () => setMenuOpen(null);
-
   return (
     <div
       data-overlay-editor
@@ -2113,20 +2191,74 @@ export default function OverlayEditor({
         className="shrink-0 flex items-center gap-2 h-12 px-3 border-b border-border"
         {...(standalone ? { "data-tauri-drag-region": true } : {})}
       >
-        <button
-          type="button"
-          onClick={(e) => openMenu("main", e)}
-          className="flex items-center gap-1.5 h-8 pl-1.5 pr-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
-          style={{
-            border: "none",
-            background: menuOpen?.name === "main" ? "var(--bg-hover)" : "none",
-            cursor: "pointer",
-          }}
-        >
-          <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
-          <span className="text-t13 font-semibold text-primary">Overlay</span>
-          <CaretDown size={10} className="text-muted" />
-        </button>
+        <Dropdown>
+          <DropdownTrigger className="flex items-center gap-1.5 h-8 pl-1.5 pr-2 rounded-lg border-0 bg-transparent hover:bg-hover transition-colors cursor-pointer">
+            <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
+            <span className="text-t13 font-semibold text-primary">Overlay</span>
+            <CaretDown size={10} className="text-muted" />
+          </DropdownTrigger>
+          <DropdownPopover placement="bottom start" className="min-w-[210px]">
+            <DropdownMenu
+              aria-label="Overlay menu"
+              onAction={(key) => {
+                if (key === "new") {
+                  commit(defaultOverlayDoc());
+                  setSelectedId(null);
+                } else if (key === "save") {
+                  setSaveOpen(true);
+                  setBrowserOpen(false);
+                } else if (key === "browse") {
+                  setBrowserOpen(true);
+                  setSaveOpen(false);
+                } else if (key === "import") {
+                  importFileRef.current?.click();
+                } else if (key === "export") {
+                  exportProfile({
+                    id: "current",
+                    name: t("ovlMenuExportCurrent"),
+                    doc,
+                    savedAt: new Date().toISOString(),
+                  });
+                } else if (key === "reload") {
+                  setIframeKey((k) => k + 1);
+                }
+              }}
+            >
+              <DropdownSection>
+                <DropdownItem id="new" textValue={t("ovlMenuNew")}>
+                  <Plus size={13} />
+                  {t("ovlMenuNew")}
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection className="border-t border-border mt-1 pt-1">
+                <DropdownItem id="save" textValue={t("ovlProfileSave")}>
+                  <FloppyDisk size={13} />
+                  {t("ovlProfileSave")}
+                </DropdownItem>
+                <DropdownItem id="browse" textValue={t("ovlProfileBrowse")}>
+                  <Swatches size={13} />
+                  {t("ovlProfileBrowse")}
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection className="border-t border-border mt-1 pt-1">
+                <DropdownItem id="import" textValue={t("ovlProfileImport")}>
+                  <UploadSimple size={13} />
+                  {t("ovlProfileImport")}
+                </DropdownItem>
+                <DropdownItem id="export" textValue={t("ovlMenuExportCurrent")}>
+                  <DownloadSimple size={13} />
+                  {t("ovlMenuExportCurrent")}
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection className="border-t border-border mt-1 pt-1">
+                <DropdownItem id="reload" textValue={t("ovlReloadPreview")}>
+                  <ArrowsClockwise size={13} />
+                  {t("ovlReloadPreview")}
+                </DropdownItem>
+              </DropdownSection>
+            </DropdownMenu>
+          </DropdownPopover>
+        </Dropdown>
         <TextFieldRoot
           value={doc.canvas.name ?? ""}
           onChange={(v) => updateCanvas({ name: v })}
@@ -2200,9 +2332,16 @@ export default function OverlayEditor({
       </div>
 
       {/* ── Body (docked panels + canvas) ───────────────────────────────────────── */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {/* ── Left: layers ──────────────────────────────────────────────────────── */}
-        <div className="w-[184px] shrink-0 flex flex-col border-r border-border">
+        <div
+          className="shrink-0 flex flex-col border-r border-border relative"
+          style={{ width: leftW }}
+        >
+          <div
+            onPointerDown={(e) => startPanelResize("left", e)}
+            className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40"
+          />
           <div className="flex items-center justify-between pl-3 pr-1.5 h-10 shrink-0 border-b border-border relative">
             <span className="text-t12 font-medium text-secondary">{t("ovlLayers")}</span>
           </div>
@@ -2213,7 +2352,7 @@ export default function OverlayEditor({
             {orderedDesc.map((l) => {
               const M = TYPE_META[l.type] || TYPE_META.shape;
               const Icon = M.icon;
-              const active = l.id === selectedId;
+              const active = selectedIds.includes(l.id);
               const isDragging = dragId === l.id;
               const isDropTarget = dragOverId === l.id && dragId !== l.id;
               return (
@@ -2272,12 +2411,18 @@ export default function OverlayEditor({
         <div
           ref={viewportRef}
           className="relative flex-1 overflow-hidden"
-          style={{
-            background: "var(--bg-base)",
-            backgroundImage: "radial-gradient(var(--stroke) 1px, transparent 0)",
-            backgroundSize: "22px 22px",
-          }}
+          style={{ background: "color-mix(in srgb, var(--bg-base), #000 30%)" }}
           onWheel={onWheel}
+          onPointerDown={(e) => {
+            // Handles the whole viewport (canvas + surrounding free space). Clicks on a layer
+            // box / handle stopPropagation, so they never reach here.
+            if (e.button === 1) {
+              startPan(e);
+              return;
+            } // middle mouse → pan anywhere
+            if (e.button !== 0) return; // ignore right-click
+            tool ? startDraw(e) : startMarquee(e); // tool → draw; else selection box
+          }}
         >
           {/* ── Stage (pan + zoom) ───────────────────────────────────────────── */}
           <div
@@ -2305,20 +2450,34 @@ export default function OverlayEditor({
               />
             </div>
 
-            {/* Interaction layer (over the iframe) */}
+            {/* Interaction layer (over the iframe). Empty-area pointerdowns bubble up to the
+            viewport handler, which covers both the canvas and the free space around it. */}
             <div
               className="absolute inset-0"
               style={{ pointerEvents: "auto", cursor: tool ? "crosshair" : "default" }}
-              onPointerDown={(e) => (tool ? startDraw(e) : startPan(e))}
             >
               {orderedAsc.map((l) => {
-                const isSel = l.id === selectedId;
+                const isSel = selectedIds.includes(l.id); // accent outline for every selected layer
+                const isPrimary = l.id === selectedId; // handles/badge only for a single selection
                 const interactive = !l.locked && l.visible !== false && !tool;
                 return (
                   <div
                     key={l.id}
                     onPointerDown={
-                      interactive ? (e) => startGesture(e, "move", null, l) : undefined
+                      interactive
+                        ? (e) => {
+                            if (e.button === 1) {
+                              startPan(e);
+                              return;
+                            } // middle mouse pans even over a layer
+                            if (e.button !== 0) return;
+                            startGesture(e, "move", null, l);
+                          }
+                        : undefined
+                    }
+                    onPointerEnter={interactive ? () => setHoveredId(l.id) : undefined}
+                    onPointerLeave={
+                      interactive ? () => setHoveredId((h) => (h === l.id ? null : h)) : undefined
                     }
                     style={{
                       position: "absolute",
@@ -2328,14 +2487,16 @@ export default function OverlayEditor({
                       height: l.h,
                       transform: `rotate(${l.rotation || 0}deg)`,
                       transformOrigin: "center center",
-                      cursor: interactive ? "move" : "default",
+                      cursor: "default",
                       pointerEvents: interactive ? "auto" : "none",
                       outline: isSel
                         ? `${BW}px solid var(--accent)`
-                        : `${BW}px solid rgba(255,255,255,0.18)`,
+                        : hoveredId === l.id
+                          ? `${BW}px solid rgba(255,255,255,0.4)`
+                          : "none",
                     }}
                   >
-                    {isSel && interactive && (
+                    {isPrimary && interactive && (
                       <>
                         {/* rotate knob */}
                         <div
@@ -2400,6 +2561,29 @@ export default function OverlayEditor({
                             }}
                           />
                         ))}
+                        {/* size badge (W × H) below the element, Figma-style */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: "50%",
+                            top: "100%",
+                            transform: `translate(-50%, ${8 / zoom}px)`,
+                            background: "var(--accent)",
+                            color: "#fff",
+                            padding: `${2 / zoom}px ${7 / zoom}px`,
+                            borderRadius: 4 / zoom,
+                            fontSize: 11 / zoom,
+                            lineHeight: 1.4,
+                            fontWeight: 600,
+                            fontFamily: "var(--font)",
+                            whiteSpace: "nowrap",
+                            pointerEvents: "none",
+                            userSelect: "none",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {Math.round(l.w)} × {Math.round(l.h)}
+                        </div>
                       </>
                     )}
                   </div>
@@ -2416,6 +2600,21 @@ export default function OverlayEditor({
                     height: drawRect.h,
                     border: `${1 / zoom}px dashed var(--accent)`,
                     background: "rgba(224,64,251,0.10)",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+              {/* Selection marquee (left-drag on empty canvas) */}
+              {marquee && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: marquee.x,
+                    top: marquee.y,
+                    width: marquee.w,
+                    height: marquee.h,
+                    border: `${1 / zoom}px solid var(--accent)`,
+                    background: "color-mix(in srgb, var(--accent) 12%, transparent)",
                     pointerEvents: "none",
                   }}
                 />
@@ -2489,137 +2688,151 @@ export default function OverlayEditor({
               <ArrowsOut size={14} />
             </Button>
           </div>
-
-          {/* ── Floating element toolbar (Figma-style, bottom-center) ─────────────── */}
-          <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-2xl px-2.5 py-1.5 border border-border shadow-xl"
-            style={{ background: "var(--bg-elevated)" }}
-          >
-            {/* Select / cursor */}
-            <Button
-              variant="ghost"
-              size="md"
-              isIconOnly
-              onPress={() => setTool(null)}
-              aria-label={t("ovlSelect") || "Select"}
-              className={`w-10! h-10! ${!tool ? "bg-accent! text-white!" : ""}`}
-            >
-              <CursorArrow size={15} />
-            </Button>
-            <div className="w-px h-6 bg-border mx-0.5" />
-            {/* Shape group with variant dropdown */}
-            <div className="relative flex items-center">
-              <Button
-                variant="ghost"
-                size="md"
-                isIconOnly
-                onPress={() => setTool({ type: "shape", shape: "rect" })}
-                aria-label={TYPE_META.shape.label}
-                className={`w-10! h-10! ${tool?.type === "shape" ? "bg-accent! text-white!" : ""}`}
-              >
-                <PaintBrushBroad size={16} />
-              </Button>
-              <button
-                type="button"
-                onClick={() => setShapeMenu((o) => !o)}
-                aria-label={t("ovlShape")}
-                className="w-4 h-9 flex items-center justify-center text-muted hover:text-primary rounded transition-colors"
-                style={{ background: "none", border: "none" }}
-              >
-                <CaretDown size={11} />
-              </button>
-              {shapeMenu && (
-                <>
-                  <div className="fixed inset-0 z-[60]" onClick={() => setShapeMenu(false)} />
-                  <div
-                    className="absolute bottom-full left-0 mb-2 z-[61] w-44 rounded-lg shadow-xl border border-border p-1"
-                    style={{ background: "var(--bg-elevated)" }}
-                  >
-                    {["rect", "ellipse", "line", "triangle", "polygon", "star"].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => {
-                          setTool({ type: "shape", shape: v });
-                          setShapeMenu(false);
-                        }}
-                        className="flex items-center w-full text-left px-3 py-2 rounded text-t13 text-primary hover:bg-[var(--bg-hover)] transition-colors"
-                        style={{ background: "none", border: "none" }}
-                      >
-                        {t("ovlShape_" + v)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="w-px h-6 bg-border mx-0.5" />
-            <Button
-              variant="ghost"
-              size="md"
-              isIconOnly
-              onPress={() => setTool({ type: "text" })}
-              aria-label={TYPE_META.text.label}
-              className={`w-10! h-10! ${tool?.type === "text" ? "bg-accent! text-white!" : ""}`}
-            >
-              <TextSize size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              isIconOnly
-              onPress={() => setTool({ type: "albumArt" })}
-              aria-label={TYPE_META.albumArt.label}
-              className={`w-10! h-10! ${tool?.type === "albumArt" ? "bg-accent! text-white!" : ""}`}
-            >
-              <VinylRecord size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              isIconOnly
-              onPress={() => setTool({ type: "progress" })}
-              aria-label={TYPE_META.progress.label}
-              className={`w-10! h-10! ${tool?.type === "progress" ? "bg-accent! text-white!" : ""}`}
-            >
-              <WaveformLines size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              isIconOnly
-              onPress={() => setTool({ type: "image" })}
-              aria-label={TYPE_META.image.label}
-              className={`w-10! h-10! ${tool?.type === "image" ? "bg-accent! text-white!" : ""}`}
-            >
-              <ImageSquare size={16} />
-            </Button>
-          </div>
         </div>
         {/* end canvas viewport */}
 
+        {/* ── Floating element toolbar (Figma-style, bottom-center) — anchored to the body
+             (constant width) so it stays put when the side panels are resized ────────── */}
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-2xl px-2.5 py-1.5 border border-border shadow-xl"
+          style={{ background: "var(--bg-elevated)" }}
+        >
+          {/* Select / cursor */}
+          <Button
+            variant="ghost"
+            size="md"
+            isIconOnly
+            onPress={() => setTool(null)}
+            aria-label={t("ovlSelect") || "Select"}
+            className={`w-10! h-10! ${!tool ? "bg-accent! text-white!" : ""}`}
+          >
+            <CursorArrow size={15} />
+          </Button>
+          <div className="w-px h-6 bg-border mx-0.5" />
+          {/* Shape group with variant dropdown */}
+          <div className="relative flex items-center">
+            <Button
+              variant="ghost"
+              size="md"
+              isIconOnly
+              onPress={() => setTool({ type: "shape", shape: "rect" })}
+              aria-label={TYPE_META.shape.label}
+              className={`w-10! h-10! ${tool?.type === "shape" ? "bg-accent! text-white!" : ""}`}
+            >
+              <PaintBrushBroad size={16} />
+            </Button>
+            <Dropdown>
+              <DropdownTrigger
+                aria-label={t("ovlShape")}
+                className="w-4 h-9 flex items-center justify-center text-muted hover:text-primary rounded transition-colors border-0 bg-transparent cursor-pointer"
+              >
+                <CaretDown size={11} />
+              </DropdownTrigger>
+              <DropdownPopover placement="top start" className="min-w-44">
+                <DropdownMenu
+                  aria-label={t("ovlShape")}
+                  onAction={(key) => setTool({ type: "shape", shape: String(key) })}
+                >
+                  {["rect", "ellipse", "line", "triangle", "polygon", "star"].map((v) => (
+                    <DropdownItem key={v} id={v} textValue={t("ovlShape_" + v)}>
+                      {t("ovlShape_" + v)}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </DropdownPopover>
+            </Dropdown>
+          </div>
+          <div className="w-px h-6 bg-border mx-0.5" />
+          <Button
+            variant="ghost"
+            size="md"
+            isIconOnly
+            onPress={() => setTool({ type: "text" })}
+            aria-label={TYPE_META.text.label}
+            className={`w-10! h-10! ${tool?.type === "text" ? "bg-accent! text-white!" : ""}`}
+          >
+            <TextSize size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            isIconOnly
+            onPress={() => setTool({ type: "albumArt" })}
+            aria-label={TYPE_META.albumArt.label}
+            className={`w-10! h-10! ${tool?.type === "albumArt" ? "bg-accent! text-white!" : ""}`}
+          >
+            <VinylRecord size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            isIconOnly
+            onPress={() => setTool({ type: "progress" })}
+            aria-label={TYPE_META.progress.label}
+            className={`w-10! h-10! ${tool?.type === "progress" ? "bg-accent! text-white!" : ""}`}
+          >
+            <WaveformLines size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            isIconOnly
+            onPress={() => setTool({ type: "image" })}
+            aria-label={TYPE_META.image.label}
+            className={`w-10! h-10! ${tool?.type === "image" ? "bg-accent! text-white!" : ""}`}
+          >
+            <ImageSquare size={16} />
+          </Button>
+        </div>
+
         {/* ── Right: inspector (docked) ──────────────────────────────────────────── */}
-        <div className="w-[248px] shrink-0 flex flex-col border-l border-border">
+        <div
+          className="shrink-0 flex flex-col border-l border-border relative"
+          style={{ width: rightW }}
+        >
+          <div
+            onPointerDown={(e) => startPanelResize("right", e)}
+            className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40"
+          />
           <div className="overflow-y-auto flex-1 min-h-0 p-3">
-            {!selected ? (
+            {selectedIds.length > 1 ? (
+              <>
+                <div className="text-t12 font-semibold text-primary mb-1">
+                  {selectedIds.length} {t("ovlSelectedCount") || "selected"}
+                </div>
+                <div className="text-t11 text-muted mb-3 leading-snug">
+                  {t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5 text-[#ff7070]!"
+                  onPress={deleteSelected}
+                >
+                  <Trash size={13} /> {t("ovlMenuDelete")}
+                </Button>
+              </>
+            ) : !selected ? (
               <>
                 <div className="text-t12 font-semibold text-primary mb-1">{t("ovlCanvas")}</div>
                 <div className="text-t11 text-muted mb-3 leading-snug">{t("ovlNoSelection")}</div>
                 <Section title={t("ovlSize")}>
-                  <NumField
-                    label={t("ovlWidth")}
-                    value={doc.canvas.width}
-                    min={40}
-                    max={3840}
-                    onChange={(v) => updateCanvas({ width: v })}
-                  />
-                  <NumField
-                    label={t("ovlHeight")}
-                    value={doc.canvas.height}
-                    min={20}
-                    max={2160}
-                    onChange={(v) => updateCanvas({ height: v })}
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <PillNum
+                      prefix="W"
+                      value={doc.canvas.width}
+                      min={40}
+                      max={3840}
+                      onChange={(v) => updateCanvas({ width: v })}
+                    />
+                    <PillNum
+                      prefix="H"
+                      value={doc.canvas.height}
+                      min={20}
+                      max={2160}
+                      onChange={(v) => updateCanvas({ height: v })}
+                    />
+                  </div>
                   <SwitchField
                     label={t("overlayAutoHide")}
                     checked={doc.canvas.autoHide}
@@ -2631,13 +2844,8 @@ export default function OverlayEditor({
                     label={t("ovlColor")}
                     value={doc.canvas.bg?.color}
                     onChange={(v) => updateCanvasBg({ color: v })}
-                  />
-                  <NumField
-                    label={t("ovlOpacity")}
-                    value={doc.canvas.bg?.opacity}
-                    min={0}
-                    max={100}
-                    onChange={(v) => updateCanvasBg({ opacity: v })}
+                    opacity={doc.canvas.bg?.opacity}
+                    onOpacity={(v) => updateCanvasBg({ opacity: v })}
                   />
                   <SwitchField
                     label={t("ovlBlurFromCover")}
@@ -2645,8 +2853,8 @@ export default function OverlayEditor({
                     onChange={(v) => updateCanvasBg({ blurFromCover: v })}
                   />
                   {doc.canvas.bg?.blurFromCover && (
-                    <NumField
-                      label={t("ovlBlur")}
+                    <PillNum
+                      prefix={t("ovlBlur")}
                       value={doc.canvas.bg?.blur}
                       min={0}
                       max={60}
@@ -2654,33 +2862,111 @@ export default function OverlayEditor({
                     />
                   )}
                 </Section>
-                <Section title={t("ovlCorners")}>
-                  <NumField
-                    label={t("ovlRadius")}
-                    value={doc.canvas.corners?.TL}
-                    min={0}
-                    max={400}
-                    onChange={(v) =>
-                      updateCanvas({
-                        corners: uniformCorners(v, doc.canvas.corners?.typeTL || "r"),
-                      })
-                    }
-                  />
+                <Section
+                  title={t("ovlCorners")}
+                  right={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      isIconOnly
+                      aria-label={t("ovlCornersIndividual") || "Individual corners"}
+                      onPress={() => setCanvasCornersInd((v) => !v)}
+                      className={canvasCornersInd ? "text-accent!" : ""}
+                    >
+                      <ArrowsOut size={13} />
+                    </Button>
+                  }
+                >
+                  {!canvasCornersInd ? (
+                    <PillNum
+                      prefix={t("ovlRadius")}
+                      value={doc.canvas.corners?.TL}
+                      min={0}
+                      max={400}
+                      onChange={(v) =>
+                        updateCanvas({
+                          corners: uniformCorners(v, doc.canvas.corners?.typeTL || "r"),
+                        })
+                      }
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <PillNum
+                        prefix="TL"
+                        value={doc.canvas.corners?.TL ?? 0}
+                        min={0}
+                        max={400}
+                        onChange={(v) =>
+                          updateCanvas({
+                            corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TL: v },
+                          })
+                        }
+                      />
+                      <PillNum
+                        prefix="TR"
+                        value={doc.canvas.corners?.TR ?? 0}
+                        min={0}
+                        max={400}
+                        onChange={(v) =>
+                          updateCanvas({
+                            corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TR: v },
+                          })
+                        }
+                      />
+                      <PillNum
+                        prefix="BL"
+                        value={doc.canvas.corners?.BL ?? 0}
+                        min={0}
+                        max={400}
+                        onChange={(v) =>
+                          updateCanvas({
+                            corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BL: v },
+                          })
+                        }
+                      />
+                      <PillNum
+                        prefix="BR"
+                        value={doc.canvas.corners?.BR ?? 0}
+                        min={0}
+                        max={400}
+                        onChange={(v) =>
+                          updateCanvas({
+                            corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BR: v },
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                   <SelectField
-                    label={t("ovlCornerType")}
                     value={doc.canvas.corners?.typeTL || "r"}
                     options={CORNER_OPTS(t)}
                     onChange={(v) =>
-                      updateCanvas({ corners: uniformCorners(doc.canvas.corners?.TL ?? 0, v) })
+                      updateCanvas({
+                        corners: {
+                          ...(doc.canvas.corners ?? uniformCorners(0, "r")),
+                          typeTL: v,
+                          typeTR: v,
+                          typeBR: v,
+                          typeBL: v,
+                        },
+                      })
                     }
                   />
                 </Section>
-                <Section title={t("ovlBorder")}>
-                  <SwitchField
-                    label={t("ovlBorder")}
-                    checked={doc.canvas.border?.on}
-                    onChange={(v) => updateCanvasSub("border", { on: v })}
-                  />
+                <Section
+                  title={t("ovlBorder")}
+                  right={
+                    <Switch
+                      isSelected={!!doc.canvas.border?.on}
+                      onChange={(v) => updateCanvasSub("border", { on: v })}
+                      aria-label={t("ovlBorder")}
+                    >
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                    </Switch>
+                  }
+                >
                   {doc.canvas.border?.on && (
                     <>
                       <ColorField
@@ -2688,33 +2974,43 @@ export default function OverlayEditor({
                         value={doc.canvas.border?.color}
                         onChange={(v) => updateCanvasSub("border", { color: v })}
                       />
-                      <NumField
-                        label={t("ovlBorderWidth")}
-                        value={doc.canvas.border?.width}
-                        min={0}
-                        max={40}
-                        step={0.5}
-                        onChange={(v) => updateCanvasSub("border", { width: v })}
-                      />
-                      <NumField
-                        label={t("ovlGlow")}
-                        value={doc.canvas.border?.glow}
-                        min={0}
-                        max={40}
-                        onChange={(v) => updateCanvasSub("border", { glow: v })}
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <PillNum
+                          prefix={t("ovlBorderWidth")}
+                          value={doc.canvas.border?.width}
+                          min={0}
+                          max={40}
+                          step={0.5}
+                          onChange={(v) => updateCanvasSub("border", { width: v })}
+                        />
+                        <PillNum
+                          prefix={t("ovlGlow")}
+                          value={doc.canvas.border?.glow}
+                          min={0}
+                          max={40}
+                          onChange={(v) => updateCanvasSub("border", { glow: v })}
+                        />
+                      </div>
                     </>
                   )}
                 </Section>
-                <Section title={t("ovlShadow")}>
-                  <SwitchField
-                    label={t("ovlShadow")}
-                    checked={doc.canvas.shadow?.on}
-                    onChange={(v) => updateCanvasSub("shadow", { on: v })}
-                  />
+                <Section
+                  title={t("ovlShadow")}
+                  right={
+                    <Switch
+                      isSelected={!!doc.canvas.shadow?.on}
+                      onChange={(v) => updateCanvasSub("shadow", { on: v })}
+                      aria-label={t("ovlShadow")}
+                    >
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                    </Switch>
+                  }
+                >
                   {doc.canvas.shadow?.on && (
-                    <NumField
-                      label={t("ovlStrength")}
+                    <PillNum
+                      prefix={t("ovlStrength")}
                       value={Math.round((doc.canvas.shadow?.strength ?? 0.35) * 100)}
                       min={0}
                       max={100}
@@ -2882,8 +3178,7 @@ export default function OverlayEditor({
                       <button
                         type="button"
                         onClick={() => setAspectLock((a) => !a)}
-                        className={`flex items-center justify-center gap-1.5 h-8 rounded-md border text-t12 transition-colors ${aspectLock ? "text-white border-transparent" : "border-border text-secondary hover:bg-[var(--bg-hover)]"}`}
-                        style={{ background: aspectLock ? "var(--accent)" : "var(--surface-2)" }}
+                        className={`flex items-center justify-center gap-1.5 h-8 rounded-md border text-t12 transition-colors ${aspectLock ? "text-white border-transparent bg-accent" : "border-border text-secondary bg-[var(--surface-2)] hover:bg-[var(--bg-hover)]"}`}
                       >
                         {aspectLock ? <Lock size={12} /> : <LockOpen size={12} />}
                         {t("ovlLockAspect") || "Lock aspect ratio"}
@@ -2904,8 +3199,34 @@ export default function OverlayEditor({
                         options={BLEND_OPTS()}
                         onChange={(v) => setLayer(selected.id, { blend: v })}
                       />
-                      {hasCorners && (
-                        <>
+                    </Section>
+                    {hasCorners && (
+                      <Section
+                        title={t("ovlCorners")}
+                        right={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            isIconOnly
+                            aria-label={t("ovlCornersIndividual") || "Individual corners"}
+                            onPress={() => setLayerCornersInd((v) => !v)}
+                            className={layerCornersInd ? "text-accent!" : ""}
+                          >
+                            <ArrowsOut size={13} />
+                          </Button>
+                        }
+                      >
+                        {!layerCornersInd ? (
+                          <PillNum
+                            prefix={t("ovlRadius")}
+                            value={sc?.TL ?? 0}
+                            min={0}
+                            max={400}
+                            onChange={(v) =>
+                              setStyle(selected.id, { corners: uniformCorners(v, cornerType) })
+                            }
+                          />
+                        ) : (
                           <div className="grid grid-cols-2 gap-2">
                             <PillNum
                               prefix="TL"
@@ -2936,17 +3257,17 @@ export default function OverlayEditor({
                               onChange={(v) => setCorner("BR", v)}
                             />
                           </div>
-                          <Segmented
-                            value={cornerType}
-                            onChange={setCornersType}
-                            options={[
-                              { value: "r", label: t("ovlRound") },
-                              { value: "b", label: t("ovlBevel") },
-                            ]}
-                          />
-                        </>
-                      )}
-                    </Section>
+                        )}
+                        <Segmented
+                          value={cornerType}
+                          onChange={setCornersType}
+                          options={[
+                            { value: "r", label: t("ovlRound") },
+                            { value: "b", label: t("ovlBevel") },
+                          ]}
+                        />
+                      </Section>
+                    )}
 
                     <Section>
                       <SwitchField
@@ -3106,15 +3427,9 @@ export default function OverlayEditor({
                     <button
                       type="button"
                       onClick={closePicker}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
+                      className="w-6 h-6 flex items-center justify-center rounded-md border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer"
                     >
-                      <X size={13} className="text-muted" />
+                      <X size={13} />
                     </button>
                   </div>
 
@@ -3136,15 +3451,9 @@ export default function OverlayEditor({
                         <button
                           type="button"
                           onClick={() => setFontPickerSearch("")}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
+                          className="w-5 h-5 flex items-center justify-center rounded border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer"
                         >
-                          <X size={11} className="text-muted" />
+                          <X size={11} />
                         </button>
                       )}
                     </div>
@@ -3352,84 +3661,6 @@ export default function OverlayEditor({
         )}
       </div>
       {/* end canvas viewport */}
-
-      {/* ── Menu bar dropdowns (fixed, outside canvas overflow) ──────────────── */}
-      {menuOpen && (
-        <>
-          <div className="fixed inset-0 z-[70]" onClick={closeMenu} />
-          <div
-            className="fixed z-[71] min-w-[210px] rounded-xl shadow-2xl border border-border flex flex-col py-1 overflow-hidden"
-            style={{ left: menuOpen.x, top: menuOpen.y + 2, background: "var(--bg-elevated)" }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") closeMenu();
-            }}
-          >
-            {menuOpen.name === "main" && (
-              <>
-                <MenuItem
-                  icon={<Plus size={13} />}
-                  label={t("ovlMenuNew")}
-                  onAction={() => {
-                    commit(defaultOverlayDoc());
-                    setSelectedId(null);
-                    closeMenu();
-                  }}
-                />
-                <MenuSep />
-                <MenuItem
-                  icon={<FloppyDisk size={13} />}
-                  label={t("ovlProfileSave")}
-                  onAction={() => {
-                    setSaveOpen(true);
-                    setBrowserOpen(false);
-                    closeMenu();
-                  }}
-                />
-                <MenuItem
-                  icon={<Swatches size={13} />}
-                  label={t("ovlProfileBrowse")}
-                  onAction={() => {
-                    setBrowserOpen(true);
-                    setSaveOpen(false);
-                    closeMenu();
-                  }}
-                />
-                <MenuSep />
-                <MenuItem
-                  icon={<UploadSimple size={13} />}
-                  label={t("ovlProfileImport")}
-                  onAction={() => {
-                    importFileRef.current?.click();
-                    closeMenu();
-                  }}
-                />
-                <MenuItem
-                  icon={<DownloadSimple size={13} />}
-                  label={t("ovlMenuExportCurrent")}
-                  onAction={() => {
-                    exportProfile({
-                      id: "current",
-                      name: t("ovlMenuExportCurrent"),
-                      doc,
-                      savedAt: new Date().toISOString(),
-                    });
-                    closeMenu();
-                  }}
-                />
-                <MenuSep />
-                <MenuItem
-                  icon={<ArrowsClockwise size={13} />}
-                  label={t("ovlReloadPreview")}
-                  onAction={() => {
-                    setIframeKey((k) => k + 1);
-                    closeMenu();
-                  }}
-                />
-              </>
-            )}
-          </div>
-        </>
-      )}
     </div>
   );
 }

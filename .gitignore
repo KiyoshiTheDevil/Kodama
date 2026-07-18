@@ -106,3 +106,6 @@ tools/
 
 .idea
 *.iml
+
+# Source recordings/screenshots for the landing page (web versions live in docs/shots/)
+raw-media/

@@ -118,7 +118,7 @@ class YoutubeMusicSession:
         if "authorization" not in raw:
             with open(path, "w", encoding="utf-8") as profile_file:
                 json.dump(self.prepare_auth_headers(raw), profile_file, indent=2)
-        return self._client_factory(path)
+        return self._client_factory(path, user=self.profiles.brand_user_id(name))
 
     # Old server.py: load_profile
     def activate_profile(self, name: str) -> bool:
@@ -175,6 +175,12 @@ class YoutubeMusicSession:
         if base_headers is None:
             return False, "no_headers", False
 
+        # The keeper WebView may still hold the login helper cookies (KODAMA_DSID/KODAMA_DONE,
+        # max-age 1h) — never let them bleed into the persisted auth header.
+        if "KODAMA_" in cookie_string:
+            cookie_string = "; ".join(
+                part.strip() for part in cookie_string.split(";") if not part.strip().startswith("KODAMA_")
+            )
         base_headers["cookie"] = cookie_string
         try:
             path = self.profiles.profile_file_path(self.state.current_profile)

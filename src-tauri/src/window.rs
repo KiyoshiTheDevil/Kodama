@@ -124,8 +124,61 @@ const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) 
 #[cfg(not(target_os = "macos"))]
 const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+// Injected into the login WebView. On music.youtube.com it (1) continuously mirrors the
+// active brand account's ytcfg DELEGATED_SESSION_ID into a cookie the native poll reads
+// alongside the auth cookies (empty for the default account), and (2) shows a bottom bar
+// with a confirm button so the user can first switch to a brand account via their avatar,
+// then finish — instead of the login auto-closing on the default account. Clicking the
+// button sets KODAMA_DONE=1, which the poll waits for. Runs from an initialization script,
+// so it executes regardless of the page CSP; it only touches the DOM (no injected <script>).
+const LOGIN_INIT_JS: &str = r#"
+(function () {
+  if (location.hostname.indexOf('music.youtube.com') === -1) return;
+  var L = window.__KODAMA_LABELS__ || { confirm: 'Use this account', hint: '' };
+  function setCookie(name, val) {
+    try { document.cookie = name + '=' + (val || '') + ';path=/;max-age=3600'; } catch (e) {}
+  }
+  function readDsid() {
+    try {
+      if (window.ytcfg && typeof ytcfg.get === 'function') return ytcfg.get('DELEGATED_SESSION_ID') || '';
+    } catch (e) {}
+    return '';
+  }
+  setInterval(function () { setCookie('KODAMA_DSID', readDsid()); }, 1000);
+  function injectBar() {
+    if (!document.body || document.getElementById('kodama-confirm-bar')) return;
+    var bar = document.createElement('div');
+    bar.id = 'kodama-confirm-bar';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 20px;background:rgba(15,15,15,0.97);border-top:1px solid rgba(255,255,255,0.14);font-family:system-ui,-apple-system,sans-serif;';
+    if (L.hint) {
+      var hint = document.createElement('span');
+      hint.textContent = L.hint;
+      hint.style.cssText = 'color:#b4b4b4;font-size:13px;max-width:520px;';
+      bar.appendChild(hint);
+    }
+    var btn = document.createElement('button');
+    btn.textContent = L.confirm;
+    btn.style.cssText = 'background:#f5f5f5;color:#0d0d0d;font-weight:600;font-size:14px;border:none;border-radius:9px;padding:11px 24px;cursor:pointer;';
+    btn.onclick = function () {
+      setCookie('KODAMA_DSID', readDsid());
+      setCookie('KODAMA_DONE', '1');
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+    };
+    bar.appendChild(btn);
+    document.body.appendChild(bar);
+  }
+  var iv = setInterval(function () { injectBar(); if (document.getElementById('kodama-confirm-bar')) clearInterval(iv); }, 500);
+})();
+"#;
+
 #[tauri::command]
-pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> Result<(), String> {
+pub async fn open_login_window(
+    app: tauri::AppHandle,
+    profile_name: String,
+    confirm_label: String,
+    switch_hint: String,
+) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("login") {
         let _ = w.destroy();
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -139,6 +192,10 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
     // It persists afterwards so the session-keeper can reuse it.
     let login_data_dir = auth_data_dir(&profile_name);
     let _ = std::fs::remove_dir_all(&login_data_dir);
+
+    // Feed the localized bar labels to the init script (JSON-encoded so quotes are safe).
+    let labels = serde_json::json!({ "confirm": confirm_label, "hint": switch_hint }).to_string();
+    let init_script = format!("window.__KODAMA_LABELS__ = {};\n{}", labels, LOGIN_INIT_JS);
 
     // Load the sign-in URL directly. NOTE: do NOT start blank + navigate() afterwards — Google's
     // embedded-webview check ("This browser or app may not be secure") trips on the programmatic
@@ -159,6 +216,7 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
     // Platform-matched UA. Also replayed to /auth/cookie-login.
     .user_agent(LOGIN_USER_AGENT)
     .data_directory(login_data_dir)
+    .initialization_script(&init_script)
     .build()
     .map_err(|e| e.to_string())?;
 
@@ -193,31 +251,60 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
             let (ctx, crx) = std::sync::mpsc::channel::<Vec<(String, String)>>();
             let cwin = win.clone();
             let cyt = yt_url.clone();
+            let capp = app_clone.clone();
             let _ = app_clone.run_on_main_thread(move || {
-                let mut cs = cwin.cookies_for_url(cyt).unwrap_or_default();
-                if !cs.iter().any(|c| c.name() == "SAPISID") {
-                    if let Ok(all) = cwin.cookies() {
-                        let yt: Vec<_> = all
-                            .into_iter()
-                            .filter(|c| c.domain().map(|d| d.contains("youtube.com")).unwrap_or(false))
-                            .collect();
-                        if yt.iter().any(|c| c.name() == "SAPISID") {
-                            cs = yt;
+                // The login window may be torn down (user closed it, or the app is shutting
+                // down) between the liveness check above and this closure. Calling
+                // cookies_for_url on a dead webview panics deep inside wry
+                // (rx.recv().unwrap()) and takes the whole process down — the poll loop now
+                // outlives the window much longer (it waits for the confirm click), so this
+                // race is real. Re-check on the main thread (race-free vs. destruction, which
+                // is also main-thread) and wrap the read in catch_unwind to survive the
+                // shutdown case where the event loop is already going away.
+                if capp.get_webview_window("login").is_none() {
+                    let _ = ctx.send(Vec::new());
+                    return;
+                }
+                let pairs = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let mut cs = cwin.cookies_for_url(cyt).unwrap_or_default();
+                    if !cs.iter().any(|c| c.name() == "SAPISID") {
+                        if let Ok(all) = cwin.cookies() {
+                            let yt: Vec<_> = all
+                                .into_iter()
+                                .filter(|c| c.domain().map(|d| d.contains("youtube.com")).unwrap_or(false))
+                                .collect();
+                            if yt.iter().any(|c| c.name() == "SAPISID") {
+                                cs = yt;
+                            }
                         }
                     }
-                }
-                let _ = ctx.send(cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect());
+                    cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect::<Vec<_>>()
+                }))
+                .unwrap_or_default();
+                let _ = ctx.send(pairs);
             });
             let found: Vec<(String, String)> = crx
                 .recv_timeout(std::time::Duration::from_secs(5))
                 .unwrap_or_default();
 
             let has_auth = found.iter().any(|(n, _)| n == "SAPISID");
-            eprintln!("[login] url={} has_auth={} cookies={}", current_url, has_auth, found.len());
+            // Wait for the user to confirm via the injected bar (KODAMA_DONE=1) instead of
+            // completing on the first authenticated load — this is what lets brand-account
+            // users switch account first. The bar only appears once has_auth is true anyway.
+            let done = found.iter().any(|(n, v)| n == "KODAMA_DONE" && v == "1");
+            eprintln!("[login] url={} has_auth={} done={} cookies={}", current_url, has_auth, done, found.len());
             {
-                if has_auth {
+                if has_auth && done {
+                    // Brand-account context (empty for the default account), kept out of the
+                    // auth cookie string along with the other KODAMA_* helper cookies.
+                    let dsid = found
+                        .iter()
+                        .find(|(n, _)| n == "KODAMA_DSID")
+                        .map(|(_, v)| v.clone())
+                        .unwrap_or_default();
                     let cookie_str = found
                         .iter()
+                        .filter(|(n, _)| !n.starts_with("KODAMA_"))
                         .map(|(n, v)| format!("{}={}", n, v))
                         .collect::<Vec<_>>()
                         .join("; ");
@@ -228,7 +315,8 @@ pub async fn open_login_window(app: tauri::AppHandle, profile_name: String) -> R
                         .json(&serde_json::json!({
                             "cookie": cookie_str,
                             "profile_name": profile,
-                            "user_agent": LOGIN_USER_AGENT
+                            "user_agent": LOGIN_USER_AGENT,
+                            "delegated_session_id": dsid
                         }))
                         .send()
                         .await;
@@ -312,9 +400,20 @@ pub async fn rotate_session_cookies(app: tauri::AppHandle, profile_name: String)
     // cookie retrieval only returns anything when invoked on the main thread.
     let (ctx, crx) = std::sync::mpsc::channel::<Vec<(String, String)>>();
     let cwin = win.clone();
+    let capp = app.clone();
     app.run_on_main_thread(move || {
-        let cs = cwin.cookies_for_url(yt_url).unwrap_or_default();
-        let _ = ctx.send(cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect());
+        // Same guard as the login poll: the keeper window can be torn down (app shutdown)
+        // while a rotation is in flight; cookies_for_url on a dead webview panics inside wry.
+        if capp.get_webview_window("session-keeper").is_none() {
+            let _ = ctx.send(Vec::new());
+            return;
+        }
+        let pairs = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let cs = cwin.cookies_for_url(yt_url).unwrap_or_default();
+            cs.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect::<Vec<_>>()
+        }))
+        .unwrap_or_default();
+        let _ = ctx.send(pairs);
     })
     .map_err(|e| e.to_string())?;
     let cookies: Vec<(String, String)> = crx

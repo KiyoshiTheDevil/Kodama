@@ -16,7 +16,7 @@
 
 ---
 
-> Kodama is in active **alpha**.
+> AI notice: This app has been created with an LLM called **Claude Code**. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.
 
 ## Features
 
@@ -50,6 +50,12 @@ No screenshot available... yet.
 
 > A Google account is not required to use the player, Premium isn't required either.
 > Please be aware, that some content might be inaccessable due to Premium restrictions.
+
+## NEW! Discord Server
+
+Hey! I made a dedicated Discord server for the App, where you can chat about the project and send in bugs and suggestions more directly
+
+>> [https://discord.gg/PzSsPF7KW](https://discord.gg/rhreShDJxn)
 
 ## For Developers
 
