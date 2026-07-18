@@ -11,15 +11,9 @@ import {
 import { PlayerControls } from "./player-controls.jsx";
 import { useSleepTimer } from "./hooks/use-sleep-timer.js";
 import { useTrackMetadata } from "./hooks/use-track-metadata.js";
+import { usePlayerState, usePlayerActions } from "./player-context.jsx";
 
 export function Player({
-  track,
-  setTrack,
-  queue,
-  setQueue,
-  audioRef,
-  isPlaying,
-  setIsPlaying,
   expanded,
   onExpandToggle,
   showLyrics,
@@ -28,10 +22,7 @@ export function Player({
   onToggleQueue,
   fullscreen,
   onToggleFullscreen,
-  crossfade = 0,
-  crossfadeOverrides = {},
   remoteEnabled = false,
-  playbackProgressive = true,
   onOpenAlbum,
   onOpenArtist,
   onExportSong,
@@ -58,6 +49,10 @@ export function Player({
   onAddToPlaylist,
   buildShareLink,
 }) {
+  // Core playback + crossfade config come from PlayerContext (Step 11) rather than props.
+  const { track, isPlaying, queue, audioRef, crossfade, crossfadeOverrides, playbackProgressive } =
+    usePlayerState();
+  const { setTrack, setIsPlaying, setQueue } = usePlayerActions();
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);

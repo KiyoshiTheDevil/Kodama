@@ -260,6 +260,7 @@ import { LyricsOverlay } from "./features/lyrics/LyricsOverlay.jsx";
 import { CoverView, Player, QueuePanel, VIZ_DEFAULTS } from "./features/player/player-ui.jsx";
 import { hiResThumb } from "./features/player/cover-art.js";
 import { usePlayerController } from "./features/player/use-player-controller.js";
+import { PlayerProvider } from "./features/player/player-context.jsx";
 import { SettingsPanel } from "./features/settings/settings-panel.jsx";
 import { SettingsSidebarContent } from "./features/settings/settings-sidebar.jsx";
 import { DebugFloatingWindow } from "./features/settings/settings-support.jsx";
@@ -2915,19 +2916,24 @@ export default function App() {
   // Consumed here via destructure so existing JSX/prop chains are unchanged (Step 11).
   // resetLyricsSessionRef is populated further down, once the lyrics-session state exists.
   const resetLyricsSessionRef = useRef(null);
+  const player = usePlayerController({ addToast, resetLyricsSessionRef });
   const {
     audioRef,
     currentTrack,
     setCurrentTrack,
     isPlaying,
     setIsPlaying,
-    queue,
     setQueue,
     queueRef,
-    handlePlay,
     enqueue,
     startSongRadio,
-  } = usePlayerController({ addToast, resetLyricsSessionRef });
+    crossfade,
+    setCrossfade,
+    playbackProgressive,
+    setPlaybackProgressive,
+    crossfadeOverrides,
+    removeCrossfadeOverride,
+  } = player;
   const [discordRpc, setDiscordRpc] = useState(
     () => localStorage.getItem("kiyoshi-discord-rpc") !== "false"
   );
@@ -3224,45 +3230,7 @@ export default function App() {
 
   const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }
 
-  // Pause Kodama's own playback when the Composer window opens, so the user isn't
-  // hearing the main player and the Composer's editor audio at the same time.
-  // openComposer() (module-level) fires this event; we pause here to keep React state in sync.
-  useEffect(() => {
-    const onPause = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    };
-    window.addEventListener("kodama-pause-playback", onPause);
-    return () => window.removeEventListener("kodama-pause-playback", onPause);
-  }, []);
-
-  // Update native window title (= taskbar) whenever the playing track or state changes.
-  // When paused for >30 s, revert to "Kodama".
-  useEffect(() => {
-    const setWinTitle = (t) => {
-      document.title = t;
-      import("@tauri-apps/api/webviewWindow")
-        .then(({ getCurrentWebviewWindow }) => getCurrentWebviewWindow().setTitle(t))
-        .catch(() => {});
-    };
-
-    if (!currentTrack) {
-      setWinTitle("Kodama");
-      return;
-    }
-
-    const trackTitle = `${currentTrack.title} – ${currentTrack.artists}`;
-
-    if (isPlaying) {
-      setWinTitle(trackTitle);
-    } else {
-      // Paused: keep the track title but reset after 30 s of inactivity
-      const timer = setTimeout(() => setWinTitle("Kodama"), 30_000);
-      return () => clearTimeout(timer);
-    }
-  }, [currentTrack, isPlaying]);
+  // Composer-pause and native window title now live in usePlayerController (Step 11d).
 
   // Discord Rich Presence — show current track in Discord profile.
   // Debounced (800ms) to avoid flickering on rapid track changes.
@@ -3680,15 +3648,6 @@ export default function App() {
   const [autoplay, setAutoplay] = useState(
     () => localStorage.getItem("kiyoshi-autoplay") !== "false"
   );
-  const [crossfade, setCrossfade] = useState(() => {
-    const s = parseInt(localStorage.getItem("kiyoshi-crossfade"));
-    return isNaN(s) ? 0 : s;
-  });
-  // Progressive playback (default): stream the song for a fast start. Off = classic full
-  // download first (more stable on weak devices). Both stay in the Rust audio core.
-  const [playbackProgressive, setPlaybackProgressive] = useState(
-    () => localStorage.getItem("kodama-playback-mode") !== "classic"
-  );
   const [ipv4First, setIpv4First] = useState(true);
   useEffect(() => {
     let cancelled = false;
@@ -3763,30 +3722,6 @@ export default function App() {
 
   // Per-transition crossfade overrides: { "fromId__toId": { secs, fromTitle, toTitle } }.
   // A pair override beats the global default; secs 0 = hard cut for that one transition.
-  const [crossfadeOverrides, setCrossfadeOverrides] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("kodama-crossfade-overrides")) || {};
-    } catch {
-      return {};
-    }
-  });
-  const setCrossfadeOverride = useCallback((fromId, toId, secs, fromTitle, toTitle) => {
-    if (!fromId || !toId) return;
-    setCrossfadeOverrides((prev) => {
-      const next = { ...prev, [`${fromId}__${toId}`]: { secs, fromTitle, toTitle } };
-      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
-      return next;
-    });
-  }, []);
-  const removeCrossfadeOverride = useCallback((key) => {
-    setCrossfadeOverrides((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
   // ── Profile / Auth ──
   // ── Profiles / auth / session (see features/profiles/hooks/use-profiles.js) ──
   // The account switch/remove/logout commands reset app-wide UI as a single business
@@ -4472,6 +4407,7 @@ export default function App() {
           <AnimationContext.Provider value={animations}>
             <FontScaleContext.Provider value={appFontScale}>
               <ZoomContext.Provider value={uiZoom}>
+                <PlayerProvider controller={player}>
                 <style>{GLOBAL_KEYFRAMES}</style>
                 {!animations && (
                   <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
@@ -4687,7 +4623,6 @@ export default function App() {
                           <AnimatedView key={`home-${viewRefreshKey}`}>
                             <HomeView
                               displayName={profiles.find((p) => p.active)?.displayName}
-                              onPlay={handlePlay}
                               onOpenPlaylist={(item) => openPlaylist(item, "home")}
                               onOpenAlbum={(item) => openAlbum(item, "home")}
                               onOpenArtist={(item) => openArtist(item, "home")}
@@ -4703,7 +4638,6 @@ export default function App() {
                           <AnimatedView key={`search-${viewRefreshKey}`}>
                             <SearchView
                               query={searchQuery}
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onOpenArtist={openArtist}
@@ -4720,7 +4654,6 @@ export default function App() {
                         {view === "liked" && (
                           <AnimatedView key={`liked-${viewRefreshKey}`}>
                             <LikedView
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onOpenArtist={openArtist}
@@ -4744,7 +4677,6 @@ export default function App() {
                         {view === "history" && (
                           <AnimatedView key={`history-${viewRefreshKey}`}>
                             <HistoryView
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onOpenArtist={openArtist}
@@ -4763,7 +4695,6 @@ export default function App() {
                         {view === "library" && (
                           <AnimatedView key={`library-${viewRefreshKey}`}>
                             <LibraryView
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onOpenPlaylist={openPlaylist}
@@ -4783,7 +4714,6 @@ export default function App() {
                               loading={collection.loading}
                               progress={collection.progress || 0}
                               cached={collection.cached}
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onBack={goBack}
@@ -4849,7 +4779,6 @@ export default function App() {
                           <AnimatedView key={`artist-${viewRefreshKey}`}>
                             <ArtistView
                               browseId={artistView.browseId}
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               onOpenAlbum={(item) => openAlbum(item, "artist")}
@@ -4860,14 +4789,12 @@ export default function App() {
                               onTogglePin={togglePin}
                               isPinned={pinnedIds.includes(artistView.browseId)}
                               hideExplicit={hideExplicit}
-                              onStartRadio={handlePlay}
                             />
                           </AnimatedView>
                         )}
                         {view === "downloads" && (
                           <AnimatedView key={`downloads-${viewRefreshKey}`}>
                             <DownloadsView
-                              onPlay={handlePlay}
                               currentTrack={currentTrack}
                               isPlaying={isPlaying}
                               cachedSongIds={cachedSongIds}
@@ -4953,13 +4880,6 @@ export default function App() {
                         }}
                       >
                         <Player
-                          track={currentTrack}
-                          setTrack={setCurrentTrack}
-                          queue={queue}
-                          setQueue={setQueue}
-                          audioRef={audioRef}
-                          isPlaying={isPlaying}
-                          setIsPlaying={setIsPlaying}
                           expanded={overlayOpen}
                           onExpandToggle={() => setOverlayOpen((e) => !e)}
                           showLyrics={showLyrics}
@@ -4985,10 +4905,7 @@ export default function App() {
                           }}
                           queueOpen={queueOpen}
                           onToggleQueue={() => setQueueOpen((q) => !q)}
-                          crossfade={crossfade}
-                          crossfadeOverrides={crossfadeOverrides}
                           remoteEnabled={remoteEnabled}
-                          playbackProgressive={playbackProgressive}
                           fullscreen={fullscreen}
                           onToggleFullscreen={async () => {
                             const { invoke } = await import("@tauri-apps/api/core");
@@ -5310,18 +5227,10 @@ export default function App() {
                       </div>
                     )}
                     <QueuePanel
-                      queue={queue}
-                      setQueue={setQueue}
-                      currentTrack={currentTrack}
-                      setTrack={setCurrentTrack}
                       onClose={() => setQueueOpen(false)}
                       likedIds={likedIds}
                       onToggleLike={handleToggleLike}
                       visible={queueOpen}
-                      crossfade={crossfade}
-                      crossfadeOverrides={crossfadeOverrides}
-                      onSetCrossfadeOverride={setCrossfadeOverride}
-                      onRemoveCrossfadeOverride={removeCrossfadeOverride}
                     />
                   </div>
                   {/* Login Screen - shown when no profile exists */}
@@ -6026,6 +5935,7 @@ export default function App() {
                     />
                   )}
                 </div>
+                </PlayerProvider>
               </ZoomContext.Provider>
             </FontScaleContext.Provider>
           </AnimationContext.Provider>

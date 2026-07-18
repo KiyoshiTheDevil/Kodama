@@ -3,6 +3,7 @@ import { API } from "../../shared/api/client.js";
 import { translate } from "../../i18n.js";
 import { IpcAudio } from "./ipc-audio.js";
 import { registerPlayerCommands as bpRegisterCommands } from "../../bigpicture/playerBridge.js";
+import { useWindowTitle } from "./hooks/use-window-title.js";
 
 // Player controller (Step 11): the single owner of the IpcAudio instance, the current track,
 // the queue, the playing flag, and the play/enqueue/radio/deep-link commands + play-history
@@ -27,6 +28,58 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
+
+  // Native window/taskbar title follows playback.
+  useWindowTitle(currentTrack, isPlaying);
+
+  // Pause Kodama's own playback when the Composer (community-lyrics editor) window opens, so the
+  // user isn't hearing the main player and the editor's audio at once. openComposer() (in the
+  // lyrics feature) fires this event; we pause here to keep React state in sync.
+  useEffect(() => {
+    const onPause = () => {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+    };
+    window.addEventListener("kodama-pause-playback", onPause);
+    return () => window.removeEventListener("kodama-pause-playback", onPause);
+  }, []);
+
+  // Playback config (crossfade + progressive mode) lives at the controller boundary so the player
+  // transport and the settings UI read a single source rather than a settings-owned copy (Step 11d).
+  const [crossfade, setCrossfade] = useState(() => {
+    const s = parseInt(localStorage.getItem("kiyoshi-crossfade"));
+    return isNaN(s) ? 0 : s;
+  });
+  // Progressive playback (default): stream the song for a fast start. Off = classic full
+  // download first (more stable on weak devices). Both stay in the Rust audio core.
+  const [playbackProgressive, setPlaybackProgressive] = useState(
+    () => localStorage.getItem("kodama-playback-mode") !== "classic"
+  );
+  const [crossfadeOverrides, setCrossfadeOverrides] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("kodama-crossfade-overrides")) || {};
+    } catch {
+      return {};
+    }
+  });
+  const setCrossfadeOverride = useCallback((fromId, toId, secs, fromTitle, toTitle) => {
+    if (!fromId || !toId) return;
+    setCrossfadeOverrides((prev) => {
+      const next = { ...prev, [`${fromId}__${toId}`]: { secs, fromTitle, toTitle } };
+      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  const removeCrossfadeOverride = useCallback((key) => {
+    setCrossfadeOverrides((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      localStorage.setItem("kodama-crossfade-overrides", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const handlePlay = useCallback((track, trackList) => {
     setCurrentTrack(track);
@@ -152,5 +205,12 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
     enqueue,
     startSongRadio,
     playByVideoId,
+    crossfade,
+    setCrossfade,
+    playbackProgressive,
+    setPlaybackProgressive,
+    crossfadeOverrides,
+    setCrossfadeOverride,
+    removeCrossfadeOverride,
   };
 }

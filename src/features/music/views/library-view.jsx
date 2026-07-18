@@ -6,7 +6,6 @@ import { API } from "../../../shared/api/client.js";
 import { useLang } from "../../../context.jsx";
 
 export function LibraryView({
-  onPlay,
   currentTrack,
   isPlaying,
   onOpenPlaylist,

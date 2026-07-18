@@ -7,7 +7,6 @@ import { particleBurst } from "../effects/particle-burst.js";
 import { Trash } from "../icons.jsx";
 
 export function HistoryView({
-  onPlay,
   currentTrack,
   isPlaying,
   onOpenArtist,
@@ -94,7 +93,6 @@ export function HistoryView({
       loading={false}
       progress={0}
       cached={false}
-      onPlay={onPlay}
       currentTrack={currentTrack}
       isPlaying={isPlaying}
       onBack={onBack}

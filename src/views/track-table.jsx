@@ -7,6 +7,7 @@ import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
+import { usePlayerActions } from "../features/player/player-context.jsx";
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -245,7 +246,6 @@ export function PlaylistLayout({
   loading,
   progress,
   cached,
-  onPlay,
   currentTrack,
   isPlaying,
   onBack,
@@ -273,6 +273,8 @@ export function PlaylistLayout({
   extraActions,
   typeLabel,
 }) {
+  // Playback action from PlayerContext (Step 11) rather than an onPlay prop.
+  const { handlePlay } = usePlayerActions();
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
   const [trackSearch, setTrackSearch] = useState("");
@@ -548,7 +550,7 @@ export function PlaylistLayout({
               {/* Left: play + shuffle */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button
-                  onClick={() => tracks.length && onPlay(tracks[0], tracks)}
+                  onClick={() => tracks.length && handlePlay(tracks[0], tracks)}
                   style={{
                     background: `rgba(${accentColor},0.18)`,
                     border: `1px solid rgba(${accentColor},0.38)`,
@@ -587,7 +589,7 @@ export function PlaylistLayout({
                   onClick={() => {
                     if (!tracks.length) return;
                     const sh = [...tracks].sort(() => Math.random() - 0.5);
-                    onPlay(sh[0], sh);
+                    handlePlay(sh[0], sh);
                   }}
                   style={{
                     background: "rgba(255,255,255,0.06)",
@@ -957,7 +959,7 @@ export function PlaylistLayout({
                     track={tr}
                     index={i}
                     isPlaying={isPlaying && currentTrack?.videoId === tr.videoId}
-                    onPlay={() => onPlay(tr, visibleTracks)}
+                    onPlay={() => handlePlay(tr, visibleTracks)}
                     onOpenArtist={onOpenArtist}
                     onOpenAlbum={onOpenAlbum}
                     isAlbum={isAlbum}

@@ -26,10 +26,10 @@ import { API } from "../../../shared/api/client.js";
 import { thumb } from "../../../shared/api/thumbnails.js";
 import { useLang } from "../../../context.jsx";
 import { Carousel } from "../components/carousel.jsx";
+import { usePlayerActions } from "../../player/player-context.jsx";
 
 export function HomeView({
   displayName,
-  onPlay,
   onOpenPlaylist,
   onOpenAlbum,
   onOpenArtist,
@@ -37,6 +37,7 @@ export function HomeView({
   onTrackContextMenu,
   hideExplicit,
 }) {
+  const { handlePlay } = usePlayerActions();
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moodGroups, setMoodGroups] = useState({}); // { "For you": [...], "Moods & moments": [...], "Genres": [...] }
@@ -110,7 +111,7 @@ export function HomeView({
           isExplicit: false,
         }));
       if (episodes.length) {
-        onPlay(episodes[0], episodes);
+        handlePlay(episodes[0], episodes);
       } else {
         onOpenPlaylist({ playlistId: pid, title: item.title, thumbnail: item.thumbnail });
       }
@@ -175,7 +176,7 @@ export function HomeView({
       return;
     }
     if (item.type === "song") {
-      onPlay(
+      handlePlay(
         item,
         (section?.items || []).filter((x) => x.type === "song")
       );
@@ -185,7 +186,7 @@ export function HomeView({
       fetch(`${API}/album/${item.browseId}`)
         .then((r) => r.json())
         .then((d) => {
-          if (d.tracks?.length) onPlay(d.tracks[0], d.tracks);
+          if (d.tracks?.length) handlePlay(d.tracks[0], d.tracks);
         })
         .catch(() => {});
       return;
@@ -196,7 +197,7 @@ export function HomeView({
         try {
           const msg = JSON.parse(ev.data);
           if (msg.type === "tracks" && msg.tracks?.length) {
-            onPlay(msg.tracks[0], msg.tracks);
+            handlePlay(msg.tracks[0], msg.tracks);
             es.close();
           } else if (msg.type === "done" || msg.type === "error") es.close();
         } catch {
@@ -209,7 +210,7 @@ export function HomeView({
 
   const handleCardClick = (item, section) => {
     if (item.type === "song") {
-      onPlay(
+      handlePlay(
         item,
         (section?.items || []).filter((x) => x.type === "song")
       );
@@ -660,7 +661,7 @@ export function HomeView({
                           key={i}
                           variant="transparent"
                           className="home-card p-0! gap-0! rounded-none! shadow-none!"
-                          onClick={() => onPlay(item, speedDialItems)}
+                          onClick={() => handlePlay(item, speedDialItems)}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             onTrackContextMenu?.(e, item);

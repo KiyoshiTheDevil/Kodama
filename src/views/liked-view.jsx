@@ -5,7 +5,6 @@ import { API, useLang } from "../context.jsx";
 import { PlaylistLayout } from "./track-table.jsx";
 
 export function LikedView({
-  onPlay,
   currentTrack,
   isPlaying,
   onOpenArtist,
@@ -85,7 +84,6 @@ export function LikedView({
       loading={false}
       progress={0}
       cached={false}
-      onPlay={onPlay}
       currentTrack={currentTrack}
       isPlaying={isPlaying}
       onBack={onBack || null}

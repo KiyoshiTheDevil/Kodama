@@ -18,6 +18,7 @@ import { ExplicitBadge } from "../../ui/rows.jsx";
 import { dissolve } from "../../effects/particle-burst.js";
 import { useAnimations, useLang } from "../../context.jsx";
 import { FadeEditorModal } from "./fade-editor-modal.jsx";
+import { usePlayerState, usePlayerActions } from "./player-context.jsx";
 
 function QueueRow({
   track,
@@ -145,19 +146,14 @@ function QueueRow({
 }
 
 export function QueuePanel({
-  queue,
-  setQueue,
-  currentTrack,
-  setTrack,
   onClose,
   likedIds,
   onToggleLike,
   visible,
-  crossfade = 0,
-  crossfadeOverrides = {},
-  onSetCrossfadeOverride,
-  onRemoveCrossfadeOverride,
 }) {
+  // Core playback + crossfade config come from PlayerContext (Step 11) rather than props.
+  const { track: currentTrack, queue, crossfade = 0, crossfadeOverrides = {} } = usePlayerState();
+  const { setQueue, setTrack, setCrossfadeOverride, removeCrossfadeOverride } = usePlayerActions();
   const t = useLang();
   const [panelTab, setPanelTab] = useState("queue");
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
@@ -595,7 +591,7 @@ export function QueuePanel({
           globalDefault={crossfade}
           current={crossfadeOverrides[fadeKey(fadeEdit.from, fadeEdit.to)]?.secs ?? null}
           onSave={(secs) =>
-            onSetCrossfadeOverride?.(
+            setCrossfadeOverride?.(
               fadeEdit.from.videoId,
               fadeEdit.to.videoId,
               secs,
@@ -603,7 +599,7 @@ export function QueuePanel({
               fadeEdit.to.title
             )
           }
-          onClear={() => onRemoveCrossfadeOverride?.(fadeKey(fadeEdit.from, fadeEdit.to))}
+          onClear={() => removeCrossfadeOverride?.(fadeKey(fadeEdit.from, fadeEdit.to))}
           onClose={() => setFadeEdit(null)}
         />
       )}

@@ -18,10 +18,10 @@ import { thumb, hiResThumb } from "../../../shared/api/thumbnails.js";
 import { useLang } from "../../../context.jsx";
 import { ArtistDescription } from "../components/artist-description.jsx";
 import { MediaTile } from "../components/media-tile.jsx";
+import { usePlayerActions } from "../../player/player-context.jsx";
 
 export function ArtistView({
   browseId,
-  onPlay,
   currentTrack,
   isPlaying,
   onOpenAlbum,
@@ -32,8 +32,8 @@ export function ArtistView({
   onTogglePin,
   isPinned,
   hideExplicit,
-  onStartRadio,
 }) {
+  const { handlePlay } = usePlayerActions();
   const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -100,7 +100,7 @@ export function ArtistView({
       .then((r) => r.json())
       .then((d) => {
         if (d.error) throw new Error(d.error);
-        if (d.tracks?.length) onPlay(d.tracks[0], d.tracks);
+        if (d.tracks?.length) handlePlay(d.tracks[0], d.tracks);
       })
       .catch((e) => console.error("Radio error:", e))
       .finally(() => setRadioLoading(false));
@@ -109,7 +109,7 @@ export function ArtistView({
     fetch(`${API}/album/${browseId}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.tracks?.length) onPlay(d.tracks[0], d.tracks);
+        if (d.tracks?.length) handlePlay(d.tracks[0], d.tracks);
       })
       .catch(() => {});
   };
@@ -245,7 +245,7 @@ export function ArtistView({
                   color="accent"
                   variant="solid"
                   className="rounded-full gap-1.5 px-5 font-semibold"
-                  onPress={() => onPlay(topTracks[0], topTracks)}
+                  onPress={() => handlePlay(topTracks[0], topTracks)}
                 >
                   <Play size={15} weight="fill" /> {t("playAll")}
                 </Button>
@@ -255,7 +255,7 @@ export function ArtistView({
                   style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
                   onPress={() => {
                     const sh = [...topTracks].sort(() => Math.random() - 0.5);
-                    onPlay(sh[0], sh);
+                    handlePlay(sh[0], sh);
                   }}
                 >
                   <Shuffle size={15} /> {t("shuffle")}
@@ -361,7 +361,7 @@ export function ArtistView({
                       key={t.videoId || i}
                       track={t}
                       isPlaying={isPlaying && currentTrack?.videoId === t.videoId}
-                      onPlay={() => onPlay(t, visibleTracks)}
+                      onPlay={() => handlePlay(t, visibleTracks)}
                     />
                   ))}
                 </div>
@@ -587,7 +587,7 @@ export function ArtistView({
             >
               {artist.videos.map((v, i) => {
                 const playVideo = () =>
-                  onPlay(
+                  handlePlay(
                     {
                       videoId: v.videoId,
                       title: v.title,

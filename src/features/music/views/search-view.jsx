@@ -4,10 +4,10 @@ import { GridCard, TrackRow } from "../../../ui/rows.jsx";
 import { API } from "../../../shared/api/client.js";
 import { thumb } from "../../../shared/api/thumbnails.js";
 import { useLang } from "../../../context.jsx";
+import { usePlayerActions } from "../../player/player-context.jsx";
 
 export function SearchView({
   query,
-  onPlay,
   currentTrack,
   isPlaying,
   onOpenArtist,
@@ -17,6 +17,7 @@ export function SearchView({
   onTrackContextMenu,
   hideExplicit,
 }) {
+  const { handlePlay } = usePlayerActions();
   const [filter, setFilter] = useState("all");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ export function SearchView({
       key={song.videoId}
       track={song}
       isPlaying={isPlaying && currentTrack?.videoId === song.videoId}
-      onPlay={() => onPlay(song, byType("song"))}
+      onPlay={() => handlePlay(song, byType("song"))}
       onOpenArtist={onOpenArtist}
       onContextMenu={onTrackContextMenu}
     />
