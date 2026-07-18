@@ -46,19 +46,23 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
     integrationRevision,
   });
 
+  // Pause audio without touching track/queue — used by the Composer-pause event below and by
+  // any caller (e.g. the profile switch/remove/logout reset) that clears currentTrack/queue and
+  // must stop the actual playing audio in the same step, not just reset the UI.
+  const stopPlayback = useCallback(() => {
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+  }, []);
+
   // Pause Kodama's own playback when the Composer (community-lyrics editor) window opens, so the
   // user isn't hearing the main player and the editor's audio at once. openComposer() (in the
   // lyrics feature) fires this event; we pause here to keep React state in sync.
   useEffect(() => {
-    const onPause = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    };
-    window.addEventListener("kodama-pause-playback", onPause);
-    return () => window.removeEventListener("kodama-pause-playback", onPause);
-  }, []);
+    window.addEventListener("kodama-pause-playback", stopPlayback);
+    return () => window.removeEventListener("kodama-pause-playback", stopPlayback);
+  }, [stopPlayback]);
 
   // Playback config (autoplay + crossfade + progressive mode) lives at the controller boundary so
   // the player transport and the settings UI read a single source rather than a settings-owned
@@ -229,6 +233,7 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
     setCurrentTrack,
     isPlaying,
     setIsPlaying,
+    stopPlayback,
     queue,
     setQueue,
     queueRef,

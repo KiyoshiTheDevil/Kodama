@@ -14,6 +14,11 @@ import { translate } from "../../../i18n.js";
  * owned by App for now, so their setters are injected; the *ordering* of the reset
  * stays here, in the profile domain, exactly as before. As navigation/player
  * contexts land in later steps these injected setters become context reads.
+ *
+ * `stopPlayback` (from the player controller) is called before `setCurrentTrack(null)` in every
+ * reset: clearing the track only resets the UI, it never touches the actual `IpcAudio` instance,
+ * so without this the previous profile's song kept playing after the controls reset to "nothing
+ * playing".
  */
 export function useProfiles({
   addToast,
@@ -26,6 +31,7 @@ export function useProfiles({
   setCollection,
   setOverlayOpen,
   setQueueOpen,
+  stopPlayback,
 }) {
   const [profiles, setProfiles] = useState([]);
   const [hasProfile, setHasProfile] = useState(false);
@@ -133,6 +139,7 @@ export function useProfiles({
       });
       await fetchProfiles();
       setView("home");
+      stopPlayback();
       setCurrentTrack(null);
       setQueue([]);
       setCollection(null);
@@ -146,6 +153,7 @@ export function useProfiles({
     [
       fetchProfiles,
       setView,
+      stopPlayback,
       setCurrentTrack,
       setQueue,
       setCollection,
@@ -182,6 +190,7 @@ export function useProfiles({
       const remaining = profiles.filter((p) => p.name !== name);
       if (remaining.length === 0) {
         setView("home");
+        stopPlayback();
         setCurrentTrack(null);
         setQueue([]);
         setCollection(null);
@@ -198,6 +207,7 @@ export function useProfiles({
         });
         await fetchProfiles();
         setView("home");
+        stopPlayback();
         setCurrentTrack(null);
         setQueue([]);
         setCollection(null);
@@ -214,6 +224,7 @@ export function useProfiles({
       profiles,
       fetchProfiles,
       setView,
+      stopPlayback,
       setCurrentTrack,
       setQueue,
       setCollection,
@@ -256,6 +267,7 @@ export function useProfiles({
       console.error("logout failed:", e);
     }
     await fetchProfiles();
+    stopPlayback();
     setCurrentTrack(null);
     setQueue([]);
     setCollection(null);
@@ -263,7 +275,15 @@ export function useProfiles({
     setQueueOpen(false);
     setHasProfile(false);
     setShowLogin(true);
-  }, [fetchProfiles, setCurrentTrack, setQueue, setCollection, setOverlayOpen, setQueueOpen]);
+  }, [
+    fetchProfiles,
+    stopPlayback,
+    setCurrentTrack,
+    setQueue,
+    setCollection,
+    setOverlayOpen,
+    setQueueOpen,
+  ]);
 
   // Load cached profile data when backend is unreachable (offline / slow start)
   const loadCachedProfile = useCallback(() => {

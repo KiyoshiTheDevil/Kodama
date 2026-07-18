@@ -2820,6 +2820,7 @@ export default function App() {
     setCurrentTrack,
     isPlaying,
     setIsPlaying,
+    stopPlayback,
     setQueue,
     queueRef,
     enqueue,
@@ -3323,6 +3324,7 @@ export default function App() {
     setCollection,
     setOverlayOpen,
     setQueueOpen,
+    stopPlayback,
   });
   // Account actions (switch/add/reauth/remove/rename/avatar/logout) are consumed through
   // ProfileContext now (Sidebar, settings account tab, profile-switcher modal — see
