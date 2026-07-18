@@ -1,6 +1,7 @@
 // Thin wrapper that renders a playlist/album/liked collection through PlaylistLayout.
 // Extracted from App.jsx.
 import { PlaylistLayout } from "./track-table.jsx";
+import { useDownloadActions } from "../features/downloads/download-context.jsx";
 
 export function CollectionView({
   title,
@@ -19,12 +20,6 @@ export function CollectionView({
   year,
   onRefresh,
   onTrackContextMenu,
-  cachedSongIds,
-  downloadingIds,
-  premiumSongIds,
-  onDownloadSong,
-  onDownloadAll,
-  onRemoveAll,
   hideExplicit,
   onToggleLike,
   likedIds,
@@ -32,6 +27,9 @@ export function CollectionView({
   onToggleSelect,
   onSelectAll,
 }) {
+  // "Download all" needs this collection's own title/thumbnail/artists metadata, so it's built
+  // here rather than sourced verbatim from DownloadContext (Step 12).
+  const { downloadAll, removeAll } = useDownloadActions();
   return (
     <PlaylistLayout
       title={title}
@@ -50,12 +48,10 @@ export function CollectionView({
       year={year}
       onRefresh={onRefresh}
       onTrackContextMenu={onTrackContextMenu}
-      cachedSongIds={cachedSongIds}
-      downloadingIds={downloadingIds}
-      premiumSongIds={premiumSongIds}
-      onDownloadSong={onDownloadSong}
-      onDownloadAll={onDownloadAll}
-      onRemoveAll={onRemoveAll}
+      onDownloadAll={(tracks) =>
+        downloadAll(tracks, { title, thumbnail, artists: albumArtists || "" })
+      }
+      onRemoveAll={removeAll}
       hideExplicit={hideExplicit}
       onToggleLike={onToggleLike}
       likedIds={likedIds}

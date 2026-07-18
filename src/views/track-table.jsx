@@ -8,6 +8,7 @@ import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
 import { usePlaybackStatus, usePlayerActions } from "../features/player/player-context.jsx";
+import { useDownloadState, useDownloadActions } from "../features/downloads/download-context.jsx";
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -256,10 +257,6 @@ export function PlaylistLayout({
   year,
   onRefresh,
   onTrackContextMenu,
-  cachedSongIds,
-  downloadingIds,
-  premiumSongIds,
-  onDownloadSong,
   onDownloadAll,
   onRemoveAll,
   hideExplicit,
@@ -274,6 +271,11 @@ export function PlaylistLayout({
   // Playback state/action from PlayerContext (Step 11) rather than currentTrack/isPlaying/onPlay props.
   const { track: currentTrack, isPlaying } = usePlaybackStatus();
   const { handlePlay } = usePlayerActions();
+  // Cached/downloading/premium id sets + the single-track download action come from
+  // DownloadContext (Step 12); onDownloadAll/onRemoveAll stay props since only collection/album
+  // views offer a "download all" action.
+  const { cachedSongIds, downloadingIds, premiumSongIds } = useDownloadState();
+  const { downloadSong: onDownloadSong } = useDownloadActions();
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
   const [trackSearch, setTrackSearch] = useState("");

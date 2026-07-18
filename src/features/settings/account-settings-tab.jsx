@@ -40,23 +40,21 @@ import { thumb } from "../../shared/api/thumbnails.js";
 import { useLang } from "../../context.jsx";
 import { fmtDuration } from "./settings-support.jsx";
 import { SettingRow, Toggle } from "../../ui/settings-controls.jsx";
+import { useProfileState, useProfileActions } from "../profiles/profile-context.jsx";
 
-export function AccountSettingsTab({
-  accounts,
-  activeAccount,
-  onSwitch,
-  onAdd,
-  onReauth,
-  onRemove,
-  onRename,
-  onLogout,
-  onAvatarChange,
-  hideUserHandle,
-  onToggleHideUserHandle,
-}) {
+export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
   const t = useLang();
-  const list = accounts || [];
-  const active = activeAccount || list.find((a) => a.active) || null;
+  // Account list/active account/actions come from ProfileContext (Step 12) rather than props.
+  const { profiles: list, activeProfile: active } = useProfileState();
+  const {
+    switchProfile: onSwitch,
+    addProfile: onAdd,
+    reauthProfile: onReauth,
+    removeProfile: onRemove,
+    renameProfile: onRename,
+    logout: onLogout,
+    changeAvatar: onAvatarChange,
+  } = useProfileActions();
   const [nameDraft, setNameDraft] = useState(active?.displayName || "");
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);

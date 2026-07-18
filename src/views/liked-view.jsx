@@ -8,9 +8,6 @@ export function LikedView({
   onOpenArtist,
   onOpenAlbum,
   onTrackContextMenu,
-  cachedSongIds,
-  downloadingIds,
-  onDownloadSong,
   hideExplicit,
   onToggleLike,
   likedIds,
@@ -87,9 +84,6 @@ export function LikedView({
       onOpenArtist={onOpenArtist}
       onOpenAlbum={onOpenAlbum}
       onTrackContextMenu={onTrackContextMenu}
-      cachedSongIds={cachedSongIds}
-      downloadingIds={downloadingIds}
-      onDownloadSong={onDownloadSong}
       hideExplicit={hideExplicit}
       onToggleLike={onToggleLike}
       likedIds={likedIds}

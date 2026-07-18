@@ -255,11 +255,19 @@ import { LibraryView } from "./features/music/views/library-view.jsx";
 import { SearchView } from "./features/music/views/search-view.jsx";
 import { HomeView } from "./features/music/views/home-view.jsx";
 import { ArtistView } from "./features/music/views/artist-view.jsx";
+import { itemId, profileKey } from "./features/music/lib/playlist-id.js";
+import { useMusicNavigation } from "./features/music/hooks/use-music-navigation.js";
 import { LyricsOverlay } from "./features/lyrics/LyricsOverlay.jsx";
 import { CoverView, Player, QueuePanel, VIZ_DEFAULTS } from "./features/player/player-ui.jsx";
 import { hiResThumb } from "./features/player/cover-art.js";
 import { usePlayerController } from "./features/player/use-player-controller.js";
 import { PlayerProvider } from "./features/player/player-context.jsx";
+import {
+  ProfileProvider,
+  useProfileState,
+  useProfileActions,
+} from "./features/profiles/profile-context.jsx";
+import { DownloadProvider } from "./features/downloads/download-context.jsx";
 import { useLastfmClient } from "./features/integrations/lastfm.js";
 import { SettingsPanel } from "./features/settings/settings-panel.jsx";
 import { SettingsSidebarContent } from "./features/settings/settings-sidebar.jsx";
@@ -680,14 +688,7 @@ function Sidebar({
   onOpenArtist,
   onAddRecent,
   onContextMenu,
-  currentProfileData,
   onOpenProfileSwitcher,
-  profiles,
-  onSwitchProfile,
-  onAddProfile,
-  onDeleteProfile,
-  onReauthProfile,
-  onLogout,
   onCreatePlaylist,
   updateInfo,
   offlineMode,
@@ -701,6 +702,9 @@ function Sidebar({
   settingsOpen,
   hideUserHandle,
 }) {
+  // Profile list/active profile/logout come from ProfileContext (Step 12) rather than props.
+  const { profiles, activeProfile: currentProfileData } = useProfileState();
+  const { logout: onLogout } = useProfileActions();
   const [query, setQuery] = useState("");
   // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
   const [suggestions, setSuggestions] = useState([]);
@@ -2608,10 +2612,6 @@ export default function App() {
     };
   }, []);
 
-  const [view, setView] = useState("home");
-  const [navHistory, setNavHistory] = useState([]); // navigation history stack for back button
-  const [appKey, setAppKey] = useState(0); // increment to force full re-render
-  const [viewRefreshKey, setViewRefreshKey] = useState(0); // increment to refresh current view
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth, { setTransient: setSidebarWidthTransient }] =
     usePersistedState("kiyoshi-sidebar-width", SIDEBAR_EXPANDED, SIDEBAR_WIDTH_STORAGE);
@@ -2728,10 +2728,6 @@ export default function App() {
   useEffect(() => {
     startAudioLevels();
   }, []);
-
-  // Unified item ID — playlists use playlistId, albums use browseId
-  const itemId = (item) => item?.playlistId || item?.browseId || null;
-  const profileKey = (base) => `${base}-${window.__activeProfile || "default"}`;
 
   const togglePin = useCallback((pl) => {
     const stored = (() => {
@@ -2912,6 +2908,30 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
+  // Music navigation domain (see features/music/hooks/use-music-navigation.js): view, back-nav
+  // history, the open collection/artist, and the open*/navigateTo/goBack commands. Consumed here
+  // via destructure so existing JSX/prop chains are unchanged (Step 12), same pattern as the
+  // player controller below. Must run before useProfiles/useNetworkStatus — both inject this
+  // hook's setView/setAppKey/setCollection setters into their own reset sequences.
+  const {
+    view,
+    setView,
+    appKey,
+    setAppKey,
+    viewRefreshKey,
+    setViewRefreshKey,
+    collection,
+    setCollection,
+    artistView,
+    handleSearch,
+    addRecentPlaylist,
+    removeRecentPlaylist,
+    openPlaylist,
+    openAlbum,
+    openArtist,
+    navigateTo,
+    goBack,
+  } = useMusicNavigation({ setSearchQuery });
   // Player controller owns the audio, track, queue, playing state, and playback commands.
   // Consumed here via destructure so existing JSX/prop chains are unchanged (Step 11).
   // resetLyricsSessionRef is populated further down, once the lyrics-session state exists.
@@ -3173,8 +3193,6 @@ export default function App() {
     };
   }, [fullscreen]);
 
-  const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }
-
   // Composer-pause and native window title now live in usePlayerController (Step 11d).
 
   // Playback commands (handlePlay/enqueue/startSongRadio/playByVideoId), the Big Picture
@@ -3183,159 +3201,24 @@ export default function App() {
   const [language, setLanguage] = useState(() => getInitialLang());
 
   // ── Downloads + local cache (see features/downloads/hooks/use-download-manager.js) ──
+  const downloads = useDownloadManager({ addToast, language });
+  // Distributed to views/PlaylistLayout/Player via DownloadContext (Step 12) below; App keeps
+  // its own destructure too since the track-context-menu and the download-queue progress card
+  // still read/act on this state directly.
   const {
     cachedSongIds,
     downloadingIds,
-    premiumSongIds,
     downloadBatches,
     downloadQueueMin,
     setDownloadQueueMin,
     handleDownloadSong,
-    handleDownloadAll,
     handleCancelBatch,
-    handleRemoveAllDownloads,
     handleExportSong,
     removeCachedSong,
-    markPremium,
-  } = useDownloadManager({ addToast, language });
+  } = downloads;
 
-  const handleSearch = useCallback((q) => {
-    setSearchQuery(q);
-    setView("search");
-  }, []);
-
-  const addRecentPlaylist = useCallback((pl) => {
-    const key = profileKey("kiyoshi-recent");
-    const stored = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(key) || "[]");
-      } catch {
-        return [];
-      }
-    })();
-    const id = itemId(pl);
-    const next = [pl, ...stored.filter((p) => itemId(p) !== id)].slice(0, 5);
-    localStorage.setItem(key, JSON.stringify(next));
-    window.dispatchEvent(new Event("kiyoshi-recent-updated"));
-  }, []);
-
-  const removeRecentPlaylist = useCallback((id) => {
-    const key = profileKey("kiyoshi-recent");
-    const stored = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(key) || "[]");
-      } catch {
-        return [];
-      }
-    })();
-    const next = stored.filter((p) => (p.playlistId || p.browseId) !== id);
-    localStorage.setItem(key, JSON.stringify(next));
-    window.dispatchEvent(new Event("kiyoshi-recent-updated"));
-  }, []);
-
-  const openPlaylist = useCallback((item, fromView, refresh = false) => {
-    // forcedTitle: when the caller provides a custom title (e.g. "Dusqk – Top Songs"),
-    // we keep it and don't let the stream header overwrite it.
-    if (!refresh) setNavHistory((h) => [...h, navStateRef.current]);
-    const forcedTitle = item.forcedTitle || null;
-    setCollection({
-      title: forcedTitle || item.title,
-      thumbnail: item.thumbnail,
-      tracks: [],
-      total: null,
-      loading: true,
-      progress: 0,
-      cached: false,
-      fromView: fromView || "library",
-      forcedTitle,
-      playlistId: item.playlistId,
-    });
-    setView("collection");
-    addRecentPlaylist({
-      playlistId: item.playlistId,
-      title: forcedTitle || item.title,
-      thumbnail: item.thumbnail,
-      ...(forcedTitle ? { forcedTitle } : {}),
-    });
-
-    // Animate progress bar while waiting (fake progress up to 85%)
-    let fakeProgress = 0;
-    const interval = setInterval(() => {
-      fakeProgress = Math.min(85, fakeProgress + Math.random() * 4);
-      setCollection((c) => (c?.loading ? { ...c, progress: Math.round(fakeProgress) } : c));
-    }, 400);
-
-    const url = `${API}/playlist/${item.playlistId}/stream${refresh ? "?refresh=1" : ""}`;
-    const es = new EventSource(url);
-    es.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "header") {
-        setCollection((c) =>
-          c
-            ? {
-                ...c,
-                title: c.forcedTitle || msg.title,
-                thumbnail: msg.thumbnail || c.thumbnail,
-                total: msg.total,
-                cached: msg.cached || false,
-              }
-            : c
-        );
-      } else if (msg.type === "tracks") {
-        setCollection((c) => (c ? { ...c, tracks: [...c.tracks, ...msg.tracks] } : c));
-      } else if (msg.type === "done" || msg.type === "error") {
-        clearInterval(interval);
-        setCollection((c) => (c ? { ...c, progress: 100 } : c));
-        setTimeout(() => setCollection((c) => (c ? { ...c, loading: false } : c)), 400);
-        es.close();
-      }
-    };
-    es.onerror = () => {
-      clearInterval(interval);
-      setCollection((c) => (c ? { ...c, loading: false } : c));
-      es.close();
-    };
-  }, []);
-
-  const openAlbum = useCallback(
-    async (item, fromView, refresh = false) => {
-      if (!refresh) setNavHistory((h) => [...h, navStateRef.current]);
-      setCollection({
-        title: item.title,
-        thumbnail: item.thumbnail,
-        tracks: [],
-        total: null,
-        loading: false,
-        progress: 0,
-        cached: false,
-        fromView: fromView || "library",
-        isAlbum: true,
-        browseId: item.browseId,
-      });
-      setView("collection");
-      addRecentPlaylist({
-        browseId: item.browseId,
-        title: item.title,
-        thumbnail: item.thumbnail,
-        type: "album",
-      });
-      const url = `${API}/album/${item.browseId}${refresh ? "?refresh=1" : ""}`;
-      const r = await fetch(url);
-      const d = await r.json();
-      setCollection((c) => ({
-        ...c,
-        title: d.title,
-        thumbnail: d.thumbnail || c.thumbnail,
-        tracks: d.tracks || [],
-        total: d.tracks?.length || 0,
-        albumArtists: d.artists,
-        albumArtistBrowseId: d.artistBrowseId,
-        year: d.year,
-        cached: !refresh && !!d.cached,
-      }));
-    },
-    [addRecentPlaylist]
-  );
+  // handleSearch/addRecentPlaylist/removeRecentPlaylist/openPlaylist/openAlbum now live in
+  // features/music/hooks/use-music-navigation.js (Step 12).
 
   const [animations, setAnimations] = useState(
     () => localStorage.getItem("kiyoshi-animations") !== "false"
@@ -3561,6 +3444,22 @@ export default function App() {
   // The account switch/remove/logout commands reset app-wide UI as a single business
   // sequence; those state cells are still App-owned, so their setters are injected while
   // the ordering stays in the profile domain.
+  const profile = useProfiles({
+    addToast,
+    setPinnedIds,
+    setView,
+    setSearchQuery,
+    setAppKey,
+    setCurrentTrack,
+    setQueue,
+    setCollection,
+    setOverlayOpen,
+    setQueueOpen,
+  });
+  // Account actions (switch/add/reauth/remove/rename/avatar/logout) are consumed through
+  // ProfileContext now (Sidebar, settings account tab, profile-switcher modal — see
+  // features/profiles/profile-context.jsx); App keeps only the startup/auth-gate state and
+  // `profiles`/`fetchProfiles`, which it still reads directly (home greeting, network status).
   const {
     profiles,
     showLogin,
@@ -3574,25 +3473,7 @@ export default function App() {
     reauthName,
     setReauthName,
     fetchProfiles,
-    handleAccountSwitch,
-    handleAccountAdd,
-    handleAccountReauth,
-    handleAccountRemove,
-    handleAccountRename,
-    handleAccountAvatarChange,
-    handleAccountLogout,
-  } = useProfiles({
-    addToast,
-    setPinnedIds,
-    setView,
-    setSearchQuery,
-    setAppKey,
-    setCurrentTrack,
-    setQueue,
-    setCollection,
-    setOverlayOpen,
-    setQueueOpen,
-  });
+  } = profile;
 
   // Keepalive ping to prevent server connection timeout
   useEffect(() => {
@@ -3726,64 +3607,8 @@ export default function App() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [audioRef]);
 
-  const [artistView, setArtistView] = useState(null);
-
-  // Always-fresh snapshot of current nav state — used by open* callbacks to push history.
-  // Updated synchronously on every render so callbacks always read the latest values.
-  const navStateRef = useRef({ view: "home", collection: null, artistView: null });
-  navStateRef.current = { view, collection, artistView };
-
-  const openArtist = useCallback(
-    (item, fromView) => {
-      setNavHistory((h) => [...h, navStateRef.current]);
-      setArtistView({ browseId: item.browseId, fromView: fromView || view });
-      setView("artist");
-      if (item.browseId && item.title) {
-        addRecentPlaylist({
-          browseId: item.browseId,
-          title: item.title,
-          thumbnail: item.thumbnail || "",
-          type: "artist",
-        });
-      }
-    },
-    [view]
-  );
-
-  // ── Navigation history ──────────────────────────────────────────────────────
-  // Snapshot the current view state onto the history stack before navigating away.
-  const pushNav = useCallback((currentView, currentCollection, currentArtistView) => {
-    setNavHistory((h) => [
-      ...h,
-      {
-        view: currentView,
-        collection: currentView === "collection" ? currentCollection : undefined,
-        artistView: currentView === "artist" ? currentArtistView : undefined,
-      },
-    ]);
-  }, []);
-
-  // Navigate to a top-level section (sidebar links) — always clears history.
-  const navigateTo = useCallback((v) => {
-    setNavHistory([]);
-    setView(v);
-  }, []);
-
-  // Go back one step in history; falls back to home if the stack is empty.
-  const goBack = useCallback(() => {
-    setNavHistory((h) => {
-      if (h.length === 0) {
-        setView("home");
-        return h;
-      }
-      const prev = h[h.length - 1];
-      setView(prev.view);
-      // Always restore collection (null for non-collection views so loading guards don't crash)
-      setCollection(prev.collection ?? null);
-      setArtistView(prev.artistView ?? null);
-      return h.slice(0, -1);
-    });
-  }, []);
+  // artistView/openArtist/navigateTo/goBack now live in
+  // features/music/hooks/use-music-navigation.js (Step 12).
 
   // ── Clear track selection when view changes ─────────────────────────────────
   useEffect(() => {
@@ -4243,6 +4068,8 @@ export default function App() {
           <AnimationContext.Provider value={animations}>
             <FontScaleContext.Provider value={appFontScale}>
               <ZoomContext.Provider value={uiZoom}>
+                <ProfileProvider controller={profile}>
+                <DownloadProvider controller={downloads}>
                 <PlayerProvider controller={player}>
                 <SettingsProviders
                   appearance={appearanceSettings}
@@ -4349,14 +4176,7 @@ export default function App() {
                       onOpenArtist={(item) => openArtist(item, view)}
                       onAddRecent={addRecentPlaylist}
                       onContextMenu={openContextMenu}
-                      currentProfileData={profiles.find((p) => p.active)}
                       onOpenProfileSwitcher={() => setShowProfileSwitcher(true)}
-                      profiles={profiles}
-                      onSwitchProfile={handleAccountSwitch}
-                      onAddProfile={handleAccountAdd}
-                      onReauthProfile={handleAccountReauth}
-                      onDeleteProfile={handleAccountRemove}
-                      onLogout={handleAccountLogout}
                       onCreatePlaylist={() => setCreatePlaylistOpen(true)}
                       updateInfo={updateInfo}
                       offlineMode={offlineMode}
@@ -4500,9 +4320,6 @@ export default function App() {
                               onTrackContextMenu={(e, track) =>
                                 setTrackContextMenu({ x: e.clientX, y: e.clientY, track })
                               }
-                              cachedSongIds={cachedSongIds}
-                              downloadingIds={downloadingIds}
-                              onDownloadSong={handleDownloadSong}
                               hideExplicit={hideExplicit}
                               onToggleLike={handleToggleLike}
                               likedIds={likedIds}
@@ -4521,9 +4338,6 @@ export default function App() {
                               onTrackContextMenu={(e, track, extra) =>
                                 setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })
                               }
-                              cachedSongIds={cachedSongIds}
-                              downloadingIds={downloadingIds}
-                              onDownloadSong={handleDownloadSong}
                               hideExplicit={hideExplicit}
                               onBack={goBack}
                             />
@@ -4587,18 +4401,6 @@ export default function App() {
                                   playlistId: collection.isAlbum ? null : collection.playlistId,
                                 })
                               }
-                              cachedSongIds={cachedSongIds}
-                              downloadingIds={downloadingIds}
-                              premiumSongIds={premiumSongIds}
-                              onDownloadSong={handleDownloadSong}
-                              onDownloadAll={(tracks) =>
-                                handleDownloadAll(tracks, {
-                                  title: collection.title,
-                                  thumbnail: collection.thumbnail,
-                                  artists: collection.albumArtists || "",
-                                })
-                              }
-                              onRemoveAll={handleRemoveAllDownloads}
                               hideExplicit={hideExplicit}
                               onToggleLike={handleToggleLike}
                               likedIds={likedIds}
@@ -4626,10 +4428,6 @@ export default function App() {
                         {view === "downloads" && (
                           <AnimatedView key={`downloads-${viewRefreshKey}`}>
                             <DownloadsView
-                              cachedSongIds={cachedSongIds}
-                              downloadingIds={downloadingIds}
-                              premiumSongIds={premiumSongIds}
-                              onDownloadSong={handleDownloadSong}
                               onTrackContextMenu={(e, track) =>
                                 setTrackContextMenu({ x: e.clientX, y: e.clientY, track })
                               }
@@ -4753,10 +4551,6 @@ export default function App() {
                           }}
                           onOpenAlbum={openAlbum}
                           onOpenArtist={openArtist}
-                          onExportSong={handleExportSong}
-                          onDownloadSong={handleDownloadSong}
-                          cachedSongIds={cachedSongIds}
-                          downloadingIds={downloadingIds}
                           onRefetchLyrics={() => {
                             setForcedLyricsProvider(null);
                             setLyricsRefetchKey((k) => k + 1);
@@ -4779,7 +4573,6 @@ export default function App() {
                           isCustomLyrics={isCustomLyrics}
                           onImportLyrics={() => importLyricsRef.current?.()}
                           onRemoveCustomLyrics={() => removeCustomLyricsRef.current?.()}
-                          onPremiumDetected={markPremium}
                           onCreatePlaylist={() => setCreatePlaylistOpen(true)}
                           onAddToPlaylist={(tracks) => setAddToPlaylistFor({ tracks })}
                           buildShareLink={buildShareLink}
@@ -5114,15 +4907,6 @@ export default function App() {
                         onOpenOverlayEditor={openOverlayEditor}
                         onResetShortcuts={setCustomShortcuts}
                         onSectionChange={setSettingsSectionStore}
-                        accounts={profiles}
-                        activeAccount={profiles.find((p) => p.active)}
-                        onAccountSwitch={handleAccountSwitch}
-                        onAccountAdd={handleAccountAdd}
-                        onAccountReauth={handleAccountReauth}
-                        onAccountRemove={handleAccountRemove}
-                        onAccountRename={handleAccountRename}
-                        onAccountLogout={handleAccountLogout}
-                        onAccountAvatarChange={handleAccountAvatarChange}
                         language={language}
                         onLanguageChange={handleLanguageChange}
                         updateInfo={updateInfo}
@@ -5153,9 +4937,6 @@ export default function App() {
                   <ProfileSwitcherModal
                     isOpen={showProfileSwitcher}
                     onOpenChange={setShowProfileSwitcher}
-                    accounts={profiles}
-                    onSwitch={handleAccountSwitch}
-                    onAdd={handleAccountAdd}
                   />
                   {newsOpen && (
                     <NewsModal
@@ -5751,6 +5532,8 @@ export default function App() {
                 </div>
                 </SettingsProviders>
                 </PlayerProvider>
+                </DownloadProvider>
+                </ProfileProvider>
               </ZoomContext.Provider>
             </FontScaleContext.Provider>
           </AnimationContext.Provider>

@@ -154,15 +154,6 @@ export function SettingsPanel({
   onAnonStatsChange,
   hideUserHandle,
   onToggleHideUserHandle,
-  accounts,
-  activeAccount,
-  onAccountSwitch,
-  onAccountAdd,
-  onAccountReauth,
-  onAccountRemove,
-  onAccountRename,
-  onAccountLogout,
-  onAccountAvatarChange,
   tab,
   setTab,
 }) {
@@ -974,15 +965,6 @@ export function SettingsPanel({
         >
           {tab === "account" && (
             <AccountSettingsTab
-              accounts={accounts}
-              activeAccount={activeAccount}
-              onSwitch={onAccountSwitch}
-              onAdd={onAccountAdd}
-              onReauth={onAccountReauth}
-              onRemove={onAccountRemove}
-              onRename={onAccountRename}
-              onLogout={onAccountLogout}
-              onAvatarChange={onAccountAvatarChange}
               hideUserHandle={hideUserHandle}
               onToggleHideUserHandle={onToggleHideUserHandle}
             />

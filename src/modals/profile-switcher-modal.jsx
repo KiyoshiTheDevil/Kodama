@@ -15,10 +15,13 @@ import {
 } from "@heroui/react";
 import { Users, Check, UserPlus } from "../icons.jsx";
 import { thumb, useLang } from "../context.jsx";
+import { useProfileState, useProfileActions } from "../features/profiles/profile-context.jsx";
 
-export function ProfileSwitcherModal({ isOpen, onOpenChange, accounts, onSwitch, onAdd }) {
+export function ProfileSwitcherModal({ isOpen, onOpenChange }) {
   const t = useLang();
-  const list = accounts || [];
+  // Account list/actions come from ProfileContext (Step 12) rather than props.
+  const { profiles: list } = useProfileState();
+  const { switchProfile: onSwitch, addProfile: onAdd } = useProfileActions();
 
   const Avatar = ({ a }) => (
     <div

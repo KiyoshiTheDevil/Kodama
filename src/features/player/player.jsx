@@ -17,6 +17,7 @@ import {
   usePlaybackConfig,
   usePlayerActions,
 } from "./player-context.jsx";
+import { useDownloadState, useDownloadActions } from "../downloads/download-context.jsx";
 
 export function Player({
   expanded,
@@ -30,10 +31,6 @@ export function Player({
   remoteEnabled = false,
   onOpenAlbum,
   onOpenArtist,
-  onExportSong,
-  onDownloadSong,
-  cachedSongIds,
-  downloadingIds,
   onRefetchLyrics,
   currentLyricsSource = "",
   onSwitchLyricsProvider,
@@ -46,7 +43,6 @@ export function Player({
   isCustomLyrics = false,
   onImportLyrics,
   onRemoveCustomLyrics,
-  onPremiumDetected,
   onCreatePlaylist,
   onAddToPlaylist,
   buildShareLink,
@@ -56,6 +52,14 @@ export function Player({
   const { queue } = useQueueState();
   const { crossfade, crossfadeOverrides, playbackProgressive } = usePlaybackConfig();
   const { setTrack, setIsPlaying, setQueue } = usePlayerActions();
+  // Cached/downloading id sets + download/export/premium-detected actions come from
+  // DownloadContext (Step 12) rather than props.
+  const { cachedSongIds, downloadingIds } = useDownloadState();
+  const {
+    downloadSong: onDownloadSong,
+    exportSong: onExportSong,
+    markPremium: onPremiumDetected,
+  } = useDownloadActions();
   // lyricsProviders is a settings preference, not player state — read the single source of
   // truth from SettingsContext instead of threading a duplicate copy through App (Step 11).
   const { lyricsProviders } = useLyricsSettings();

@@ -4,12 +4,9 @@ import { API, useLang } from "../context.jsx";
 import { PlaylistLayout } from "./track-table.jsx";
 import { GridCard } from "../ui/rows.jsx";
 import { Microphone, MusicNote, VinylRecord } from "../icons.jsx";
+import { useDownloadState } from "../features/downloads/download-context.jsx";
 
 export function DownloadsView({
-  cachedSongIds,
-  downloadingIds,
-  premiumSongIds,
-  onDownloadSong,
   onTrackContextMenu,
   hideExplicit,
   onOpenAlbum,
@@ -18,6 +15,9 @@ export function DownloadsView({
   likedIds,
 }) {
   const t = useLang();
+  // Cached/downloading/premium id sets come from DownloadContext (Step 12); this view still
+  // needs cachedSongIds directly (not just for PlaylistLayout) to re-list on cache changes.
+  const { cachedSongIds } = useDownloadState();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("songs");
@@ -104,10 +104,6 @@ export function DownloadsView({
         onOpenArtist={onOpenArtist}
         onOpenAlbum={onOpenAlbum}
         onTrackContextMenu={onTrackContextMenu}
-        cachedSongIds={cachedSongIds}
-        downloadingIds={downloadingIds}
-        premiumSongIds={premiumSongIds}
-        onDownloadSong={onDownloadSong}
         hideExplicit={hideExplicit}
         onToggleLike={onToggleLike}
         likedIds={likedIds}
@@ -181,10 +177,6 @@ export function DownloadsView({
             onOpenArtist={onOpenArtist}
             onOpenAlbum={onOpenAlbum}
             onTrackContextMenu={onTrackContextMenu}
-            cachedSongIds={cachedSongIds}
-            downloadingIds={downloadingIds}
-            premiumSongIds={premiumSongIds}
-            onDownloadSong={onDownloadSong}
             hideExplicit={hideExplicit}
             onToggleLike={onToggleLike}
             likedIds={likedIds}

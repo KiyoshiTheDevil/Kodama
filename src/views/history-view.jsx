@@ -10,9 +10,6 @@ export function HistoryView({
   onOpenArtist,
   onOpenAlbum,
   onTrackContextMenu,
-  cachedSongIds,
-  downloadingIds,
-  onDownloadSong,
   hideExplicit,
   onBack,
 }) {
@@ -111,9 +108,6 @@ export function HistoryView({
           },
         });
       }}
-      cachedSongIds={cachedSongIds}
-      downloadingIds={downloadingIds}
-      onDownloadSong={onDownloadSong}
       hideExplicit={hideExplicit}
       extraActions={clearHistoryBtn}
     />
