@@ -3,6 +3,8 @@ import { API } from "../../shared/api/client.js";
 import { translate } from "../../i18n.js";
 import { IpcAudio } from "./ipc-audio.js";
 import { registerPlayerCommands as bpRegisterCommands } from "../../bigpicture/playerBridge.js";
+import { useLastfmScrobbling } from "../integrations/lastfm.js";
+import { usePlayerNativeBridges } from "./hooks/use-player-native-bridges.js";
 import { useWindowTitle } from "./hooks/use-window-title.js";
 
 // Player controller (Step 11): the single owner of the IpcAudio instance, the current track,
@@ -13,7 +15,7 @@ import { useWindowTitle } from "./hooks/use-window-title.js";
 // Lyrics-session reset (clearing forced/current/failed providers on a new track) is injected as a
 // ref rather than as setters, because App's lyrics-session state is declared *after* this hook is
 // called — passing the setters directly would hit a temporal-dead-zone error in the dep arrays.
-export function usePlayerController({ addToast, resetLyricsSessionRef }) {
+export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, integrationsRef }) {
   // One IpcAudio for the app lifetime. Kept as a ref so it survives re-renders and stays a
   // singleton (duplicating it would duplicate native audio, listeners, and OBS capture).
   const audioRef = useRef(null);
@@ -31,6 +33,18 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
 
   // Native window/taskbar title follows playback.
   useWindowTitle(currentTrack, isPlaying);
+  useLastfmScrobbling({ currentTrack, isPlaying, lastfm });
+  const [integrationRevision, setIntegrationRevision] = useState(0);
+  const refreshNativeIntegrations = useCallback(() => {
+    setIntegrationRevision((revision) => revision + 1);
+  }, []);
+  usePlayerNativeBridges({
+    audioRef,
+    currentTrack,
+    isPlaying,
+    integrationsRef,
+    integrationRevision,
+  });
 
   // Pause Kodama's own playback when the Composer (community-lyrics editor) window opens, so the
   // user isn't hearing the main player and the editor's audio at once. openComposer() (in the
@@ -46,17 +60,34 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
     return () => window.removeEventListener("kodama-pause-playback", onPause);
   }, []);
 
-  // Playback config (crossfade + progressive mode) lives at the controller boundary so the player
-  // transport and the settings UI read a single source rather than a settings-owned copy (Step 11d).
-  const [crossfade, setCrossfade] = useState(() => {
+  // Playback config (autoplay + crossfade + progressive mode) lives at the controller boundary so
+  // the player transport and the settings UI read a single source rather than a settings-owned
+  // copy (Step 11d/11f). Setters are persistence-aware so App only adapts these values for
+  // Settings instead of also owning the storage writes.
+  const [autoplay, setAutoplayState] = useState(
+    () => localStorage.getItem("kiyoshi-autoplay") !== "false"
+  );
+  const setAutoplay = useCallback((v) => {
+    setAutoplayState(v);
+    localStorage.setItem("kiyoshi-autoplay", v);
+  }, []);
+  const [crossfade, setCrossfadeState] = useState(() => {
     const s = parseInt(localStorage.getItem("kiyoshi-crossfade"));
     return isNaN(s) ? 0 : s;
   });
+  const setCrossfade = useCallback((v) => {
+    setCrossfadeState(v);
+    localStorage.setItem("kiyoshi-crossfade", v);
+  }, []);
   // Progressive playback (default): stream the song for a fast start. Off = classic full
   // download first (more stable on weak devices). Both stay in the Rust audio core.
-  const [playbackProgressive, setPlaybackProgressive] = useState(
+  const [playbackProgressive, setPlaybackProgressiveState] = useState(
     () => localStorage.getItem("kodama-playback-mode") !== "classic"
   );
+  const setPlaybackProgressive = useCallback((v) => {
+    setPlaybackProgressiveState(v);
+    localStorage.setItem("kodama-playback-mode", v ? "progressive" : "classic");
+  }, []);
   const [crossfadeOverrides, setCrossfadeOverrides] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("kodama-crossfade-overrides")) || {};
@@ -205,6 +236,8 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
     enqueue,
     startSongRadio,
     playByVideoId,
+    autoplay,
+    setAutoplay,
     crossfade,
     setCrossfade,
     playbackProgressive,
@@ -212,5 +245,6 @@ export function usePlayerController({ addToast, resetLyricsSessionRef }) {
     crossfadeOverrides,
     setCrossfadeOverride,
     removeCrossfadeOverride,
+    refreshNativeIntegrations,
   };
 }

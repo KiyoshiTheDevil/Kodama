@@ -4,12 +4,10 @@ import { GridCard, TrackRow } from "../../../ui/rows.jsx";
 import { API } from "../../../shared/api/client.js";
 import { thumb } from "../../../shared/api/thumbnails.js";
 import { useLang } from "../../../context.jsx";
-import { usePlayerActions } from "../../player/player-context.jsx";
+import { usePlaybackStatus, usePlayerActions } from "../../player/player-context.jsx";
 
 export function SearchView({
   query,
-  currentTrack,
-  isPlaying,
   onOpenArtist,
   onOpenAlbum,
   onOpenPlaylist,
@@ -17,6 +15,7 @@ export function SearchView({
   onTrackContextMenu,
   hideExplicit,
 }) {
+  const { track: currentTrack, isPlaying } = usePlaybackStatus();
   const { handlePlay } = usePlayerActions();
   const [filter, setFilter] = useState("all");
   const [results, setResults] = useState([]);

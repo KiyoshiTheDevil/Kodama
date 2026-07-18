@@ -10,8 +10,6 @@ export function CollectionView({
   loading,
   progress,
   cached,
-  currentTrack,
-  isPlaying,
   onBack,
   onOpenArtist,
   onOpenAlbum,
@@ -43,8 +41,6 @@ export function CollectionView({
       loading={loading}
       progress={progress}
       cached={cached}
-      currentTrack={currentTrack}
-      isPlaying={isPlaying}
       onBack={onBack}
       onOpenArtist={onOpenArtist}
       onOpenAlbum={onOpenAlbum}

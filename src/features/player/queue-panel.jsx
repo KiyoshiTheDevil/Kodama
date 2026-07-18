@@ -18,7 +18,7 @@ import { ExplicitBadge } from "../../ui/rows.jsx";
 import { dissolve } from "../../effects/particle-burst.js";
 import { useAnimations, useLang } from "../../context.jsx";
 import { FadeEditorModal } from "./fade-editor-modal.jsx";
-import { usePlayerState, usePlayerActions } from "./player-context.jsx";
+import { usePlaybackStatus, useQueueState, usePlaybackConfig, usePlayerActions } from "./player-context.jsx";
 
 function QueueRow({
   track,
@@ -152,7 +152,9 @@ export function QueuePanel({
   visible,
 }) {
   // Core playback + crossfade config come from PlayerContext (Step 11) rather than props.
-  const { track: currentTrack, queue, crossfade = 0, crossfadeOverrides = {} } = usePlayerState();
+  const { track: currentTrack } = usePlaybackStatus();
+  const { queue } = useQueueState();
+  const { crossfade = 0, crossfadeOverrides = {} } = usePlaybackConfig();
   const { setQueue, setTrack, setCrossfadeOverride, removeCrossfadeOverride } = usePlayerActions();
   const t = useLang();
   const [panelTab, setPanelTab] = useState("queue");

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API } from "../../shared/api/client.js";
 import { parseDurationToSeconds } from "../../lyrics/parse.js";
-import { DEFAULT_LYRICS_PROVIDERS } from "../../lyrics/providers.js";
 import { useAnimations, useLang } from "../../context.jsx";
+import { useLyricsSettings } from "../settings/settings-context.jsx";
 import {
   registerAudio as bpRegisterAudio,
   registerPlayerCommands as bpRegisterCommands,
@@ -11,7 +11,12 @@ import {
 import { PlayerControls } from "./player-controls.jsx";
 import { useSleepTimer } from "./hooks/use-sleep-timer.js";
 import { useTrackMetadata } from "./hooks/use-track-metadata.js";
-import { usePlayerState, usePlayerActions } from "./player-context.jsx";
+import {
+  usePlaybackStatus,
+  useQueueState,
+  usePlaybackConfig,
+  usePlayerActions,
+} from "./player-context.jsx";
 
 export function Player({
   expanded,
@@ -30,7 +35,6 @@ export function Player({
   cachedSongIds,
   downloadingIds,
   onRefetchLyrics,
-  lyricsProviders = DEFAULT_LYRICS_PROVIDERS,
   currentLyricsSource = "",
   onSwitchLyricsProvider,
   failedLyricsProviders = new Set(),
@@ -39,8 +43,6 @@ export function Player({
   onToggleLyricsTranslation,
   lyricsTranslationLang = "DE",
   onSetLyricsTranslationLang,
-  showRomaji = false,
-  onToggleRomaji,
   isCustomLyrics = false,
   onImportLyrics,
   onRemoveCustomLyrics,
@@ -50,9 +52,13 @@ export function Player({
   buildShareLink,
 }) {
   // Core playback + crossfade config come from PlayerContext (Step 11) rather than props.
-  const { track, isPlaying, queue, audioRef, crossfade, crossfadeOverrides, playbackProgressive } =
-    usePlayerState();
+  const { track, isPlaying, audioRef } = usePlaybackStatus();
+  const { queue } = useQueueState();
+  const { crossfade, crossfadeOverrides, playbackProgressive } = usePlaybackConfig();
   const { setTrack, setIsPlaying, setQueue } = usePlayerActions();
+  // lyricsProviders is a settings preference, not player state — read the single source of
+  // truth from SettingsContext instead of threading a duplicate copy through App (Step 11).
+  const { lyricsProviders } = useLyricsSettings();
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);

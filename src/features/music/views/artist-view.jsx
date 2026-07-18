@@ -18,12 +18,10 @@ import { thumb, hiResThumb } from "../../../shared/api/thumbnails.js";
 import { useLang } from "../../../context.jsx";
 import { ArtistDescription } from "../components/artist-description.jsx";
 import { MediaTile } from "../components/media-tile.jsx";
-import { usePlayerActions } from "../../player/player-context.jsx";
+import { usePlaybackStatus, usePlayerActions } from "../../player/player-context.jsx";
 
 export function ArtistView({
   browseId,
-  currentTrack,
-  isPlaying,
   onOpenAlbum,
   onOpenPlaylist,
   onOpenArtist,
@@ -33,6 +31,7 @@ export function ArtistView({
   isPinned,
   hideExplicit,
 }) {
+  const { track: currentTrack, isPlaying } = usePlaybackStatus();
   const { handlePlay } = usePlayerActions();
   const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(true);

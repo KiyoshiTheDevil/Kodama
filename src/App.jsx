@@ -242,7 +242,6 @@ import { BugReportModal } from "./modals/bug-report-modal.jsx";
 import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
 import { RemotePairModal, RemoteControlPanel } from "./ui/remote-control.jsx";
 import { DEFAULT_LYRICS_PROVIDERS, PROVIDER_SYNC } from "./lyrics/providers.js";
-import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { unisonSetNickname, unisonResetNickname, unisonFetchDisplayName } from "./unison/api.js";
 import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
@@ -261,6 +260,7 @@ import { CoverView, Player, QueuePanel, VIZ_DEFAULTS } from "./features/player/p
 import { hiResThumb } from "./features/player/cover-art.js";
 import { usePlayerController } from "./features/player/use-player-controller.js";
 import { PlayerProvider } from "./features/player/player-context.jsx";
+import { useLastfmClient } from "./features/integrations/lastfm.js";
 import { SettingsPanel } from "./features/settings/settings-panel.jsx";
 import { SettingsSidebarContent } from "./features/settings/settings-sidebar.jsx";
 import { DebugFloatingWindow } from "./features/settings/settings-support.jsx";
@@ -2916,7 +2916,16 @@ export default function App() {
   // Consumed here via destructure so existing JSX/prop chains are unchanged (Step 11).
   // resetLyricsSessionRef is populated further down, once the lyrics-session state exists.
   const resetLyricsSessionRef = useRef(null);
-  const player = usePlayerController({ addToast, resetLyricsSessionRef });
+  // These values are declared below the controller. Refs let player-native bridges read
+  // the latest settings without reordering the existing settings/hooks graph.
+  const playerIntegrationRef = useRef({ discordRpc: true, obsEnabled: false, obsPort: 9848 });
+  const lastfm = useLastfmClient();
+  const player = usePlayerController({
+    addToast,
+    resetLyricsSessionRef,
+    lastfm,
+    integrationsRef: playerIntegrationRef,
+  });
   const {
     audioRef,
     currentTrack,
@@ -2933,6 +2942,7 @@ export default function App() {
     setPlaybackProgressive,
     crossfadeOverrides,
     removeCrossfadeOverride,
+    refreshNativeIntegrations,
   } = player;
   const [discordRpc, setDiscordRpc] = useState(
     () => localStorage.getItem("kiyoshi-discord-rpc") !== "false"
@@ -3004,75 +3014,6 @@ export default function App() {
     };
   }, [isPlaying]);
 
-  // ─── Last.fm scrobbling ──────────────────────────────────────────────────────
-  const lastfmConnectedRef = useRef(false);
-  const scrobbleRef = useRef({ videoId: null, played: 0, scrobbled: false, startTs: 0 });
-  const lfmMeta = (tr) => ({
-    artist: (tr?.artists || "").replace(/\s*-\s*Topic$/i, "").trim(),
-    track: (tr?.title || "").trim(),
-    album: tr?.album || "",
-    duration: parseDurationToSeconds(tr?.duration) || 0,
-  });
-  const lfmPost = (path, body) => {
-    if (!lastfmConnectedRef.current) return;
-    fetch(`${API}/lastfm/${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => {});
-  };
-  const refreshLastfm = useCallback(() => {
-    fetch(`${API}/lastfm/status`)
-      .then((r) => r.json())
-      .then((d) => {
-        lastfmConnectedRef.current = !!d.connected;
-      })
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    refreshLastfm();
-    const h = () => refreshLastfm();
-    window.addEventListener("lastfm-changed", h);
-    window.addEventListener("profile-switched", h);
-    return () => {
-      window.removeEventListener("lastfm-changed", h);
-      window.removeEventListener("profile-switched", h);
-    };
-  }, [refreshLastfm]);
-  // On track change → reset scrobble state + send Now Playing.
-  useEffect(() => {
-    const vid = currentTrack?.videoId;
-    if (!vid) {
-      scrobbleRef.current = { videoId: null, played: 0, scrobbled: false, startTs: 0 };
-      return;
-    }
-    scrobbleRef.current = {
-      videoId: vid,
-      played: 0,
-      scrobbled: false,
-      startTs: Math.floor(Date.now() / 1000),
-    };
-    const m = lfmMeta(currentTrack);
-    if (m.artist && m.track) lfmPost("now-playing", m);
-  }, [currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Accumulate listening seconds while playing; scrobble once past the threshold.
-  useEffect(() => {
-    if (!isPlaying) return;
-    const id = setInterval(() => {
-      const st = scrobbleRef.current;
-      if (!st.videoId || st.scrobbled) return;
-      st.played += 1;
-      const m = lfmMeta(currentTrack);
-      if (m.duration < 30) return; // Last.fm: don't scrobble tracks under 30s
-      const threshold = Math.min(m.duration / 2, 240); // >50% or >4min
-      if (st.played >= threshold && m.artist && m.track) {
-        st.scrobbled = true;
-        lfmPost("scrobble", { ...m, timestamp: st.startTs });
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isPlaying, currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [closeTray, setCloseTray] = useState(
     () => localStorage.getItem("kiyoshi-close-tray") !== "false"
   );
@@ -3085,6 +3026,10 @@ export default function App() {
   // ── OBS overlay server (see features/overlay/hooks/use-obs-overlay.js) ──
   const { obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, saveObsPort } =
     useObsOverlay();
+  useEffect(() => {
+    playerIntegrationRef.current = { discordRpc, obsEnabled, obsPort };
+    refreshNativeIntegrations();
+  }, [discordRpc, obsEnabled, obsPort, refreshNativeIntegrations]);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [lyricsRefetchKey, setLyricsRefetchKey] = useState(0);
   const [forcedLyricsProvider, setForcedLyricsProvider] = useState(null);
@@ -3231,114 +3176,6 @@ export default function App() {
   const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }
 
   // Composer-pause and native window title now live in usePlayerController (Step 11d).
-
-  // Discord Rich Presence — show current track in Discord profile.
-  // Debounced (800ms) to avoid flickering on rapid track changes.
-  // Periodic refresh every 15s keeps elapsed time accurate after seeks.
-  const discordUpdateRef = useRef(null);
-  useEffect(() => {
-    let cancelled = false;
-
-    const send = async () => {
-      if (cancelled) return;
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        if (!currentTrack) {
-          invoke("clear_discord_rpc").catch(() => {});
-          invoke("media_clear").catch(() => {});
-          return;
-        }
-        const a = audioRef.current;
-        const dur = a?.duration;
-        // Skip update if audio metadata hasn't loaded yet
-        if (!dur || isNaN(dur)) return;
-        const artistStr = Array.isArray(currentTrack.artists)
-          ? currentTrack.artists.map((a) => a?.name || a).join(", ")
-          : currentTrack.artists || "";
-
-        // OS media controls (SMTC / Now Playing / MPRIS) — always on, independent of Discord.
-        invoke("media_update", {
-          title: currentTrack.title || "",
-          artist: artistStr,
-          album: currentTrack.album || "",
-          thumbnail: currentTrack.thumbnail || "",
-          duration: dur,
-          elapsed: a?.currentTime || 0,
-          paused: !isPlaying,
-        }).catch(() => {});
-
-        // Discord Rich Presence — opt-in via setting.
-        if (!discordRpc) {
-          invoke("clear_discord_rpc").catch(() => {});
-          return;
-        }
-        invoke("update_discord_rpc", {
-          title: currentTrack.title || "",
-          artist: artistStr,
-          album: currentTrack.album || "",
-          thumbnail: currentTrack.thumbnail || "",
-          duration: dur,
-          elapsed: a?.currentTime || 0,
-          videoId: currentTrack.videoId || "",
-          paused: !isPlaying,
-        }).catch(() => {});
-      } catch {}
-    };
-
-    // Debounce: wait 800ms before sending to let rapid state changes settle
-    const debounce = setTimeout(send, 800);
-    // Periodic refresh for elapsed time accuracy
-    const interval = setInterval(send, 15000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(debounce);
-      clearInterval(interval);
-    };
-  }, [currentTrack, isPlaying, discordRpc]);
-
-  // Kimuco Bridge — report now-playing to the OBS overlay app (external, port 8888).
-  // Also pushes to the built-in overlay server when enabled.
-  useEffect(() => {
-    const report = () => {
-      const a = audioRef.current;
-      const coverUrl = currentTrack?.thumbnail
-        ? `${API}/imgproxy?url=${encodeURIComponent(currentTrack.thumbnail)}`
-        : "";
-      const artistStr = Array.isArray(currentTrack?.artists)
-        ? currentTrack.artists.map((x) => x?.name || x).join(", ")
-        : currentTrack?.artists || "";
-      const payload = {
-        title: currentTrack?.title || "",
-        artist: artistStr,
-        album: currentTrack?.album || "",
-        cover: coverUrl,
-        progress: a?.currentTime || 0,
-        duration: a?.duration || 0,
-        isPlaying: isPlaying && !!currentTrack,
-      };
-      // External Kimuco v1
-      fetch("http://127.0.0.1:8888/api/source/kiyoshi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(500),
-        body: JSON.stringify(payload),
-      }).catch(() => {});
-      // Built-in overlay server
-      if (obsEnabled) {
-        fetch(`${API}/overlay/push`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(500),
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
-    };
-
-    report();
-    const id = setInterval(report, 1000);
-    return () => clearInterval(id);
-  }, [currentTrack, isPlaying, obsEnabled]);
 
   // Playback commands (handlePlay/enqueue/startSongRadio/playByVideoId), the Big Picture
   // bridge, and deep-link handling moved to features/player/use-player-controller.js (Step 11).
@@ -3645,9 +3482,6 @@ export default function App() {
       return merged;
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [autoplay, setAutoplay] = useState(
-    () => localStorage.getItem("kiyoshi-autoplay") !== "false"
-  );
   const [ipv4First, setIpv4First] = useState(true);
   useEffect(() => {
     let cancelled = false;
@@ -3812,7 +3646,7 @@ export default function App() {
           }),
         });
         // Last.fm Loved sync
-        if (lastfmConnectedRef.current) {
+        if (lastfm.connectedRef.current) {
           const lfArtist = (track.artists || "").replace(/\s*-\s*Topic$/i, "").trim();
           const lfTitle = (track.title || "").trim();
           if (lfArtist && lfTitle) {
@@ -3833,7 +3667,7 @@ export default function App() {
         });
       }
     },
-    [likedIds]
+    [likedIds, lastfm]
   );
 
   // ── Network status + offline mode (see app/hooks/use-network-status.js) ──
@@ -4229,27 +4063,29 @@ export default function App() {
     ]
   );
 
+  // Autoplay/crossfade/progressive-mode state and persistence are owned by the player controller
+  // (Step 11f); App only adapts the controller's values/actions into the settings shape.
   const playbackSettings = useMemo(
     () => ({
-      autoplay,
-      onAutoplayChange: (v) => {
-        setAutoplay(v);
-        localStorage.setItem("kiyoshi-autoplay", v);
-      },
+      autoplay: player.autoplay,
+      onAutoplayChange: player.setAutoplay,
       crossfade,
-      onCrossfadeChange: (v) => {
-        setCrossfade(v);
-        localStorage.setItem("kiyoshi-crossfade", v);
-      },
+      onCrossfadeChange: setCrossfade,
       crossfadeOverrides,
       onRemoveCrossfadeOverride: removeCrossfadeOverride,
       playbackProgressive,
-      onPlaybackProgressiveChange: (v) => {
-        setPlaybackProgressive(v);
-        localStorage.setItem("kodama-playback-mode", v ? "progressive" : "classic");
-      },
+      onPlaybackProgressiveChange: setPlaybackProgressive,
     }),
-    [autoplay, crossfade, crossfadeOverrides, removeCrossfadeOverride, playbackProgressive]
+    [
+      player.autoplay,
+      player.setAutoplay,
+      crossfade,
+      setCrossfade,
+      crossfadeOverrides,
+      removeCrossfadeOverride,
+      playbackProgressive,
+      setPlaybackProgressive,
+    ]
   );
 
   const lyricsSettings = useMemo(
@@ -4408,6 +4244,13 @@ export default function App() {
             <FontScaleContext.Provider value={appFontScale}>
               <ZoomContext.Provider value={uiZoom}>
                 <PlayerProvider controller={player}>
+                <SettingsProviders
+                  appearance={appearanceSettings}
+                  playback={playbackSettings}
+                  lyrics={lyricsSettings}
+                  integrations={integrationSettings}
+                  shortcuts={shortcutSettings}
+                >
                 <style>{GLOBAL_KEYFRAMES}</style>
                 {!animations && (
                   <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
@@ -4638,8 +4481,6 @@ export default function App() {
                           <AnimatedView key={`search-${viewRefreshKey}`}>
                             <SearchView
                               query={searchQuery}
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onOpenArtist={openArtist}
                               onOpenAlbum={(item) => openAlbum(item, "search")}
                               onOpenPlaylist={(item) => openPlaylist(item, "search")}
@@ -4654,8 +4495,6 @@ export default function App() {
                         {view === "liked" && (
                           <AnimatedView key={`liked-${viewRefreshKey}`}>
                             <LikedView
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onOpenArtist={openArtist}
                               onOpenAlbum={(item) => openAlbum(item, "liked")}
                               onTrackContextMenu={(e, track) =>
@@ -4677,8 +4516,6 @@ export default function App() {
                         {view === "history" && (
                           <AnimatedView key={`history-${viewRefreshKey}`}>
                             <HistoryView
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onOpenArtist={openArtist}
                               onOpenAlbum={(item) => openAlbum(item, "history")}
                               onTrackContextMenu={(e, track, extra) =>
@@ -4695,8 +4532,6 @@ export default function App() {
                         {view === "library" && (
                           <AnimatedView key={`library-${viewRefreshKey}`}>
                             <LibraryView
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onOpenPlaylist={openPlaylist}
                               onOpenAlbum={openAlbum}
                               onOpenArtist={openArtist}
@@ -4714,8 +4549,6 @@ export default function App() {
                               loading={collection.loading}
                               progress={collection.progress || 0}
                               cached={collection.cached}
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onBack={goBack}
                               onOpenArtist={openArtist}
                               onOpenAlbum={(item) => openAlbum(item, "collection")}
@@ -4779,8 +4612,6 @@ export default function App() {
                           <AnimatedView key={`artist-${viewRefreshKey}`}>
                             <ArtistView
                               browseId={artistView.browseId}
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               onOpenAlbum={(item) => openAlbum(item, "artist")}
                               onOpenPlaylist={(item) => openPlaylist(item, "artist")}
                               onOpenArtist={(item) => openArtist(item, "artist")}
@@ -4795,8 +4626,6 @@ export default function App() {
                         {view === "downloads" && (
                           <AnimatedView key={`downloads-${viewRefreshKey}`}>
                             <DownloadsView
-                              currentTrack={currentTrack}
-                              isPlaying={isPlaying}
                               cachedSongIds={cachedSongIds}
                               downloadingIds={downloadingIds}
                               premiumSongIds={premiumSongIds}
@@ -4932,7 +4761,6 @@ export default function App() {
                             setForcedLyricsProvider(null);
                             setLyricsRefetchKey((k) => k + 1);
                           }}
-                          lyricsProviders={lyricsProviders}
                           currentLyricsSource={currentLyricsSource}
                           onSwitchLyricsProvider={(id) => setForcedLyricsProvider(id)}
                           failedLyricsProviders={failedLyricsProviders}
@@ -4947,12 +4775,6 @@ export default function App() {
                           onSetLyricsTranslationLang={(lang) => {
                             setLyricsTranslationLang(lang);
                             localStorage.setItem("kiyoshi-lyrics-translation-lang", lang);
-                          }}
-                          showRomaji={showRomaji}
-                          onToggleRomaji={() => {
-                            const next = !showRomaji;
-                            setShowRomaji(next);
-                            localStorage.setItem("kiyoshi-lyrics-romaji", String(next));
                           }}
                           isCustomLyrics={isCustomLyrics}
                           onImportLyrics={() => importLyricsRef.current?.()}
@@ -5287,48 +5109,40 @@ export default function App() {
                           : undefined,
                       }}
                     >
-                      <SettingsProviders
-                        appearance={appearanceSettings}
-                        playback={playbackSettings}
-                        lyrics={lyricsSettings}
-                        integrations={integrationSettings}
-                        shortcuts={shortcutSettings}
-                      >
-                        <SettingsPanel
-                          onClose={closeSettings}
-                          onOpenOverlayEditor={openOverlayEditor}
-                          onResetShortcuts={setCustomShortcuts}
-                          onSectionChange={setSettingsSectionStore}
-                          accounts={profiles}
-                          activeAccount={profiles.find((p) => p.active)}
-                          onAccountSwitch={handleAccountSwitch}
-                          onAccountAdd={handleAccountAdd}
-                          onAccountReauth={handleAccountReauth}
-                          onAccountRemove={handleAccountRemove}
-                          onAccountRename={handleAccountRename}
-                          onAccountLogout={handleAccountLogout}
-                          onAccountAvatarChange={handleAccountAvatarChange}
-                          language={language}
-                          onLanguageChange={handleLanguageChange}
-                          updateInfo={updateInfo}
-                          onCheckUpdate={checkForUpdates}
-                          updateDownloading={updateDownloading}
-                          updateDownloadProgress={updateDownloadProgress}
-                          updateDownloaded={updateDownloaded}
-                          onDownloadUpdate={downloadUpdate}
-                          onInstallUpdate={installUpdate}
-                          onCancelDownload={cancelUpdateDownload}
-                          tab={settingsTab}
-                          setTab={setSettingsTab}
-                          anonStats={anonStats}
-                          onAnonStatsChange={handleAnonStatsChange}
-                          hideUserHandle={hideUserHandle}
-                          onToggleHideUserHandle={(v) => {
-                            setHideUserHandle(v);
-                            localStorage.setItem("kiyoshi-hide-handle", String(v));
-                          }}
-                        />
-                      </SettingsProviders>
+                      <SettingsPanel
+                        onClose={closeSettings}
+                        onOpenOverlayEditor={openOverlayEditor}
+                        onResetShortcuts={setCustomShortcuts}
+                        onSectionChange={setSettingsSectionStore}
+                        accounts={profiles}
+                        activeAccount={profiles.find((p) => p.active)}
+                        onAccountSwitch={handleAccountSwitch}
+                        onAccountAdd={handleAccountAdd}
+                        onAccountReauth={handleAccountReauth}
+                        onAccountRemove={handleAccountRemove}
+                        onAccountRename={handleAccountRename}
+                        onAccountLogout={handleAccountLogout}
+                        onAccountAvatarChange={handleAccountAvatarChange}
+                        language={language}
+                        onLanguageChange={handleLanguageChange}
+                        updateInfo={updateInfo}
+                        onCheckUpdate={checkForUpdates}
+                        updateDownloading={updateDownloading}
+                        updateDownloadProgress={updateDownloadProgress}
+                        updateDownloaded={updateDownloaded}
+                        onDownloadUpdate={downloadUpdate}
+                        onInstallUpdate={installUpdate}
+                        onCancelDownload={cancelUpdateDownload}
+                        tab={settingsTab}
+                        setTab={setSettingsTab}
+                        anonStats={anonStats}
+                        onAnonStatsChange={handleAnonStatsChange}
+                        hideUserHandle={hideUserHandle}
+                        onToggleHideUserHandle={(v) => {
+                          setHideUserHandle(v);
+                          localStorage.setItem("kiyoshi-hide-handle", String(v));
+                        }}
+                      />
                     </div>
                   )}
 
@@ -5935,6 +5749,7 @@ export default function App() {
                     />
                   )}
                 </div>
+                </SettingsProviders>
                 </PlayerProvider>
               </ZoomContext.Provider>
             </FontScaleContext.Provider>

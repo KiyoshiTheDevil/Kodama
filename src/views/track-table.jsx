@@ -7,7 +7,7 @@ import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
-import { usePlayerActions } from "../features/player/player-context.jsx";
+import { usePlaybackStatus, usePlayerActions } from "../features/player/player-context.jsx";
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -246,8 +246,6 @@ export function PlaylistLayout({
   loading,
   progress,
   cached,
-  currentTrack,
-  isPlaying,
   onBack,
   isLiked,
   onOpenArtist,
@@ -273,7 +271,8 @@ export function PlaylistLayout({
   extraActions,
   typeLabel,
 }) {
-  // Playback action from PlayerContext (Step 11) rather than an onPlay prop.
+  // Playback state/action from PlayerContext (Step 11) rather than currentTrack/isPlaying/onPlay props.
+  const { track: currentTrack, isPlaying } = usePlaybackStatus();
   const { handlePlay } = usePlayerActions();
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();

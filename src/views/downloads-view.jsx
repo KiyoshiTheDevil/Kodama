@@ -6,8 +6,6 @@ import { GridCard } from "../ui/rows.jsx";
 import { Microphone, MusicNote, VinylRecord } from "../icons.jsx";
 
 export function DownloadsView({
-  currentTrack,
-  isPlaying,
   cachedSongIds,
   downloadingIds,
   premiumSongIds,
@@ -102,8 +100,6 @@ export function DownloadsView({
         loading={false}
         progress={1}
         cached={true}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
         onBack={() => setSelectedGroup(null)}
         onOpenArtist={onOpenArtist}
         onOpenAlbum={onOpenAlbum}
@@ -181,8 +177,6 @@ export function DownloadsView({
             loading={loading}
             progress={1}
             cached={false}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
             onBack={null}
             onOpenArtist={onOpenArtist}
             onOpenAlbum={onOpenAlbum}

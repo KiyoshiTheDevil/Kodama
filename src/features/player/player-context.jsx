@@ -1,11 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from "react";
 
-// Player context (Step 11): split state vs. actions so a pure-actions consumer (e.g. a play
-// button in a track row) does not re-render on every progress/track/queue change. Both are backed
-// by the single usePlayerController instance in App — this only distributes it without prop
-// drilling. `track` mirrors the controller's `currentTrack`; `setTrack` mirrors `setCurrentTrack`.
-const PlayerStateContext = createContext(null);
+// Player context (Step 11): split into narrow state contexts plus one actions context, so a
+// consumer that only needs (say) the playing track for row highlighting does not re-render on
+// queue reorders or a crossfade-slider drag. All are backed by the single usePlayerController
+// instance in App — this only distributes it without prop drilling. `track` mirrors the
+// controller's `currentTrack`; `setTrack` mirrors `setCurrentTrack`.
+const PlaybackStatusContext = createContext(null);
+const QueueStateContext = createContext(null);
+const PlaybackConfigContext = createContext(null);
 const PlayerActionsContext = createContext(null);
 
 function useRequired(context, name) {
@@ -27,26 +30,30 @@ export function PlayerProvider({ controller, children }) {
     handlePlay,
     enqueue,
     startSongRadio,
+    autoplay,
+    setAutoplay,
     crossfade,
+    setCrossfade,
     crossfadeOverrides,
     playbackProgressive,
+    setPlaybackProgressive,
     setCrossfadeOverride,
     removeCrossfadeOverride,
   } = controller;
 
-  const state = useMemo(
-    () => ({
-      track: currentTrack,
-      isPlaying,
-      queue,
-      audioRef,
-      queueRef,
-      crossfade,
-      crossfadeOverrides,
-      playbackProgressive,
-    }),
-    [currentTrack, isPlaying, queue, audioRef, queueRef, crossfade, crossfadeOverrides, playbackProgressive]
+  // Playback state: the currently playing track, its playing flag, and the audio element ref.
+  const playbackStatus = useMemo(
+    () => ({ track: currentTrack, isPlaying, audioRef }),
+    [currentTrack, isPlaying, audioRef]
   );
+  // Queue state: the queue itself and its stale-closure-safe ref.
+  const queueState = useMemo(() => ({ queue, queueRef }), [queue, queueRef]);
+  // Playback configuration: autoplay, crossfade (+ per-transition overrides), progressive mode.
+  const playbackConfig = useMemo(
+    () => ({ autoplay, crossfade, crossfadeOverrides, playbackProgressive }),
+    [autoplay, crossfade, crossfadeOverrides, playbackProgressive]
+  );
+  // Transport, queue, and configuration actions in one stable object.
   const actions = useMemo(
     () => ({
       setTrack: setCurrentTrack,
@@ -55,6 +62,9 @@ export function PlayerProvider({ controller, children }) {
       handlePlay,
       enqueue,
       startSongRadio,
+      setAutoplay,
+      setCrossfade,
+      setPlaybackProgressive,
       setCrossfadeOverride,
       removeCrossfadeOverride,
     }),
@@ -65,17 +75,26 @@ export function PlayerProvider({ controller, children }) {
       handlePlay,
       enqueue,
       startSongRadio,
+      setAutoplay,
+      setCrossfade,
+      setPlaybackProgressive,
       setCrossfadeOverride,
       removeCrossfadeOverride,
     ]
   );
 
   return (
-    <PlayerStateContext.Provider value={state}>
-      <PlayerActionsContext.Provider value={actions}>{children}</PlayerActionsContext.Provider>
-    </PlayerStateContext.Provider>
+    <PlaybackStatusContext.Provider value={playbackStatus}>
+      <QueueStateContext.Provider value={queueState}>
+        <PlaybackConfigContext.Provider value={playbackConfig}>
+          <PlayerActionsContext.Provider value={actions}>{children}</PlayerActionsContext.Provider>
+        </PlaybackConfigContext.Provider>
+      </QueueStateContext.Provider>
+    </PlaybackStatusContext.Provider>
   );
 }
 
-export const usePlayerState = () => useRequired(PlayerStateContext, "usePlayerState");
+export const usePlaybackStatus = () => useRequired(PlaybackStatusContext, "usePlaybackStatus");
+export const useQueueState = () => useRequired(QueueStateContext, "useQueueState");
+export const usePlaybackConfig = () => useRequired(PlaybackConfigContext, "usePlaybackConfig");
 export const usePlayerActions = () => useRequired(PlayerActionsContext, "usePlayerActions");
