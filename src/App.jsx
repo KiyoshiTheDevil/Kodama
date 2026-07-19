@@ -117,6 +117,7 @@ import { FadeEditorModal } from "./modals/fade-editor-modal.jsx";
 import { DEFAULT_LYRICS_PROVIDERS, PROVIDER_SYNC } from "./lyrics/providers.js";
 import { parseLrc, parseTtml, parseDurationToSeconds } from "./lyrics/parse.js";
 import { fetchLyrics } from "./lyrics/fetch.js";
+import { paintLineWords } from "./lyrics/paint.js";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { unisonSetNickname, unisonResetNickname, unisonFetchDisplayName } from "./unison/api.js";
 import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
@@ -3302,7 +3303,7 @@ function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, onReauth
 
 function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
-  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -4572,6 +4573,20 @@ function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accen
                       <ToggleButton id="720">720p</ToggleButton>
                       <ToggleButton id="1080">1080p</ToggleButton>
                       <ToggleButton id="auto">{t("videoSyncQualityAuto")}</ToggleButton>
+                    </ToggleButtonGroupRoot>
+                  </SettingRow>
+                )}
+                {videoSyncEnabled && (
+                  <SettingRow label={t("videoLyricsStyle")} description={t("videoLyricsStyleDesc")} icon={<Columns />}>
+                    <ToggleButtonGroupRoot
+                      selectionMode="single"
+                      disallowEmptySelection
+                      selectedKeys={[videoLyricsStyle]}
+                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onVideoLyricsStyleChange?.(v); }}
+                      size="sm"
+                    >
+                      <ToggleButton id="split">{t("videoLyricsStyleSplit")}</ToggleButton>
+                      <ToggleButton id="captions">{t("videoLyricsStyleCaptions")}</ToggleButton>
                     </ToggleButtonGroupRoot>
                   </SettingRow>
                 )}
@@ -6610,118 +6625,8 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
 
 
 
-// zoomMaxRef: pass a ref to enable the per-syllable zoom (active line); pass null to
-// disable it (trailing line — it just finishes its wipe quietly, no attention-grab).
-// Paints a single karaoke word sequence (its own active-word index, stored under
-// idxKey on idxRef). Main vocals and background vocals are painted as INDEPENDENT
-// sequences so a bg line starting does not mark the main line as fully sung.
-// Map each non-space word entry to its space-delimited word-group index (for word-level glow).
-function wordGroupIndices(allWords) {
-  const groups = [];
-  let g = -1, inWord = false;
-  for (const w of (allWords || [])) {
-    if (w.isSpace) { inWord = false; }
-    else { if (!inWord) { g++; inWord = true; } groups.push(g); }
-  }
-  return groups;
-}
-
-function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, groups) {
-  if (!words.length || !els.length) return;
-  let curWordIdx = -1;
-  for (let wi = 0; wi < words.length; wi++) {
-    if (t >= words[wi].time) curWordIdx = wi;
-    else break;
-  }
-  const prevIdx = idxRef[idxKey] ?? -1;
-  // Update non-active words only on word change (cheap)
-  if (curWordIdx !== prevIdx) {
-    idxRef[idxKey] = curWordIdx;
-    // Zoom only on a genuine sequential forward step to a not-yet-zoomed syllable.
-    // Guards against (a) double-zoom from time-interpolation jitter flipping the index
-    // back and forth, and (b) a spurious zoom when the index jumps (seek / line catch-up).
-    const doZoom =
-      zoomMaxRef && curWordIdx === prevIdx + 1 && curWordIdx > zoomMaxRef.current;
-    if (doZoom) zoomMaxRef.current = curWordIdx;
-    for (let wi = 0; wi < els.length; wi++) {
-      const el = els[wi];
-      if (!el) continue;
-      const dimEl = el.previousElementSibling;
-      if (wi === curWordIdx) {
-        // Fade-in: bright span was opacity=0 (future state) → animate to 1
-        el.style.transition = "opacity 0.15s ease-out, text-shadow 0.4s ease-out";
-        el.style.opacity = "1";
-        // Gentle karaoke zoom: a smooth, soft scale on the syllable as it activates.
-        // transform-origin left → the scale grows toward the right. No overshoot/bounce.
-        if (doZoom) {
-          const wrap = el.parentElement;
-          if (wrap && wrap.animate) {
-            // Scale the zoom duration to the syllable length so long words swell gently
-            // over their whole duration instead of a quick fixed pop. Clamped so very
-            // short syllables still read and very long ones don't drag.
-            const word = words[curWordIdx];
-            const sylMs = word ? (word.end - word.time) * 1000 : 440;
-            const durMs = Math.min(1100, Math.max(300, sylMs));
-            wrap.style.transformOrigin = "left center";
-            // Per-segment ease-in-out → velocity reaches 0 at start, peak AND end, so the
-            // swell rises and falls with no hard corner at the top. Much smoother than a
-            // single easing across the whole pulse.
-            wrap.animate(
-              [
-                { transform: "scale(1)",    easing: "ease-in-out" },
-                { transform: "scale(1.05)", offset: 0.5, easing: "ease-in-out" },
-                { transform: "scale(1)" },
-              ],
-              { duration: durMs }
-            );
-          }
-        }
-      } else if (wi < curWordIdx) {
-        // Past: keep bright span fully visible (same white as active)
-        el.style.transition = "text-shadow 0.4s ease-out";
-        el.style.WebkitMaskImage = "";
-        el.style.maskImage = "";
-        el.style.opacity = "1";
-      } else {
-        // Future: instant reset
-        el.style.transition = "text-shadow 0.4s ease-out";
-        el.style.opacity = "0";
-        el.style.WebkitMaskImage = "linear-gradient(to right, black -6px, transparent 6px)";
-        el.style.maskImage = "linear-gradient(to right, black -6px, transparent 6px)";
-        if (dimEl) dimEl.style.color = "rgba(255,255,255,0.25)";
-      }
-      // Word-level glow (fluid): glow the segments of the active word that have ALREADY been
-      // sung (incl. the one wiping) so the lit part of the word keeps glowing across syllable
-      // changes; only fade out when the word itself changes. Not-yet-sung segments stay unlit.
-      el.style.textShadow =
-        glow && groups && curWordIdx >= 0 && wi <= curWordIdx && groups[wi] === groups[curWordIdx]
-          ? "0 0 7px rgba(255,255,255,0.45)"
-          : "";
-    }
-  }
-  // Update active word mask every frame for smooth wipe (opacity handled by CSS transition)
-  if (curWordIdx >= 0 && curWordIdx < els.length) {
-    const el = els[curWordIdx];
-    const word = words[curWordIdx];
-    if (el && word) {
-      const pct = Math.min(100, (t - word.time) / Math.max(word.end - word.time, 0.001) * 100);
-      el.style.WebkitMaskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
-      el.style.maskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
-    }
-  }
-}
-
-function paintLineWords(line, els, wordIdxRef, t, zoomMaxRef = null, glow = false) {
-  if (!line || !els || els.length === 0) return;
-  // DOM order of bright spans: main words first, then bg words. Split and paint each
-  // as its own sequence so the two vocal streams never bleed into each other's fill.
-  const mainWords = (line.words   || []).filter(w => !w.isSpace);
-  const bgWords   = (line.bgWords || []).filter(w => !w.isSpace);
-  const mainEls = mainWords.length ? els.slice(0, mainWords.length) : [];
-  const bgEls   = bgWords.length   ? els.slice(mainWords.length)     : [];
-  paintWordSeq(mainWords, mainEls, wordIdxRef, "current",   t, zoomMaxRef, glow, wordGroupIndices(line.words));
-  paintWordSeq(bgWords,   bgEls,   wordIdxRef, "bgCurrent", t, null, glow, wordGroupIndices(line.bgWords));
-}
+// wordGroupIndices/paintWordSeq/paintLineWords now live in ./lyrics/paint.js — extracted so the
+// video-sync caption overlay can reuse the exact same karaoke word painting for its active line.
 
 export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, showTranslation = false, translationLang = "DE", translationFontSize = 20, showRomaji = false, romajiFontSize = 18, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, showAgentTags = true, ambientVisualizer = true, syllableZoom = false, fluidLyrics = false, ambientBackground = false, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
@@ -10320,6 +10225,12 @@ export default function App() {
     localStorage.getItem("kiyoshi-video-sync-quality") || "auto"
   );
   const videoSync = useVideoSync(currentTrack?.videoId, videoSyncEnabled, videoSyncQuality === "auto" ? null : Number(videoSyncQuality));
+  // How lyrics are shown alongside the video (when the user has them toggled on via the normal
+  // Lyrics button) — "split" (video+lyrics side by side) or "captions" (bottom-strip overlay,
+  // video stays full-size).
+  const [videoLyricsStyle, setVideoLyricsStyle] = useState(() =>
+    localStorage.getItem("kiyoshi-video-lyrics-style") || "split"
+  );
   const [showVideoView, setShowVideoView] = useState(false);
   // The audio/video switch only exists while a synced video is available for THIS track — drop
   // back to the normal cover/lyrics view the moment that stops being true (track change, or the
@@ -12081,7 +11992,9 @@ export default function App() {
             // lyrics-alongside-video works in the normal expanded view too, driven by the same
             // showLyrics the Lyrics button already toggles (no separate on/off setting).
             const coverSplitActive = fullscreen && splitView && !showVideoView;
-            const videoSplitActive = showVideoView && showLyrics;
+            const videoLyricsOn = showVideoView && showLyrics;
+            const videoSplitActive = videoLyricsOn && videoLyricsStyle === "split";
+            const videoCaptionsActive = videoLyricsOn && videoLyricsStyle === "captions";
             const anySplitActive = coverSplitActive || videoSplitActive;
             const coverPct = `${(splitRatio * 100).toFixed(2)}%`;
             const lyricsPct = `${((1 - splitRatio) * 100).toFixed(2)}%`;
@@ -12117,7 +12030,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsSyllableZoom={syllableZoom} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (
@@ -12310,6 +12223,8 @@ export default function App() {
             onToggleVideoSync={() => { const next = !videoSyncEnabled; setVideoSyncEnabled(next); localStorage.setItem("kiyoshi-video-sync", String(next)); }}
             videoSyncQuality={videoSyncQuality}
             onVideoSyncQualityChange={(v) => { setVideoSyncQuality(v); localStorage.setItem("kiyoshi-video-sync-quality", v); }}
+            videoLyricsStyle={videoLyricsStyle}
+            onVideoLyricsStyleChange={(v) => { setVideoLyricsStyle(v); localStorage.setItem("kiyoshi-video-lyrics-style", v); }}
             highContrast={highContrast}
             onToggleHighContrast={() => {
               const next = !highContrast;

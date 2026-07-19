@@ -452,6 +452,15 @@ html, body, #root {
   0%,  100% { transform: scale(1.00); opacity: 0.12; }
   50%        { transform: scale(1.20); opacity: 0.19; }
 }
+@keyframes videoCaptionFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes videoCaptionFluidIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.97); filter: blur(6px); text-shadow: 0 0 26px var(--accent), 0 2px 14px rgba(0,0,0,0.65); }
+  60%  { filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); text-shadow: 0 2px 14px rgba(0,0,0,0.65); }
+}
 @keyframes agentTagShimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
