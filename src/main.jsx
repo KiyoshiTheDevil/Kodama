@@ -1,7 +1,7 @@
 import "@kodama/e2e-network-guard";
 import "@kodama/e2e-runtime-controls";
 import "@kodama/e2e-bridge";
-import React from "react";
+
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import OverlayEditorApp from "./OverlayEditorApp.jsx";

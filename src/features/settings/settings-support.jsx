@@ -23,31 +23,7 @@ import {
 import { parseColor } from "react-aria-components";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import {
-  ArrowClockwise,
-  ArrowSquareOut,
-  BrandLastfm,
-  Bug,
-  CaretDown,
-  Check,
-  CheckCircle,
-  Copy,
-  DownloadSimple,
-  Eyedropper,
-  Flask,
-  GripLines,
-  HardDrives,
-  ImageSquare,
-  Info,
-  Key,
-  Microphone,
-  MusicNote,
-  Queue,
-  UserCircle,
-  VinylRecord,
-  WarningCircle,
-  X,
-} from "../../icons.jsx";
+import { ArrowClockwise, ArrowSquareOut, BrandLastfm, Bug, CaretDown, Check, CheckCircle, Copy, DownloadSimple, Eyedropper, GripLines, HardDrives, ImageSquare, Microphone, MusicNote, Queue, UserCircle, VinylRecord, WarningCircle, X } from "../../icons.jsx";
 import { API } from "../../shared/api/client.js";
 import { useLang } from "../../context.jsx";
 import { generateIdentity, importIdentityFile, exportIdentityFile } from "../../unison/identity.js";

@@ -1,95 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Button,
-  CardRoot,
-  cn,
-  InputRoot,
-  KbdContent,
-  KbdRoot,
-  ListBox,
-  ListBoxItem,
-  ModalBackdrop,
-  ModalBody,
-  ModalCloseTrigger,
-  ModalContainer,
-  ModalDialog,
-  ModalFooter,
-  ModalHeader,
-  ModalHeading,
-  ModalIcon,
-  ModalRoot,
-  ProgressBar,
-  ProgressBarFill,
-  ProgressBarTrack,
-  Spinner,
-  TextFieldRoot,
-} from "@heroui/react";
+import { useEffect, useRef, useState } from "react";
+import { Button, CardRoot, cn, InputRoot, KbdContent, KbdRoot, ProgressBar, ProgressBarFill, ProgressBarTrack, TextFieldRoot } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import {
-  ArrowsClockwise,
-  ArrowCircleUp,
-  ArrowClockwise,
-  ArrowSquareOut,
-  BrandBluesky,
-  BrandTiktok,
-  BrandTwitch,
-  BrandYoutube,
-  Bug,
-  CaretDown,
-  CaretUp,
-  ChatText,
-  Check,
-  CheckCircle,
-  CircleHalf,
-  CloudSun,
-  DownloadSimple,
-  Eye,
-  EyeSlash,
-  Flask,
-  Globe,
-  Info,
-  Key,
-  Keyboard,
-  Link,
-  Lock,
-  LockOpen,
-  MagnifyingGlass,
-  Moon,
-  MoonStars,
-  MusicNote,
-  Palette,
-  PaintBrushBroad,
-  PencilSimple,
-  Play,
-  PlayCircle,
-  PersonArmsSpread,
-  Radio,
-  ScreencastSimple,
-  ShareNodes,
-  Sliders,
-  Sparkles,
-  Sun,
-  SunHorizon,
-  TextSize,
-  Tag,
-  Trash,
-  Translate,
-  UserCheck,
-  UserCircle,
-  UserPlus,
-  Users,
-  WarningCircle,
-  WifiHigh,
-  WifiX,
-  DeviceMobile,
-  HardDrives,
-  WaveformLines,
-  X,
-} from "../../icons.jsx";
+import { ArrowsClockwise, ArrowCircleUp, ArrowClockwise, ArrowSquareOut, BrandBluesky, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, DownloadSimple, Eye, EyeSlash, Flask, Globe, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MusicNote, PaintBrushBroad, PencilSimple, Play, PlayCircle, PersonArmsSpread, ScreencastSimple, ShareNodes, Sliders, Sparkles, TextSize, Tag, Trash, Translate, UserCircle, Users, WifiHigh, DeviceMobile, HardDrives, WaveformLines, X } from "../../icons.jsx";
 import { thumb } from "../../shared/api/thumbnails.js";
 import { useAnimations, useLang } from "../../context.jsx";
-import { LANGUAGES, translate, translationProgress } from "../../i18n.js";
+import { LANGUAGES, translationProgress } from "../../i18n.js";
 import { renderNewsBody } from "../../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../../ui/remote-control.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../../lyrics/providers.js";
@@ -102,20 +18,7 @@ import {
   SettingsSectionLabel,
 } from "../../ui/settings-controls.jsx";
 import { AccountSettingsTab } from "./account-settings-tab.jsx";
-import {
-  AccentColorPicker,
-  APP_VERSION,
-  CacheTab,
-  ComposerSettingsSection,
-  DebugTab,
-  DownloadsTab,
-  FfmpegUpdateRow,
-  LastfmRow,
-  LyricsProviderList,
-  StorageTab,
-  UnisonIdentitySection,
-  YtDlpUpdateRow,
-} from "./settings-support.jsx";
+import { AccentColorPicker, APP_VERSION, ComposerSettingsSection, DebugTab, FfmpegUpdateRow, LastfmRow, LyricsProviderList, StorageTab, UnisonIdentitySection, YtDlpUpdateRow } from "./settings-support.jsx";
 import { isSettingsSectionLocked } from "./section-store.js";
 import {
   APP_ICON_DEFAULT,

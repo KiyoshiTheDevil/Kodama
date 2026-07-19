@@ -9,23 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 // createPortal removed — font picker is now lifted to OverlayEditor level
-import {
-  Button,
-  Switch,
-  NumberFieldRoot,
-  NumberFieldGroup,
-  NumberFieldInput,
-  TextFieldRoot,
-  InputRoot,
-  SelectRoot,
-  SelectTrigger,
-  SelectValue,
-  SelectIndicator,
-  SelectPopover,
-  ListBox,
-  ListBoxItem,
-  SeparatorRoot,
-} from "@heroui/react";
+import { Button, Switch, NumberFieldRoot, NumberFieldGroup, NumberFieldInput, TextFieldRoot, InputRoot, SelectRoot, SelectTrigger, SelectValue, SelectIndicator, SelectPopover, ListBox, ListBoxItem } from "@heroui/react";
 import {
   ImageSquare,
   VinylRecord,

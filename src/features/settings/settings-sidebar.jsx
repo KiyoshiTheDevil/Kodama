@@ -1,40 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button, cn, ListBox, ListBoxItem } from "@heroui/react";
 
-import {
-  ArrowLeft,
-  ArrowsClockwise,
-  Bug,
-  ChatText,
-  CircleHalf,
-  DeviceMobile,
-  Flask,
-  Globe,
-  HardDrives,
-  Info,
-  Keyboard,
-  Link,
-  Lock,
-  PaintBrushBroad,
-  PersonArmsSpread,
-  Play,
-  Radio,
-  ScreencastSimple,
-  Sliders,
-  Sparkles,
-  Tag,
-  TextSize,
-  Translate,
-  UserCircle,
-  WaveformLines,
-} from "../../icons.jsx";
+import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../../icons.jsx";
 import { useAnimations, useLang } from "../../context.jsx";
 import { APP_VERSION } from "./settings-support.jsx";
-import {
-  getSettingsSection,
-  isSettingsSectionLocked,
-  subscribeSettingsSection,
-} from "./section-store.js";
+import { getSettingsSection, subscribeSettingsSection } from "./section-store.js";
 
 export function SettingsSidebarContent({
   tab,

@@ -3,7 +3,7 @@
  * Loaded when ?overlayEditor=1 — avoids running the full App
  * (audio player, backend connections, SSE streams, etc.)
  */
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { IconContext } from "./icons.jsx";
 import { translate } from "./i18n.js";
 import OverlayEditor from "./overlay/OverlayEditor.jsx";
