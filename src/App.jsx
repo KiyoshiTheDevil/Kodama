@@ -815,7 +815,10 @@ function CtxItem({ icon: Icon, label, onSelect, danger, id, textValue }) {
 }
 
 const SIDEBAR_EXPANDED = 288;   // default expanded width
-const SIDEBAR_COLLAPSED = 56;
+// 56 left ~8px of slack after the 36px pinned-item icon and the outer padding — exactly enough
+// to be eaten whole by the (already-slimmed, 8px) scrollbar the moment one appears, clipping the
+// icon against the sidebar's own overflow:hidden. 64 leaves real breathing room.
+const SIDEBAR_COLLAPSED = 64;
 const SIDEBAR_MIN = 230;        // min when dragging
 const SIDEBAR_MAX = 440;        // max when dragging
 const SPLIT_MIN = 0.22;         // min/max cover-pane fraction in the fullscreen split view
@@ -865,6 +868,20 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
   const [pinnedPlaylists, setPinnedPlaylists] = useState([]);
   const [recentPlaylists, setRecentPlaylists] = useState([]);
   const anim = useAnimations();
+
+  // Collapsed-sidebar-only: Pinned/Recently Opened start folded shut (just the section icon,
+  // like Discord's server-folder icons) and expand in place on click — persisted per section so
+  // it stays how you left it. The expanded sidebar keeps its own always-open behaviour untouched.
+  const [collapsedGroupOpen, setCollapsedGroupOpen] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("kiyoshi-sidebar-collapsed-groups") || "{}"); } catch { return {}; }
+  });
+  const setCollapsedGroupExpanded = (titleKey, isExpanded) => {
+    setCollapsedGroupOpen(prev => {
+      const next = { ...prev, [titleKey]: isExpanded };
+      localStorage.setItem("kiyoshi-sidebar-collapsed-groups", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const reloadFromStorage = useCallback((prof) => {
     const p = prof || window.__activeProfile || "default";
@@ -1059,7 +1076,14 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
   // sidebar it uses HeroUI's Disclosure (animated expand/collapse + rotating
   // chevron). In the collapsed sidebar there are no headers — just the covers.
   const playlistSection = (titleKey, items, Icon, iconWeight) => (
-    <Disclosure defaultExpanded>
+    // A subtle full-width translucent card behind the whole group (trigger + revealed items),
+    // in both collapsed and expanded sidebar, so Pinned/Recently Opened read as two visually
+    // distinct blocks instead of blurring into the surrounding list.
+    <div className="bg-white/5 hover:bg-white/10 rounded-xl w-full mb-1.5 overflow-hidden transition-colors duration-150">
+    <Disclosure
+      isExpanded={collapsedGroupOpen[titleKey] ?? false}
+      onExpandedChange={(v) => setCollapsedGroupExpanded(titleKey, v)}
+    >
       <DisclosureHeading>
         <DisclosureTrigger
           className={cn(
@@ -1085,6 +1109,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
         </DisclosureBody>
       </DisclosureContent>
     </Disclosure>
+    </div>
   );
 
   const handleAccountAction = (key) => {
@@ -1278,7 +1303,10 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
 
       {/* Pinned + recent playlists */}
       {(pinnedPlaylists.length > 0 || recentPlaylists.length > 0) && (
-        <div className={cn("overflow-y-auto flex-1 min-h-0 my-1", collapsed ? "px-0" : "px-2")}>
+        // Collapsed: no visible scrollbar at all (still scrolls via wheel/trackpad) — same
+        // approach as Discord's server rail. That sidesteps the squeeze entirely rather than
+        // trying to keep a visible scrollbar's reserved width from disturbing the icon centering.
+        <div className={cn("overflow-y-auto flex-1 min-h-0 my-1", collapsed ? "px-0 no-scrollbar" : "px-2")}>
           {pinnedPlaylists.length > 0 && playlistSection("pinned", pinnedPlaylists, PushPin, "fill")}
           {recentPlaylists.filter(pl => !isPinned(pl)).length > 0 && playlistSection("recentlyOpened", recentPlaylists.filter(pl => !isPinned(pl)), ClockCounterClockwise)}
         </div>
@@ -2840,6 +2868,7 @@ function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onCl
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
   const anim = useAnimations();
+  const [tooltip, setTooltip] = useState(null);
   const [debugUnlocked, setDebugUnlocked] = useState(() => localStorage.getItem("kiyoshi-debug-unlocked") === "true");
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [debugToast, setDebugToast] = useState(null);
@@ -2917,6 +2946,13 @@ function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onCl
       overflow: "hidden",
       animation: anim ? (closing ? "fadeSlideOut 0.22s cubic-bezier(0.4,0,0.2,1) forwards" : "fadeSlideIn 0.25s cubic-bezier(0.4,0,0.2,1)") : undefined,
     }}>
+      {/* Tooltip portal — same pattern as the main Sidebar's, for the icon-only labels when collapsed */}
+      {tooltip && (
+        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-t12 whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+          style={{ left: tooltip.x, top: tooltip.y }}>
+          {tooltip.text}
+        </div>
+      )}
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center",
@@ -2951,12 +2987,18 @@ function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onCl
                 key={item.id}
                 id={item.id}
                 textValue={item.label}
-                title={collapsed ? item.label : undefined}
                 className={cn(
                   "text-t13 min-h-10 rounded-xl",
                   tab === item.id && "bg-accent-dim text-accent",
                   collapsed && "justify-center"
                 )}
+                onMouseEnter={e => {
+                  if (collapsed) {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setTooltip({ text: item.label, x: r.right + 10, y: r.top + r.height / 2 });
+                  }
+                }}
+                onMouseLeave={() => setTooltip(null)}
               >
                 <span className="shrink-0 w-5 flex items-center justify-center">{item.iconEl}</span>
                 {!collapsed && <span className="flex-1 truncate">{item.label}</span>}

@@ -358,6 +358,11 @@ html, body, #root {
 }
 ::-webkit-scrollbar-track:hover   { background: rgba(255,255,255,0.03); }
 
+/* Fully hidden scrollbar (still scrolls via wheel/trackpad) — e.g. the collapsed sidebar's
+   pinned-icon rail, matching Discord's server list. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
 /* Translucent hover/press instead of HeroUI's flat solid --default fill, for the
    interactive surfaces that use it: ghost/outline buttons + listbox/menu items. We
    override the *component* hover tokens (no flicker), NOT --default itself — that stays
