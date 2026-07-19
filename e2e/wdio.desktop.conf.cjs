@@ -1,6 +1,8 @@
 const path = require("node:path");
 
 const { clearWebviewStorage, createWorkerState } = require("./support/desktop-state.cjs");
+const { startFakeSidecar, stopFakeSidecar } = require("./support/fake-sidecar.cjs");
+const { assertE2eNetworkPolicy } = require("./support/network-policy.cjs");
 
 const root = path.resolve(__dirname, "..");
 const binaryName = process.platform === "win32" ? "kodama.exe" : "kodama";
@@ -50,4 +52,7 @@ exports.config = {
   connectionRetryCount: 2,
 
   beforeTest: clearWebviewStorage,
+  onPrepare: startFakeSidecar,
+  onComplete: stopFakeSidecar,
+  afterTest: assertE2eNetworkPolicy,
 };

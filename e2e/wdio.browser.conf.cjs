@@ -1,6 +1,8 @@
 const path = require("node:path");
 
 const { startViteServer, stopViteServer, VITE_URL } = require("./support/vite-server.cjs");
+const { startFakeSidecar, stopFakeSidecar } = require("./support/fake-sidecar.cjs");
+const { assertE2eNetworkPolicy } = require("./support/network-policy.cjs");
 
 const root = path.resolve(__dirname, "..");
 
@@ -33,6 +35,13 @@ exports.config = {
   connectionRetryTimeout: 90_000,
   connectionRetryCount: 2,
 
-  onPrepare: startViteServer,
-  onComplete: stopViteServer,
+  async onPrepare() {
+    await startFakeSidecar();
+    await startViteServer();
+  },
+  async onComplete() {
+    stopViteServer();
+    await stopFakeSidecar();
+  },
+  afterTest: assertE2eNetworkPolicy,
 };
