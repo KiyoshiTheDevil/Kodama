@@ -30,6 +30,7 @@ import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
 import { parseTtml, parseLrc, parseDurationToSeconds } from "../lyrics/parse.js";
 import { getUnisonIdentity, unisonVote, unisonReport } from "../unison/api.js";
+import { CTX_POPOVER_ANIM } from "../shared/ui/context-menu.jsx";
 
 // Browse every available lyrics version for the current track and apply the preferred
 // one. Fetches all providers on open and shows a preview + sync type per version.

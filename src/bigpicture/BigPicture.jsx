@@ -3,7 +3,7 @@
 //
 // Phase 1: a Home grid + a real Now Playing screen (wired to the live player via playerBridge).
 // Later phases add browsing/search/detail screens + a proper entry point (instead of F10).
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   init,
   pause,
@@ -51,14 +51,23 @@ export function BigPicture() {
   const [menuIndex, setMenuIndex] = useState(0);
   const { ref, focusKey, focusSelf } = useFocusable();
   const screenRef = useRef(screen);
-  screenRef.current = screen;
   const histRef = useRef([]); // back stack of previous screen names
   const menuRef = useRef(menu);
-  menuRef.current = menu;
   const menuIndexRef = useRef(menuIndex);
-  menuIndexRef.current = menuIndex;
   const openRef = useRef(open);
-  openRef.current = open;
+  useLayoutEffect(() => {
+    screenRef.current = screen;
+    menuRef.current = menu;
+    menuIndexRef.current = menuIndex;
+    openRef.current = open;
+  }, [screen, menu, menuIndex, open]);
+
+  const closeBigPicture = useCallback(() => {
+    setScreen("home");
+    histRef.current = [];
+    setMenu(null);
+    setOpen(false);
+  }, []);
 
   const openMenu = useCallback(() => {
     const target = getContextTarget();
@@ -91,11 +100,11 @@ export function BigPicture() {
     const onKey = (e) => {
       if (e.key === "F10") {
         e.preventDefault();
-        setOpen((o) => {
-          const next = !o;
-          if (next) initSounds();
-          return next;
-        });
+        if (openRef.current) closeBigPicture();
+        else {
+          initSounds();
+          setOpen(true);
+        }
         return;
       }
       if (!openRef.current || menuRef.current) return;
@@ -107,7 +116,7 @@ export function BigPicture() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openMenu, cycleTab]);
+  }, [openMenu, cycleTab, closeBigPicture]);
 
   // UI sounds for main-screen navigation. This single listener catches BOTH real keyboard keys
   // and the synthetic key events the controller path dispatches, so one sound fires per input
@@ -137,11 +146,6 @@ export function BigPicture() {
       return;
     }
     pause();
-    if (!open) {
-      setScreen("home");
-      histRef.current = [];
-      setMenu(null);
-    }
   }, [open, menu]);
 
   // Drop any stale context-menu target when the screen changes.
@@ -255,8 +259,8 @@ export function BigPicture() {
     } // B first dismisses the menu
     const prev = histRef.current.pop();
     if (prev != null) setScreen(prev);
-    else setOpen(false);
-  }, []);
+    else closeBigPicture();
+  }, [closeBigPicture]);
   // LB/RB → switch tabs; L3 (left stick press) → search caps toggle; Menu → context menu.
   const onButton = useCallback(
     (b) => {

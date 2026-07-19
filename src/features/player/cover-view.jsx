@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import { thumb } from "../../shared/api/thumbnails.js";
 import { ExplicitBadge } from "../../ui/rows.jsx";
@@ -65,10 +65,12 @@ export function CoverView({
   const specRef = useRef(null);
   const coverRef = useRef(null);
   const playingRef = useRef(isPlaying);
-  playingRef.current = isPlaying;
   const cfgRef = useRef(null);
-  cfgRef.current = { ...VIZ_DEFAULTS, ...(vizConfig || {}) };
   const coverColorRef = useRef(null);
+  useLayoutEffect(() => {
+    playingRef.current = isPlaying;
+    cfgRef.current = { ...VIZ_DEFAULTS, ...(vizConfig || {}) };
+  }, [isPlaying, vizConfig]);
 
   // Extract a vibrant colour from the cover for the "dynamic" colour mode.
   useEffect(() => {
@@ -133,6 +135,7 @@ export function CoverView({
   useEffect(() => {
     if (!ambientVisualizer) return;
     const cv = specRef.current;
+    const cover = coverRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d");
     const accentVar =
@@ -404,14 +407,14 @@ export function CoverView({
       // Pulse amplitude: strength (0..1) scales up to a 0.20 cover-scale swing at full level.
       // Default 0.3 ≈ the previous fixed 0.06 factor.
       const pulseAmt = cfg.coverPulse ? smoothLevel * (cfg.coverPulseStrength ?? 0.3) * 0.2 : 0;
-      if (coverRef.current) coverRef.current.style.transform = `scale(${base + pulseAmt})`;
+      if (cover) cover.style.transform = `scale(${base + pulseAmt})`;
 
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(raf);
-      if (coverRef.current) coverRef.current.style.transform = "";
+      if (cover) cover.style.transform = "";
     };
   }, [ambientVisualizer, narrow]);
 

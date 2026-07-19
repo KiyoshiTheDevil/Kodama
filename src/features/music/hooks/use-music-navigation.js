@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { API } from "../../../shared/api/client.js";
 import { itemId, profileKey } from "../lib/playlist-id.js";
 
@@ -21,9 +21,10 @@ export function useMusicNavigation({ setSearchQuery }) {
   const [artistView, setArtistView] = useState(null);
 
   // Always-fresh snapshot of current nav state — used by open* callbacks to push history.
-  // Updated synchronously on every render so callbacks always read the latest values.
   const navStateRef = useRef({ view: "home", collection: null, artistView: null });
-  navStateRef.current = { view, collection, artistView };
+  useLayoutEffect(() => {
+    navStateRef.current = { view, collection, artistView };
+  }, [view, collection, artistView]);
 
   const handleSearch = useCallback(
     (q) => {
@@ -124,7 +125,7 @@ export function useMusicNavigation({ setSearchQuery }) {
       setCollection((c) => (c ? { ...c, loading: false } : c));
       es.close();
     };
-  }, []);
+  }, [addRecentPlaylist]);
 
   const openAlbum = useCallback(
     async (item, fromView, refresh = false) => {
@@ -180,7 +181,7 @@ export function useMusicNavigation({ setSearchQuery }) {
         });
       }
     },
-    [view]
+    [view, addRecentPlaylist]
   );
 
   // Navigate to a top-level section (sidebar links) — always clears history.

@@ -8,7 +8,7 @@ import {
 } from "@heroui/react";
 
 // Shared enter/exit animation for HeroUI dropdown popovers (context menus, account menu).
-const CTX_POPOVER_ANIM =
+export const CTX_POPOVER_ANIM =
   "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-top-1 data-[entering]:duration-150 data-[entering]:ease-out " +
   "data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:slide-out-to-top-1 data-[exiting]:duration-100 data-[exiting]:ease-in";
 
