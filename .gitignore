@@ -101,6 +101,9 @@ src-tauri/resources/potgen/
 hard_0116.txt
 *analyze_b64.txt
 
+# IDE inspection exports (kept locally for triage, not source files)
+inspection-reports/
+
 # Local PAT for dist publishing (never commit)
 dist_token.txt
 

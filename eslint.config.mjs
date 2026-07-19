@@ -21,7 +21,7 @@ export default [
     },
     languageOptions: {
       ecmaVersion: "latest",
-      globals: globals.browser,
+      globals: { ...globals.browser, __APP_VERSION__: "readonly" },
       parserOptions: {
         ecmaFeatures: { jsx: true },
         sourceType: "module",
