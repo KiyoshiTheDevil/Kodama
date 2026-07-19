@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 from src.lib.music.playlist import Playlist
@@ -6,6 +9,19 @@ from src.lib.music.youtube_music import YoutubeMusicSession
 
 
 class YoutubeMusicSessionTests(unittest.TestCase):
+    def test_create_client_passes_profile_path_as_string(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "google.headers.json"
+            path.write_text(json.dumps({"authorization": "SAPISIDHASH test"}), encoding="utf-8")
+            profiles = MagicMock()
+            profiles.profile_file_path.return_value = path
+            client_factory = MagicMock()
+            session = YoutubeMusicSession(profiles=profiles, client_factory=client_factory)
+
+            session.create_client("google")
+
+        client_factory.assert_called_once_with(str(path), user=profiles.brand_user_id.return_value)
+
     def test_cookie_refresh_loop_starts_only_once_per_session(self) -> None:
         session = YoutubeMusicSession(profiles=MagicMock())
 

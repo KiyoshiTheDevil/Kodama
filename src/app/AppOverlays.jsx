@@ -77,12 +77,14 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
   const [step, setStep] = useState("start"); // start | waiting | success | local-create
   const [localName, setLocalName] = useState("");
   const [localLoading, setLocalLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const t = useLang();
 
   useEffect(() => {
-    let unlistenComplete, unlistenCancelled;
+    let unlistenComplete, unlistenCancelled, unlistenFailed;
     import("@tauri-apps/api/event").then(({ listen }) => {
       listen("login-complete", () => {
+        setLoginError("");
         setStep("success");
         setTimeout(() => onSuccess(), 1000);
       }).then((fn) => {
@@ -93,15 +95,25 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
       }).then((fn) => {
         unlistenCancelled = fn;
       });
+      listen("login-failed", (event) => {
+        setLoginError(
+          typeof event.payload === "string" && event.payload ? event.payload : t("oauthError")
+        );
+        setStep("start");
+      }).then((fn) => {
+        unlistenFailed = fn;
+      });
     });
     return () => {
       if (unlistenComplete) unlistenComplete();
       if (unlistenCancelled) unlistenCancelled();
+      if (unlistenFailed) unlistenFailed();
     };
-  }, [onSuccess]);
+  }, [onSuccess, t]);
 
   const startLogin = async () => {
     const name = forcedProfileName || "account_" + Date.now();
+    setLoginError("");
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("open_login_window", {
@@ -210,6 +222,19 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
             >
               {forcedProfileName ? t("reauthDesc") : t("loginDesc")}
             </div>
+            {loginError && (
+              <div
+                role="alert"
+                style={{
+                  color: "var(--danger)",
+                  fontSize: "var(--t12)",
+                  textAlign: "center",
+                  margin: "-12px 0 16px",
+                }}
+              >
+                {loginError}
+              </div>
+            )}
             <Btn onClick={startLogin}>{t("loginButton")}</Btn>
             {/* Hide "create local profile" for a cancelable re-auth (from settings — it has an X);
                 keep it at startup as an escape hatch even when re-auth is targeted. */}

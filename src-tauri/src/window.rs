@@ -320,7 +320,7 @@ pub async fn open_login_window(
                         .join("; ");
 
                     let client = reqwest::Client::new();
-                    let _ = client
+                    let login_result = match client
                         .post("http://localhost:9847/auth/cookie-login")
                         .json(&serde_json::json!({
                             "cookie": cookie_str,
@@ -329,10 +329,36 @@ pub async fn open_login_window(
                             "delegated_session_id": dsid
                         }))
                         .send()
-                        .await;
+                        .await
+                    {
+                        Ok(response) => {
+                            let status = response.status();
+                            let body: serde_json::Value = response.json().await.unwrap_or_default();
+                            if status.is_success()
+                                && body.get("ok").and_then(serde_json::Value::as_bool) == Some(true)
+                            {
+                                Ok(())
+                            } else {
+                                Err(body
+                                    .get("error")
+                                    .and_then(serde_json::Value::as_str)
+                                    .unwrap_or("Kodama could not verify this YouTube Music session.")
+                                    .to_string())
+                            }
+                        }
+                        Err(error) => Err(format!("Could not contact Kodama's local service: {error}")),
+                    };
 
                     let _ = win.destroy();
-                    let _ = app_clone.emit("login-complete", &profile);
+                    match login_result {
+                        Ok(()) => {
+                            let _ = app_clone.emit("login-complete", &profile);
+                        }
+                        Err(error) => {
+                            eprintln!("[login] cookie-login failed: {error}");
+                            let _ = app_clone.emit("login-failed", error);
+                        }
+                    }
                     completed = true;
                     break;
                 }

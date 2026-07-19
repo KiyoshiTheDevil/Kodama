@@ -118,7 +118,10 @@ class YoutubeMusicSession:
         if "authorization" not in raw:
             with open(path, "w", encoding="utf-8") as profile_file:
                 json.dump(self.prepare_auth_headers(raw), profile_file, indent=2)
-        return self._client_factory(path, user=self.profiles.brand_user_id(name))
+        # ytmusicapi accepts a JSON mapping or a string filename. Passing Path directly
+        # makes it treat the path as a header mapping (and raises "PosixPath is not
+        # iterable"), which prevented embedded-browser logins from being activated.
+        return self._client_factory(str(path), user=self.profiles.brand_user_id(name))
 
     # Old server.py: load_profile
     def activate_profile(self, name: str) -> bool:
