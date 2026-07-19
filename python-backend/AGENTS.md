@@ -1,8 +1,10 @@
 # Kodama Backend Guide
 
-Treat the modular application under `src/`
-as the source of truth; do not add route handlers or application state to
-`server.py`.
+This guide extends [`../AGENTS.md`](../AGENTS.md) and applies to every file
+under `python-backend/`. The root guide remains mandatory.
+
+Treat the modular application under `src/` as the source of truth. Do not add
+route handlers, domain behavior, or application state to `server.py`.
 
 ## Entry Points and Composition
 
@@ -29,6 +31,38 @@ Route families are organized by domain: `auth`, `profiles`, `library`,
 `streaming`, `discovery`, `downloads`, `lyrics`, `composer`, `cache`, `lastFm`,
 `operations`, and `root`.
 
+Dependency direction is `server.py -> create_app() -> routes -> lib`. Library
+modules must not import route modules, and one route domain must not reach into
+another route domain's private helpers. Cross-domain behavior belongs in a
+precisely named service under `src/lib/` and is injected during composition.
+
+## Clean-Code Rules
+
+- Route modules are HTTP adapters only: parse and validate request data, obtain
+  a service, call it, and translate the result into a response.
+- Domain rules, integrations, caching, and state transitions belong in a
+  focused service under `src/lib/<domain>/`, not in blueprints or entry points.
+- Application-scoped mutable state must be owned by a service registered in
+  `app.extensions`. Do not introduce module-level mutable globals or duplicate
+  service instances per request.
+- Keep third-party APIs, filesystem access, subprocesses, and network calls at
+  explicit boundaries. Domain code should depend on narrow wrappers that tests
+  can replace with fakes.
+- Validate untrusted input at the route boundary. Return consistent, useful
+  errors without exposing internal exceptions, paths, credentials, or profile
+  data.
+- Use explicit domain types and names. Avoid unstructured dictionaries crossing
+  several layers when a dataclass or other stable model would make the contract
+  clear.
+- Keep functions focused and favor guard clauses over nested conditionals.
+  Catch only exceptions that can be handled meaningfully; never use a silent
+  blanket `except`.
+- Keep I/O out of constructors when possible. Lifecycle and startup work is
+  coordinated by `create_app()` or an explicit service method.
+- Preserve API response shapes and persisted profile/cache formats unless a
+  coordinated migration is part of the task.
+- Tests must not use live accounts, the real network, or user profile data.
+
 ## Adding or Changing Backend Features
 
 1. Place an endpoint in the closest existing `src/routes/<domain>/` package.
@@ -43,6 +77,9 @@ Route families are organized by domain: `auth`, `profiles`, `library`,
    clients inside routes.
 5. Add or update focused tests under `tests/`. Route tests should use
    `RouteTestCase` and its fakes instead of real network or profile data.
+6. If a new domain is truly necessary, give it matching, cohesive route and
+   library packages rather than scattering related files across existing
+   domains.
 
 ## Profiles and Startup
 
