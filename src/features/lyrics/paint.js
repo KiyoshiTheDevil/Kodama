@@ -6,10 +6,18 @@
 // Map each non-space word entry to its space-delimited word-group index (for word-level glow).
 export function wordGroupIndices(allWords) {
   const groups = [];
-  let g = -1, inWord = false;
-  for (const w of (allWords || [])) {
-    if (w.isSpace) { inWord = false; }
-    else { if (!inWord) { g++; inWord = true; } groups.push(g); }
+  let g = -1,
+    inWord = false;
+  for (const w of allWords || []) {
+    if (w.isSpace) {
+      inWord = false;
+    } else {
+      if (!inWord) {
+        g++;
+        inWord = true;
+      }
+      groups.push(g);
+    }
   }
   return groups;
 }
@@ -33,8 +41,7 @@ export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, gr
     // Zoom only on a genuine sequential forward step to a not-yet-zoomed syllable.
     // Guards against (a) double-zoom from time-interpolation jitter flipping the index
     // back and forth, and (b) a spurious zoom when the index jumps (seek / line catch-up).
-    const doZoom =
-      zoomMaxRef && curWordIdx === prevIdx + 1 && curWordIdx > zoomMaxRef.current;
+    const doZoom = zoomMaxRef && curWordIdx === prevIdx + 1 && curWordIdx > zoomMaxRef.current;
     if (doZoom) zoomMaxRef.current = curWordIdx;
     for (let wi = 0; wi < els.length; wi++) {
       const el = els[wi];
@@ -61,7 +68,7 @@ export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, gr
             // single easing across the whole pulse.
             wrap.animate(
               [
-                { transform: "scale(1)",    easing: "ease-in-out" },
+                { transform: "scale(1)", easing: "ease-in-out" },
                 { transform: "scale(1.05)", offset: 0.5, easing: "ease-in-out" },
                 { transform: "scale(1)" },
               ],
@@ -97,7 +104,7 @@ export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, gr
     const el = els[curWordIdx];
     const word = words[curWordIdx];
     if (el && word) {
-      const pct = Math.min(100, (t - word.time) / Math.max(word.end - word.time, 0.001) * 100);
+      const pct = Math.min(100, ((t - word.time) / Math.max(word.end - word.time, 0.001)) * 100);
       el.style.WebkitMaskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
       el.style.maskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
     }
@@ -108,10 +115,28 @@ export function paintLineWords(line, els, wordIdxRef, t, zoomMaxRef = null, glow
   if (!line || !els || els.length === 0) return;
   // DOM order of bright spans: main words first, then bg words. Split and paint each
   // as its own sequence so the two vocal streams never bleed into each other's fill.
-  const mainWords = (line.words   || []).filter(w => !w.isSpace);
-  const bgWords   = (line.bgWords || []).filter(w => !w.isSpace);
+  const mainWords = (line.words || []).filter((w) => !w.isSpace);
+  const bgWords = (line.bgWords || []).filter((w) => !w.isSpace);
   const mainEls = mainWords.length ? els.slice(0, mainWords.length) : [];
-  const bgEls   = bgWords.length   ? els.slice(mainWords.length)     : [];
-  paintWordSeq(mainWords, mainEls, wordIdxRef, "current",   t, zoomMaxRef, glow, wordGroupIndices(line.words));
-  paintWordSeq(bgWords,   bgEls,   wordIdxRef, "bgCurrent", t, null, glow, wordGroupIndices(line.bgWords));
+  const bgEls = bgWords.length ? els.slice(mainWords.length) : [];
+  paintWordSeq(
+    mainWords,
+    mainEls,
+    wordIdxRef,
+    "current",
+    t,
+    zoomMaxRef,
+    glow,
+    wordGroupIndices(line.words)
+  );
+  paintWordSeq(
+    bgWords,
+    bgEls,
+    wordIdxRef,
+    "bgCurrent",
+    t,
+    null,
+    glow,
+    wordGroupIndices(line.bgWords)
+  );
 }
