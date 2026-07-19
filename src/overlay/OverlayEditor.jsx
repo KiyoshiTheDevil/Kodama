@@ -1469,16 +1469,24 @@ export default function OverlayEditor({
     liveEdit((b) => ({ ...b, canvas: { ...b.canvas, bg: { ...b.canvas.bg, ...patch } } }));
   const updateCanvasSub = (key, patch) =>
     liveEdit((b) => ({ ...b, canvas: { ...b.canvas, [key]: { ...b.canvas[key], ...patch } } }));
-  const setLayer = (id, patch) =>
-    liveEdit((b) => ({
-      ...b,
-      layers: b.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
-    }));
-  const setStyle = (id, patch) =>
-    liveEdit((b) => ({
-      ...b,
-      layers: b.layers.map((l) => (l.id === id ? { ...l, style: { ...l.style, ...patch } } : l)),
-    }));
+  const setLayer = useCallback(
+    (id, patch) =>
+      liveEdit((b) => ({
+        ...b,
+        layers: b.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+      })),
+    [liveEdit]
+  );
+  const setStyle = useCallback(
+    (id, patch) =>
+      liveEdit((b) => ({
+        ...b,
+        layers: b.layers.map((l) =>
+          l.id === id ? { ...l, style: { ...l.style, ...patch } } : l
+        ),
+      })),
+    [liveEdit]
+  );
   // Discrete toggles commit immediately.
   const toggleLayer = (id, patch) =>
     commit({ ...doc, layers: doc.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)) }, doc);
@@ -1516,10 +1524,10 @@ export default function OverlayEditor({
       setLayer(selected.id, { y });
     }
   };
-  const rotate90 = () => {
+  const rotate90 = useCallback(() => {
     if (selected)
       setLayer(selected.id, { rotation: ((((selected.rotation || 0) + 90) % 360) + 360) % 360 });
-  };
+  }, [selected, setLayer]);
 
   // Pick a local image → embed as data URL on the layer (Tauri dialog).
   const pickImage = async (id) => {
