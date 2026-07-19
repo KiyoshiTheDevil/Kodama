@@ -356,7 +356,7 @@ body,
   height: 100%;
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--font);
+  font-family: var(--font), sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;

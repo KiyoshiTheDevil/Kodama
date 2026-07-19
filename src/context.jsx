@@ -10,7 +10,7 @@ import { translate } from "./i18n.js";
 export const LangContext = createContext("de");
 export const useLang = () => {
   const lang = useContext(LangContext);
-  return (key, vars) => translate(lang, key, vars);
+  return (key, vars = {}) => translate(lang, key, vars);
 };
 
 // ─── Animation Context ────────────────────────────────────────────────────────
