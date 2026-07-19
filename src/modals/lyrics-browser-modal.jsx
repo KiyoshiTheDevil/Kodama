@@ -43,6 +43,7 @@ function LyricsBrowserModal({
   currentSubmitter,
   currentVersionId,
   onApply,
+  onOpenComposer,
   onClose,
 }) {
   const t = useLang();
@@ -138,7 +139,7 @@ function LyricsBrowserModal({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [providers, track.album, track.artists, track.duration, track.title, track.videoId]);
 
   const lineText = (l) => (l.text || (l.words || []).map((w) => w.text).join("")).trim();
   const previewOf = (lrc) => (lrc || []).map(lineText).filter(Boolean).slice(0, 3).join(" / ");
@@ -335,7 +336,7 @@ function LyricsBrowserModal({
                 fullWidth
                 className="justify-center gap-2"
                 onPress={() => {
-                  openComposer(track?.videoId).catch(console.error);
+                  onOpenComposer().catch(console.error);
                   onClose();
                 }}
               >

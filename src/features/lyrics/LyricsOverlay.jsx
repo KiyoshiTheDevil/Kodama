@@ -1133,6 +1133,7 @@ export function LyricsOverlay({
           currentSubmitter={submitterName}
           currentVersionId={appliedVersionId}
           onApply={applyLyricsVersion}
+          onOpenComposer={() => openComposer(track?.videoId)}
           onClose={() => setBrowserOpen(false)}
         />
       )}
