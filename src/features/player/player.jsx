@@ -188,7 +188,9 @@ export function Player({
           urlCachePut(videoId, cachedUrl);
           return cachedUrl;
         }
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
       const useRust = audioRef.current && audioRef.current._fallback === false;
       // Progressive (default): hand the Rust core the range-streaming proxy URL so it starts
       // playing as soon as the header is fetched, instead of waiting for a full yt-dlp download.
@@ -264,12 +266,16 @@ export function Player({
         // play is extraction-free. No bytes are downloaded — playback streams on demand.
         try {
           await fetch(`${API}/audio-stream/${tk.videoId}/warm`);
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       } else if (!urlCache.current.has(tk.videoId)) {
         // Classic: pre-download to disk.
         try {
           await fetchUrl(tk.videoId);
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       }
     }
   }, [fetchUrl]);

@@ -5,9 +5,9 @@ import { thumb } from "@/shared/api/thumbnails.js";
 import { AppShell } from "./AppShell.jsx";
 import { GLOBAL_KEYFRAMES } from "./global-keyframes.js";
 import {
-  LanguagePickerScreen,
   FfmpegSetupScreen,
   FfmpegUpdateBanner,
+  LanguagePickerScreen,
   SplashScreen,
 } from "./startup-screens.jsx";
 import { storageCodecs, usePersistedState } from "@/shared/hooks/use-persisted-state.js";
@@ -46,19 +46,6 @@ import { useIpv4First } from "@/features/settings/use-ipv4-first.js";
 
 const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
 
-// openOverlayEditor moved to src/app/AppShell.jsx (Step 13a-i).
-
-// openComposer (community-lyrics editor bridge) moved to features/lyrics/LyricsOverlay.jsx.
-
-// APP_VERSION (Vite-injected) moved to src/app/AppShell.jsx — its only consumer, BugReportModal,
-// lives there now.
-
-// News feed + anonymous heartbeat now live in app/hooks/use-news.js.
-
-// IS_MAC moved to src/app/AppShell.jsx (Step 13a-i) — App no longer renders any platform-specific
-// chrome directly.
-
-// Stepped values for the zoom and font-size sliders
 const ZOOM_STEPS = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5];
 const FONT_STEPS = [0.85, 0.93, 1.0, 1.1, 1.2, 1.35, 1.5];
 const UI_ZOOM_STORAGE = {
@@ -78,25 +65,17 @@ const FONT_SCALE_STORAGE = {
   },
 };
 
-// Live app-icon default, read by the icon-apply effect; the picker and its full icon groups
-// live in the settings feature.
 const APP_ICON_DEFAULT = "Kodama App Icon - Standard Pink.png";
-
-// Map of what used to live at App.jsx module scope and where it moved:
-//   audio → features/player/ipc-audio.js · titlebar / context-menu / ambient-backdrop → shared/ui/
-//   sidebar + shell layout → app/AppShell.jsx · startup screens → app/startup-screens.jsx
-//   global keyframes → app/global-keyframes.js · accent helpers → shared/lib/accent.js
-//   music views → features/music/ · lyrics overlay → features/lyrics/ · login → app/AppShell.jsx
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [splashFading, setSplashFading] = useState(false);
-  // Skip FFmpeg screen if we already confirmed it available in a previous run.
+
   const [ffmpegSetupDone, setFfmpegSetupDone] = useState(
     () => localStorage.getItem("kiyoshi-ffmpeg-ok") === "1"
   );
-  // Background check: offer an FFmpeg update when gyan.dev has a newer release than installed.
-  const [ffmpegUpdate, setFfmpegUpdate] = useState(null); // null | { installed, latest }
+
+  const [ffmpegUpdate, setFfmpegUpdate] = useState(null);
   useEffect(() => {
     if (!ffmpegSetupDone || !navigator.onLine) return;
     let cancelled = false;
@@ -106,8 +85,10 @@ export default function App() {
         if (cancelled || !d.updateAvailable) return;
         if (localStorage.getItem("kiyoshi-ffmpeg-update-dismissed") === d.latest) return;
         setFfmpegUpdate({ installed: d.installed, latest: d.latest });
-      } catch { /* intentionally ignored */ }
-    }, 6000); // defer so it never competes with startup work
+      } catch {
+        /* intentionally ignored */
+      }
+    }, 6000);
     return () => {
       cancelled = true;
       clearTimeout(tid);
@@ -123,22 +104,14 @@ export default function App() {
     };
   }, []);
 
-  // Sidebar/queue resize geometry, split-view, selection state, context menus, and
-  // playlist/settings/feedback/debug dialogs now live in src/app/AppShell.jsx (Step 13a-i).
   const [pinnedIds, setPinnedIds] = useState([]);
 
-  // ─── Toast Notifications (HeroUI toast system) ───────────────────────────────
-  // Thin wrapper so all existing addToast(message, type) call sites keep working.
   const addToast = useCallback((message, type = "info") => {
     if (type === "error") toast.danger(message, { timeout: 6000 });
     else if (type === "success") toast.success(message, { timeout: 3500 });
     else toast(message, { timeout: 3500 });
   }, []);
 
-  // App update lifecycle (useAppUpdate) moved wholesale to src/app/AppShell.jsx (Step 13a-i) —
-  // its only consumers (Sidebar, SettingsPanel) live there now.
-
-  // Start Rust audio-level collection on mount.
   useEffect(() => {
     startAudioLevels();
   }, []);
@@ -159,9 +132,6 @@ export default function App() {
     window.dispatchEvent(new Event("kiyoshi-pins-updated"));
   }, []);
 
-  // openContextMenu/settingsOpen/settingsClosing/settingsTab/settingsInitialTab, the news feed
-  // (useNews), the feedback/bug-report dialog, and closeSettings/selectSettingsSection all moved
-  // to src/app/AppShell.jsx (Step 13a-i).
   const [accent, setAccent] = useState(() => {
     const saved = localStorage.getItem("kiyoshi-accent");
     if (saved) document.documentElement.style.setProperty("--accent", saved);
@@ -216,8 +186,7 @@ export default function App() {
   const [ambientBackground, setAmbientBackground] = useState(
     () => localStorage.getItem("kiyoshi-ambient-bg") === "true"
   );
-  // flashbang state now lives in AppShell; this ref lets handleThemeChange (pinned here by the
-  // appearanceSettings memo closure) trigger it without prop-threading a setter upward.
+
   const flashbangTriggerRef = useRef(null);
   const lightClickRef = useRef({ count: 0, lastTime: 0 });
 
@@ -279,11 +248,7 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
   const [searchQuery, setSearchQuery] = useState("");
-  // Music navigation domain (see features/music/hooks/use-music-navigation.js): view, back-nav
-  // history, the open collection/artist, and the open*/navigateTo/goBack commands. Consumed here
-  // via destructure so existing JSX/prop chains are unchanged (Step 12), same pattern as the
-  // player controller below. Must run before useProfiles/useNetworkStatus — both inject this
-  // hook's setView/setAppKey/setCollection setters into their own reset sequences.
+
   const {
     view,
     setView,
@@ -302,12 +267,9 @@ export default function App() {
     navigateTo,
     goBack,
   } = useMusicNavigation({ setSearchQuery });
-  // Player controller owns the audio, track, queue, playing state, and playback commands.
-  // Consumed here via destructure so existing JSX/prop chains are unchanged (Step 11).
-  // resetLyricsSessionRef is populated further down, once the lyrics-session state exists.
+
   const resetLyricsSessionRef = useRef(null);
-  // These values are declared below the controller. Refs let player-native bridges read
-  // the latest settings without reordering the existing settings/hooks graph.
+
   const playerIntegrationRef = useRef({ discordRpc: true, obsEnabled: false, obsPort: 9848 });
   const lastfm = useLastfmClient();
   const player = usePlayerController({
@@ -335,8 +297,6 @@ export default function App() {
     () => localStorage.getItem("kiyoshi-discord-rpc") !== "false"
   );
 
-  // Dynamic accent: when enabled, derive --accent live from the current cover; otherwise
-  // fall back to the fixed accent. Re-runs whenever the track or the mode changes.
   useEffect(() => {
     if (!accentDynamic) {
       document.documentElement.style.setProperty("--accent", accent);
@@ -367,10 +327,9 @@ export default function App() {
     };
   }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight]);
 
-  // ─── Usage stats: total app usage time + total song playtime (persisted, global) ───
   const usageSecRef = useRef(Number(localStorage.getItem("kiyoshi-total-usage") || 0));
   const playtimeSecRef = useRef(Number(localStorage.getItem("kiyoshi-total-playtime") || 0));
-  // App usage: count seconds while the window is visible.
+
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -387,7 +346,7 @@ export default function App() {
       window.removeEventListener("beforeunload", flush);
     };
   }, []);
-  // Song playtime: count seconds while actually playing.
+
   useEffect(() => {
     if (!isPlaying) return;
     const id = setInterval(() => {
@@ -410,7 +369,6 @@ export default function App() {
     );
   }, [closeTray]);
 
-  // ── OBS overlay server (see features/overlay/hooks/use-obs-overlay.js) ──
   const { obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, saveObsPort } =
     useObsOverlay();
   useEffect(() => {
@@ -418,9 +376,7 @@ export default function App() {
     refreshNativeIntegrations();
   }, [discordRpc, obsEnabled, obsPort, refreshNativeIntegrations]);
   const [overlayOpen, setOverlayOpen] = useState(false);
-  // lyricsRefetchKey/forcedLyricsProvider/currentLyricsSource/failedLyricsProviders and the
-  // resetLyricsSessionRef.current wiring now live in AppShell (Step 13a-i); the ref itself is
-  // still created here since usePlayerController (above) is injected with it.
+
   const [showLyricsTranslation, setShowLyricsTranslation] = useState(
     () => localStorage.getItem("kiyoshi-lyrics-translation") === "true"
   );
@@ -436,41 +392,23 @@ export default function App() {
   const [fluidLyrics, setFluidLyrics] = useState(
     () => localStorage.getItem("kiyoshi-lyrics-fluid") === "true"
   );
-  // isCustomLyrics, importLyricsRef/removeCustomLyricsRef, the reset-lyrics-on-track-change
-  // effect, splitView/splitRatio/splitResizing/startSplitResize, showLyricsRef/splitViewRef,
-  // lastInstSwitchRef, setShowLyricsManual, and handleInstrumentalChange now live in AppShell.
-  // autoCoverRef stays here (it's mirrored by AppShell but also written by this appearanceSettings
-  // memo's onToggleInstrumentalViz below, so it's a shared ref passed down as a prop).
+
   const [showAgentTags, setShowAgentTags] = useState(
     () => localStorage.getItem("kiyoshi-lyrics-agent-tags") !== "false"
   );
   const [showLyrics, setShowLyrics] = useState(true);
   const autoCoverRef = useRef(false);
   const [queueOpen, setQueueOpen] = useState(false);
-  // fullscreen/playerVisible/cursorVisible/hideTimerRef + the idle-cursor effect, and
-  // queueSettled + its effect, now live in AppShell (Step 13a-i).
-
-  // Composer-pause and native window title now live in usePlayerController (Step 11d).
-
-  // Playback commands (handlePlay/enqueue/startSongRadio/playByVideoId), the Big Picture
-  // bridge, and deep-link handling moved to features/player/use-player-controller.js (Step 11).
 
   const [language, setLanguage] = useState(() => getInitialLang());
 
-  // ── Downloads + local cache (see features/downloads/hooks/use-download-manager.js) ──
   const downloads = useDownloadManager({ addToast, language });
-  // Distributed to views/PlaylistLayout/Player/track-context-menu via DownloadContext (Step 12);
-  // App keeps only what the download-queue progress card (still App-owned, passed to AppShell as
-  // props) reads/acts on directly.
   const { downloadBatches, downloadQueueMin, setDownloadQueueMin, handleCancelBatch } = downloads;
-
-  // handleSearch/addRecentPlaylist/removeRecentPlaylist/openPlaylist/openAlbum now live in
-  // features/music/hooks/use-music-navigation.js (Step 12).
 
   const [animations, setAnimations] = useState(
     () => localStorage.getItem("kiyoshi-animations") !== "false"
   );
-  // queueSettled + its effect now live in AppShell (Step 13a-i).
+
   const [lyricsFontSize, setLyricsFontSize] = useState(() => {
     const s = parseInt(localStorage.getItem("kiyoshi-lyrics-font-size"));
     return isNaN(s) ? 32 : s;
@@ -493,7 +431,7 @@ export default function App() {
     setShowTrackNumbers(on);
     localStorage.setItem("kodama-track-numbers", String(on));
   }, []);
-  // Anonymous active-user stats: default ON, one-click opt-out. See analytics/.
+
   const [anonStats, setAnonStats] = useState(
     () => localStorage.getItem("kodama-anon-stats") !== "false"
   );
@@ -538,7 +476,7 @@ export default function App() {
         const label = shortcutLabels[stored] || CODE_DISPLAY_FALLBACK[stored] || stored;
         return label.length === 1 ? label.toUpperCase() : label;
       }
-      // Compound: "Ctrl+Equal" → "Ctrl+="
+
       const parts = stored.split("+");
       const code = parts[parts.length - 1];
       const mods = parts.slice(0, -1);
@@ -569,17 +507,14 @@ export default function App() {
     });
   }, [appFontScale]);
 
-  // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),
-  // damit position:fixed / 100vh-Werte korrekt bleiben.
   const [lyricsProviders, setLyricsProviders] = useState(() => {
     const validIds = new Set(DEFAULT_LYRICS_PROVIDERS.map((p) => p.id));
     try {
       const saved = localStorage.getItem("kiyoshi-lyrics-providers");
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Remove providers that no longer exist (e.g. old Kimuco entry)
         const filtered = parsed.filter((p) => validIds.has(p.id));
-        // Add any new default providers not yet in the saved list
+
         const ids = filtered.map((p) => p.id);
         const merged = [
           ...filtered,
@@ -587,10 +522,12 @@ export default function App() {
         ];
         return merged;
       }
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     return DEFAULT_LYRICS_PROVIDERS;
   });
-  // Migration: add newly introduced providers / remove obsolete ones
+
   useEffect(() => {
     const validIds = new Set(DEFAULT_LYRICS_PROVIDERS.map((p) => p.id));
     setLyricsProviders((current) => {
@@ -605,9 +542,6 @@ export default function App() {
   }, []);
   const { ipv4First, toggleIpv4First } = useIpv4First();
 
-  // ── LAN remote control (see features/remote/hooks/use-remote-control.js) ──
-  // Enabling starts the token-gated phone endpoints on the (already 0.0.0.0) backend.
-  // The Player pushes now-playing state + drains commands while enabled.
   const {
     remoteEnabled,
     remoteInfo,
@@ -620,8 +554,6 @@ export default function App() {
     remoteRememberDevice,
   } = useRemoteControl();
 
-  // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
-  // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
   const [appIcon, setAppIcon] = useState(
     () => localStorage.getItem("kodama-app-icon") || APP_ICON_DEFAULT
   );
@@ -641,19 +573,12 @@ export default function App() {
     },
     [applyAppIcon]
   );
-  // Re-apply the user's chosen icon on each launch (only if they customized it).
+
   useEffect(() => {
     const stored = localStorage.getItem("kodama-app-icon");
     if (stored && stored !== APP_ICON_DEFAULT) applyAppIcon(stored);
   }, [applyAppIcon]);
 
-  // Per-transition crossfade overrides: { "fromId__toId": { secs, fromTitle, toTitle } }.
-  // A pair override beats the global default; secs 0 = hard cut for that one transition.
-  // ── Profile / Auth ──
-  // ── Profiles / auth / session (see features/profiles/hooks/use-profiles.js) ──
-  // The account switch/remove/logout commands reset app-wide UI as a single business
-  // sequence; those state cells are still App-owned, so their setters are injected while
-  // the ordering stays in the profile domain.
   const profile = useProfiles({
     addToast,
     setPinnedIds,
@@ -667,10 +592,7 @@ export default function App() {
     setQueueOpen,
     stopPlayback,
   });
-  // Account actions (switch/add/reauth/remove/rename/avatar/logout) are consumed through
-  // ProfileContext now (Sidebar, settings account tab, profile-switcher modal — see
-  // features/profiles/profile-context.jsx); App keeps only the startup/auth-gate state and
-  // `profiles`/`fetchProfiles`, which it still reads directly (home greeting, network status).
+
   const {
     profiles,
     showLogin,
@@ -686,34 +608,20 @@ export default function App() {
     fetchProfiles,
   } = profile;
 
-  // Keepalive ping to prevent server connection timeout
   useEffect(() => {
     const interval = setInterval(() => {
       fetch(`${API}/status`).catch(() => {});
-    }, 30000); // ping every 30s
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Cached-song id loading now lives in features/downloads/hooks/use-download-manager.js.
-
-  // Liked-song loading + optimistic toggle now live in features/music/hooks/use-likes.js.
-
-  // OBS overlay auto-start on mount lives in features/overlay/hooks/use-obs-overlay.js.
-
-  // ── Liked-songs domain (see features/music/hooks/use-likes.js) ──
   const { likedIds, handleToggleLike } = useLikes({ lastfm });
 
-  // ── Network status + offline mode (see app/hooks/use-network-status.js) ──
   const { offlineMode, isActuallyOffline, isOffline } = useNetworkStatus({
     fetchProfiles,
     setAppKey,
     setView,
   });
-
-  // Debug float window toggle now lives in AppShell (Step 13a-i).
-
-  // Auth bootstrap (validate → cache fallback → background poll) lives in
-  // features/profiles/hooks/use-profiles.js.
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang);
@@ -726,7 +634,6 @@ export default function App() {
     });
   };
 
-  // Sync tray labels with current language on startup
   useEffect(() => {
     const lang = localStorage.getItem("kiyoshi-lang") || "de";
     import("@tauri-apps/api/core").then(({ invoke }) => {
@@ -737,12 +644,11 @@ export default function App() {
     });
   }, []);
 
-  // Mouse wheel volume control — only on player bar area
   useEffect(() => {
     const onWheel = (e) => {
       const audio = audioRef.current;
       if (!audio) return;
-      // Only adjust volume when hovering over the volume area
+
       const playerBar = e.target.closest?.("[data-volume-area]");
       if (!playerBar) return;
       e.preventDefault();
@@ -754,16 +660,6 @@ export default function App() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [audioRef]);
 
-  // artistView/openArtist/navigateTo/goBack now live in
-  // features/music/hooks/use-music-navigation.js (Step 12).
-
-  // Clear-selection-on-view-change and the keyboard-shortcut effect now live in AppShell
-  // (Step 13a-i). openFeedback previously lived here too.
-
-  // Settings domain slices — each is an independent, memoized value/actions object so a change in
-  // one domain (e.g. a lyric toggle) does not invalidate consumers of another (e.g. appearance).
-  // App remains the temporary owner of the underlying state/persistence; these objects only carry
-  // it into the settings feature via SettingsProviders. See features/settings/settings-context.jsx.
   const appearanceSettings = useMemo(
     () => ({
       accent,
@@ -867,8 +763,6 @@ export default function App() {
     ]
   );
 
-  // Autoplay/crossfade/progressive-mode state and persistence are owned by the player controller
-  // (Step 11f); App only adapts the controller's values/actions into the settings shape.
   const playbackSettings = useMemo(
     () => ({
       autoplay: player.autoplay,
@@ -1026,13 +920,6 @@ export default function App() {
     ]
   );
 
-  // AnimatedView moved to AppShell (Step 13a-i).
-
-  // ── AppShell prop bundles (Step 13a-ii) ──────────────────────────────────────
-  // Everything below is pinned to App by a settings-memo closure or a profile/navigation-reset
-  // injection (see the Step 13 boundary map). Grouped into named objects instead of a flat prop
-  // list, mirroring the appearanceSettings-style pattern; AppShell isn't memoized, so these are
-  // plain object literals rather than useMemo — object identity doesn't gate any re-render here.
   const appShellNav = {
     view,
     setView,

@@ -1,5 +1,21 @@
 import { useEffect, useState } from "react";
-import { Button, cn, InputRoot, ModalBackdrop, ModalBody, ModalCloseTrigger, ModalContainer, ModalDialog, ModalFooter, ModalHeader, ModalHeading, ModalIcon, ModalRoot, TextFieldRoot, toast } from "@heroui/react";
+import {
+  Button,
+  cn,
+  InputRoot,
+  ModalBackdrop,
+  ModalBody,
+  ModalCloseTrigger,
+  ModalContainer,
+  ModalDialog,
+  ModalFooter,
+  ModalHeader,
+  ModalHeading,
+  ModalIcon,
+  ModalRoot,
+  TextFieldRoot,
+  toast,
+} from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import {
@@ -96,7 +112,9 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     try {
       const hk = `kiyoshi-history-${window.__activeProfile || "default"}`;
       history = (JSON.parse(localStorage.getItem(hk) || "[]") || []).length;
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setStats((s) => ({
       ...s,
       usage: Number(localStorage.getItem("kiyoshi-total-usage") || 0),
@@ -159,7 +177,9 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     try {
       localStorage.removeItem(`kiyoshi-history-${window.__activeProfile || "default"}`);
       window.dispatchEvent(new Event("kiyoshi-history-updated"));
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setStats((s) => ({ ...s, history: 0 }));
     setConfirmClearHistory(false);
     toast.success(t("historyCleared"));

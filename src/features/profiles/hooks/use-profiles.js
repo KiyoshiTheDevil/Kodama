@@ -52,7 +52,9 @@ export function useProfiles({
           "kiyoshi-profiles-cache",
           JSON.stringify({ profiles: d.profiles || [], current: d.current || null })
         );
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
       setProfiles(d.profiles || []);
       setCurrentProfile(d.current || null);
       if (d.current) {
@@ -63,7 +65,9 @@ export function useProfiles({
               (p) => p.playlistId || p.browseId
             )
           );
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       }
       // Notify once when the active (real) account's session has expired, so the user knows to
       // refresh it. Reset when it's valid again so a later expiry warns anew.
@@ -78,7 +82,9 @@ export function useProfiles({
       } else if (active && !active.loggedOut) {
         sessionWarnedRef.current = null;
       }
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   }, [addToast, setPinnedIds]);
 
   // Keep the YT-Music session alive long-term: a hidden "session-keeper" WebView (a real
@@ -165,7 +171,9 @@ export function useProfiles({
   const handleAccountAdd = useCallback(async () => {
     try {
       await fetch(`${API}/auth/begin-add`, { method: "POST" });
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setAddingProfile(true);
     setShowLogin(true);
   }, []);
@@ -297,7 +305,9 @@ export function useProfiles({
             (p) => p.playlistId || p.browseId
           )
         );
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
       return true;
     } catch {
       return false;
@@ -329,10 +339,14 @@ export function useProfiles({
             const c = JSON.parse(localStorage.getItem("kiyoshi-profiles-cache") || "{}");
             const cur = (c.profiles || []).find((p) => p.name === c.current);
             if (cur && cur.type !== "local") expired = cur;
-          } catch { /* intentionally ignored */ }
+          } catch {
+            /* intentionally ignored */
+          }
           try {
             localStorage.removeItem("kiyoshi-profiles-cache");
-          } catch { /* intentionally ignored */ }
+          } catch {
+            /* intentionally ignored */
+          }
           if (expired) setReauthName(expired.name);
           // Language selection is the first fresh-install decision. Defer the
           // profile/login screen until it has been made, then App opens it.
@@ -353,7 +367,9 @@ export function useProfiles({
           try {
             const p = JSON.parse(raw || "{}");
             hasCache = p.profiles?.length > 0 && p.current;
-          } catch { /* intentionally ignored */ }
+          } catch {
+            /* intentionally ignored */
+          }
           if (!hasCache && localStorage.getItem("kiyoshi-lang")) setShowLogin(true);
           // Keep pinging in background; once backend responds, sync live data
           bgIntervalId = setInterval(async () => {
@@ -370,7 +386,9 @@ export function useProfiles({
               if (d.valid || d.reason === "adding_account") {
                 fetchProfiles();
               }
-            } catch { /* intentionally ignored */ }
+            } catch {
+              /* intentionally ignored */
+            }
           }, 3000);
         }
       }

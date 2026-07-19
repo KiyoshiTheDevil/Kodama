@@ -18,7 +18,9 @@ export function setSoundsEnabled(v) {
   enabled = !!v;
   try {
     localStorage.setItem("kodama-bp-sounds", enabled ? "true" : "false");
-  } catch { /* intentionally ignored */ }
+  } catch {
+    /* intentionally ignored */
+  }
 }
 
 function ac() {

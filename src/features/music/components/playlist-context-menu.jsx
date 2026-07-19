@@ -2,7 +2,17 @@ import { DropdownSection, toast } from "@heroui/react";
 import { ContextMenu, CtxItem } from "@/shared/ui/context-menu.jsx";
 import { translate } from "@/shared/i18n/i18n.js";
 import { itemId } from "@/features/music/lib/playlist-id.js";
-import { Copy, DotsThreeVertical, Microphone, PencilSimple, PushPin, ShareNodes, Trash, VinylRecord, X } from "@/shared/icons/icons.jsx";
+import {
+  Copy,
+  DotsThreeVertical,
+  Microphone,
+  PencilSimple,
+  PushPin,
+  ShareNodes,
+  Trash,
+  VinylRecord,
+  X,
+} from "@/shared/icons/icons.jsx";
 
 // Global playlist/album/artist context menu — extracted from AppShell.jsx (Step 13b). `menu` is
 // the { x, y, playlist } object AppShell tracks as `globalContextMenu`.

@@ -84,35 +84,37 @@ export function HistoryView({
   return (
     <div data-testid="view-history">
       <PlaylistLayout
-      title={t("history")}
-      thumbnail={null}
-      tracks={tracks}
-      total={tracks.length}
-      loading={false}
-      progress={0}
-      cached={false}
-      onBack={onBack}
-      typeLabel={t("history")}
-      isLiked={false}
-      onOpenArtist={onOpenArtist}
-      onOpenAlbum={onOpenAlbum}
-      onTrackContextMenu={(e, tr) => {
-        const idx = tracks.findIndex((x) => x === tr);
-        onTrackContextMenu(e, tr, {
-          removeFromHistory: () => {
-            if (anim) {
-              try {
-                particleBurst(
-                  document.querySelector(`[data-track-id="${CSS.escape(tr.videoId)}"]`)
-                );
-              } catch { /* intentionally ignored */ }
-            }
-            removeFromHistory(idx);
-          },
-        });
-      }}
-      hideExplicit={hideExplicit}
-      extraActions={clearHistoryBtn}
+        title={t("history")}
+        thumbnail={null}
+        tracks={tracks}
+        total={tracks.length}
+        loading={false}
+        progress={0}
+        cached={false}
+        onBack={onBack}
+        typeLabel={t("history")}
+        isLiked={false}
+        onOpenArtist={onOpenArtist}
+        onOpenAlbum={onOpenAlbum}
+        onTrackContextMenu={(e, tr) => {
+          const idx = tracks.findIndex((x) => x === tr);
+          onTrackContextMenu(e, tr, {
+            removeFromHistory: () => {
+              if (anim) {
+                try {
+                  particleBurst(
+                    document.querySelector(`[data-track-id="${CSS.escape(tr.videoId)}"]`)
+                  );
+                } catch {
+                  /* intentionally ignored */
+                }
+              }
+              removeFromHistory(idx);
+            },
+          });
+        }}
+        hideExplicit={hideExplicit}
+        extraActions={clearHistoryBtn}
       />
     </div>
   );

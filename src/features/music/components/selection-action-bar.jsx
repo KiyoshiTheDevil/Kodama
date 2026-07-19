@@ -137,7 +137,9 @@ export function SelectionActionBar({
                             }
                           : c
                       );
-                    } catch { /* intentionally ignored */ }
+                    } catch {
+                      /* intentionally ignored */
+                    }
                   }
                   onClearSelection();
                 }}

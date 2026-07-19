@@ -76,12 +76,16 @@ export function useNews() {
     try {
       const r = await fetch(NEWS_URL, { cache: "no-cache" });
       if (r.ok) items = await r.json();
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     if (!Array.isArray(items) || items.length === 0) {
       try {
         const r2 = await fetch(`${API}/news`);
         if (r2.ok) items = await r2.json();
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     }
     if (!Array.isArray(items)) return;
     // Keep only entries whose version range covers this build (min_version / max_version).

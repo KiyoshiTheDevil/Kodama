@@ -12,10 +12,33 @@ import {
   TextFieldRoot,
 } from "@heroui/react";
 
-import { ArrowClockwise, ArrowSquareOut, Bug, CaretDown, Check, CheckCircle, Copy, DownloadSimple, GripLines, HardDrives, ImageSquare, Microphone, MusicNote, Queue, UserCircle, VinylRecord, WarningCircle, X } from "@/shared/icons/icons.jsx";
+import {
+  ArrowClockwise,
+  ArrowSquareOut,
+  Bug,
+  CaretDown,
+  Check,
+  CheckCircle,
+  Copy,
+  DownloadSimple,
+  GripLines,
+  HardDrives,
+  ImageSquare,
+  Microphone,
+  MusicNote,
+  Queue,
+  UserCircle,
+  VinylRecord,
+  WarningCircle,
+  X,
+} from "@/shared/icons/icons.jsx";
 import { API } from "@/shared/api/client.js";
 import { useLang } from "@/shared/i18n/context.jsx";
-import { generateIdentity, importIdentityFile, exportIdentityFile } from "@/features/lyrics/community/identity.js";
+import {
+  generateIdentity,
+  importIdentityFile,
+  exportIdentityFile,
+} from "@/features/lyrics/community/identity.js";
 import { PROVIDER_SYNC } from "@/features/lyrics/providers.js";
 import {
   unisonSetNickname,
@@ -92,7 +115,9 @@ export function DownloadsTab({ t }) {
         setMp3Dir(selected);
         localStorage.setItem("kiyoshi-mp3-dir", selected);
       }
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   };
 
   const handleResetPath = () => {
@@ -1242,7 +1267,9 @@ export function UnisonIdentitySection() {
   const persist = (id) => {
     try {
       localStorage.setItem("kodama-unison-identity", JSON.stringify(id));
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setIdentity(id);
   };
 
@@ -1342,13 +1369,17 @@ export function UnisonIdentitySection() {
       });
       if (!path) return;
       await writeTextFile(path, JSON.stringify(exportIdentityFile(identity), null, 2));
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   };
 
   const remove = () => {
     try {
       localStorage.removeItem("kodama-unison-identity");
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setIdentity(null);
   };
 
@@ -1544,13 +1575,17 @@ export function FfmpegUpdateRow() {
           try {
             localStorage.setItem("kiyoshi-ffmpeg-update-dismissed", info?.latest || "");
             localStorage.setItem("kiyoshi-ffmpeg-ok", "1");
-          } catch { /* intentionally ignored */ }
+          } catch {
+            /* intentionally ignored */
+          }
           check();
         } else if (d.status === "error") {
           es.close();
           setPhase("error");
         }
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     };
     es.onerror = () => {
       es.close();

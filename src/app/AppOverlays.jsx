@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Button,
-  CardRoot,
-  InputRoot,
-  Spinner,
-  TextFieldRoot,
-} from "@heroui/react";
+import { Button, CardRoot, InputRoot, Spinner, TextFieldRoot } from "@heroui/react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { API } from "@/shared/api/client.js";
 import { useLang } from "@/shared/i18n/context.jsx";
@@ -121,7 +115,9 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("close_login_window");
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setStep("start");
   };
 
@@ -607,7 +603,9 @@ export function AppOverlays({
                     tracks: pending,
                   }),
                 });
-              } catch { /* intentionally ignored */ }
+              } catch {
+                /* intentionally ignored */
+              }
               if (createPlaylistForSelection) clearSelection();
             }
             setCreatePlaylistTracks(null);
@@ -706,7 +704,9 @@ export function AppOverlays({
             } else {
               try {
                 await fetch(`${API}/playlist/${pid}`, { method: "DELETE" });
-              } catch { /* intentionally ignored */ }
+              } catch {
+                /* intentionally ignored */
+              }
               window.dispatchEvent(new Event("kiyoshi-library-updated"));
               setView("library");
             }

@@ -132,7 +132,9 @@ function LyricsBrowserModal({
               base = [...without.slice(0, at), ...uVersions, ...without.slice(at)];
             }
           }
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       }
       if (!cancelled) setResults(base);
     })();

@@ -63,69 +63,72 @@ export function useMusicNavigation({ setSearchQuery }) {
     window.dispatchEvent(new Event("kiyoshi-recent-updated"));
   }, []);
 
-  const openPlaylist = useCallback((item, fromView, refresh = false) => {
-    // forcedTitle: when the caller provides a custom title (e.g. "Dusqk – Top Songs"),
-    // we keep it and don't let the stream header overwrite it.
-    if (!refresh) setNavHistory((h) => [...h, navStateRef.current]);
-    const forcedTitle = item.forcedTitle || null;
-    setCollection({
-      title: forcedTitle || item.title,
-      thumbnail: item.thumbnail,
-      tracks: [],
-      total: null,
-      loading: true,
-      progress: 0,
-      cached: false,
-      fromView: fromView || "library",
-      forcedTitle,
-      playlistId: item.playlistId,
-    });
-    setView("collection");
-    addRecentPlaylist({
-      playlistId: item.playlistId,
-      title: forcedTitle || item.title,
-      thumbnail: item.thumbnail,
-      ...(forcedTitle ? { forcedTitle } : {}),
-    });
+  const openPlaylist = useCallback(
+    (item, fromView, refresh = false) => {
+      // forcedTitle: when the caller provides a custom title (e.g. "Dusqk – Top Songs"),
+      // we keep it and don't let the stream header overwrite it.
+      if (!refresh) setNavHistory((h) => [...h, navStateRef.current]);
+      const forcedTitle = item.forcedTitle || null;
+      setCollection({
+        title: forcedTitle || item.title,
+        thumbnail: item.thumbnail,
+        tracks: [],
+        total: null,
+        loading: true,
+        progress: 0,
+        cached: false,
+        fromView: fromView || "library",
+        forcedTitle,
+        playlistId: item.playlistId,
+      });
+      setView("collection");
+      addRecentPlaylist({
+        playlistId: item.playlistId,
+        title: forcedTitle || item.title,
+        thumbnail: item.thumbnail,
+        ...(forcedTitle ? { forcedTitle } : {}),
+      });
 
-    // Animate progress bar while waiting (fake progress up to 85%)
-    let fakeProgress = 0;
-    const interval = setInterval(() => {
-      fakeProgress = Math.min(85, fakeProgress + Math.random() * 4);
-      setCollection((c) => (c?.loading ? { ...c, progress: Math.round(fakeProgress) } : c));
-    }, 400);
+      // Animate progress bar while waiting (fake progress up to 85%)
+      let fakeProgress = 0;
+      const interval = setInterval(() => {
+        fakeProgress = Math.min(85, fakeProgress + Math.random() * 4);
+        setCollection((c) => (c?.loading ? { ...c, progress: Math.round(fakeProgress) } : c));
+      }, 400);
 
-    const url = `${API}/playlist/${item.playlistId}/stream${refresh ? "?refresh=1" : ""}`;
-    const es = new EventSource(url);
-    es.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "header") {
-        setCollection((c) =>
-          c
-            ? {
-                ...c,
-                title: c.forcedTitle || msg.title,
-                thumbnail: msg.thumbnail || c.thumbnail,
-                total: msg.total,
-                cached: msg.cached || false,
-              }
-            : c
-        );
-      } else if (msg.type === "tracks") {
-        setCollection((c) => (c ? { ...c, tracks: [...c.tracks, ...msg.tracks] } : c));
-      } else if (msg.type === "done" || msg.type === "error") {
+      const url = `${API}/playlist/${item.playlistId}/stream${refresh ? "?refresh=1" : ""}`;
+      const es = new EventSource(url);
+      es.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "header") {
+          setCollection((c) =>
+            c
+              ? {
+                  ...c,
+                  title: c.forcedTitle || msg.title,
+                  thumbnail: msg.thumbnail || c.thumbnail,
+                  total: msg.total,
+                  cached: msg.cached || false,
+                }
+              : c
+          );
+        } else if (msg.type === "tracks") {
+          setCollection((c) => (c ? { ...c, tracks: [...c.tracks, ...msg.tracks] } : c));
+        } else if (msg.type === "done" || msg.type === "error") {
+          clearInterval(interval);
+          setCollection((c) => (c ? { ...c, progress: 100 } : c));
+          setTimeout(() => setCollection((c) => (c ? { ...c, loading: false } : c)), 400);
+          es.close();
+        }
+      };
+      es.onerror = () => {
         clearInterval(interval);
-        setCollection((c) => (c ? { ...c, progress: 100 } : c));
-        setTimeout(() => setCollection((c) => (c ? { ...c, loading: false } : c)), 400);
+        setCollection((c) => (c ? { ...c, loading: false } : c));
         es.close();
-      }
-    };
-    es.onerror = () => {
-      clearInterval(interval);
-      setCollection((c) => (c ? { ...c, loading: false } : c));
-      es.close();
-    };
-  }, [addRecentPlaylist]);
+      };
+    },
+    [addRecentPlaylist]
+  );
 
   const openAlbum = useCallback(
     async (item, fromView, refresh = false) => {

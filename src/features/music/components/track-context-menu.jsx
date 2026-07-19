@@ -10,7 +10,20 @@ import {
 import { API } from "@/shared/api/client.js";
 import { ContextMenu, CtxItem } from "@/shared/ui/context-menu.jsx";
 import { translate } from "@/shared/i18n/i18n.js";
-import { Copy, DownloadSimple, Heart, Microphone, MusicNote, Plus, Queue, Radio, ShareNodes, Trash, VinylRecord, X } from "@/shared/icons/icons.jsx";
+import {
+  Copy,
+  DownloadSimple,
+  Heart,
+  Microphone,
+  MusicNote,
+  Plus,
+  Queue,
+  Radio,
+  ShareNodes,
+  Trash,
+  VinylRecord,
+  X,
+} from "@/shared/icons/icons.jsx";
 import { particleBurst } from "@/shared/lib/particle-burst.js";
 import { buildShareLink } from "@/features/player/share-link.js";
 import { usePlayerActions } from "@/features/player/player-context.jsx";
@@ -119,7 +132,9 @@ export function TrackContextMenu({
     if (animations) {
       try {
         particleBurst(document.querySelector(`[data-track-id="${CSS.escape(track.videoId)}"]`));
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     }
     setCollection((c) =>
       c
@@ -140,7 +155,9 @@ export function TrackContextMenu({
           videos: [{ videoId: track.videoId, setVideoId: track.setVideoId }],
         }),
       });
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   };
   const removeDownload = () => removeCachedSong(track.videoId);
 

@@ -29,7 +29,9 @@ export function useObsOverlay() {
     try {
       const v2 = JSON.parse(localStorage.getItem("kiyoshi-overlay-doc"));
       if (v2 && v2.version === 2 && Array.isArray(v2.layers)) doc = v2;
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     if (!doc) {
       try {
         doc = normalizeOverlayDoc(JSON.parse(localStorage.getItem("kiyoshi-obs-config")));

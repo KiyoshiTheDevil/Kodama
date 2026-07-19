@@ -74,24 +74,24 @@ export function LikedView({
   return (
     <div data-testid="view-liked">
       <PlaylistLayout
-      title={t("likedSongs")}
-      thumbnail={null}
-      tracks={tracks}
-      total={tracks.length}
-      loading={false}
-      progress={0}
-      cached={false}
-      onBack={onBack || null}
-      isLiked={true}
-      onOpenArtist={onOpenArtist}
-      onOpenAlbum={onOpenAlbum}
-      onTrackContextMenu={onTrackContextMenu}
-      hideExplicit={hideExplicit}
-      onToggleLike={onToggleLike}
-      likedIds={likedIds}
-      selectedTracks={selectedTracks}
-      onToggleSelect={onToggleSelect}
-      onSelectAll={onSelectAll}
+        title={t("likedSongs")}
+        thumbnail={null}
+        tracks={tracks}
+        total={tracks.length}
+        loading={false}
+        progress={0}
+        cached={false}
+        onBack={onBack || null}
+        isLiked={true}
+        onOpenArtist={onOpenArtist}
+        onOpenAlbum={onOpenAlbum}
+        onTrackContextMenu={onTrackContextMenu}
+        hideExplicit={hideExplicit}
+        onToggleLike={onToggleLike}
+        likedIds={likedIds}
+        selectedTracks={selectedTracks}
+        onToggleSelect={onToggleSelect}
+        onSelectAll={onSelectAll}
       />
     </div>
   );

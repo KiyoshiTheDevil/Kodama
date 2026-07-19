@@ -34,10 +34,7 @@ import {
 } from "@/features/player/player-context.jsx";
 import { useProfileState } from "@/features/profiles/profile-context.jsx";
 import { SettingsSidebarContent } from "@/features/settings/settings-sidebar.jsx";
-import {
-  lockSettingsSection,
-  setSettingsSectionStore,
-} from "@/features/settings/section-store.js";
+import { lockSettingsSection, setSettingsSectionStore } from "@/features/settings/section-store.js";
 import { getInitialLang } from "@/shared/lib/lang.js";
 
 const EMPTY_TRACK_SELECTION = new Map();
@@ -244,25 +241,31 @@ export function AppShell({
   const selectedTracks =
     trackSelection.view === view ? trackSelection.tracks : EMPTY_TRACK_SELECTION;
 
-  const toggleTrackSelection = useCallback((track) => {
-    setTrackSelection((previous) => {
-      const next = new Map(previous.view === view ? previous.tracks : EMPTY_TRACK_SELECTION);
-      if (next.has(track.videoId)) next.delete(track.videoId);
-      else next.set(track.videoId, track);
-      return { view, tracks: next };
-    });
-  }, [view]);
+  const toggleTrackSelection = useCallback(
+    (track) => {
+      setTrackSelection((previous) => {
+        const next = new Map(previous.view === view ? previous.tracks : EMPTY_TRACK_SELECTION);
+        if (next.has(track.videoId)) next.delete(track.videoId);
+        else next.set(track.videoId, track);
+        return { view, tracks: next };
+      });
+    },
+    [view]
+  );
   const clearSelection = useCallback(() => {
     setTrackSelection((previous) =>
       previous.tracks.size === 0 ? previous : { ...previous, tracks: new Map() }
     );
   }, []);
-  const selectAllTracks = useCallback((tracks, allSelected) => {
-    setTrackSelection({
-      view,
-      tracks: allSelected ? new Map() : new Map(tracks.map((tr) => [tr.videoId, tr])),
-    });
-  }, [view]);
+  const selectAllTracks = useCallback(
+    (tracks, allSelected) => {
+      setTrackSelection({
+        view,
+        tracks: allSelected ? new Map() : new Map(tracks.map((tr) => [tr.videoId, tr])),
+      });
+    },
+    [view]
+  );
   const [trackContextMenu, setTrackContextMenu] = useState(null);
   const [addToPlaylistFor, setAddToPlaylistFor] = useState(null);
   const [renameDialog, setRenameDialog] = useState(null);
@@ -342,7 +345,8 @@ export function AppShell({
   const activeLyricsSession = lyricsSession.trackId === lyricsTrackId ? lyricsSession : null;
   const forcedLyricsProvider = activeLyricsSession?.forcedProvider ?? null;
   const currentLyricsSource = activeLyricsSession?.source ?? "";
-  const failedLyricsProviders = activeLyricsSession?.failedProviders ?? EMPTY_FAILED_LYRICS_PROVIDERS;
+  const failedLyricsProviders =
+    activeLyricsSession?.failedProviders ?? EMPTY_FAILED_LYRICS_PROVIDERS;
   const setForcedLyricsProvider = useCallback(
     (value) => {
       updateLyricsSession((session) => ({
@@ -365,8 +369,7 @@ export function AppShell({
     (value) => {
       updateLyricsSession((session) => ({
         ...session,
-        failedProviders:
-          typeof value === "function" ? value(session.failedProviders) : value,
+        failedProviders: typeof value === "function" ? value(session.failedProviders) : value,
       }));
     },
     [updateLyricsSession]

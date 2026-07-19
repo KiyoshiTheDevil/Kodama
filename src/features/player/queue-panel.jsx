@@ -10,7 +10,14 @@ import {
   ToggleButtonGroupRoot,
 } from "@heroui/react";
 
-import { ArrowClockwise, CaretLineUp, GripLines, Heart, Sliders, Trash } from "@/shared/icons/icons.jsx";
+import {
+  ArrowClockwise,
+  CaretLineUp,
+  GripLines,
+  Heart,
+  Sliders,
+  Trash,
+} from "@/shared/icons/icons.jsx";
 import { API } from "@/shared/api/client.js";
 import { thumb } from "@/shared/api/thumbnails.js";
 import { Tooltip } from "@/shared/ui/tooltip.jsx";

@@ -72,7 +72,9 @@ export function useDownloadManager({ addToast, language }) {
             })
           );
         }
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     }, 1500);
     return () => clearInterval(poll);
   }, [downloadingIds.size]);
@@ -186,7 +188,9 @@ export function useDownloadManager({ addToast, language }) {
           videoIds.forEach((id) => s.delete(id));
           return s;
         });
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     },
     [cachedSongIds]
   );
@@ -201,7 +205,9 @@ export function useDownloadManager({ addToast, language }) {
         s.delete(videoId);
         return s;
       });
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   }, []);
 
   // Mark a song as premium-only (surfaced when playback detects it can't be fetched).
@@ -273,7 +279,9 @@ export function useDownloadManager({ addToast, language }) {
             clearInterval(poll);
           }
         }, 2000);
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
     },
     [language, addToast]
   );

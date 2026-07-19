@@ -9,7 +9,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 // createPortal removed — font picker is now lifted to OverlayEditor level
-import { Button, Switch, NumberFieldRoot, NumberFieldGroup, NumberFieldInput, TextFieldRoot, InputRoot, SelectRoot, SelectTrigger, SelectValue, SelectIndicator, SelectPopover, ListBox, ListBoxItem } from "@heroui/react";
+import {
+  Button,
+  Switch,
+  NumberFieldRoot,
+  NumberFieldGroup,
+  NumberFieldInput,
+  TextFieldRoot,
+  InputRoot,
+  SelectRoot,
+  SelectTrigger,
+  SelectValue,
+  SelectIndicator,
+  SelectPopover,
+  ListBox,
+  ListBoxItem,
+} from "@heroui/react";
 import {
   ImageSquare,
   VinylRecord,
@@ -289,11 +304,15 @@ function loadInitialDoc() {
   try {
     const v2 = JSON.parse(localStorage.getItem("kiyoshi-overlay-doc"));
     if (isV2Doc(v2)) return normalizeOverlayDoc(v2);
-  } catch { /* intentionally ignored */ }
+  } catch {
+    /* intentionally ignored */
+  }
   try {
     const v1 = JSON.parse(localStorage.getItem("kiyoshi-obs-config"));
     if (v1) return normalizeOverlayDoc(v1);
-  } catch { /* intentionally ignored */ }
+  } catch {
+    /* intentionally ignored */
+  }
   return defaultOverlayDoc();
 }
 
@@ -1266,25 +1285,28 @@ export default function OverlayEditor({
 
   // Live edit: continuous edits (typing, color drag, sliders, nudging) coalesce
   // into ONE undo step (history captured at burst start) + one debounced POST.
-  const liveEdit = useCallback((producer) => {
-    const base = liveDocRef.current || doc;
-    const next = producer(base);
-    if (!next) return;
-    if (!nudgeActive.current) {
-      nudgeActive.current = true;
-      setPast((p) => [...p.slice(-60), base]);
-      setFuture([]);
-    }
-    liveDocRef.current = next;
-    setDoc(next);
-    liveToIframe(next);
-    clearTimeout(nudgeTimer.current);
-    nudgeTimer.current = setTimeout(() => {
-      nudgeActive.current = false;
-      liveDocRef.current = null;
-      pushDoc(next);
-    }, 350);
-  }, [doc, liveToIframe, pushDoc]);
+  const liveEdit = useCallback(
+    (producer) => {
+      const base = liveDocRef.current || doc;
+      const next = producer(base);
+      if (!next) return;
+      if (!nudgeActive.current) {
+        nudgeActive.current = true;
+        setPast((p) => [...p.slice(-60), base]);
+        setFuture([]);
+      }
+      liveDocRef.current = next;
+      setDoc(next);
+      liveToIframe(next);
+      clearTimeout(nudgeTimer.current);
+      nudgeTimer.current = setTimeout(() => {
+        nudgeActive.current = false;
+        liveDocRef.current = null;
+        pushDoc(next);
+      }, 350);
+    },
+    [doc, liveToIframe, pushDoc]
+  );
 
   // Commit: history + persist + push (used by add/delete, switches, undo).
   const commit = useCallback(
@@ -1409,9 +1431,7 @@ export default function OverlayEditor({
     (id, patch) =>
       liveEdit((b) => ({
         ...b,
-        layers: b.layers.map((l) =>
-          l.id === id ? { ...l, style: { ...l.style, ...patch } } : l
-        ),
+        layers: b.layers.map((l) => (l.id === id ? { ...l, style: { ...l.style, ...patch } } : l)),
       })),
     [liveEdit]
   );

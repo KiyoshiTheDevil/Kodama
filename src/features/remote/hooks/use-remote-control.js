@@ -30,7 +30,9 @@ export function useRemoteControl() {
       let trusted = [];
       try {
         trusted = JSON.parse(localStorage.getItem("kodama-remote-trusted") || "[]");
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
       const savedToken = localStorage.getItem("kodama-remote-token") || "";
       const d = await fetch(`${API}/remote/_enable`, {
         method: "POST",
@@ -46,7 +48,9 @@ export function useRemoteControl() {
       if (d.enabled && d.token) {
         try {
           localStorage.setItem("kodama-remote-token", d.token);
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       }
       if (!d.enabled) setRemoteDevices([]);
     } catch (e) {
@@ -66,7 +70,9 @@ export function useRemoteControl() {
         const next = prev.filter((x) => x.id !== id);
         try {
           localStorage.setItem("kodama-remote-trusted", JSON.stringify(next));
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
         return next;
       });
     }
@@ -79,7 +85,9 @@ export function useRemoteControl() {
         : prev.filter((x) => x.id !== id);
       try {
         localStorage.setItem("kodama-remote-trusted", JSON.stringify(next));
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
       return next;
     });
   }, []);

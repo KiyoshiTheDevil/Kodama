@@ -219,7 +219,9 @@ function LyricsOverlayContent({
           failedIds: [],
         })
       );
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   };
   // The active line affects the React tree. Per-word timing stays in refs so the rAF loop can
   // paint syllables without turning every animation frame into a React render.
@@ -604,7 +606,9 @@ function LyricsOverlayContent({
     if (!track?.videoId) return;
     try {
       await fetch(`${API}/lyrics/custom/${track.videoId}`, { method: "DELETE" });
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
     setIsCustomLyrics(false);
     setLyrics(null);
     setSource("");
@@ -720,17 +724,23 @@ function LyricsOverlayContent({
                       failedIds: ids,
                     })
                   );
-                } catch { /* intentionally ignored */ }
+                } catch {
+                  /* intentionally ignored */
+                }
               });
             }
             return;
           }
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       } else {
         // Clear stale cache before refetching
         try {
           localStorage.removeItem(cacheKey);
-        } catch { /* intentionally ignored */ }
+        } catch {
+          /* intentionally ignored */
+        }
       }
 
       fetchLyrics(
@@ -757,7 +767,9 @@ function LyricsOverlayContent({
                 failedIds: res.failedIds || [],
               })
             );
-          } catch { /* intentionally ignored */ }
+          } catch {
+            /* intentionally ignored */
+          }
         }
         // Mark providers that were tried but failed
         res?.failedIds?.forEach((id) => onProviderFailed?.(id));

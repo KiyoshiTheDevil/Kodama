@@ -1,8 +1,66 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, CardRoot, cn, KbdContent, KbdRoot, ProgressBar, ProgressBarFill, ProgressBarTrack } from "@heroui/react";
+import {
+  Button,
+  CardRoot,
+  cn,
+  KbdContent,
+  KbdRoot,
+  ProgressBar,
+  ProgressBarFill,
+  ProgressBarTrack,
+} from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { ArrowsClockwise, ArrowCircleUp, ArrowClockwise, ArrowSquareOut, BrandBluesky, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, DownloadSimple, Eye, EyeSlash, Flask, Globe, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MusicNote, PaintBrushBroad, PencilSimple, Play, PlayCircle, PersonArmsSpread, ScreencastSimple, ShareNodes, Sliders, Sparkles, TextSize, Tag, Trash, Translate, UserCircle, Users, WifiHigh, DeviceMobile, HardDrives, WaveformLines, X } from "@/shared/icons/icons.jsx";
+import {
+  ArrowsClockwise,
+  ArrowCircleUp,
+  ArrowClockwise,
+  ArrowSquareOut,
+  BrandBluesky,
+  BrandTiktok,
+  BrandTwitch,
+  BrandYoutube,
+  Bug,
+  CaretDown,
+  CaretUp,
+  ChatText,
+  Check,
+  CheckCircle,
+  CircleHalf,
+  DownloadSimple,
+  Eye,
+  EyeSlash,
+  Flask,
+  Globe,
+  Info,
+  Key,
+  Keyboard,
+  Link,
+  Lock,
+  LockOpen,
+  MagnifyingGlass,
+  MusicNote,
+  PaintBrushBroad,
+  PencilSimple,
+  Play,
+  PlayCircle,
+  PersonArmsSpread,
+  ScreencastSimple,
+  ShareNodes,
+  Sliders,
+  Sparkles,
+  TextSize,
+  Tag,
+  Trash,
+  Translate,
+  UserCircle,
+  Users,
+  WifiHigh,
+  DeviceMobile,
+  HardDrives,
+  WaveformLines,
+  X,
+} from "@/shared/icons/icons.jsx";
 import { thumb } from "@/shared/api/thumbnails.js";
 import { useAnimations } from "@/features/settings/display-context.jsx";
 import { useLang } from "@/shared/i18n/context.jsx";
@@ -20,7 +78,16 @@ import {
 } from "@/shared/ui/settings-controls.jsx";
 import { AccountSettingsTab } from "./account-settings-tab.jsx";
 import { PinDots, PinKeypad, PasswordEntryInput } from "./pin-controls.jsx";
-import { APP_VERSION, ComposerSettingsSection, DebugTab, FfmpegUpdateRow, LyricsProviderList, StorageTab, UnisonIdentitySection, YtDlpUpdateRow } from "./settings-support.jsx";
+import {
+  APP_VERSION,
+  ComposerSettingsSection,
+  DebugTab,
+  FfmpegUpdateRow,
+  LyricsProviderList,
+  StorageTab,
+  UnisonIdentitySection,
+  YtDlpUpdateRow,
+} from "./settings-support.jsx";
 import { AccentColorPicker, LastfmRow } from "./settings-integration-controls.jsx";
 import { isSettingsSectionLocked } from "./section-store.js";
 import {
@@ -245,7 +312,9 @@ export function SettingsPanel({
     setVizPresets(next);
     try {
       localStorage.setItem("kodama-visualizer-presets", JSON.stringify(next));
-    } catch { /* intentionally ignored */ }
+    } catch {
+      /* intentionally ignored */
+    }
   };
   const [vizPresetName, setVizPresetName] = useState("");
   const vizImportRef = useRef(null);
@@ -1266,9 +1335,9 @@ export function SettingsPanel({
                       text: "#111111",
                     },
                   ].map((th) => (
-                  <CardRoot
-                    key={th.id}
-                    data-testid={`theme-${th.id}`}
+                    <CardRoot
+                      key={th.id}
+                      data-testid={`theme-${th.id}`}
                       onClick={() => onThemeChange(th.id)}
                       variant="transparent"
                       className={cn(
