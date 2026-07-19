@@ -30,13 +30,12 @@ import { DownloadQueueCard } from "./DownloadQueueCard.jsx";
 import { TrackContextMenu } from "./TrackContextMenu.jsx";
 import { PlaylistContextMenu } from "./PlaylistContextMenu.jsx";
 import { dissolve } from "../effects/particle-burst.js";
+import { SIDEBAR_COLLAPSED } from "./shell-constants.js";
 
 // ─── App Version ─────────────────────────────────────────────────────────────
 // Injected from src-tauri/tauri.conf.json at build time (see vite.config.js) — the single
 // source of truth, so this never drifts from the shipped version.
 const APP_VERSION = __APP_VERSION__;
-
-const SIDEBAR_COLLAPSED = 56;
 
 async function openOverlayEditor() {
   const existing = await WebviewWindow.getByLabel("overlay-editor");
