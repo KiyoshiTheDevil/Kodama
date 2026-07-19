@@ -3,12 +3,12 @@
 // focusable, so the controller/keyboard flows between them by geometry.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
-import { API } from "../shared/api/client.js";
-import { thumbHi } from "../shared/api/thumbnails.js";
-import { sendPlay } from "./playerBridge.js";
+import { API } from "@/shared/api/client.js";
+import { thumbHi } from "@/shared/api/thumbnails.js";
+import { sendPlay } from "@/features/player/player-bridge.js";
 import { setContextTarget } from "./bpContext.js";
 import { trackContextActions } from "./Detail.jsx";
-import { MagnifyingGlass, Play } from "../icons.jsx";
+import { MagnifyingGlass, Play } from "@/shared/icons/icons.jsx";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const NUMS = "0123456789".split("");

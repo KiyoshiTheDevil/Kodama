@@ -4,11 +4,11 @@
 // whole collection as the queue via the player bridge and jumps to Now Playing.
 import { useEffect, useState } from "react";
 import { FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
-import { API } from "../shared/api/client.js";
-import { thumbHi } from "../shared/api/thumbnails.js";
-import { sendPlay, sendEnqueue } from "./playerBridge.js";
+import { API } from "@/shared/api/client.js";
+import { thumbHi } from "@/shared/api/thumbnails.js";
+import { sendPlay, sendEnqueue } from "@/features/player/player-bridge.js";
 import { setContextTarget } from "./bpContext.js";
-import { Play, Shuffle } from "../icons.jsx";
+import { Play, Shuffle } from "@/shared/icons/icons.jsx";
 
 // Standard context-menu actions for a track (add-to-queue). Reused across the track lists.
 export function trackContextActions(track) {

@@ -3,8 +3,8 @@
 // now-playing card on the right. Rendered inside each tab view's FocusContext so the tabs and the
 // card are spatially focusable; LB/RB tab-switching is handled globally in BigPicture.
 import { useFocusable } from "@noriginmedia/norigin-spatial-navigation";
-import { thumbHi } from "../shared/api/thumbnails.js";
-import { useNowPlaying } from "./playerBridge.js";
+import { thumbHi } from "@/shared/api/thumbnails.js";
+import { useNowPlaying } from "@/features/player/player-bridge.js";
 
 export const TABS = [
   { key: "home", label: "Home", icon: "house" },

@@ -2,8 +2,8 @@
 // glow, translations, romaji) 1:1, just with a larger font for lean-back viewing. It reads the
 // live playback time straight from the global <audio> element, so it stays in sync without any
 // extra bridging; the current track comes from the player bridge.
-import { LyricsOverlay } from "../features/lyrics/LyricsOverlay.jsx";
-import { useNowPlaying, getAudio } from "./playerBridge.js";
+import { LyricsOverlay } from "@/features/lyrics/LyricsOverlay.jsx";
+import { useNowPlaying, getAudio } from "@/features/player/player-bridge.js";
 
 // LyricsOverlay expects a ref whose .current is the playback clock. That's the IpcAudio shim the
 // Player registered on the bridge (currentTime/paused + timeupdate events), not a DOM element.

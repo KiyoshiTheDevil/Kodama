@@ -3,8 +3,8 @@
 // auto-scrolled into view (important for long lists on a TV/handheld).
 import { useEffect, useState } from "react";
 import { FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
-import { API } from "../shared/api/client.js";
-import { thumbHi } from "../shared/api/thumbnails.js";
+import { API } from "@/shared/api/client.js";
+import { thumbHi } from "@/shared/api/thumbnails.js";
 
 const ENDPOINT = {
   playlists: "/library/playlists",

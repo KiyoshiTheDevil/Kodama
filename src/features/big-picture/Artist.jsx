@@ -3,12 +3,12 @@
 // detail screen. Everything sits in one FocusContext so the controller flows by geometry.
 import { useEffect, useState } from "react";
 import { FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
-import { API } from "../shared/api/client.js";
-import { thumbHi } from "../shared/api/thumbnails.js";
-import { sendPlay } from "./playerBridge.js";
+import { API } from "@/shared/api/client.js";
+import { thumbHi } from "@/shared/api/thumbnails.js";
+import { sendPlay } from "@/features/player/player-bridge.js";
 import { setContextTarget } from "./bpContext.js";
 import { trackContextActions } from "./Detail.jsx";
-import { Play, Shuffle } from "../icons.jsx";
+import { Play, Shuffle } from "@/shared/icons/icons.jsx";
 
 function artistsOf(track) {
   return Array.isArray(track.artists)
