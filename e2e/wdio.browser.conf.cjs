@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { SevereServiceError } = require("webdriverio");
 
 const { startViteServer, stopViteServer, VITE_URL } = require("./support/vite-server.cjs");
 const { startFakeSidecar, stopFakeSidecar } = require("./support/fake-sidecar.cjs");
@@ -6,6 +7,22 @@ const { createAfterTestHook } = require("./support/failure-artifacts.cjs");
 const { resetRuntimeControls } = require("./support/runtime-controls.cjs");
 
 const root = path.resolve(__dirname, "..");
+const e2eServersService = {
+  async onPrepare() {
+    try {
+      await startFakeSidecar();
+      await startViteServer();
+    } catch (error) {
+      stopViteServer();
+      await stopFakeSidecar();
+      throw new SevereServiceError(error.message);
+    }
+  },
+  async onComplete() {
+    stopViteServer();
+    await stopFakeSidecar();
+  },
+};
 
 exports.config = {
   runner: "local",
@@ -15,6 +32,7 @@ exports.config = {
   logLevel: "info",
 
   services: [
+    [e2eServersService],
     [
       "@wdio/tauri-service",
       {
@@ -36,14 +54,6 @@ exports.config = {
   connectionRetryTimeout: 90_000,
   connectionRetryCount: 2,
 
-  async onPrepare() {
-    await startFakeSidecar();
-    await startViteServer();
-  },
-  async onComplete() {
-    stopViteServer();
-    await stopFakeSidecar();
-  },
   beforeTest: resetRuntimeControls,
   afterTest: createAfterTestHook(path.join(root, ".e2e-artifacts", "browser", "failures")),
 };

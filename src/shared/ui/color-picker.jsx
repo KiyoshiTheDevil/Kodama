@@ -109,7 +109,9 @@ function _pushRecent(hex) {
     const a = _loadRecents().filter(x => x.toLowerCase() !== hex.toLowerCase());
     a.unshift(hex);
     localStorage.setItem(RECENTS_KEY, JSON.stringify(a.slice(0, 8)));
-  } catch {}
+  } catch {
+    // Recent colors are optional when storage is unavailable.
+  }
 }
 const PRESETS = [
   "#FFFFFF", "#D4D4D4", "#9CA3AF", "#4B5563", "#1F2937", "#000000",
@@ -288,7 +290,9 @@ export function ColorPicker({ value, onChange, swatch }) {
                     const dropper = new window.EyeDropper();
                     const { sRGBHex } = await dropper.open();
                     applyHex(sRGBHex);
-                  } catch {}
+                  } catch {
+                    // Closing the native picker rejects the request.
+                  }
                 }}
                 style={{
                   width: 30, height: 30, flexShrink: 0, borderRadius: 8,

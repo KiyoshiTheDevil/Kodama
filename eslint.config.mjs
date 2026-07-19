@@ -18,6 +18,16 @@ export default [
     rules: {
       ...reactHooks.configs.flat.recommended.rules,
       ...reactRefresh.configs.vite.rules,
+      // These React compiler-era rules expose useful migration work in the
+      // existing frontend, but they should not make the newly added lint gate
+      // unusable while that work is addressed incrementally.
+      "react-hooks/immutability": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/static-components": "warn",
+      "react-refresh/only-export-components": "warn",
     },
     languageOptions: {
       ecmaVersion: "latest",

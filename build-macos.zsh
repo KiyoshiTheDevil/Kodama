@@ -20,6 +20,8 @@ command -v python3 >/dev/null || fail "Python 3 is required."
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 (( NODE_MAJOR >= 22 )) || fail "Node.js 22 or newer is required (found $(node --version))."
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' || \
+  fail "Python 3.10 or newer is required (found $(python3 --version 2>&1))."
 
 cd "$ROOT_DIR"
 
@@ -37,6 +39,9 @@ if [[ ! -x "$PYTHON" ]]; then
   print -- "==> Creating Python virtual environment"
   python3 -m venv "$ROOT_DIR/python-backend/.venv"
 fi
+
+"$PYTHON" -c 'import sys; sys.exit(sys.version_info < (3, 10))' || \
+  fail "The backend virtual environment must use Python 3.10 or newer (found $("$PYTHON" --version 2>&1))."
 
 print -- "==> Installing Python build dependencies"
 "$PYTHON" -m pip install --upgrade pip

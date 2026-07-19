@@ -1,7 +1,11 @@
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
+const { assertPortAvailable } = require("./port-guard.cjs");
+
 const VITE_URL = "http://127.0.0.1:1421";
+const VITE_HOST = "127.0.0.1";
+const VITE_PORT = 1421;
 const root = path.resolve(__dirname, "..", "..");
 const viteCommand = path.join(
   root,
@@ -20,6 +24,8 @@ async function startViteServer() {
   if (viteProcess) {
     return;
   }
+
+  await assertPortAvailable(VITE_HOST, VITE_PORT, "is the Kodama dev app already running?");
 
   viteProcess = spawn(viteCommand, ["--host", "127.0.0.1"], {
     cwd: root,

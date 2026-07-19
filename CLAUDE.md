@@ -4,18 +4,28 @@
 Dies ist eine **Tauri 2.x Desktop-App** (React/JSX Frontend + Python Flask Backend).
 
 ## Verifikation nach Code-Änderungen
-Browser-basiertes Preview (`preview_start`) ist **nicht anwendbar** — die App nutzt Tauri-spezifische APIs (`@tauri-apps/api`, `@tauri-apps/plugin-dialog`, etc.) die im Browser nicht verfügbar sind und sofort Fehler werfen.
+Browser-basiertes Preview (`preview_start`) ist **nicht anwendbar** — die App nutzt Tauri-spezifische APIs (`@tauri-apps/api`, `@tauri-apps/plugin-dialog`, etc.), die im Browser nicht vollständig verfügbar sind.
 
-**Korrekte Verifikationsmethode:** `npx vite build` — prüft ob der Code fehlerfrei kompiliert.
+Frontend-Änderungen mit Lint und Produktions-Build prüfen:
 
 ```bash
-cd /c/Users/bexga/Downloads/kiyoshi-music/kiyoshi-music && npx vite build
+npm run lint
+npm run build
 ```
 
-Ein erfolgreicher Build (`✓ built in X.XXs`) ohne Fehler ist die geeignete Verifikation für dieses Projekt. Die bekannten Tauri-Warnings über dynamic/static imports sind pre-existing und können ignoriert werden.
+Backend-Änderungen aus `python-backend/` mit der Projekt-Virtualenv prüfen:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+```
+
+Die Browser-e2e-Suite läuft mit `npm run e2e:browser`. Dafür müssen die Ports 1421 und 9847 frei sein; der Harness bricht mit einer klaren Meldung ab, wenn bereits die Entwicklungs-App oder das echte Backend darauf läuft.
 
 ## Struktur
-- `src/App.jsx` — Gesamte Frontend-Logik (React, ~5000+ Zeilen)
-- `src/i18n.js` — Übersetzungen (Deutsch + Englisch)
-- `python-backend/server.py` — Flask-Backend (Lyrics-Proxy, YTMusic API, Cache)
+- `src/app/` — React-Komposition, globale Hooks, Styles und Diagnose-UI
+- `src/features/` — fachlich getrennte Frontend-Features wie Player, Musik, Lyrics, Profile und Einstellungen
+- `src/shared/` — gemeinsame API-, i18n-, Hook-, Icon- und UI-Bausteine
+- `python-backend/server.py` — schlanker ausführbarer Flask-Einstiegspunkt
+- `python-backend/src/routes/` — Flask-Blueprints nach Domäne
+- `python-backend/src/lib/` — Backend-Dienste, Integrationen und gemeinsame Logik
 - `src-tauri/` — Tauri-Konfiguration und Rust-Wrapper

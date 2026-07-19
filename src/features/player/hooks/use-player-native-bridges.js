@@ -1,4 +1,3 @@
-// @refresh reset
 import { useEffect, useRef } from "react";
 
 import { API } from "@/shared/api/client.js";

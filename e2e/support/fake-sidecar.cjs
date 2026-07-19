@@ -1,13 +1,23 @@
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
+const { assertPortAvailable } = require("./port-guard.cjs");
+
 const root = path.resolve(__dirname, "..", "..");
 const sidecarScript = path.join(root, "e2e", "fixtures", "fake-sidecar.cjs");
 const healthUrl = "http://127.0.0.1:9847/__e2e__/health";
+const SIDECAR_HOST = "127.0.0.1";
+const SIDECAR_PORT = 9847;
 let sidecarProcess;
 
 async function startFakeSidecar() {
   if (sidecarProcess) return;
+
+  await assertPortAvailable(
+    SIDECAR_HOST,
+    SIDECAR_PORT,
+    "stop the running Kodama backend before starting browser e2e tests."
+  );
 
   sidecarProcess = spawn(process.execPath, [sidecarScript], {
     cwd: root,

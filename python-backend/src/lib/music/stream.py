@@ -288,34 +288,7 @@ class StreamService:
                             last_err = e2
                             self._logger.warning(f"[stream] {video_id} refreshed-browser-cookies FAILED: {e2}")
 
-        # ── Tier 2: anonymous www.youtube.com ───────────────────────────────
-        # The default web endpoint is both fast and broadly compatible for
-        # ordinary tracks. Keep the authenticated Music-specific clients below
-        # it for tracks that actually need them; otherwise each failed client
-        # can add several seconds before playback begins.
-        _t = time.time()
-        try:
-            info = self._extract_url(
-                video_id,
-                config_ytdlp.AUDIO_FORMAT,
-                skip_auth=True,
-                use_ytm=False,
-            )
-            url = self._stream_url_from_info(info)
-            if url and self._probe_audio_url(video_id, url):
-                self._logger.info(
-                    f"[stream] {video_id} OK via anonymous www.youtube.com in "
-                    f"{time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)"
-                )
-                return {"url": url}, 200
-        except Exception as e:
-            last_err = e
-            self._logger.warning(
-                f"[stream] {video_id} anonymous www.youtube.com FAILED in "
-                f"{time.time()-_t:.1f}s: {e}"
-            )
-
-        # ── Tier 3: STREAM_ATTEMPTS (app cookies + anonymous mobile/web) ─────
+        # ── Tier 2: STREAM_ATTEMPTS (app cookies + anonymous mobile/web) ─────
         for fmt, extra, no_auth in config_ytdlp.STREAM_ATTEMPTS:
             _t = time.time()
             try:

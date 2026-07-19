@@ -55,7 +55,6 @@ export function HomeView({
   const loadHome = useCallback(async (attempt = 0) => {
     setLoading(true);
     setError(null);
-    let lastError = null;
     for (let retry = attempt; retry <= 6; retry += 1) {
       try {
         const response = await fetch(`${API}/home`);
@@ -70,10 +69,9 @@ export function HomeView({
         }
       } catch (cause) {
         if (homeCancelledRef.current) return;
-        lastError = cause;
         if (retry === 6) {
           setSections([]);
-          setError(lastError.message || "Unable to load Home");
+          setError(cause.message || "Unable to load Home");
           setLoading(false);
           return;
         }
