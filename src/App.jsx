@@ -138,7 +138,7 @@ export default function App() {
       clearTimeout(fadeTimer);
       clearTimeout(hideTimer);
     };
-  }, [theme]);
+  }, []);
 
   // Sidebar/queue resize geometry, split-view, selection state, context menus, and
   // playlist/settings/feedback/debug dialogs now live in src/app/AppShell.jsx (Step 13a-i).
@@ -158,7 +158,7 @@ export default function App() {
   // Start Rust audio-level collection on mount.
   useEffect(() => {
     startAudioLevels();
-  }, [theme]);
+  }, []);
 
   const togglePin = useCallback((pl) => {
     const stored = (() => {
