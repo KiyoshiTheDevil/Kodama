@@ -55,7 +55,7 @@ No screenshot available... yet.
 
 Hey! I made a dedicated Discord server for the App, where you can chat about the project and send in bugs and suggestions more directly
 
->> https://discord.gg/PzSsPF7KW
+>> [https://discord.gg/PzSsPF7KW](https://discord.gg/rhreShDJxn)
 
 ## For Developers
 
