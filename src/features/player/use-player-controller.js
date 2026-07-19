@@ -7,6 +7,15 @@ import { useLastfmScrobbling } from "../integrations/lastfm.js";
 import { usePlayerNativeBridges } from "./hooks/use-player-native-bridges.js";
 import { useWindowTitle } from "./hooks/use-window-title.js";
 
+function dedupeTracks(tracks) {
+  const seen = new Set();
+  return tracks.filter((track) => {
+    if (!track?.videoId || seen.has(track.videoId)) return false;
+    seen.add(track.videoId);
+    return true;
+  });
+}
+
 // Player controller (Step 11): the single owner of the IpcAudio instance, the current track,
 // the queue, the playing flag, and the play/enqueue/radio/deep-link commands + play-history
 // writes. App consumes this via destructure, so existing JSX and prop chains are unchanged;
@@ -19,14 +28,18 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
   // One IpcAudio for the app lifetime. Kept as a ref so it survives re-renders and stays a
   // singleton (duplicating it would duplicate native audio, listeners, and OBS capture).
   const audioRef = useRef(null);
-  if (!audioRef.current) audioRef.current = new IpcAudio();
+  if (audioRef.current == null) audioRef.current = new IpcAudio();
 
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [queue, setQueue] = useState([]);
+  const currentTrackRef = useRef(null);
 
-  // Latest queue for keyboard/callback paths without stale closures.
+  // Latest track/queue for async and keyboard callbacks without stale closures.
   const queueRef = useRef([]);
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
@@ -120,13 +133,7 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
     setCurrentTrack(track);
     resetLyricsSessionRef.current?.();
     if (trackList) {
-      const seen = new Set();
-      const deduped = trackList.filter((t) => {
-        if (!t.videoId || seen.has(t.videoId)) return false;
-        seen.add(t.videoId);
-        return true;
-      });
-      setQueue(deduped);
+      setQueue(dedupeTracks(trackList));
     }
     // Save to play history
     if (track?.videoId) {
@@ -182,8 +189,25 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
       try {
         const r = await fetch(`${API}/radio/_?videoId=${encodeURIComponent(track.videoId)}`);
         const d = await r.json();
-        if (d.tracks?.length) handlePlay(d.tracks[0], d.tracks);
-        else fail();
+        const radioTracks = dedupeTracks(d.tracks || []);
+        if (!radioTracks.length) {
+          fail();
+          return;
+        }
+
+        const activeTrack = currentTrackRef.current;
+        if (activeTrack?.videoId === track.videoId) {
+          // Starting radio from the song that is already active should only replace
+          // its queue. Preserve the current object so Player's [track] effect does
+          // not reload the stream and restart playback from zero.
+          setQueue([
+            activeTrack,
+            ...radioTracks.filter((radioTrack) => radioTrack.videoId !== activeTrack.videoId),
+          ]);
+          return;
+        }
+
+        handlePlay(radioTracks[0], radioTracks);
       } catch {
         fail();
       }
