@@ -65,7 +65,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
   const [severity, setSeverity] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState("");
-  const [expected, setExpected] = useState("");
+  const [expected] = useState("");
   const [contact, setContact] = useState("");
   const [includeDiag, setIncludeDiag] = useState(true);
   const [includeShot, setIncludeShot] = useState(!!screenshot);

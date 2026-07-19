@@ -121,7 +121,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("close_login_window");
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setStep("start");
   };
 
@@ -607,7 +607,7 @@ export function AppOverlays({
                     tracks: pending,
                   }),
                 });
-              } catch {}
+              } catch { /* intentionally ignored */ }
               if (createPlaylistForSelection) clearSelection();
             }
             setCreatePlaylistTracks(null);
@@ -706,7 +706,7 @@ export function AppOverlays({
             } else {
               try {
                 await fetch(`${API}/playlist/${pid}`, { method: "DELETE" });
-              } catch {}
+              } catch { /* intentionally ignored */ }
               window.dispatchEvent(new Event("kiyoshi-library-updated"));
               setView("library");
             }

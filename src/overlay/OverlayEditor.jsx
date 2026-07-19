@@ -55,8 +55,6 @@ const TYPE_META = {
   image: { icon: ImageSquare, label: "Image" },
   shape: { icon: PaintBrushBroad, label: "Shape" },
 };
-const ADD_TYPES = ["text", "albumArt", "progress", "image", "shape"];
-
 // Fonts preloaded by the engine HTML (must match the <link> in server.py).
 const FONT_LIST = [
   { value: "system-ui, sans-serif", label: "System", category: "system" },
@@ -292,11 +290,11 @@ function loadInitialDoc() {
   try {
     const v2 = JSON.parse(localStorage.getItem("kiyoshi-overlay-doc"));
     if (isV2Doc(v2)) return normalizeOverlayDoc(v2);
-  } catch {}
+  } catch { /* intentionally ignored */ }
   try {
     const v1 = JSON.parse(localStorage.getItem("kiyoshi-obs-config"));
     if (v1) return normalizeOverlayDoc(v1);
-  } catch {}
+  } catch { /* intentionally ignored */ }
   return defaultOverlayDoc();
 }
 
@@ -874,12 +872,6 @@ function FontPicker({ t, value, onOpen }) {
 function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenFontPicker }) {
   const s = layer.style || {};
   const id = layer.id;
-  const radius = s.corners?.TL ?? 0;
-  const cornerType = s.corners?.typeTL || "r";
-  const setRadius = (v) => setStyle(id, { corners: uniformCorners(v, cornerType) });
-  const setCornerType = (v) => setStyle(id, { corners: uniformCorners(radius, v) });
-  const setBorder = (patch) => setStyle(id, { border: { ...(s.border || {}), ...patch } });
-
   if (layer.type === "text") {
     const bind = layer.bind || "static";
     return (
@@ -1271,7 +1263,6 @@ export default function OverlayEditor({
   const [iframeKey, setIframeKey] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [addOpen, setAddOpen] = useState(false);
   const [shapeMenu, setShapeMenu] = useState(false);
   const [tool, setTool] = useState(null); // null = select; { type, shape? } = draw mode
   const [drawRect, setDrawRect] = useState(null); // live preview while drawing
@@ -1489,30 +1480,6 @@ export default function OverlayEditor({
   // Discrete toggles commit immediately.
   const toggleLayer = (id, patch) =>
     commit({ ...doc, layers: doc.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)) }, doc);
-  const addLayer = (type, stylePatch) => {
-    const f = LAYER_FACTORIES[type];
-    if (!f) return;
-    const base = f();
-    const maxZ = doc.layers.reduce((m, l) => Math.max(m, l.z || 0), -1);
-    const nl = {
-      ...base,
-      z: maxZ + 1,
-      x: Math.round((doc.canvas.width - base.w) / 2),
-      y: Math.round((doc.canvas.height - base.h) / 2),
-    };
-    if (type === "text") {
-      nl.bind = "static";
-      nl.style = { ...nl.style, content: "Text" };
-    }
-    if (stylePatch) {
-      nl.style = { ...nl.style, ...stylePatch };
-      if (stylePatch.shape === "circle") nl.h = nl.w; // circle = square bounds
-      if (stylePatch.shape === "line" && nl.style.strokeWidth == null) nl.style.strokeWidth = 4;
-    }
-    commit({ ...doc, layers: [...doc.layers, nl] }, doc);
-    setSelectedId(nl.id);
-    setAddOpen(false);
-  };
   const deleteLayer = (id) => {
     commit({ ...doc, layers: doc.layers.filter((l) => l.id !== id) }, doc);
     setSelectedId(null);

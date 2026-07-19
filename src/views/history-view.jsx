@@ -103,7 +103,7 @@ export function HistoryView({
                 particleBurst(
                   document.querySelector(`[data-track-id="${CSS.escape(tr.videoId)}"]`)
                 );
-              } catch {}
+              } catch { /* intentionally ignored */ }
             }
             removeFromHistory(idx);
           },

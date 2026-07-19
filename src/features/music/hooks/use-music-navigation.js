@@ -14,7 +14,7 @@ import { itemId, profileKey } from "../lib/playlist-id.js";
  */
 export function useMusicNavigation({ setSearchQuery }) {
   const [view, setView] = useState("home");
-  const [navHistory, setNavHistory] = useState([]); // navigation history stack for back button
+  const [, setNavHistory] = useState([]); // navigation history stack for back button
   const [appKey, setAppKey] = useState(0); // increment to force full re-render
   const [viewRefreshKey, setViewRefreshKey] = useState(0); // increment to refresh current view
   const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }

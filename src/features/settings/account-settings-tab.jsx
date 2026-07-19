@@ -62,7 +62,7 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     try {
       const hk = `kiyoshi-history-${window.__activeProfile || "default"}`;
       history = (JSON.parse(localStorage.getItem(hk) || "[]") || []).length;
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setStats((s) => ({
       ...s,
       usage: Number(localStorage.getItem("kiyoshi-total-usage") || 0),
@@ -143,7 +143,7 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     try {
       localStorage.removeItem(`kiyoshi-history-${window.__activeProfile || "default"}`);
       window.dispatchEvent(new Event("kiyoshi-history-updated"));
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setStats((s) => ({ ...s, history: 0 }));
     setConfirmClearHistory(false);
     toast.success(t("historyCleared"));

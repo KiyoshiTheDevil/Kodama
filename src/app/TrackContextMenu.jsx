@@ -119,7 +119,7 @@ export function TrackContextMenu({
     if (animations) {
       try {
         particleBurst(document.querySelector(`[data-track-id="${CSS.escape(track.videoId)}"]`));
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }
     setCollection((c) =>
       c
@@ -140,7 +140,7 @@ export function TrackContextMenu({
           videos: [{ videoId: track.videoId, setVideoId: track.setVideoId }],
         }),
       });
-    } catch {}
+    } catch { /* intentionally ignored */ }
   };
   const removeDownload = () => removeCachedSong(track.videoId);
 

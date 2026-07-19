@@ -21,7 +21,7 @@ export function SettingsSidebarContent({
   const [debugUnlocked, setDebugUnlocked] = useState(
     () => localStorage.getItem("kiyoshi-debug-unlocked") === "true"
   );
-  const [debugTapCount, setDebugTapCount] = useState(0);
+  const [, setDebugTapCount] = useState(0);
   const [debugToast, setDebugToast] = useState(null);
   const debugTapTimer = useRef(null);
   const chromiumVersion = window.navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? "—";

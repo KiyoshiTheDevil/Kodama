@@ -21,7 +21,7 @@ async function openComposer(videoId) {
   // don't play simultaneously (the App player component listens for this).
   try {
     window.dispatchEvent(new Event("kodama-pause-playback"));
-  } catch {}
+  } catch { /* intentionally ignored */ }
   // Theme the composer with Kodama's current colours (applied as CSS-variable overrides).
   const overrides = {};
   try {
@@ -52,7 +52,7 @@ async function openComposer(videoId) {
       put("--color-composer-text-muted", read("--text-muted"));
       put("--color-composer-text-tertiary", read("--text-muted"));
     }
-  } catch {}
+  } catch { /* intentionally ignored */ }
   return invoke("open_composer_window", { videoId: videoId || null, overrides });
 }
 
@@ -197,7 +197,6 @@ function paintLineWords(line, els, wordIdxRef, t, zoomMaxRef = null, glow = fals
 export function LyricsOverlay({
   track,
   audioRef,
-  onClose,
   fontSize = 32,
   providers = DEFAULT_LYRICS_PROVIDERS,
   refetchKey = 0,
@@ -255,15 +254,15 @@ export function LyricsOverlay({
           failedIds: [],
         })
       );
-    } catch {}
+    } catch { /* intentionally ignored */ }
   };
   const [tick, setTick] = useState(0);
   const [translations, setTranslations] = useState(null); // array of strings, one per lyric line
-  const [translating, setTranslating] = useState(false);
+  const [, setTranslating] = useState(false);
   const [romajiLines, setRomajiLines] = useState(null); // array of romaji strings
   const [isCustomLyrics, setIsCustomLyrics] = useState(false);
   const [customLyricsKey, setCustomLyricsKey] = useState(0);
-  const [inGap, setInGap] = useState(false);
+  const [, setInGap] = useState(false);
   const [trailingIdx, setTrailingIdx] = useState(-1); // previous line still visible after new line starts
   const [scrollActive, setScrollActive] = useState(false); // auto-hide scrollbar (hover + idle)
   const t = useLang();
@@ -540,7 +539,7 @@ export function LyricsOverlay({
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [audioRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [audioRef]);
 
   // After React renders, cache word span elements and bg-vocals container for the active line
   useLayoutEffect(() => {
@@ -626,7 +625,7 @@ export function LyricsOverlay({
     if (!track?.videoId) return;
     try {
       await fetch(`${API}/lyrics/custom/${track.videoId}`, { method: "DELETE" });
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setIsCustomLyrics(false);
     setLyrics(null);
     setSource("");
@@ -640,7 +639,7 @@ export function LyricsOverlay({
   useEffect(() => {
     if (importLyricsRef) importLyricsRef.current = importCustomLyrics;
     if (removeCustomLyricsRef) removeCustomLyricsRef.current = removeCustomLyrics;
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   useEffect(() => {
     if (!track) return;
@@ -745,17 +744,17 @@ export function LyricsOverlay({
                       failedIds: ids,
                     })
                   );
-                } catch {}
+                } catch { /* intentionally ignored */ }
               });
             }
             return;
           }
-        } catch {}
+        } catch { /* intentionally ignored */ }
       } else {
         // Clear stale cache before refetching
         try {
           localStorage.removeItem(cacheKey);
-        } catch {}
+        } catch { /* intentionally ignored */ }
       }
 
       fetchLyrics(
@@ -782,7 +781,7 @@ export function LyricsOverlay({
                 failedIds: res.failedIds || [],
               })
             );
-          } catch {}
+          } catch { /* intentionally ignored */ }
         }
         // Mark providers that were tried but failed
         res?.failedIds?.forEach((id) => onProviderFailed?.(id));

@@ -310,7 +310,7 @@ export function migrateV1toV2(cfg = {}) {
         y: Math.round((H - artSize) / 2),
         w: artSize,
         h: artSize,
-        z: z++,
+        z,
         style: {
           corners: cornersFromV1(
             cfg,
@@ -394,7 +394,7 @@ export function migrateV1toV2(cfg = {}) {
         y: H - progH,
         w: W,
         h: progH,
-        z: z++,
+        z,
         style: {
           fillColor: accentColor,
           trackColor: "rgba(255,255,255,0.12)",

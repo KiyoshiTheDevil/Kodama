@@ -55,7 +55,6 @@ function vizLerp(a, b, t) {
 export function CoverView({
   track,
   isPlaying,
-  onClose,
   ambientVisualizer = true,
   vizConfig,
   coverSize = 260,

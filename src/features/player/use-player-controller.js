@@ -138,7 +138,7 @@ export function usePlayerController({ addToast, resetLyricsSessionRef, lastfm, i
         const filtered = stored.filter((t, i) => !(i === 0 && t.videoId === track.videoId));
         localStorage.setItem(key, JSON.stringify([entry, ...filtered].slice(0, 200)));
         window.dispatchEvent(new Event("kiyoshi-history-updated"));
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

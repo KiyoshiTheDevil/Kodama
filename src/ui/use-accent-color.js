@@ -28,7 +28,7 @@ export function useAccentColor(imageUrl) {
         g = Math.round(g / count);
         b = Math.round(b / count);
         setColor(`${r},${g},${b}`);
-      } catch {}
+      } catch { /* intentionally ignored */ }
     };
     img.src = imageUrl;
   }, [imageUrl]);

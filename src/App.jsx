@@ -122,7 +122,7 @@ export default function App() {
         if (cancelled || !d.updateAvailable) return;
         if (localStorage.getItem("kiyoshi-ffmpeg-update-dismissed") === d.latest) return;
         setFfmpegUpdate({ installed: d.installed, latest: d.latest });
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }, 6000); // defer so it never competes with startup work
     return () => {
       cancelled = true;
@@ -604,7 +604,7 @@ export default function App() {
         ];
         return merged;
       }
-    } catch {}
+    } catch { /* intentionally ignored */ }
     return DEFAULT_LYRICS_PROVIDERS;
   });
   // Migration: add newly introduced providers / remove obsolete ones
@@ -619,7 +619,7 @@ export default function App() {
       localStorage.setItem("kiyoshi-lyrics-providers", JSON.stringify(merged));
       return merged;
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   const [ipv4First, setIpv4First] = useState(true);
   useEffect(() => {
     let cancelled = false;

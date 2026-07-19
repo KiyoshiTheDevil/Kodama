@@ -67,7 +67,7 @@ async function unisonFetchDisplayName(keyId) {
   try {
     const r = await fetch(`${API}/unison/displayname/${keyId}`);
     if (r.ok) return (await r.json()).displayName || null;
-  } catch {}
+  } catch { /* intentionally ignored */ }
   return null;
 }
 

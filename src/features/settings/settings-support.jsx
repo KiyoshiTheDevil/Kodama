@@ -1,5 +1,3 @@
-/* global __APP_VERSION__ */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -52,7 +50,7 @@ export function AccentColorPicker({ value, onChange }) {
     if (/^#[0-9a-fA-F]{6}$/.test(value)) {
       try {
         setColor(parseColor(value).toFormat("hsb"));
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }
   }, [value]);
   const apply = (c) => {
@@ -127,7 +125,7 @@ export function AccentColorPicker({ value, onChange }) {
                 try {
                   const { sRGBHex } = await new window.EyeDropper().open();
                   if (/^#[0-9a-fA-F]{6}$/.test(sRGBHex)) onChange(sRGBHex);
-                } catch {}
+                } catch { /* intentionally ignored */ }
               }}
             >
               <Eyedropper size={14} />
@@ -197,7 +195,7 @@ export function LastfmRow() {
   const disconnect = async () => {
     try {
       await fetch(`${API}/lastfm/disconnect`, { method: "POST" });
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setStatus((s) => ({ ...s, connected: false, username: "" }));
     window.dispatchEvent(new Event("lastfm-changed"));
     toast.success(t("lastfmDisconnected"));
@@ -310,7 +308,7 @@ export function DownloadsTab({ t }) {
         setMp3Dir(selected);
         localStorage.setItem("kiyoshi-mp3-dir", selected);
       }
-    } catch {}
+    } catch { /* intentionally ignored */ }
   };
 
   const handleResetPath = () => {
@@ -1460,7 +1458,7 @@ export function UnisonIdentitySection() {
   const persist = (id) => {
     try {
       localStorage.setItem("kodama-unison-identity", JSON.stringify(id));
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setIdentity(id);
   };
 
@@ -1560,13 +1558,13 @@ export function UnisonIdentitySection() {
       });
       if (!path) return;
       await writeTextFile(path, JSON.stringify(exportIdentityFile(identity), null, 2));
-    } catch {}
+    } catch { /* intentionally ignored */ }
   };
 
   const remove = () => {
     try {
       localStorage.removeItem("kodama-unison-identity");
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setIdentity(null);
   };
 
@@ -1762,13 +1760,13 @@ export function FfmpegUpdateRow() {
           try {
             localStorage.setItem("kiyoshi-ffmpeg-update-dismissed", info?.latest || "");
             localStorage.setItem("kiyoshi-ffmpeg-ok", "1");
-          } catch {}
+          } catch { /* intentionally ignored */ }
           check();
         } else if (d.status === "error") {
           es.close();
           setPhase("error");
         }
-      } catch {}
+      } catch { /* intentionally ignored */ }
     };
     es.onerror = () => {
       es.close();

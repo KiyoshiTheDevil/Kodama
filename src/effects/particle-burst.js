@@ -157,6 +157,6 @@ export function dissolve(el, done, opts = {}) {
     el.style.transition = "opacity 150ms ease, transform 150ms ease";
     el.style.opacity = "0";
     el.style.transform = "scale(0.96)";
-  } catch {}
+  } catch { /* intentionally ignored */ }
   if (done) setTimeout(done, 150);
 }

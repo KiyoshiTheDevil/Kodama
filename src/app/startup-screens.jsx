@@ -234,7 +234,7 @@ export function FfmpegSetupScreen({ onDone }) {
           setErrMsg(data.message || t("ffmpegUnknownError"));
           setPhase("error");
         }
-      } catch {}
+      } catch { /* intentionally ignored */ }
     };
     es.onerror = () => {
       es.close();
@@ -392,7 +392,7 @@ export function FfmpegUpdateBanner({ installed, latest, onClose }) {
   const dismiss = () => {
     try {
       localStorage.setItem("kiyoshi-ffmpeg-update-dismissed", latest || "");
-    } catch {}
+    } catch { /* intentionally ignored */ }
     onClose();
   };
 
@@ -410,13 +410,13 @@ export function FfmpegUpdateBanner({ installed, latest, onClose }) {
           setPhase("done");
           try {
             localStorage.setItem("kiyoshi-ffmpeg-update-dismissed", latest || "");
-          } catch {}
+          } catch { /* intentionally ignored */ }
           setTimeout(onClose, 2400);
         } else if (data.status === "error") {
           es.close();
           setPhase("error");
         }
-      } catch {}
+      } catch { /* intentionally ignored */ }
     };
     es.onerror = () => {
       es.close();

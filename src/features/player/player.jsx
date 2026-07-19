@@ -43,7 +43,6 @@ export function Player({
   isCustomLyrics = false,
   onImportLyrics,
   onRemoveCustomLyrics,
-  onCreatePlaylist,
   onAddToPlaylist,
   buildShareLink,
 }) {
@@ -51,7 +50,7 @@ export function Player({
   const { track, isPlaying, audioRef } = usePlaybackStatus();
   const { queue } = useQueueState();
   const { crossfade, crossfadeOverrides, playbackProgressive } = usePlaybackConfig();
-  const { setTrack, setIsPlaying, setQueue } = usePlayerActions();
+  const { setTrack, setIsPlaying } = usePlayerActions();
   // Cached/downloading id sets + download/export/premium-detected actions come from
   // DownloadContext (Step 12) rather than props.
   const { cachedSongIds, downloadingIds } = useDownloadState();
@@ -188,7 +187,7 @@ export function Player({
           urlCachePut(videoId, cachedUrl);
           return cachedUrl;
         }
-      } catch {}
+      } catch { /* intentionally ignored */ }
       const useRust = audioRef.current && audioRef.current._fallback === false;
       // Progressive (default): hand the Rust core the range-streaming proxy URL so it starts
       // playing as soon as the header is fetched, instead of waiting for a full yt-dlp download.
@@ -264,12 +263,12 @@ export function Player({
         // play is extraction-free. No bytes are downloaded — playback streams on demand.
         try {
           await fetch(`${API}/audio-stream/${tk.videoId}/warm`);
-        } catch {}
+        } catch { /* intentionally ignored */ }
       } else if (!urlCache.current.has(tk.videoId)) {
         // Classic: pre-download to disk.
         try {
           await fetchUrl(tk.videoId);
-        } catch {}
+        } catch { /* intentionally ignored */ }
       }
     }
   }, [fetchUrl]);

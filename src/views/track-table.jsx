@@ -261,8 +261,6 @@ export function PlaylistLayout({
   onDownloadAll,
   onRemoveAll,
   hideExplicit,
-  onToggleLike,
-  likedIds,
   selectedTracks,
   onToggleSelect,
   onSelectAll,

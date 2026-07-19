@@ -66,7 +66,7 @@ export function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) 
       });
       toast.success(t("addedToPlaylist", { title: pl.title }), { timeout: 3000 });
       onAdded?.();
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setBusyId(null);
     onClose();
   };

@@ -45,7 +45,6 @@ async function hashPin(pin) {
 }
 
 export function SettingsPanel({
-  onClose,
   onOpenOverlayEditor,
   onResetShortcuts,
   onSectionChange,
@@ -141,12 +140,6 @@ export function SettingsPanel({
     onDiscordRpcChange,
     ipv4First,
     onIpv4FirstChange,
-    obsEnabled,
-    obsPort,
-    obsPortInput,
-    setObsPortInput,
-    toggleObs,
-    onObsPortSave,
     remoteEnabled = false,
     remoteDevices = [],
     remoteTrustedIds = new Set(),
@@ -157,7 +150,6 @@ export function SettingsPanel({
   } = useIntegrationSettings();
   const {
     customShortcuts,
-    shortcutLabels,
     recordingShortcut,
     setRecordingShortcut,
     getShortcutLabel,
@@ -250,7 +242,7 @@ export function SettingsPanel({
     setVizPresets(next);
     try {
       localStorage.setItem("kodama-visualizer-presets", JSON.stringify(next));
-    } catch {}
+    } catch { /* intentionally ignored */ }
   };
   const [vizPresetName, setVizPresetName] = useState("");
   const vizImportRef = useRef(null);
@@ -315,35 +307,7 @@ export function SettingsPanel({
   const [debugUnlocked, setDebugUnlocked] = useState(
     () => localStorage.getItem("kiyoshi-debug-unlocked") === "true"
   );
-  const [debugTapCount, setDebugTapCount] = useState(0);
-  const [debugToast, setDebugToast] = useState(null); // "unlocked" | "already" | null
-  const debugTapTimer = useRef(null);
-  const handleTauriVersionTap = () => {
-    if (debugUnlocked) {
-      setDebugToast("already");
-      clearTimeout(debugTapTimer.current);
-      debugTapTimer.current = setTimeout(() => setDebugToast(null), 1800);
-      return;
-    }
-    setDebugTapCount((n) => {
-      const next = n + 1;
-      clearTimeout(debugTapTimer.current);
-      if (next >= 5) {
-        localStorage.setItem("kiyoshi-debug-unlocked", "true");
-        setDebugUnlocked(true);
-        setDebugToast("unlocked");
-        debugTapTimer.current = setTimeout(() => setDebugToast(null), 2500);
-        return 0;
-      }
-      debugTapTimer.current = setTimeout(() => setDebugTapCount(0), 2000);
-      return next;
-    });
-  };
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [overlayPreviewOpen, setOverlayPreviewOpen] = useState(false);
-  const colorPickerTriggerRef = useRef(null);
-  const chromiumVersion = window.navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? "—";
 
   // ── PIN protection state ──────────────────────────────────────────────────
   const [pinEnabled, setPinEnabled] = useState(

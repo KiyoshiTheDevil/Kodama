@@ -130,7 +130,7 @@ function LyricsBrowserModal({
               base = [...without.slice(0, at), ...uVersions, ...without.slice(at)];
             }
           }
-        } catch {}
+        } catch { /* intentionally ignored */ }
       }
       if (!cancelled) setResults(base);
     })();
@@ -347,53 +347,6 @@ function LyricsBrowserModal({
       </ModalBackdrop>
     </ModalRoot>
   );
-}
-
-// LEGACY - replaced above
-async function _fetchLyrics_unused(title, artist, album, duration) {
-  // 1. Kimuco Lyrics (Supabase)
-  try {
-    const q = encodeURIComponent(title.toLowerCase());
-    const url = `${SUPABASE_URL}/rest/v1/Kimuco%20Lyrics?select=synced_lyrics&title=ilike.${q}&limit=1`;
-    const r = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    const d = await r.json();
-    if (d?.[0]?.synced_lyrics) return { source: "Kimuco", lrc: parseLrc(d[0].synced_lyrics) };
-  } catch {}
-
-  // 2. Better Lyrics
-  try {
-    const params = new URLSearchParams({ s: title, a: artist });
-    if (album) params.set("al", album);
-    if (duration) params.set("d", Math.round(duration));
-    const r = await fetch(`https://lyrics-api.boidu.dev/getLyrics?${params}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.ttml) {
-        const lrc = parseTtml(d.ttml);
-        if (lrc.length) return { source: "Better Lyrics", lrc };
-      }
-    }
-  } catch {}
-
-  // 3. LRCLIB
-  try {
-    const r = await fetch(
-      `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
-    );
-    if (r.ok) {
-      const d = await r.json();
-      if (d.syncedLyrics) return { source: "LRCLIB", lrc: parseLrc(d.syncedLyrics) };
-      if (d.plainLyrics)
-        return {
-          source: "LRCLIB",
-          lrc: d.plainLyrics.split("\n").map((t) => ({ time: -1, text: t })),
-        };
-    }
-  } catch {}
-
-  return null;
 }
 
 // Paint a word-synced line's per-syllable highlight directly onto its DOM spans.

@@ -44,7 +44,7 @@ export function CreatePlaylistModal({ onClose, onCreated, t }) {
         onCreated?.(data.playlistId, title.trim());
         onClose();
       }
-    } catch {}
+    } catch { /* intentionally ignored */ }
     setCreating(false);
   };
 
@@ -171,7 +171,7 @@ export function RenamePlaylistModal({ dialog, onClose, t }) {
         body: JSON.stringify({ title: newTitle }),
       });
       window.dispatchEvent(new Event("kiyoshi-library-updated"));
-    } catch {}
+    } catch { /* intentionally ignored */ }
     onClose();
   };
   return (

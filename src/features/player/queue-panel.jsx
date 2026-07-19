@@ -150,7 +150,7 @@ function QueueRow({
   );
 }
 
-export function QueuePanel({ onClose, likedIds, onToggleLike, visible }) {
+export function QueuePanel({ likedIds, onToggleLike, visible }) {
   // Core playback + crossfade config come from PlayerContext (Step 11) rather than props.
   const { track: currentTrack } = usePlaybackStatus();
   const { queue } = useQueueState();
@@ -163,7 +163,6 @@ export function QueuePanel({ onClose, likedIds, onToggleLike, visible }) {
   const [songDesc, setSongDesc] = useState(null); // null=loading, ""=none, str=text
   const [songDescId, setSongDescId] = useState(null);
   const [songDescError, setSongDescError] = useState(null);
-  const [dragIdx, setDragIdx] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [fabPos, setFabPos] = useState(null); // {left,width,bottom} for the portaled scroll-top pill
@@ -301,7 +300,6 @@ export function QueuePanel({ onClose, likedIds, onToggleLike, visible }) {
         }
         isDragging.current = false;
         dragOverRef.current = null;
-        setDragIdx(null);
         setDragOver(null);
       };
 
@@ -310,11 +308,6 @@ export function QueuePanel({ onClose, likedIds, onToggleLike, visible }) {
     },
     [setQueue]
   );
-
-  const handleDragStart = useCallback((i) => {}, []);
-  const handleDragOver = useCallback((i) => {}, []);
-  const handleDrop = useCallback((i) => {}, []);
-  const handleDragEnd = useCallback(() => {}, []);
 
   return (
     <div className="flex flex-col h-full relative">

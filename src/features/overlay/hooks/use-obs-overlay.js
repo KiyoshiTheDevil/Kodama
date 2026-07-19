@@ -29,7 +29,7 @@ export function useObsOverlay() {
     try {
       const v2 = JSON.parse(localStorage.getItem("kiyoshi-overlay-doc"));
       if (v2 && v2.version === 2 && Array.isArray(v2.layers)) doc = v2;
-    } catch {}
+    } catch { /* intentionally ignored */ }
     if (!doc) {
       try {
         doc = normalizeOverlayDoc(JSON.parse(localStorage.getItem("kiyoshi-obs-config")));
@@ -42,7 +42,7 @@ export function useObsOverlay() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(doc),
     }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-start OBS overlay server on mount if it was enabled in last session
   useEffect(() => {

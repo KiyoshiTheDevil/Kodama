@@ -292,7 +292,7 @@ export function AppShell({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackShot, setFeedbackShot] = useState(null);
   const openFeedback = useCallback(async () => {
-    let shot = null;
+    let shot;
     try {
       await new Promise((r) => setTimeout(r, 180));
       const { invoke } = await import("@tauri-apps/api/core");
@@ -403,7 +403,7 @@ export function AppShell({
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       return;
     }
-    const onMove = (e) => {
+    const onMove = () => {
       setPlayerVisible(true);
       setCursorVisible(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
