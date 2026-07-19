@@ -54,7 +54,7 @@ import {
   WifiX,
 } from "@/shared/icons/icons.jsx";
 import { useLang } from "@/shared/i18n/context.jsx";
-import { useProfileState, useProfileActions } from "@/features/profiles/profile-context.jsx";
+import { useProfileActions, useProfileState } from "@/features/profiles/profile-context.jsx";
 
 // Navigation sidebar — search, main/secondary nav, pinned/recent playlists, and the account
 // menu. Extracted verbatim from AppShell.jsx (Step 13c). Profile list/active profile/logout
@@ -316,7 +316,7 @@ export function Sidebar({
           }}
           onMouseLeave={() => setTooltip(null)}
         >
-          <span className="shrink-0 w-[18px] flex items-center justify-center">{item.iconEl}</span>
+          <span className="shrink-0 w-4.5 flex items-center justify-center">{item.iconEl}</span>
           {!collapsed && item.label}
         </ListBoxItem>
       ))}
@@ -408,7 +408,7 @@ export function Sidebar({
         </DisclosureTrigger>
       </DisclosureHeading>
       <DisclosureContent>
-        <DisclosureBody className="!p-0">{playlistList(items)}</DisclosureBody>
+        <DisclosureBody className="p-0!">{playlistList(items)}</DisclosureBody>
       </DisclosureContent>
     </Disclosure>
   );
@@ -429,12 +429,12 @@ export function Sidebar({
   const accountMenu = (
     <DropdownPopover
       placement="top start"
-      className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-3 data-[entering]:duration-300 data-[entering]:ease-out data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:slide-out-to-bottom-3 data-[exiting]:duration-200 data-[exiting]:ease-in"
+      className="data-entering:animate-in data-entering:fade-in-0 data-entering:zoom-in-95 data-entering:slide-in-from-bottom-3 data-entering:duration-300 data-entering:ease-out data-exiting:animate-out data-exiting:fade-out-0 data-exiting:zoom-out-95 data-exiting:slide-out-to-bottom-3 data-exiting:duration-200 data-exiting:ease-in"
     >
       <DropdownMenu
         onAction={handleAccountAction}
         aria-label={t("account")}
-        className="w-[var(--trigger-width)] min-w-56"
+        className="w-(--trigger-width) min-w-56"
       >
         <DropdownSection>
           <DropdownItem id="profile" textValue={t("account")}>
@@ -444,7 +444,11 @@ export function Sidebar({
             {t("account")}
           </DropdownItem>
           {profiles?.length > 1 ? (
-          <DropdownItem id="switch" data-testid="menu-switch-profile" textValue={t("switchAccount")}>
+            <DropdownItem
+              id="switch"
+              data-testid="menu-switch-profile"
+              textValue={t("switchAccount")}
+            >
               <span className="w-4 flex justify-center shrink-0">
                 <Users size={16} />
               </span>
@@ -512,10 +516,10 @@ export function Sidebar({
                 transition: quitHolding ? "transform 1s linear" : "transform 0.15s ease",
               }}
             />
-            <span className="w-4 flex justify-center shrink-0 relative z-[1]">
+            <span className="w-4 flex justify-center shrink-0 relative z-1">
               <Power size={16} />
             </span>
-            <span className="relative z-[1]">{t("quitApp")}</span>
+            <span className="relative z-1">{t("quitApp")}</span>
           </DropdownItem>
         </DropdownSection>
       </DropdownMenu>
@@ -530,7 +534,7 @@ export function Sidebar({
       {/* Tooltip portal */}
       {tooltip && (
         <div
-          className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-t12 whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+          className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-t12 whitespace-nowrap border border-border pointer-events-none z-9999 shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
           style={{ left: tooltip.x, top: tooltip.y }}
         >
           {tooltip.text}
@@ -543,7 +547,7 @@ export function Sidebar({
           "flex items-center gap-2",
           IS_MAC && !collapsed ? "pb-3" : "pb-4",
           collapsed ? "justify-center px-3" : "justify-start",
-          !collapsed && (IS_MAC ? "pl-[72px] pr-2.5" : "px-3"),
+          !collapsed && (IS_MAC ? "pl-18 pr-2.5" : "px-3"),
           collapsed && IS_MAC && "pt-8"
         )}
       >
@@ -553,7 +557,7 @@ export function Sidebar({
             size="sm"
             isIconOnly
             onPress={onToggleCollapse}
-            className="shrink-0 relative z-[201] rounded-full"
+            className="shrink-0 relative z-201 rounded-full"
             style={{ visibility: settingsOpen ? "hidden" : "visible", contain: "layout style" }}
             onMouseEnter={(e) => {
               if (collapsed) {
@@ -774,7 +778,7 @@ export function Sidebar({
               </Button>
               {newsUnread > 0 && (
                 <span
-                  className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold leading-none pointer-events-none"
+                  className="absolute top-0.5 right-0.5 min-w-3.5 h-3.5 px-1 flex items-center justify-center rounded-full text-[9px] font-bold leading-none pointer-events-none"
                   style={{
                     background: "var(--accent)",
                     color: "#fff",
@@ -869,7 +873,7 @@ export function Sidebar({
           <img
             src="/Teto_Drinking_Boba.png"
             alt="Kasane Teto"
-            className="fixed bottom-[72px] right-0 w-auto h-64 pointer-events-none z-[9500]"
+            className="fixed bottom-18 right-0 w-auto h-64 pointer-events-none z-9500"
             style={{
               animation: tetoLeaving
                 ? "tetoSlideOut 0.45s cubic-bezier(0.4,0,0.2,1) forwards"
