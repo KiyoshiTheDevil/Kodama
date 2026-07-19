@@ -4813,43 +4813,35 @@ def _video_sync_download_clip(vid, out_wav, ffmpeg_dir):
     tmp_dir = os.path.dirname(out_wav)
     tmp_tpl = os.path.join(tmp_dir, os.path.splitext(os.path.basename(out_wav))[0] + "_raw.%(ext)s")
     last_err = None
-    # FFmpegFD.available() (yt-dlp's gate for --download-sections) checks PATH only and ignores
-    # ffmpeg_location (known yt-dlp limitation) — so a bundled-next-to-the-exe ffmpeg (the normal
-    # case on Windows) needs its directory on PATH too, not just passed as ffmpeg_location.
-    _video_sync_path_lock.acquire()
-    old_path = os.environ.get("PATH", "")
-    if ffmpeg_dir and ffmpeg_dir not in old_path.split(os.pathsep):
-        os.environ["PATH"] = ffmpeg_dir + os.pathsep + old_path
-    try:
-        for fmt, extra, no_auth in _STREAM_ATTEMPTS:
-            try:
-                ydl_opts = {
-                    "format": fmt,
-                    "quiet": True,
-                    "no_warnings": True,
-                    "outtmpl": tmp_tpl,
-                    "download_ranges": yt_dlp.utils.download_range_func(None, [(0, VIDEO_SYNC_CLIP_SECONDS)]),
-                    "force_keyframes_at_cuts": True,
-                    "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
-                }
-                if extra:
-                    ydl_opts.update(extra)
-                if ffmpeg_dir:
-                    ydl_opts["ffmpeg_location"] = ffmpeg_dir
-                if not no_auth:
-                    _apply_ydl_auth(ydl_opts)
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([f"https://music.youtube.com/watch?v={vid}"])
-                last_err = None
+    # PATH must already contain ffmpeg_dir by the time this runs — see the caller
+    # (_compute_video_sync_offset), which sets it once for both parallel clip downloads rather
+    # than each call fighting over the same process-wide mutation.
+    for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+        try:
+            ydl_opts = {
+                "format": fmt,
+                "quiet": True,
+                "no_warnings": True,
+                "outtmpl": tmp_tpl,
+                "download_ranges": yt_dlp.utils.download_range_func(None, [(0, VIDEO_SYNC_CLIP_SECONDS)]),
+                "force_keyframes_at_cuts": True,
+                "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+            }
+            if extra:
+                ydl_opts.update(extra)
+            if ffmpeg_dir:
+                ydl_opts["ffmpeg_location"] = ffmpeg_dir
+            if not no_auth:
+                _apply_ydl_auth(ydl_opts)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([f"https://music.youtube.com/watch?v={vid}"])
+            last_err = None
+            break
+        except Exception as e:
+            last_err = e
+            if _is_hard_error(str(e)):
                 break
-            except Exception as e:
-                last_err = e
-                if _is_hard_error(str(e)):
-                    break
-                _logging.warning(f"[video-sync] {vid} fmt={fmt} auth={not no_auth}: {e}")
-    finally:
-        os.environ["PATH"] = old_path
-        _video_sync_path_lock.release()
+            _logging.warning(f"[video-sync] {vid} fmt={fmt} auth={not no_auth}: {e}")
     if last_err:
         raise last_err
 
@@ -4950,12 +4942,29 @@ def _compute_video_sync_offset(video_id):
             if ffmpeg_dir is False:
                 result = {"available": False, "error": "ffmpeg not found"}
             else:
+                import concurrent.futures
                 tmp_dir = tempfile.mkdtemp()
                 try:
                     song_wav = os.path.join(tmp_dir, "song.wav")
                     video_wav = os.path.join(tmp_dir, "video.wav")
-                    _video_sync_download_clip(video_id, song_wav, ffmpeg_dir)
-                    _video_sync_download_clip(counterpart_id, video_wav, ffmpeg_dir)
+                    # The two clips (song + counterpart) are entirely independent downloads —
+                    # running them in parallel roughly halves the wait before the video switch
+                    # becomes available, instead of paying the extraction+download cost twice in
+                    # a row. PATH is set once here (not per-download) so the two threads don't
+                    # fight over the same process-wide mutation.
+                    _video_sync_path_lock.acquire()
+                    old_path = os.environ.get("PATH", "")
+                    if ffmpeg_dir and ffmpeg_dir not in old_path.split(os.pathsep):
+                        os.environ["PATH"] = ffmpeg_dir + os.pathsep + old_path
+                    try:
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                            f1 = pool.submit(_video_sync_download_clip, video_id, song_wav, ffmpeg_dir)
+                            f2 = pool.submit(_video_sync_download_clip, counterpart_id, video_wav, ffmpeg_dir)
+                            f1.result()
+                            f2.result()
+                    finally:
+                        os.environ["PATH"] = old_path
+                        _video_sync_path_lock.release()
                     offset_seconds, confidence = _video_sync_compute_offset(song_wav, video_wav)
                     result = {
                         "available": True,
