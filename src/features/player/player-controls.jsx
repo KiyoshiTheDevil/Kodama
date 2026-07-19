@@ -128,6 +128,7 @@ export function PlayerControls(props) {
   return (
     <div
       data-testid="player"
+      data-track-id={track?.videoId || undefined}
       style={{
         background: fullscreen ? "rgba(13,13,13,0.6)" : "transparent",
         backdropFilter: fullscreen ? "blur(20px)" : "none",

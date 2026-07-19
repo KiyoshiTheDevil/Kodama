@@ -43,6 +43,10 @@ export function installErrorCapture() {
     );
     orig.apply(console, args);
   };
+  // The E2E bridge is injected before this module. Exposing a read-only snapshot
+  // lets smoke tests fail on uncaught frontend errors without coupling them to
+  // the bug-report UI.
+  if (window.__kodamaE2e) window.__kodamaE2e.errors = () => _errs.slice();
 }
 
 export function getConsoleErrors() {

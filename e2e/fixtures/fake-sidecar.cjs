@@ -64,6 +64,32 @@ function defaultResponse(state, request, url) {
         ? [fixtures.tracks.normalTrack.title]
         : fixtures.search,
     };
+  if (pathname === "/playlist/playlist-fixture/stream")
+    return {
+      sse: [
+        {
+          type: "header",
+          title: "Fixture Playlist",
+          thumbnail: fixtures.tracks.normalTrack.thumbnail,
+          total: 1,
+        },
+        { type: "tracks", tracks: [fixtures.tracks.normalTrack] },
+        { type: "done" },
+      ],
+    };
+  if (pathname === "/album/album-fixture")
+    return {
+      body: {
+        title: "Fixture Album",
+        thumbnail: fixtures.tracks.normalTrack.thumbnail,
+        artists: "Kodama Test Artist",
+        artistBrowseId: "artist-fixture",
+        year: "2026",
+        tracks: [fixtures.tracks.normalTrack],
+      },
+    };
+  if (pathname.startsWith("/song/cached/")) return { status: 404, body: { cached: false } };
+  if (pathname.startsWith("/audio-stream/")) return { text: "fixture audio" };
   if (pathname === "/library/playlists") return { body: { playlists: fixtures.library.playlists } };
   if (pathname === "/library/albums") return { body: { albums: fixtures.library.albums } };
   if (pathname === "/library/artists") return { body: { artists: fixtures.library.artists } };

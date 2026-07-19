@@ -1471,8 +1471,9 @@ export function SettingsPanel({
                       text: "#111111",
                     },
                   ].map((th) => (
-                    <CardRoot
-                      key={th.id}
+                  <CardRoot
+                    key={th.id}
+                    data-testid={`theme-${th.id}`}
                       onClick={() => onThemeChange(th.id)}
                       variant="transparent"
                       className={cn(
@@ -2527,6 +2528,7 @@ export function SettingsPanel({
                   return (
                     <CardRoot
                       key={lang.code}
+                      data-testid={`settings-language-${lang.code}`}
                       onClick={() => onLanguageChange(lang.code)}
                       variant="secondary"
                       className={cn(
@@ -2612,6 +2614,7 @@ export function SettingsPanel({
                   {t("ovlOpenEditorDesc")}
                 </span>
                 <Button
+                  data-testid="open-overlay-editor"
                   size="sm"
                   variant="solid"
                   color="accent"

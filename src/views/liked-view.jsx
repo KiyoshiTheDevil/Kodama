@@ -71,7 +71,8 @@ export function LikedView({
     );
 
   return (
-    <PlaylistLayout
+    <div data-testid="view-liked">
+      <PlaylistLayout
       title={t("likedSongs")}
       thumbnail={null}
       tracks={tracks}
@@ -90,6 +91,7 @@ export function LikedView({
       selectedTracks={selectedTracks}
       onToggleSelect={onToggleSelect}
       onSelectAll={onSelectAll}
-    />
+      />
+    </div>
   );
 }

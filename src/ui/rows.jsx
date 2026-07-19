@@ -97,6 +97,7 @@ export function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu
   const anim = useAnimations();
   return (
     <div
+      data-track-id={track.videoId}
       onClick={() => onPlay(track)}
       onContextMenu={
         onContextMenu

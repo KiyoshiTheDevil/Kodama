@@ -917,7 +917,7 @@ function Sidebar({
             {t("account")}
           </DropdownItem>
           {profiles?.length > 1 ? (
-            <DropdownItem id="switch" textValue={t("switchAccount")}>
+          <DropdownItem id="switch" data-testid="menu-switch-profile" textValue={t("switchAccount")}>
               <span className="w-4 flex justify-center shrink-0">
                 <Users size={16} />
               </span>
@@ -962,7 +962,7 @@ function Sidebar({
             </span>
             {t("reportBug") || "Fehler melden"}
           </DropdownItem>
-          <DropdownItem id="settings" textValue={t("settings")}>
+          <DropdownItem id="settings" data-testid="menu-settings" textValue={t("settings")}>
             <span className="w-4 flex justify-center shrink-0">
               <Gear size={16} />
             </span>
@@ -1070,7 +1070,7 @@ function Sidebar({
                     <SearchFieldSearchIcon>
                       <MagnifyingGlass size={16} />
                     </SearchFieldSearchIcon>
-                    <SearchFieldInput placeholder={t("search")} />
+                    <SearchFieldInput data-testid="sidebar-search" placeholder={t("search")} />
                     <SearchFieldClearButton />
                   </SearchFieldGroup>
                 </SearchFieldRoot>
@@ -1146,7 +1146,7 @@ function Sidebar({
               <SearchFieldSearchIcon>
                 <MagnifyingGlass size={16} />
               </SearchFieldSearchIcon>
-              <SearchFieldInput placeholder={t("search")} />
+              <SearchFieldInput data-testid="sidebar-search" placeholder={t("search")} />
               <SearchFieldClearButton />
             </SearchFieldGroup>
           </SearchFieldRoot>
@@ -1210,6 +1210,7 @@ function Sidebar({
             <div className="flex-1 min-w-0">
               <Dropdown>
                 <DropdownTrigger
+                  data-testid="account-menu-trigger"
                   className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-secondary hover:bg-hover hover:text-primary transition-colors duration-150"
                   style={{ contain: "layout style" }}
                 >
@@ -1275,6 +1276,7 @@ function Sidebar({
           <div className="flex flex-col items-center gap-1 py-2">
             <Dropdown>
               <DropdownTrigger
+                data-testid="account-menu-trigger"
                 className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-t11 font-medium overflow-hidden shrink-0"
                 style={{ contain: "layout style" }}
                 onMouseEnter={(e) => {

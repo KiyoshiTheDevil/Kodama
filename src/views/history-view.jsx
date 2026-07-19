@@ -80,7 +80,8 @@ export function HistoryView({
     ) : null;
 
   return (
-    <PlaylistLayout
+    <div data-testid="view-history">
+      <PlaylistLayout
       title={t("history")}
       thumbnail={null}
       tracks={tracks}
@@ -110,6 +111,7 @@ export function HistoryView({
       }}
       hideExplicit={hideExplicit}
       extraActions={clearHistoryBtn}
-    />
+      />
+    </div>
   );
 }

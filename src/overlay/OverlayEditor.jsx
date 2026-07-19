@@ -2134,6 +2134,7 @@ export default function OverlayEditor({
           className="w-[184px]"
         >
           <InputRoot
+            data-testid="overlay-canvas-name"
             className="text-t12! h-8! bg-[var(--surface-2)]! border-border!"
             placeholder={t("ovlProfileDefaultName")}
           />

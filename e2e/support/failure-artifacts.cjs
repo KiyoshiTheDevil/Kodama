@@ -36,11 +36,11 @@ async function saveFailureArtifacts(directory, test, error) {
   ]);
 }
 
-function createAfterTestHook(directory) {
+function createAfterTestHook(directory, { assertNetwork = true } = {}) {
   return async function afterTest(test, context, result) {
     let failure = result?.error;
     try {
-      await assertE2eNetworkPolicy();
+      if (assertNetwork) await assertE2eNetworkPolicy();
     } catch (error) {
       failure ||= error;
       throw error;

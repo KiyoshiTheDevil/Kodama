@@ -3,13 +3,13 @@
 Create an adapter in each test's `beforeEach`, then clear it in `afterEach`:
 
 ```js
-const { createTauriAdapters } = require("../support/tauri-adapters.cjs");
+const {createTauriAdapters} = require("./tauri-adapters.cjs");
 
 beforeEach(async () => {
-  native = createTauriAdapters();
-  await native.dialog.open("/tmp/fixture-file.json");
-  await native.opener.url();
-  await native.updater.none();
+    native = createTauriAdapters();
+    await native.dialog.open("/tmp/fixture-file.json");
+    await native.opener.url();
+    await native.updater.none();
 });
 
 afterEach(async () => native.clear());

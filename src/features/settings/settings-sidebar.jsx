@@ -242,6 +242,7 @@ export function SettingsSidebarContent({
               <ListBoxItem
                 key={item.id}
                 id={item.id}
+                data-testid={`settings-nav-${item.id}`}
                 textValue={item.label}
                 title={collapsed ? item.label : undefined}
                 className={cn(

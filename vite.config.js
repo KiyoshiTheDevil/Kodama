@@ -18,7 +18,13 @@ const e2eContentSecurityPolicy =
 const e2eNoRemoteFonts = {
   name: "e2e-no-remote-fonts",
   transformIndexHtml(html) {
-    return html.replace(/\s*<!-- Google Fonts[\s\S]*?<\/head>/, "\n  </head>");
+    // Keep the rest of <head> intact: in particular, Vite appends the module
+    // entry after the font block. The previous broad match consumed through
+    // </head> and left the compiled desktop E2E WebView with an empty root.
+    return html.replace(
+      /\s*<!-- Google Fonts[\s\S]*?<link\s+rel="stylesheet"[\s\S]*?fonts\.googleapis\.com[^>]*\/>\s*/,
+      "\n"
+    );
   },
 };
 

@@ -161,7 +161,7 @@ export function DownloadsView({
 
   if (tab === "songs") {
     return (
-      <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
+      <div data-testid="view-downloads" style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
         {tabBar}
         {/* Negative margin pulls PlaylistLayout's gradient up behind the header */}
         <div style={{ marginTop: -HEADER_H, flex: 1 }}>

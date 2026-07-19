@@ -40,6 +40,7 @@ export function HomeView({
   const { handlePlay } = usePlayerActions();
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [moodGroups, setMoodGroups] = useState({}); // { "For you": [...], "Moods & moments": [...], "Genres": [...] }
   const [activeMoodTab, setActiveMoodTab] = useState(null);
   const [activeMoodChip, setActiveMoodChip] = useState(null);
@@ -49,14 +50,25 @@ export function HomeView({
   const [speedDialPage, setSpeedDialPage] = useState(0);
   const t = useLang();
 
-  useEffect(() => {
+  const loadHome = () => {
+    setLoading(true);
+    setError(null);
     fetch(`${API}/home`)
-      .then((r) => r.json())
-      .then((d) => {
-        setSections(d.sections || []);
-        setLoading(false);
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || data.error) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
       })
-      .catch(() => setLoading(false));
+      .then((d) => setSections(d.sections || []))
+      .catch((cause) => {
+        setSections([]);
+        setError(cause.message || "Unable to load Home");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadHome();
     fetch(`${API}/mood/categories`)
       .then((r) => r.json())
       .then((d) => {
@@ -417,6 +429,18 @@ export function HomeView({
             </div>
           </div>
         ))}
+      </div>
+    );
+
+  if (error)
+    return (
+      <div data-testid="view-home" style={{ padding: 28, color: "var(--text-secondary)" }}>
+        <div data-testid="home-load-error" style={{ color: "#f44336", marginBottom: 12 }}>
+          {error}
+        </div>
+        <Button size="sm" variant="secondary" onPress={loadHome}>
+          {t("retry") || "Retry"}
+        </Button>
       </div>
     );
 

@@ -57,6 +57,7 @@ export function ProfileSwitcherModal({ isOpen, onOpenChange }) {
                 {list.map((a) => (
                   <button
                     key={a.name}
+                    data-testid={`profile-${a.name}`}
                     onClick={() => {
                       if (!a.active) onSwitch(a.name);
                       onOpenChange(false);
