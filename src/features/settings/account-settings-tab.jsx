@@ -25,6 +25,40 @@ import { fmtDuration } from "./settings-support.jsx";
 import { SettingRow, Toggle } from "../../ui/settings-controls.jsx";
 import { useProfileState, useProfileActions } from "../profiles/profile-context.jsx";
 
+function Avatar({ account, size }) {
+  return (
+    <div
+      className={cn(
+        "rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold",
+        account.type === "local"
+          ? "bg-elevated text-secondary border border-border"
+          : "bg-accent text-white"
+      )}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+    >
+      {account.avatar ? (
+        <img src={thumb(account.avatar)} alt="" className="w-full h-full object-cover" />
+      ) : (
+        (account.displayName || account.name || "?")[0].toUpperCase()
+      )}
+    </div>
+  );
+}
+
+function StatTile({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-elevated">
+      <div className="w-9 h-9 rounded-lg bg-accent-dim text-accent flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-t16 font-semibold truncate tabular-nums">{value}</div>
+        <div className="text-t11 text-muted truncate">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
   const t = useLang();
   // Account list/active account/actions come from ProfileContext (Step 12) rather than props.
@@ -87,24 +121,6 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     };
   }, []);
 
-  const Avatar = ({ a, size }) => (
-    <div
-      className={cn(
-        "rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold",
-        a.type === "local"
-          ? "bg-elevated text-secondary border border-border"
-          : "bg-accent text-white"
-      )}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
-    >
-      {a.avatar ? (
-        <img src={thumb(a.avatar)} alt="" className="w-full h-full object-cover" />
-      ) : (
-        (a.displayName || a.name || "?")[0].toUpperCase()
-      )}
-    </div>
-  );
-
   const pickAvatar = async () => {
     if (!active) return;
     try {
@@ -149,18 +165,6 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
     toast.success(t("historyCleared"));
   };
 
-  const StatTile = ({ icon, label, value }) => (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-elevated">
-      <div className="w-9 h-9 rounded-lg bg-accent-dim text-accent flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-t16 font-semibold truncate tabular-nums">{value}</div>
-        <div className="text-t11 text-muted truncate">{label}</div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="flex flex-col gap-6 text-primary max-w-[560px]">
       <div
@@ -178,13 +182,13 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
                 title={t("changeAvatar")}
                 className="relative group shrink-0 rounded-full cursor-default"
               >
-                <Avatar a={active} size={56} />
+                <Avatar account={active} size={56} />
                 <span className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                   <ImageSquare size={18} />
                 </span>
               </button>
             ) : (
-              <Avatar a={active} size={56} />
+              <Avatar account={active} size={56} />
             )}
             <div className="flex-1 min-w-0">
               <div className="text-t18 font-semibold truncate">
@@ -261,7 +265,7 @@ export function AccountSettingsTab({ hideUserHandle, onToggleHideUserHandle }) {
                   a.active ? "bg-accent-dim" : "hover:bg-hover"
                 )}
               >
-                <Avatar a={a} size={36} />
+                <Avatar account={a} size={36} />
                 <div
                   className="flex-1 min-w-0"
                   onClick={() => {
