@@ -1366,106 +1366,98 @@ export function AppShell({
   language,
   addToast,
   handleLanguageChange,
-  // navigation (features/music/hooks/use-music-navigation.js, called in App)
-  view,
-  setView,
-  appKey,
-  viewRefreshKey,
-  setViewRefreshKey,
-  collection,
-  setCollection,
-  artistView,
-  searchQuery,
-  handleSearch,
-  addRecentPlaylist,
-  removeRecentPlaylist,
-  openPlaylist,
-  openAlbum,
-  openArtist,
-  navigateTo,
-  goBack,
-  // pinned playlists
-  pinnedIds,
-  togglePin,
-  // overlay / queue / lyrics-visibility / zoom (settings-memo or profile-reset pinned)
-  overlayOpen,
-  setOverlayOpen,
-  queueOpen,
-  setQueueOpen,
-  showLyrics,
-  setShowLyrics,
-  uiZoom,
-  setUiZoom,
-  // shortcuts (settings-memo pinned) — raw setters + stale-closure-safe refs
-  customShortcutsRef,
-  recordingShortcutRef,
-  setCustomShortcuts,
-  setShortcutLabels,
-  setRecordingShortcut,
-  // instrumental auto-cover bridge (shared with App's appearanceSettings memo)
-  instrumentalViz,
-  autoCoverRef,
-  // theme quad-click flashbang bridge (App's handleThemeChange triggers this ref)
-  flashbangTriggerRef,
-  // per-track lyrics-session reset bridge (populated here, invoked by usePlayerController in App)
-  resetLyricsSessionRef,
-  // profile / auth-gate startup state (stays App-owned per profile-context.jsx)
-  showLogin,
-  setShowLogin,
-  addingProfile,
-  setAddingProfile,
-  reauthName,
-  setReauthName,
-  showProfileSwitcher,
-  setShowProfileSwitcher,
-  // remote control (useRemoteControl stays in App — integrationSettings memo needs it)
-  remoteEnabled,
-  remoteInfo,
-  remoteDevices,
-  pairModalOpen,
-  setPairModalOpen,
-  remoteDeviceAction,
-  remoteRememberDevice,
   // OBS (useObsOverlay stays in App — its own native-bridge sync effect needs it)
   obsEnabled,
-  // network status (useNetworkStatus stays in App — needs music-nav/profile setters)
-  offlineMode,
-  isActuallyOffline,
-  isOffline,
-  handleToggleOffline,
   // likes
   likedIds,
   handleToggleLike,
+  // Everything else pinned to App by a settings-memo closure or a profile/navigation-reset
+  // injection (see the Step 13 boundary map) arrives bundled by domain instead of as a flat prop
+  // list (Step 13a-ii) — destructured back to their original flat names below so the rest of this
+  // component (state, effects, JSX) is unchanged from Step 13a-i.
+  nav,
+  shellUi,
+  shortcuts,
+  appearancePrefs,
+  lyricsPrefs,
+  authGate,
+  remote,
+  network,
+  downloadQueue,
+  privacySettings,
+  bridges,
+}) {
+  // navigation (features/music/hooks/use-music-navigation.js, called in App) + pinned playlists
+  const {
+    view,
+    setView,
+    appKey,
+    viewRefreshKey,
+    setViewRefreshKey,
+    collection,
+    setCollection,
+    artistView,
+    searchQuery,
+    handleSearch,
+    addRecentPlaylist,
+    removeRecentPlaylist,
+    openPlaylist,
+    openAlbum,
+    openArtist,
+    navigateTo,
+    goBack,
+    pinnedIds,
+    togglePin,
+  } = nav;
+  // overlay / queue / lyrics-visibility / zoom (settings-memo or profile-reset pinned)
+  const { overlayOpen, setOverlayOpen, queueOpen, setQueueOpen, showLyrics, setShowLyrics, uiZoom, setUiZoom } =
+    shellUi;
+  // shortcuts (settings-memo pinned) — raw setters + stale-closure-safe refs
+  const { customShortcutsRef, recordingShortcutRef, setCustomShortcuts, setShortcutLabels, setRecordingShortcut } =
+    shortcuts;
+  // appearance/lyrics settings values read directly by the moved JSX (raw state, App-owned)
+  const { animations, hideExplicit, ambientBackground, ambientVisualizer, vizConfig, instrumentalViz } =
+    appearancePrefs;
+  const {
+    lyricsFontSize,
+    lyricsProviders,
+    showLyricsTranslation,
+    setShowLyricsTranslation,
+    lyricsTranslationLang,
+    setLyricsTranslationLang,
+    lyricsTranslationFontSize,
+    showRomaji,
+    lyricsRomajiFontSize,
+    showAgentTags,
+    syllableZoom,
+    fluidLyrics,
+  } = lyricsPrefs;
+  // profile / auth-gate startup state (stays App-owned per profile-context.jsx)
+  const {
+    showLogin,
+    setShowLogin,
+    addingProfile,
+    setAddingProfile,
+    reauthName,
+    setReauthName,
+    showProfileSwitcher,
+    setShowProfileSwitcher,
+  } = authGate;
+  // remote control (useRemoteControl stays in App — integrationSettings memo needs it)
+  const { remoteEnabled, remoteInfo, remoteDevices, pairModalOpen, setPairModalOpen, remoteDeviceAction, remoteRememberDevice } =
+    remote;
+  // network status (useNetworkStatus stays in App — needs music-nav/profile setters)
+  const { offlineMode, isActuallyOffline, isOffline, handleToggleOffline } = network;
   // downloads — the queue card + batch cancel stay App-owned (useDownloadManager call);
   // cached/downloading ids + per-track actions come from DownloadContext below instead.
-  downloadBatches,
-  downloadQueueMin,
-  setDownloadQueueMin,
-  handleCancelBatch,
+  const { downloadBatches, downloadQueueMin, setDownloadQueueMin, handleCancelBatch } = downloadQueue;
   // misc small settings not covered by a settings-memo prop bundle
-  anonStats,
-  handleAnonStatsChange,
-  hideUserHandle,
-  setHideUserHandle,
-  // appearance/lyrics settings values read directly by the moved JSX (raw state, App-owned)
-  animations,
-  hideExplicit,
-  ambientBackground,
-  ambientVisualizer,
-  vizConfig,
-  lyricsFontSize,
-  lyricsProviders,
-  showLyricsTranslation,
-  setShowLyricsTranslation,
-  lyricsTranslationLang,
-  setLyricsTranslationLang,
-  lyricsTranslationFontSize,
-  showRomaji,
-  lyricsRomajiFontSize,
-  showAgentTags,
-  syllableZoom,
-  fluidLyrics,
-}) {
+  const { anonStats, handleAnonStatsChange, hideUserHandle, setHideUserHandle } = privacySettings;
+  // instrumental auto-cover bridge (shared with App's appearanceSettings memo), theme quad-click
+  // flashbang bridge (App's handleThemeChange triggers this ref), and the per-track lyrics-session
+  // reset bridge (populated here, invoked by usePlayerController in App)
+  const { autoCoverRef, flashbangTriggerRef, resetLyricsSessionRef } = bridges;
+
   // Player controller (Step 11): consumed via context instead of re-threaded props.
   const { track: currentTrack, isPlaying, audioRef } = usePlaybackStatus();
   const { queueRef } = useQueueState();

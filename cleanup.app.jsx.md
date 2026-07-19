@@ -1050,10 +1050,39 @@ requests, and native bridge events for the risky flows.
     from every entry point, debug float window, feedback/bug-report screenshot, news modal, login
     screen, remote-pair modal), and the theme quad-click flashbang easter egg (exercises the new
     `flashbangTriggerRef` bridge specifically).
-  - Remaining for Step 13: **13a-ii** (bundle the settings-memo-anchored props into named objects,
-    mirroring the `appearanceSettings` pattern) and **13b** (`AppOverlays` +
-    `TrackContextMenu`/`PlaylistContextMenu` extraction out of `AppShell`'s body) are both still
-    open, per the plan above.
+  - **13a-ii: done.** Bundled the ~60 flat "stays in App, crosses as props" values from 13a-i into
+    11 named objects built at the `<AppShell/>` call site: `nav` (the full `useMusicNavigation()`
+    output plus `pinnedIds`/`togglePin`), `shellUi` (`overlayOpen`/`queueOpen`/`showLyrics`/
+    `uiZoom` + their setters), `shortcuts` (the raw shortcut setters + stale-closure-safe refs),
+    `appearancePrefs` and `lyricsPrefs` (the raw preference values the settings memos also read),
+    `authGate` (profile/login startup state), `remote`, `network`, `downloadQueue`,
+    `privacySettings` (`anonStats`/`hideUserHandle`), and `bridges` (`autoCoverRef`/
+    `flashbangTriggerRef`/`resetLyricsSessionRef`). `language`/`addToast`/`handleLanguageChange`/
+    `obsEnabled`/`likedIds`/`handleToggleLike` stayed flat — they're single small values, not a
+    settings-memo cluster, so bundling them would only add ceremony.
+    - Implementation is additive-only: `AppShell`'s top ~30 lines now destructure each bundle back
+      into the exact same flat local names (`const { view, setView, ... } = nav;` etc.), so the
+      ~1,300 lines of state/effects/JSX below were **not touched** — same alias-at-destructure
+      trick used for the context substitutions in 13a-i, chosen for the same reason (it makes the
+      change mechanically checkable instead of a free-form rewrite of working code).
+    - The bundle objects are plain object literals at the call site, not `useMemo`-wrapped like
+      `appearanceSettings`/etc. Those five settings memos are memoized because they feed a
+      `Context.Provider` with multiple independent consumers, where identity stability avoids
+      needless re-renders across the tree. `AppShell` is a single, unmemoized direct child of
+      `App`, already re-rendering whenever `App` does — memoizing these bundles would add
+      dependency-array bookkeeping risk for no measurable benefit, so 13a-ii is prop-bundling for
+      API ergonomics, not the same performance pattern.
+  - Verified: `npx vite build` passes (`✓ built`; only the pre-existing dynamic-import/chunk-size
+    warnings). Targeted ESLint on both files is unchanged from the 13a-i baseline — still zero
+    `no-undef` beyond the pre-existing Vite-injected `__APP_VERSION__` carryover, and the
+    `no-unused-vars` list is byte-identical to 13a-i's (no new dead code from the bundling). Net:
+    `App.jsx` 2,295 → 2,325 lines (+30, the bundle-construction block), `AppShell.jsx` 3,302 → 3,294
+    (−8, net of the destructuring block replacing the flat prop list). Desktop smoke testing is
+    still owed for the same reasons as 13a-i — this pass is a pure prop-shape change with the same
+    values flowing through, so it doesn't add new smoke-test surface, but the 13a-i checklist above
+    still applies before either checkpoint can be called verified end-to-end.
+  - Remaining for Step 13: **13b** (`AppOverlays` + `TrackContextMenu`/`PlaylistContextMenu`
+    extraction out of `AppShell`'s body) is still open, per the plan above.
 
 - [ ] Step 14: Remove compatibility glue and audit boundaries
   - How: *(to be filled in when done)*

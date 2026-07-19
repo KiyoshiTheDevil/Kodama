@@ -2142,6 +2142,105 @@ export default function App() {
 
   // AnimatedView moved to AppShell (Step 13a-i).
 
+  // ── AppShell prop bundles (Step 13a-ii) ──────────────────────────────────────
+  // Everything below is pinned to App by a settings-memo closure or a profile/navigation-reset
+  // injection (see the Step 13 boundary map). Grouped into named objects instead of a flat prop
+  // list, mirroring the appearanceSettings-style pattern; AppShell isn't memoized, so these are
+  // plain object literals rather than useMemo — object identity doesn't gate any re-render here.
+  const appShellNav = {
+    view,
+    setView,
+    appKey,
+    viewRefreshKey,
+    setViewRefreshKey,
+    collection,
+    setCollection,
+    artistView,
+    searchQuery,
+    handleSearch,
+    addRecentPlaylist,
+    removeRecentPlaylist,
+    openPlaylist,
+    openAlbum,
+    openArtist,
+    navigateTo,
+    goBack,
+    pinnedIds,
+    togglePin,
+  };
+  const appShellUi = {
+    overlayOpen,
+    setOverlayOpen,
+    queueOpen,
+    setQueueOpen,
+    showLyrics,
+    setShowLyrics,
+    uiZoom,
+    setUiZoom,
+  };
+  const appShellShortcuts = {
+    customShortcutsRef,
+    recordingShortcutRef,
+    setCustomShortcuts,
+    setShortcutLabels,
+    setRecordingShortcut,
+  };
+  const appShellAppearancePrefs = {
+    animations,
+    hideExplicit,
+    ambientBackground,
+    ambientVisualizer,
+    vizConfig,
+    instrumentalViz,
+  };
+  const appShellLyricsPrefs = {
+    lyricsFontSize,
+    lyricsProviders,
+    showLyricsTranslation,
+    setShowLyricsTranslation,
+    lyricsTranslationLang,
+    setLyricsTranslationLang,
+    lyricsTranslationFontSize,
+    showRomaji,
+    lyricsRomajiFontSize,
+    showAgentTags,
+    syllableZoom,
+    fluidLyrics,
+  };
+  const appShellAuthGate = {
+    showLogin,
+    setShowLogin,
+    addingProfile,
+    setAddingProfile,
+    reauthName,
+    setReauthName,
+    showProfileSwitcher,
+    setShowProfileSwitcher,
+  };
+  const appShellRemote = {
+    remoteEnabled,
+    remoteInfo,
+    remoteDevices,
+    pairModalOpen,
+    setPairModalOpen,
+    remoteDeviceAction,
+    remoteRememberDevice,
+  };
+  const appShellNetwork = { offlineMode, isActuallyOffline, isOffline, handleToggleOffline };
+  const appShellDownloadQueue = {
+    downloadBatches,
+    downloadQueueMin,
+    setDownloadQueueMin,
+    handleCancelBatch,
+  };
+  const appShellPrivacySettings = {
+    anonStats,
+    handleAnonStatsChange,
+    hideUserHandle,
+    setHideUserHandle,
+  };
+  const appShellBridges = { autoCoverRef, flashbangTriggerRef, resetLyricsSessionRef };
+
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
       <LangContext.Provider value={language}>
@@ -2197,89 +2296,20 @@ export default function App() {
                           language={language}
                           addToast={addToast}
                           handleLanguageChange={handleLanguageChange}
-                          view={view}
-                          setView={setView}
-                          appKey={appKey}
-                          viewRefreshKey={viewRefreshKey}
-                          setViewRefreshKey={setViewRefreshKey}
-                          collection={collection}
-                          setCollection={setCollection}
-                          artistView={artistView}
-                          searchQuery={searchQuery}
-                          handleSearch={handleSearch}
-                          addRecentPlaylist={addRecentPlaylist}
-                          removeRecentPlaylist={removeRecentPlaylist}
-                          openPlaylist={openPlaylist}
-                          openAlbum={openAlbum}
-                          openArtist={openArtist}
-                          navigateTo={navigateTo}
-                          goBack={goBack}
-                          pinnedIds={pinnedIds}
-                          togglePin={togglePin}
-                          overlayOpen={overlayOpen}
-                          setOverlayOpen={setOverlayOpen}
-                          queueOpen={queueOpen}
-                          setQueueOpen={setQueueOpen}
-                          showLyrics={showLyrics}
-                          setShowLyrics={setShowLyrics}
-                          uiZoom={uiZoom}
-                          setUiZoom={setUiZoom}
-                          customShortcutsRef={customShortcutsRef}
-                          recordingShortcutRef={recordingShortcutRef}
-                          setCustomShortcuts={setCustomShortcuts}
-                          setShortcutLabels={setShortcutLabels}
-                          setRecordingShortcut={setRecordingShortcut}
-                          instrumentalViz={instrumentalViz}
-                          autoCoverRef={autoCoverRef}
-                          flashbangTriggerRef={flashbangTriggerRef}
-                          resetLyricsSessionRef={resetLyricsSessionRef}
-                          showLogin={showLogin}
-                          setShowLogin={setShowLogin}
-                          addingProfile={addingProfile}
-                          setAddingProfile={setAddingProfile}
-                          reauthName={reauthName}
-                          setReauthName={setReauthName}
-                          showProfileSwitcher={showProfileSwitcher}
-                          setShowProfileSwitcher={setShowProfileSwitcher}
-                          remoteEnabled={remoteEnabled}
-                          remoteInfo={remoteInfo}
-                          remoteDevices={remoteDevices}
-                          pairModalOpen={pairModalOpen}
-                          setPairModalOpen={setPairModalOpen}
-                          remoteDeviceAction={remoteDeviceAction}
-                          remoteRememberDevice={remoteRememberDevice}
                           obsEnabled={obsEnabled}
-                          offlineMode={offlineMode}
-                          isActuallyOffline={isActuallyOffline}
-                          isOffline={isOffline}
-                          handleToggleOffline={handleToggleOffline}
                           likedIds={likedIds}
                           handleToggleLike={handleToggleLike}
-                          downloadBatches={downloadBatches}
-                          downloadQueueMin={downloadQueueMin}
-                          setDownloadQueueMin={setDownloadQueueMin}
-                          handleCancelBatch={handleCancelBatch}
-                          anonStats={anonStats}
-                          handleAnonStatsChange={handleAnonStatsChange}
-                          hideUserHandle={hideUserHandle}
-                          setHideUserHandle={setHideUserHandle}
-                          animations={animations}
-                          hideExplicit={hideExplicit}
-                          ambientBackground={ambientBackground}
-                          ambientVisualizer={ambientVisualizer}
-                          vizConfig={vizConfig}
-                          lyricsFontSize={lyricsFontSize}
-                          lyricsProviders={lyricsProviders}
-                          showLyricsTranslation={showLyricsTranslation}
-                          setShowLyricsTranslation={setShowLyricsTranslation}
-                          lyricsTranslationLang={lyricsTranslationLang}
-                          setLyricsTranslationLang={setLyricsTranslationLang}
-                          lyricsTranslationFontSize={lyricsTranslationFontSize}
-                          showRomaji={showRomaji}
-                          lyricsRomajiFontSize={lyricsRomajiFontSize}
-                          showAgentTags={showAgentTags}
-                          syllableZoom={syllableZoom}
-                          fluidLyrics={fluidLyrics}
+                          nav={appShellNav}
+                          shellUi={appShellUi}
+                          shortcuts={appShellShortcuts}
+                          appearancePrefs={appShellAppearancePrefs}
+                          lyricsPrefs={appShellLyricsPrefs}
+                          authGate={appShellAuthGate}
+                          remote={appShellRemote}
+                          network={appShellNetwork}
+                          downloadQueue={appShellDownloadQueue}
+                          privacySettings={appShellPrivacySettings}
+                          bridges={appShellBridges}
                         />
                       </SettingsProviders>
                     </PlayerProvider>
