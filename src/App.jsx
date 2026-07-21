@@ -11566,7 +11566,10 @@ export default function App() {
 
   // Sync tray labels with current language on startup
   useEffect(() => {
-    const lang = localStorage.getItem("kiyoshi-lang") || "de";
+    // Use getInitialLang() (localStorage → system locale), the SAME source the app UI uses.
+    // A hardcoded "de" fallback here meant users with no saved language but a non-German system
+    // locale got an English/other UI but a German tray.
+    const lang = getInitialLang();
     import("@tauri-apps/api/core").then(({ invoke }) => {
       invoke("update_tray_labels", {
         showLabel: translate(lang, "trayShow"),
