@@ -23,22 +23,24 @@ const DRIFT_CORRECTION_S = 0.35; // only re-seek the video once it has drifted t
 
 // maxHeight: null/0 = best available; otherwise caps resolution (e.g. for a weak/metered connection).
 export function useVideoSync(videoId, enabled, maxHeight) {
-  const [state, setState] = useState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false });
+  const [state, setState] = useState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false, selfVideo: false });
 
   useEffect(() => {
-    setState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false });
+    setState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false, selfVideo: false });
     if (!enabled || !videoId) return;
     let cancelled = false;
     fetch(`${API}/video-sync/offset/${videoId}`)
       .then(r => r.json())
       .then(d => {
+        // selfVideo: the track IS a video (no separate counterpart), shown at offset 0 against
+        // its own audio. Otherwise it's an ATV↔OMV pair gated on the cross-correlation confidence.
         if (cancelled || !d.available || !d.counterpartVideoId || !(d.confidence >= CONFIDENCE_THRESHOLD)) return;
         const q = maxHeight ? `?maxHeight=${maxHeight}` : "";
         return fetch(`${API}/video-sync/stream/${d.counterpartVideoId}${q}`)
           .then(r => r.json())
           .then(sd => {
             if (cancelled || !sd.url) return;
-            setState({ videoUrl: sd.url, offsetSeconds: d.offsetSeconds, counterpartVideoId: d.counterpartVideoId, ready: true });
+            setState({ videoUrl: sd.url, offsetSeconds: d.offsetSeconds, counterpartVideoId: d.counterpartVideoId, ready: true, selfVideo: !!d.selfVideo });
           });
       })
       .catch(() => {});

@@ -5555,6 +5555,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
 
     if (showVideoView) {
       if (!videoSync?.ready || !videoSync?.counterpartVideoId) return;
+      // Self-video (the track IS the video): the audio already IS this video's audio, so there's
+      // nothing to swap. Just mark video mode active (to hold off crossfade, which would desync
+      // the video) and let the muted <video> ride the existing audio clock at offset 0.
+      if (videoSync.selfVideo) {
+        videoModeActiveRef.current = true;
+        videoModeTrackIdRef.current = trackId;
+        return;
+      }
       const offset = videoSync.offsetSeconds || 0;
       (async () => {
         const targetPos = Math.max(0, a.currentTime + offset);
@@ -5569,6 +5577,8 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
         if (wasPlaying) setIsPlaying(true);
       })();
     } else if (videoModeActiveRef.current && videoModeTrackIdRef.current === trackId) {
+      // Self-video had no audio swap to undo — just clear the flag.
+      if (videoSync?.selfVideo) { videoModeActiveRef.current = false; return; }
       const offset = videoSync?.offsetSeconds || 0;
       (async () => {
         const targetPos = Math.max(0, a.currentTime - offset);
@@ -5621,6 +5631,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
 
   useEffect(() => {
     if (!track) return;
+    // A real track change ends any video-mode session (the audio is reloaded fresh below), so
+    // clear the flag — otherwise it lingers true after leaving a video track and keeps crossfade
+    // suppressed on later songs. (The video toggle itself doesn't re-run this effect: it swaps
+    // a.src directly without touching `track`.)
+    videoModeActiveRef.current = false;
     setLoading(true);
     setStreamUrl(null);
     let cancelled = false;

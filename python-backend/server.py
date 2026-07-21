@@ -4992,7 +4992,15 @@ def _compute_video_sync_offset(video_id):
         counterpart_id = counterpart.get("videoId") if counterpart else None
 
         if not counterpart_id:
-            result = {"available": False}
+            # No ATV↔OMV counterpart. But if the track ITSELF is a video (not a plain audio
+            # "song" release), we can still show its own video: it's the same source as the audio
+            # that's already playing, so the offset is 0 and no cross-correlation is needed.
+            vtype = (tracks[0].get("videoType") if tracks else None) or ""
+            if vtype and vtype != "MUSIC_VIDEO_TYPE_ATV":
+                result = {"available": True, "counterpartVideoId": video_id,
+                          "offsetSeconds": 0, "confidence": 999, "selfVideo": True}
+            else:
+                result = {"available": False}
         else:
             ffmpeg_dir = _find_ffmpeg()
             if ffmpeg_dir is False:
