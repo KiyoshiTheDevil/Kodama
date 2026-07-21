@@ -6660,27 +6660,32 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
 
-      {/* Ambient colour blobs — negative inset keeps edges outside the visible area */}
-      {ambientVisualizer && (vizConfig?.blobs !== false) && (<>
-        <div style={{
-          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
-          background: "radial-gradient(ellipse 38% 32% at 44% 42%, var(--accent) 0%, transparent 70%)",
-          mixBlendMode: "screen",
-          animation: "blobDrift1 18s ease-in-out infinite",
-        }} />
-        <div style={{
-          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
-          background: "radial-gradient(ellipse 32% 38% at 62% 60%, #7b2ff7 0%, transparent 68%)",
-          mixBlendMode: "screen",
-          animation: "blobDrift2 23s ease-in-out infinite",
-        }} />
-        <div style={{
-          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
-          background: "radial-gradient(ellipse 44% 36% at 52% 48%, #1565c0 0%, transparent 65%)",
-          mixBlendMode: "screen",
-          animation: "blobDrift3 29s ease-in-out infinite",
-        }} />
-      </>)}
+      {/* Ambient colour blobs — negative inset keeps edges outside the visible area. Wrapped in an
+          isolated layer so their mix-blend-mode blends only against each other, not the backdrop
+          behind the pane — otherwise the screen-blend gets hard-clipped at the pane's edge and
+          shows a visible seam toward the sidebar (the lyrics view isolates its blobs the same way). */}
+      {ambientVisualizer && (vizConfig?.blobs !== false) && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", isolation: "isolate" }}>
+          <div style={{
+            position: "absolute", inset: "-30%", pointerEvents: "none",
+            background: "radial-gradient(ellipse 38% 32% at 44% 42%, var(--accent) 0%, transparent 70%)",
+            mixBlendMode: "screen",
+            animation: "blobDrift1 18s ease-in-out infinite",
+          }} />
+          <div style={{
+            position: "absolute", inset: "-30%", pointerEvents: "none",
+            background: "radial-gradient(ellipse 32% 38% at 62% 60%, #7b2ff7 0%, transparent 68%)",
+            mixBlendMode: "screen",
+            animation: "blobDrift2 23s ease-in-out infinite",
+          }} />
+          <div style={{
+            position: "absolute", inset: "-30%", pointerEvents: "none",
+            background: "radial-gradient(ellipse 44% 36% at 52% 48%, #1565c0 0%, transparent 65%)",
+            mixBlendMode: "screen",
+            animation: "blobDrift3 29s ease-in-out infinite",
+          }} />
+        </div>
+      )}
 
       {/* Audio-reactive spectrum ring */}
       {ambientVisualizer && (
@@ -7265,10 +7270,14 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     // Fluid wraps each line in a will-change:transform div (its own offsetParent), so the
     // inner [data-lyric] offsetTop is ~0 — measure the wrapper for positioning instead.
     const sel = fluidLyrics ? "[data-lyricdrift]" : "[data-lyric]";
+    // In fullscreen the player bar overlays the bottom of the lyrics; centre the active line in
+    // the VISIBLE area (above the bar) instead of the raw container middle, so it and the
+    // upcoming lines aren't hidden behind the bar.
+    const bottomInset = (fullscreen && playerBarVisible) ? 104 : 0;
     const measure = () => {
       const activeEl = container.querySelectorAll(sel)[activeIdx];
       if (!activeEl) return null;
-      return Math.max(0, activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2);
+      return Math.max(0, activeEl.offsetTop - (container.clientHeight - bottomInset) / 2 + activeEl.clientHeight / 2);
     };
     let target = measure();
     if (target == null) return;
@@ -7542,16 +7551,23 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       <div ref={containerRef} className="lyrics-scroll" data-scroll-active={scrollActive ? "true" : "false"}
         style={{
           position: "relative", zIndex: 1, flex: 1,
-          overflowY: "auto", padding: "40vh 80px 40vh",
-          // Fluid: soft top/bottom edge-fade so lines dissolve instead of hard-clipping.
-          ...(fluidLyrics ? {
-            maskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
-          } : {}),
+          ...(lyrics ? {
+            // With lyrics: scrollable, 40vh top/bottom padding so the active line can sit centred.
+            overflowY: "auto", padding: "40vh 80px 40vh",
+            // Fluid: soft top/bottom edge-fade so lines dissolve instead of hard-clipping.
+            ...(fluidLyrics ? {
+              maskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
+            } : {}),
+          } : {
+            // Loading / no-lyrics: centre the message, no giant padding and no needless scroll.
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            overflow: "hidden", padding: "0 80px",
+          }),
         }}>
-        {loading && <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: 60 }}>{t("lyricsLoading")}</div>}
+        {loading && <div style={{ textAlign: "center", color: "var(--text-muted)" }}>{t("lyricsLoading")}</div>}
         {!loading && !lyrics && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginTop: 60 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "var(--t14)" }}>{t("noLyrics")}</div>
             <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "var(--t12)" }}>{t("noLyricsHint")}</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -8128,13 +8144,19 @@ function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOp
 // `insetX` insets the whole scroller (margin) so both the tiles AND the native
 // scrollbar line up with horizontally-padded content above/below.
 function Carousel({ children, style, insetX = 0 }) {
+  // overflowX:auto clips the tiles' drop-shadow at the scroll edges (visible as a hard cut on the
+  // first/last tile). Pad the scroll box by the shadow's reach and pull it back out with an equal
+  // negative margin, so the tiles keep their position but their shadows have room to render.
+  const SHADOW_PAD = 16;
   return (
     <ScrollShadowRoot
       orientation="horizontal"
       hideScrollBar={false}
       size={28}
       className="carousel"
-      style={{ display: "flex", overflowX: "auto", marginLeft: insetX, marginRight: insetX, ...style }}
+      style={{ display: "flex", overflowX: "auto",
+        marginLeft: insetX - SHADOW_PAD, marginRight: insetX - SHADOW_PAD,
+        paddingLeft: SHADOW_PAD, paddingRight: SHADOW_PAD, ...style }}
     >
       {children}
     </ScrollShadowRoot>
@@ -8395,12 +8417,12 @@ function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArti
             </div>
           )}
         </div>
-        <div style={{ fontSize: "var(--t13)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: 5, textAlign: isArtist ? "center" : "left" }}>
+        <div style={{ fontSize: "var(--t13)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: 5, textAlign: "left" }}>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</span>
           {item.isExplicit && <ExplicitBadge />}
         </div>
         {(item.subtitle || (item.type === "song" && item.artists) || (item.type === "artist")) && (
-          <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: isArtist ? "center" : "left" }}>
+          <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
             {item.subtitle || item.artists || "Artist"}
           </div>
         )}
@@ -12463,8 +12485,9 @@ export default function App() {
           />
         )}
 
-        {createPlaylistOpen && (
+        {(
           <CreatePlaylistModal
+            isOpen={createPlaylistOpen}
             t={(key) => translate(language, key)}
             onClose={() => { setCreatePlaylistOpen(false); setCreatePlaylistForSelection(false); setCreatePlaylistTracks(null); }}
             onCreated={async (id, title) => {

@@ -1,17 +1,24 @@
 // Playlist CRUD modals (create / rename / delete). Extracted from App.jsx — each is a
 // self-contained HeroUI modal that receives the translator `t` as a prop and talks to the
 // backend directly. Kept together because they share the same small dependency footprint.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn, Button, Spinner, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, TextFieldRoot, InputRoot, TextArea } from "@heroui/react";
 import { ModalDialog } from "../ui/zoomed-heroui.jsx";
 import { Lock, EyeSlash, Globe, Playlist, PencilSimple, Trash } from "../icons.jsx";
 import { API } from "../context.jsx";
 
-export function CreatePlaylistModal({ onClose, onCreated, t }) {
+export function CreatePlaylistModal({ isOpen, onClose, onCreated, t }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [privacy, setPrivacy] = useState("PRIVATE");
   const [creating, setCreating] = useState(false);
+
+  // Stay mounted and drive open/close via isOpen so react-aria plays BOTH the enter and exit
+  // animations (a conditionally-mounted modal unmounts before the exit animation can run).
+  // Reset the form each time it opens so a reopen starts clean.
+  useEffect(() => {
+    if (isOpen) { setTitle(""); setDescription(""); setPrivacy("PRIVATE"); setCreating(false); }
+  }, [isOpen]);
 
   const handleCreate = async () => {
     if (!title.trim() || creating) return;
@@ -40,7 +47,7 @@ export function CreatePlaylistModal({ onClose, onCreated, t }) {
   ];
 
   return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
+    <ModalRoot isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ModalBackdrop className="z-[300]!">
         <ModalContainer placement="center" size="lg" className="w-[640px] max-w-[92vw]">
           <ModalDialog>
