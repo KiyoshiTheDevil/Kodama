@@ -6476,7 +6476,7 @@ function vizToRGB(c) {
 }
 function vizLerp(a, b, t) { const A = vizToRGB(a), B = vizToRGB(b); return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`; }
 
-function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizConfig, coverSize = 260, compact = false, narrow = false }) {
+function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false }) {
   const hq = hiResThumb(track.thumbnail);
   const specRef = useRef(null);
   const coverRef = useRef(null);
@@ -6660,32 +6660,30 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, vizCon
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
 
-      {/* Ambient colour blobs — negative inset keeps edges outside the visible area. Wrapped in an
-          isolated layer so their mix-blend-mode blends only against each other, not the backdrop
-          behind the pane — otherwise the screen-blend gets hard-clipped at the pane's edge and
-          shows a visible seam toward the sidebar (the lyrics view isolates its blobs the same way). */}
-      {ambientVisualizer && (vizConfig?.blobs !== false) && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", isolation: "isolate" }}>
-          <div style={{
-            position: "absolute", inset: "-30%", pointerEvents: "none",
-            background: "radial-gradient(ellipse 38% 32% at 44% 42%, var(--accent) 0%, transparent 70%)",
-            mixBlendMode: "screen",
-            animation: "blobDrift1 18s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", inset: "-30%", pointerEvents: "none",
-            background: "radial-gradient(ellipse 32% 38% at 62% 60%, #7b2ff7 0%, transparent 68%)",
-            mixBlendMode: "screen",
-            animation: "blobDrift2 23s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", inset: "-30%", pointerEvents: "none",
-            background: "radial-gradient(ellipse 44% 36% at 52% 48%, #1565c0 0%, transparent 65%)",
-            mixBlendMode: "screen",
-            animation: "blobDrift3 29s ease-in-out infinite",
-          }} />
-        </div>
-      )}
+      {/* Ambient colour blobs — negative inset keeps edges outside the visible area. Skipped in
+          ambientBackground mode: the global AmbientBackdrop already provides the colour, and these
+          blobs (mix-blend-mode, clipped at the pane edge) would show a visible seam toward the
+          sidebar. The lyrics view gates its own blobs on !ambientBackground the same way. */}
+      {ambientVisualizer && !ambientBackground && (vizConfig?.blobs !== false) && (<>
+        <div style={{
+          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
+          background: "radial-gradient(ellipse 38% 32% at 44% 42%, var(--accent) 0%, transparent 70%)",
+          mixBlendMode: "screen",
+          animation: "blobDrift1 18s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
+          background: "radial-gradient(ellipse 32% 38% at 62% 60%, #7b2ff7 0%, transparent 68%)",
+          mixBlendMode: "screen",
+          animation: "blobDrift2 23s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute", inset: "-30%", zIndex: 1, pointerEvents: "none",
+          background: "radial-gradient(ellipse 44% 36% at 52% 48%, #1565c0 0%, transparent 65%)",
+          mixBlendMode: "screen",
+          animation: "blobDrift3 29s ease-in-out infinite",
+        }} />
+      </>)}
 
       {/* Audio-reactive spectrum ring */}
       {ambientVisualizer && (
@@ -12176,7 +12174,7 @@ export default function App() {
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
                 borderRight: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
-                <CoverView track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} vizConfig={vizConfig} narrow={coverSplitActive} />
+                <CoverView track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} narrow={coverSplitActive} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
