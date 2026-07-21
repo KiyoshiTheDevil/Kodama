@@ -8,6 +8,31 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 > Changes landing after the latest release accumulate here.
 
+## [1.0.0-alpha.31] — 2026-07-21
+
+### Added
+- **Video Sync mode** — play a track alongside its official music video, synced to the song (not the video's own audio), with a split view and optional syllable-synced captions.
+- **Opt-in YouTube Music history sync** — plays can now also register in your actual YT Music watch history, separate from Kodama's own local history.
+- **Selectable Discord status line** — choose whether Discord shows the song title, artist, or "Kodama" as your compact status text.
+- **FFmpeg one-click install on macOS** — matches the existing Windows flow; no more manual Homebrew install.
+- **Big Picture mode (experimental)** — a controller/TV-friendly lean-back UI, now reachable via a "Launch" button under Settings > Experimental Features.
+
+### Changed
+- **Remote Control** gained seek, volume, like, and queue view/jump (previously just playback).
+- **Lyrics Browser redesigned** — two-pane list + preview instead of a per-provider dropdown.
+- **Lyrics auto-scroll** now pauses while you scroll manually and resumes via an explicit button, instead of fighting your scroll.
+- Session-expiry now shows a persistent toast with a direct re-login button, instead of being easy to miss.
+- Various interface polish — sidebar grouping and spacing, the multi-select action bar, scroll edge-fades, and the Library view's tab switcher.
+
+### Fixed
+- **macOS in-app updates** — installing an update failed after downloading it (a missing permission blocked the restart step).
+- **Track skipping responsiveness** — the previous-track button could stop responding right after a skip, and rapid successive skips could leave the displayed track info lagging behind or cause noticeable stutter.
+- **Fullscreen player bar** no longer flickers, and rapid track skips no longer leave a stale song's lyrics on screen.
+- UI zoom no longer misplaces the visualizer, dropdowns, modals, or tooltips.
+- Video Sync captions now show background-vocal lines and handle two overlapping lines correctly instead of hard-cutting.
+- The native right-click context menu no longer appears in packaged builds.
+- Romaji conversion no longer fails in packaged builds (missing dictionary data).
+
 ## [1.0.0-alpha.30] — 2026-07-14
 
 ### Added
