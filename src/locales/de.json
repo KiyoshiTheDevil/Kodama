@@ -96,7 +96,7 @@
   "experimentalEmptyTitle": "Noch keine Experimente",
   "experimentalEmptyHint": "Neue experimentelle Funktionen tauchen hier zuerst auf, bevor sie fest eingebaut werden.",
   "bigPictureMode": "Big Picture-Modus",
-  "bigPictureModeDesc": "Steuerbare Lean-Back-Oberfläche für TV/Controller. Noch in früher Entwicklung — einige Bereiche sind noch nicht fertig.",
+  "bigPictureModeDesc": "Steuerbare Lean-Back-Oberfläche für TV/Controller. Noch in früher Entwicklung — einige Bereiche sind noch nicht fertig. Mit Esc oder F10 verlassen.",
   "bigPictureLaunch": "Starten",
   "videoSyncMode": "Video-Sync-Modus",
   "videoSyncModeDesc": "Zeigt statt des Covers das offizielle Musikvideo (stumm), synchron zum laufenden Song. Experimentell — nicht für jeden Song verfügbar oder exakt.",

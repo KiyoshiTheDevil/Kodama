@@ -96,7 +96,7 @@
   "experimentalEmptyTitle": "No experiments yet",
   "experimentalEmptyHint": "New experimental features will show up here first, before they become a permanent part of the app.",
   "bigPictureMode": "Big Picture mode",
-  "bigPictureModeDesc": "A controller/TV-friendly lean-back interface. Still early — some areas aren't finished yet.",
+  "bigPictureModeDesc": "A controller/TV-friendly lean-back interface. Still early — some areas aren't finished yet. Press Esc or F10 to exit.",
   "bigPictureLaunch": "Launch",
   "videoSyncMode": "Video sync mode",
   "videoSyncModeDesc": "Shows the official music video (muted) instead of the cover, synced to the currently playing song. Experimental — not available or exact for every song.",

@@ -185,6 +185,21 @@ export function BigPicture() {
   }, [openMenu, cycleTab]);
   useController({ active: open, onDirection, onEnter, onBack, onButton });
 
+  // Keyboard back/exit. The controller has its B button, but a keyboard/mouse user (who launched
+  // from Settings > Experimental) had no way out: Escape was only handled inside the context menu,
+  // and F10 (the toggle) is unreliable — Windows/WebView2 often swallows it for menu activation.
+  // Wire Escape to the same onBack that B uses: it pops the trail and closes at the root. The
+  // keybar already shows "Esc · Close", so this just makes that promise actually work.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (menuRef.current) return; // the menu has its own Escape handling
+      if (e.key === "Escape") { e.preventDefault(); onBack(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onBack]);
+
   // A playlist/album card opens its detail screen; an artist card opens the artist screen.
   const openDetail = useCallback((type, item) => {
     if (type === "playlists" || type === "albums") { setDetailItem({ type, item }); go("detail"); }
