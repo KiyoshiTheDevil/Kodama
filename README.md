@@ -27,6 +27,11 @@
 - **OBS overlay** for streaming.
 - **Offline downloads**, Discord Rich Presence, and Last.fm scrobbling.
 
+## Reporting issues and bugs
+
+I highly recommend to send a bug report in the new [Discord-Server](https://discord.gg/rhreShDJxn), because that's easier for me to access, track, sort and handle in contrast to GitHub's unstable platform.
+**Starting August, I will stop actively checking issues on GitHub.**
+
 ## Download
 
 Grab the latest build from the [**Releases**](https://github.com/KiyoshiTheDevil/Kodama/releases/latest) page:
