@@ -2862,7 +2862,10 @@ def library_playlists():
                 ).fetchall()
             result = [{"playlistId": r[0], "title": r[1], "description": r[2], "count": str(r[3]), "thumbnail": ""} for r in rows]
             return jsonify({"playlists": result})
-        playlists = get_ytmusic().get_library_playlists(limit=50)
+        # limit=None fetches ALL playlists (paginates every continuation). A numeric limit
+        # overshoots to the next page boundary — limit=50 returned ~75 for users with big
+        # libraries, silently dropping the rest (reported: 75 of 229 loaded).
+        playlists = get_ytmusic().get_library_playlists(limit=None)
         result = []
         for p in playlists:
             thumbs = p.get("thumbnails", [])
@@ -2999,7 +3002,7 @@ def library_albums():
     try:
         if is_local_profile(_current_profile):
             return jsonify({"albums": []})
-        albums = get_ytmusic().get_library_albums(limit=50)
+        albums = get_ytmusic().get_library_albums(limit=None)  # None = all (see library_playlists)
         result = []
         for a in albums:
             thumbs = a.get("thumbnails", [])
@@ -3021,7 +3024,7 @@ def library_artists():
     try:
         if is_local_profile(_current_profile):
             return jsonify({"artists": []})
-        artists = get_ytmusic().get_library_artists(limit=50)
+        artists = get_ytmusic().get_library_artists(limit=None)  # None = all (see library_playlists)
         result = []
         for a in artists:
             thumbs = a.get("thumbnails", [])
