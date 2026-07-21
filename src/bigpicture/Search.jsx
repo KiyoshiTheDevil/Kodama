@@ -8,6 +8,7 @@ import { sendPlay } from "./playerBridge.js";
 import { setContextTarget } from "./bpContext.js";
 import { trackContextActions } from "./Detail.jsx";
 import { MagnifyingGlass, Play } from "../icons.jsx";
+import { bpt } from "./bpI18n.js";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const NUMS = "0123456789".split("");
@@ -39,10 +40,10 @@ function Keyboard({ onKey, caps, onShift }) {
         {NUMS.map(k => <KeyBtn key={k} onPress={() => onKey(k)}>{k}</KeyBtn>)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
-        <KeyBtn active={upper} onPress={onShift} title={caps === "lock" ? "Feststell (LB/RB)" : "Shift (LB/RB)"}>{caps === "lock" ? "⇪" : "⇧"}</KeyBtn>
-        <KeyBtn span={3} onPress={() => onKey(" ")}>Leer</KeyBtn>
+        <KeyBtn active={upper} onPress={onShift} title={caps === "lock" ? bpt("bpCapsLock") : bpt("bpShift")}>{caps === "lock" ? "⇪" : "⇧"}</KeyBtn>
+        <KeyBtn span={3} onPress={() => onKey(" ")}>{bpt("bpSpace")}</KeyBtn>
         <KeyBtn onPress={() => onKey("\b")}>⌫</KeyBtn>
-        <KeyBtn span={2} onPress={() => onKey("clear")}>Löschen</KeyBtn>
+        <KeyBtn span={2} onPress={() => onKey("clear")}>{bpt("clear")}</KeyBtn>
       </div>
     </div>
   );
@@ -131,10 +132,10 @@ export function Search({ chrome }) {
     <FocusContext.Provider value={focusKey}>
       <div ref={ref} style={{ minHeight: "100%", padding: "6vh 6vw", background: "radial-gradient(120% 80% at 50% -10%, #241033, #0a0a0f 60%)" }}>
         {chrome}
-        <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, marginBottom: 22 }}>Linken Stick drücken (L3) wechselt Groß-/Kleinschreibung</div>
+        <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, marginBottom: 22 }}>{bpt("bpCapsHint")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 22px", marginBottom: 30 }}>
           <MagnifyingGlass size={26} style={{ color: "rgba(255,255,255,0.5)" }} />
-          <span style={{ color: query ? "#fff" : "rgba(255,255,255,0.35)", fontSize: 26, fontWeight: 600 }}>{query || "Songs suchen…"}</span>
+          <span style={{ color: query ? "#fff" : "rgba(255,255,255,0.35)", fontSize: 26, fontWeight: 600 }}>{query || bpt("searchSongs")}</span>
           <span style={{ width: 2, height: 30, background: "var(--accent)", marginLeft: 2, animation: "bpCaret 1s step-end infinite" }} />
         </div>
         <div style={{ display: "flex", gap: 48, alignItems: "flex-start" }}>
@@ -143,9 +144,9 @@ export function Search({ chrome }) {
             {!query.trim() ? (
               <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 18, padding: "20px 0" }}>Tippe etwas, um zu suchen.</div>
             ) : loading && !results.length ? (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>Sucht…</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>{bpt("bpSearching")}</div>
             ) : !results.length ? (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>Nichts gefunden.</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>{bpt("noResults")}</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {results.map((tr, i) => <ResultRow key={tr.videoId || i} track={tr} />)}

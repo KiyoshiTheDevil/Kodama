@@ -5,13 +5,14 @@
 import { useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { thumbHi } from "../context.jsx";
 import { useNowPlaying } from "./playerBridge.js";
+import { bpt } from "./bpI18n.js";
 
 export const TABS = [
-  { key: "home", label: "Home", icon: "house" },
-  { key: "search", label: "Suche", icon: "magnifying-glass" },
-  { key: "playlists", label: "Playlists", icon: "list-music" },
-  { key: "albums", label: "Alben", icon: "compact-disc" },
-  { key: "artists", label: "Künstler", icon: "microphone" },
+  { key: "home", labelKey: "home", icon: "house" },
+  { key: "search", labelKey: "search", icon: "magnifying-glass" },
+  { key: "playlists", labelKey: "playlists", icon: "list-music" },
+  { key: "albums", labelKey: "albums", icon: "compact-disc" },
+  { key: "artists", labelKey: "artists", icon: "microphone" },
 ];
 
 function scrollPageTop(node) {
@@ -29,7 +30,7 @@ function Tab({ t, active, onSelect }) {
       transition: "color .14s",
     }}>
       <i className={`fa-solid fa-${t.icon}`} style={{ fontSize: 19 }} aria-hidden="true" />
-      {t.label}
+      {bpt(t.labelKey)}
       {(on || focused) ? <span style={{ position: "absolute", left: -2, right: -2, bottom: -8, height: 3, borderRadius: 2, background: on ? "var(--accent)" : "rgba(255,255,255,0.4)" }} /> : null}
     </div>
   );
@@ -51,7 +52,7 @@ function NowCard({ onOpen }) {
         {np.thumbnail ? <img src={thumbHi(np.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : null}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 3 }}>Läuft gerade</div>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 3 }}>{bpt("nowPlaying")}</div>
         <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{np.title}</div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{np.artists}</div>
       </div>

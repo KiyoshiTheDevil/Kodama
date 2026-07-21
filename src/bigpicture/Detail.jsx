@@ -8,14 +8,15 @@ import { API, thumbHi } from "../context.jsx";
 import { sendPlay, sendEnqueue } from "./playerBridge.js";
 import { setContextTarget } from "./bpContext.js";
 import { Play, Shuffle } from "../icons.jsx";
+import { bpt } from "./bpI18n.js";
 
 // Standard context-menu actions for a track (add-to-queue). Reused across the track lists.
 export function trackContextActions(track) {
   return {
     title: track.title || "",
     actions: [
-      { label: "Als Nächstes abspielen", run: () => sendEnqueue(track, "next") },
-      { label: "Zur Warteschlange hinzufügen", run: () => sendEnqueue(track, "end") },
+      { label: bpt("playNext"), run: () => sendEnqueue(track, "next") },
+      { label: bpt("addToQueue"), run: () => sendEnqueue(track, "end") },
     ],
   };
 }
@@ -133,16 +134,16 @@ export function Detail({ type, item, onPlayed }) {
           </div>
           <div style={{ color: "#fff", fontSize: 30, fontWeight: 800, marginTop: 20, lineHeight: 1.15 }}>{title}</div>
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 15, marginTop: 6, marginBottom: 22 }}>
-            {loading && !tracks.length ? "Lädt…" : `${tracks.length} Songs`}
+            {loading && !tracks.length ? bpt("loading") : `${tracks.length} ${bpt("songs")}`}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <ActionBtn icon={<Play size={20} weight="fill" />} label="Alles abspielen" onPress={playAll} disabled={!playable} />
-            <ActionBtn icon={<Shuffle size={20} weight="bold" />} label="Zufall" onPress={playShuffle} disabled={!playable} />
+            <ActionBtn icon={<Play size={20} weight="fill" />} label={bpt("playAll")} onPress={playAll} disabled={!playable} />
+            <ActionBtn icon={<Shuffle size={20} weight="bold" />} label={bpt("shuffle")} onPress={playShuffle} disabled={!playable} />
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           {!tracks.length ? (
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>{loading ? "Lädt…" : "Keine Titel."}</div>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, padding: "20px 0" }}>{loading ? bpt("loading") : bpt("bpNoTracks")}</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {tracks.map((tr, i) => <TrackRow key={tr.videoId || tr.setVideoId || i} track={tr} index={i} onPlay={playFrom} />)}

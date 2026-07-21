@@ -7,6 +7,7 @@ import { API, thumbHi } from "../context.jsx";
 import { sendPlay } from "./playerBridge.js";
 import { setContextTarget } from "./bpContext.js";
 import { trackContextActions } from "./Detail.jsx";
+import { bpt } from "./bpI18n.js";
 
 function readHistory() {
   try {
@@ -34,7 +35,7 @@ function Card({ item, section, onOpenCard }) {
     onEnterPress: activate,
     onFocus: (l) => { if (isSong) setContextTarget(trackContextActions(item)); const n = l && l.node; if (n && n.scrollIntoView) n.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); },
   });
-  const sub = isArtist ? "Künstler" : (item.type === "album" ? (item.year || artistsOf(item) || "Album") : (artistsOf(item) || (item.type === "playlist" ? "Playlist" : "")));
+  const sub = isArtist ? bpt("artist") : (item.type === "album" ? (item.year || artistsOf(item) || bpt("album")) : (artistsOf(item) || (item.type === "playlist" ? bpt("playlist") : "")));
   return (
     <div ref={ref} onClick={activate} style={{ width: 176, flexShrink: 0, cursor: "default" }}>
       <div style={{
@@ -91,7 +92,7 @@ export function Home({ chrome, onOpenCard }) {
     <FocusContext.Provider value={focusKey}>
       <div ref={ref} style={{ minHeight: "100%", padding: "6vh 6vw", background: "radial-gradient(120% 80% at 50% -10%, #241033, #0a0a0f 60%)" }}>
         {chrome}
-        {history.length ? <Shelf title="Zuletzt gespielt" items={history} onOpenCard={onOpenCard} /> : null}
+        {history.length ? <Shelf title={bpt("bpRecentlyPlayed")} items={history} onOpenCard={onOpenCard} /> : null}
         {sections.map((s, i) => <Shelf key={i} title={s.title} items={s.items} section={s} onOpenCard={onOpenCard} />)}
       </div>
     </FocusContext.Provider>

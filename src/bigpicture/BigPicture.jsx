@@ -17,6 +17,7 @@ import { getContextTarget, clearContextTarget } from "./bpContext.js";
 import { initSounds, playNav, playSelect, playBack, playOpen } from "./bpSounds.js";
 import { Keybar } from "./Keybar.jsx";
 import { setInputMode } from "./bpInput.js";
+import { bpt } from "./bpI18n.js";
 import { TabChrome } from "./TabChrome.jsx";
 
 // Top-level tabs (peer views switched by LB/RB). Each maps to its screen id.
@@ -210,12 +211,12 @@ export function BigPicture() {
   // Context-relevant keybind hints for the bottom bar.
   let hints;
   if (menu) {
-    hints = [{ kind: "select", label: "Auswählen" }, { kind: "back", label: "Schließen", right: true }];
+    hints = [{ kind: "select", label: bpt("select") }, { kind: "back", label: bpt("close"), right: true }];
   } else {
-    hints = [{ kind: "nav", label: "Bewegen" }, { kind: "select", label: "Auswählen" }];
-    if (activeTab) hints.push({ kind: "tabs", label: "Tabs" });
-    if (!(screen === "nowplaying" || screen === "lyrics")) hints.push({ kind: "menu", label: "Optionen" });
-    hints.push({ kind: "back", label: activeTab ? "Schließen" : "Zurück", right: true });
+    hints = [{ kind: "nav", label: bpt("bpMove") }, { kind: "select", label: bpt("select") }];
+    if (activeTab) hints.push({ kind: "tabs", label: bpt("bpTabs") });
+    if (!(screen === "nowplaying" || screen === "lyrics")) hints.push({ kind: "menu", label: bpt("bpOptions") });
+    hints.push({ kind: "back", label: activeTab ? bpt("close") : bpt("back"), right: true });
   }
 
   return (
@@ -236,7 +237,7 @@ export function BigPicture() {
                 transition: "background .1s, color .1s",
               }}>{a.label}</div>
             ))}
-            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, textAlign: "center", padding: "10px 0 6px" }}>A wählt · B / Esc schließt</div>
+            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, textAlign: "center", padding: "10px 0 6px" }}>{bpt("bpMenuHint")}</div>
           </div>
         </div>
       )}

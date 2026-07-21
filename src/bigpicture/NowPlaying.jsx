@@ -4,6 +4,7 @@ import { useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { thumbHi } from "../context.jsx";
 import { useNowPlaying, sendPlayerCommand, sendSeek } from "./playerBridge.js";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, RepeatOnce, Microphone } from "../icons.jsx";
+import { bpt } from "./bpI18n.js";
 
 const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 
@@ -71,7 +72,7 @@ export function NowPlaying({ onOpenLyrics }) {
           {np.thumbnail ? <img src={thumbHi(np.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : null}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: "#fff", fontSize: 46, fontWeight: 800, lineHeight: 1.12, marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{np.title || "Nichts spielt gerade"}</div>
+          <div style={{ color: "#fff", fontSize: 46, fontWeight: 800, lineHeight: 1.12, marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{np.title || bpt("bpNoTrackActive")}</div>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 24, marginBottom: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{np.artists}</div>
           <SeekBar position={np.position} duration={np.duration} />
           <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 44 }}>

@@ -4,10 +4,11 @@
 import { useEffect, useState } from "react";
 import { FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { API, thumbHi } from "../context.jsx";
+import { bpt } from "./bpI18n.js";
 
 const ENDPOINT = { playlists: "/library/playlists", albums: "/library/albums", artists: "/library/artists" };
 const LISTKEY = { playlists: "playlists", albums: "albums", artists: "artists" };
-const TITLE = { playlists: "Playlists", albums: "Alben", artists: "Künstler" };
+const TITLE = { playlists: "playlists", albums: "albums", artists: "artists" };
 
 function Card({ item, type, onSelect }) {
   const { ref, focused } = useFocusable({
@@ -16,8 +17,8 @@ function Card({ item, type, onSelect }) {
   });
   const title = type === "artists" ? item.artist : item.title;
   const sub = type === "artists"
-    ? (item.songs ? `${item.songs} Songs` : "")
-    : (item.count ? `${item.count} Songs` : (item.artists || ""));
+    ? (item.songs ? `${item.songs} ${bpt("songs")}` : "")
+    : (item.count ? `${item.count} ${bpt("songs")}` : (item.artists || ""));
   const round = type === "artists";
   return (
     <div ref={ref} onClick={() => onSelect(item)} style={{ cursor: "default" }}>
@@ -60,10 +61,10 @@ export function Browse({ type, chrome, onSelect }) {
     <div ref={ref} style={{ minHeight: "100%", padding: "6vh 6vw", background: "radial-gradient(120% 80% at 50% -10%, #241033, #0a0a0f 60%)" }}>
       {chrome}
       <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, marginBottom: 24 }}>
-        {items === null ? "Lädt…" : `${TITLE[type]} · ${items.length} Einträge`}
+        {items === null ? bpt("loading") : `${bpt(TITLE[type])} · ${bpt("bpEntries", { n: items.length })}`}
       </div>
       {items === null ? null : items.length === 0 ? (
-        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18 }}>Nichts gefunden.</div>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 18 }}>{bpt("noResults")}</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 28, alignItems: "start" }}>
           {items.map((it, i) => <Card key={it.playlistId || it.browseId || i} item={it} type={type} onSelect={onSelect} />)}
