@@ -409,6 +409,39 @@ html, body, #root {
    shift sideways the moment a view grows tall enough to actually need the scrollbar. */
 .scrollable { scrollbar-gutter: stable; }
 
+/* ── Library / grid cards (frameless) ─────────────────────────────────────────
+   The cover floats on the page (no card box), the title sits below it, an optional
+   song-count pill sits on the artwork, and play/shuffle reveal on hover. Explicit
+   easing here (not Tailwind's hover:scale) so the zoom eases in instead of hard-cutting. */
+.gcard-thumb {
+  position: relative; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+  transition: transform .24s cubic-bezier(0.22,1,0.36,1), box-shadow .24s ease;
+}
+.gcard:hover .gcard-thumb { transform: translateY(-5px); box-shadow: 0 20px 46px rgba(0,0,0,0.6); }
+.gcard-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s cubic-bezier(0.22,1,0.36,1); }
+.gcard:hover .gcard-img { transform: scale(1.05); }
+.gcard-badge {
+  position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; color: #fff; pointer-events: none;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+.gcard-actions { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.gcard-btn {
+  border: none; padding: 0; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff; cursor: default; opacity: 0; transform: translateY(8px) scale(0.9);
+  transition: opacity .22s ease, transform .22s cubic-bezier(0.22,1,0.36,1), background .15s ease;
+}
+.gcard-btn-play { background: var(--accent); box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+.gcard-btn-shuffle { width: 36px; height: 36px; background: rgba(0,0,0,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.gcard-btn-shuffle:hover { background: rgba(0,0,0,0.72); }
+.gcard:hover .gcard-btn { opacity: 1; transform: translateY(0) scale(1); }
+.gcard:hover .gcard-btn-shuffle { transition-delay: .03s; }
+@media (prefers-reduced-motion: reduce) {
+  .gcard-thumb, .gcard-img, .gcard-btn { transition: none !important; }
+}
+
 /* Lyrics view â€” scrollbar auto-hides; only visible while data-scroll-active="true"
    (driven by cursor movement + an idle timeout in the component). */
 .lyrics-scroll::-webkit-scrollbar-thumb {

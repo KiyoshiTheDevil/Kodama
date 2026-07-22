@@ -7868,6 +7868,19 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
     return (item.title || "").toLowerCase().includes(q) || (item.artists || "").toLowerCase().includes(q);
   });
 
+  // Play (or shuffle) a whole collection straight from its card, without opening it first —
+  // fetch its tracks (same endpoints the detail views use) and hand them to the player.
+  const playCollection = async (kind, id, shuffle) => {
+    try {
+      const url = kind === "album" ? `${API}/album/${id}` : `${API}/playlist/${id}`;
+      const d = await fetch(url).then(r => r.json());
+      let tracks = (d.tracks || []).filter(tr => tr.videoId);
+      if (!tracks.length) return;
+      if (shuffle) tracks = [...tracks].sort(() => Math.random() - 0.5);
+      onPlay(tracks[0], tracks);
+    } catch {}
+  };
+
   const sortOptions = [
     { value: "default",   label: t("sortDefault") },
     { value: "az",        label: t("sortAlphaAZ") },
@@ -7903,40 +7916,27 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
       </div>
 
       {/* Sort + search row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
-        <Sliders size={12} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-        {sortOptions.map(o => (
-          <button
-            key={o.value}
-            onClick={() => setSortOrder(o.value)}
-            style={{
-              background: sortOrder === o.value ? "color-mix(in srgb, var(--accent) 15%, transparent)" : "none",
-              border: "none", borderRadius: 6, padding: "3px 9px",
-              fontSize: "var(--t12)", fontFamily: "var(--font)",
-              color: sortOrder === o.value ? "var(--accent)" : "var(--text-muted)",
-              fontWeight: sortOrder === o.value ? 600 : 400,
-              cursor: "default", transition: "all 0.15s",
-            }}
-            onMouseEnter={e => { if (sortOrder !== o.value) e.currentTarget.style.color = "var(--text-secondary)"; }}
-            onMouseLeave={e => { if (sortOrder !== o.value) e.currentTarget.style.color = "var(--text-muted)"; }}
-          >{o.label}</button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <Sliders size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+        <ToggleButtonGroupRoot
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[sortOrder]}
+          onSelectionChange={(keys) => { const v = [...keys][0]; if (v) setSortOrder(v); }}
+          size="sm"
+        >
+          {sortOptions.map(o => <ToggleButton key={o.value} id={o.value}>{o.label}</ToggleButton>)}
+        </ToggleButtonGroupRoot>
         {/* Search — right side */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{ width: searchOpen ? 200 : 0, overflow: "hidden", transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)" }}>
-            <input
-              ref={searchRef}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
-              placeholder={t("search")}
-              style={{
-                background: "var(--bg-elevated)", border: "0.5px solid var(--border)",
-                borderRadius: 20, padding: "5px 12px", fontSize: "var(--t12)",
-                color: "var(--text-primary)", outline: "none",
-                width: 200, fontFamily: "var(--font)",
-              }}
-            />
+            <SearchFieldRoot value={searchQuery} onChange={setSearchQuery} aria-label={t("search")} className="w-[200px]">
+              <SearchFieldGroup>
+                <SearchFieldInput ref={searchRef} placeholder={t("search")}
+                  onKeyDown={e => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }} />
+                <SearchFieldClearButton />
+              </SearchFieldGroup>
+            </SearchFieldRoot>
           </div>
           <button
             onClick={() => { setSearchOpen(v => !v); if (searchOpen) setSearchQuery(""); }}
@@ -7970,8 +7970,11 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
                 cardId={item.playlistId}
                 thumbnail={item.thumbnail}
                 title={item.title}
-                subtitle={item.count ? `${item.count} ${t("songs")}` : ""}
+                count={item.count || undefined}
                 onClick={() => onOpenPlaylist(item)}
+                onPlay={item.playlistId ? () => playCollection("playlist", item.playlistId, false) : undefined}
+                onShuffle={item.playlistId ? () => playCollection("playlist", item.playlistId, true) : undefined}
+                playLabel={t("playAll")} shuffleLabel={t("shuffle")}
                 onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
               />
             );
@@ -7981,6 +7984,9 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
                 title={item.title}
                 subtitle={`${item.artists}${item.year ? ` · ${item.year}` : ""}`}
                 onClick={() => onOpenAlbum(item)}
+                onPlay={item.browseId ? () => playCollection("album", item.browseId, false) : undefined}
+                onShuffle={item.browseId ? () => playCollection("album", item.browseId, true) : undefined}
+                playLabel={t("playAll")} shuffleLabel={t("shuffle")}
                 onContextMenu={onContextMenu ? (e) => onContextMenu(e, { ...item, type: "album" }) : undefined}
               />
             );
@@ -7988,7 +7994,7 @@ function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAl
               <GridCard key={item.browseId || i}
                 thumbnail={item.thumbnail}
                 title={item.artist}
-                subtitle={item.songs ? `${item.songs} ${t("songs")}` : ""}
+                count={item.songs || undefined}
                 onClick={() => onOpenArtist(item)}
                 onContextMenu={onContextMenu ? (e) => onContextMenu(e, { ...item, title: item.artist, type: "artist" }) : undefined}
               />

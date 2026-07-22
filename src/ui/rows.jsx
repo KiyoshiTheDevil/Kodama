@@ -2,7 +2,7 @@
 // Extracted from App.jsx — depend only on context (thumb/animations) + icons.
 import React from "react";
 import { thumb, useAnimations } from "../context.jsx";
-import { Pause } from "../icons.jsx";
+import { Pause, Play, Shuffle, MusicNote } from "../icons.jsx";
 
 export function ExplicitBadge() {
   return (
@@ -103,24 +103,40 @@ export function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu
   );
 }
 
-export function GridCard({ thumbnail, title, subtitle, onClick, onContextMenu, cardId }) {
+// Frameless grid card: the cover floats on the page, the title sits below it. Optional extras:
+// `count` renders a frosted song-count pill on the cover; `onPlay`/`onShuffle` render hover
+// buttons in the bottom-right (each stops propagation so it doesn't also fire the card's onClick).
+export function GridCard({ thumbnail, title, subtitle, count, onClick, onPlay, onShuffle, onContextMenu, cardId, playLabel, shuffleLabel }) {
+  const act = (fn) => (e) => { e.stopPropagation(); fn?.(); };
   return (
-    <div
-      data-card-id={cardId}
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      className="grid-card cursor-default overflow-hidden rounded-[14px] bg-surface shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] hover:shadow-[0_12px_32px_rgba(0,0,0,0.55)]"
-    >
-      {/* Thumbnail */}
-      <div className="w-full aspect-square overflow-hidden bg-elevated">
+    <div data-card-id={cardId} className="gcard cursor-default" onContextMenu={onContextMenu}>
+      {/* Cover */}
+      <div className="gcard-thumb aspect-square bg-elevated" onClick={onClick}>
         {thumbnail
-          ? <img src={thumb(thumbnail)} alt="" className="block w-full h-full object-cover" />
+          ? <img src={thumb(thumbnail)} alt="" className="gcard-img" />
           : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
+        {(count != null && count !== "") && (
+          <span className="gcard-badge"><MusicNote size={11} weight="fill" />{count}</span>
+        )}
+        {(onPlay || onShuffle) && (
+          <div className="gcard-actions">
+            {onShuffle && (
+              <button className="gcard-btn gcard-btn-shuffle" onClick={act(onShuffle)} title={shuffleLabel} aria-label={shuffleLabel}>
+                <Shuffle size={15} weight="bold" />
+              </button>
+            )}
+            {onPlay && (
+              <button className="gcard-btn gcard-btn-play" onClick={act(onPlay)} title={playLabel} aria-label={playLabel}>
+                <Play size={17} weight="fill" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      {/* Info footer */}
-      <div className="grid-card-footer min-h-[52px] px-[14px] pt-3 pb-[14px] bg-[rgb(10,10,12)]">
-        <div className="text-t13 font-semibold text-white truncate">{title}</div>
-        <div className="text-t11 text-muted mt-1 min-h-[14px] truncate">{subtitle || ""}</div>
+      {/* Title + subtitle below the cover */}
+      <div className="pt-3 px-0.5" onClick={onClick}>
+        <div className="text-t13 font-semibold text-primary truncate">{title}</div>
+        {subtitle ? <div className="text-t12 text-muted mt-0.5 truncate">{subtitle}</div> : null}
       </div>
     </div>
   );
