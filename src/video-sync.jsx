@@ -120,13 +120,15 @@ export function VideoSyncVideo({ src, offsetSeconds, audioRef, isPlaying, style 
 // endTime (e.g. one voice answering another) — mirrored here the same way the main lyrics view
 // handles it: a "trailing" line stays visible (still finishing its own wipe) alongside the new
 // "main" one, instead of just snapping to the newest line the instant it starts.
-function useCaptionLine(track, audioRef, enabled, showTranslation, translationLang) {
+function useCaptionLine(track, audioRef, enabled, showTranslation, translationLang, showRomaji) {
   const [mainLine, setMainLine] = useState(null);
   const [trailingLine, setTrailingLine] = useState(null);
   const [currentTranslation, setCurrentTranslation] = useState("");
+  const [currentRomaji, setCurrentRomaji] = useState("");
   const [lines, setLines] = useState([]);
   const linesRef = useRef([]);
   const translationsRef = useRef(null);
+  const romajisRef = useRef(null);
   const curIdxRef = useRef(-1);
   const trailingIdxRef = useRef(-1);
   const snapRef = useRef({ ct: 0, pt: 0, playing: false });
@@ -135,11 +137,13 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
   useEffect(() => {
     linesRef.current = [];
     translationsRef.current = null;
+    romajisRef.current = null;
     curIdxRef.current = -1;
     trailingIdxRef.current = -1;
     setMainLine(null);
     setTrailingLine(null);
     setCurrentTranslation("");
+    setCurrentRomaji("");
     setLines([]);
     if (!enabled || !track) return;
     let cancelled = false;
@@ -182,6 +186,31 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
       .catch(() => {});
     return () => { cancelled = true; };
   }, [enabled, showTranslation, lines, translationLang]);
+
+  // Romaji — same shape as the translation effect, against the /romanize-lyrics endpoint the
+  // main lyrics view uses. No target language (it's a transliteration of the original).
+  useEffect(() => {
+    romajisRef.current = null;
+    if (!enabled || !showRomaji || !lines.length) return;
+    let cancelled = false;
+    fetch("http://localhost:9847/romanize-lyrics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lines: lines.map(l => l.text) }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        romajisRef.current = d.romanizations || null;
+        // Romaji can arrive after the active line settled — correct it retroactively.
+        const idx = curIdxRef.current;
+        const ro = idx >= 0 ? romajisRef.current?.[idx] : null;
+        const lineText = idx >= 0 ? linesRef.current[idx]?.text : null;
+        setCurrentRomaji(ro && ro !== lineText ? ro : "");
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [enabled, showRomaji, lines]);
 
   useEffect(() => {
     const audio = audioRef?.current;
@@ -232,6 +261,8 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
         setMainLine(line);
         const tr = idx >= 0 ? translationsRef.current?.[idx] : null;
         setCurrentTranslation(tr && tr !== line?.text ? tr : "");
+        const ro = idx >= 0 ? romajisRef.current?.[idx] : null;
+        setCurrentRomaji(ro && ro !== line?.text ? ro : "");
       }
       if (trailingIdx !== trailingIdxRef.current) {
         trailingIdxRef.current = trailingIdx;
@@ -243,7 +274,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
     return () => cancelAnimationFrame(raf);
   }, [enabled]);
 
-  return { mainLine, trailingLine, translation: currentTranslation, timeRef };
+  return { mainLine, trailingLine, translation: currentTranslation, romaji: currentRomaji, timeRef };
 }
 
 // Renders one line — word-synced main text (if available) plus a smaller background-vocal row
@@ -317,10 +348,11 @@ function KaraokeLine({ line, timeRef, fluid, syllableZoom, mainFontSize, bgFontS
 // Bottom-third caption strip — an alternative to the split-with-lyrics view for users who'd
 // rather keep the video full-size. fluid=true (mirrors the app's own "fluid lyrics" setting)
 // swaps the plain crossfade for a softer blur/glow entrance on each line change.
-function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", syllableZoom = false }) {
-  const { mainLine, trailingLine, translation, timeRef } = useCaptionLine(track, audioRef, true, showTranslation, translationLang);
+function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false }) {
+  const { mainLine, trailingLine, translation, romaji, timeRef } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji);
   const [shownMain, setShownMain] = useState(null);
   const [shownTranslation, setShownTranslation] = useState("");
+  const [shownRomaji, setShownRomaji] = useState("");
   const [animKey, setAnimKey] = useState(0);
 
   useEffect(() => {
@@ -330,12 +362,14 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
     if (!mainLine) return;
     if (mainLine.text === shownMain?.text) {
       if (translation !== shownTranslation) setShownTranslation(translation);
+      if (romaji !== shownRomaji) setShownRomaji(romaji);
       return;
     }
     setShownMain(mainLine);
     setShownTranslation(translation);
+    setShownRomaji(romaji);
     setAnimKey(k => k + 1);
-  }, [mainLine, translation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mainLine, translation, romaji]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!shownMain) return null;
 
@@ -372,6 +406,18 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
       >
         <KaraokeLine line={shownMain} timeRef={timeRef} fluid={fluid} syllableZoom={syllableZoom} mainFontSize={30} bgFontSize={20} />
       </div>
+      {shownRomaji && (
+        <div
+          key={`${animKey}-ro`}
+          style={{
+            color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 18, textAlign: "center", lineHeight: 1.35,
+            maxWidth: 900, overflowWrap: "anywhere",
+            textShadow: "0 2px 10px rgba(0,0,0,0.6)",
+            animation: fluid ? "videoCaptionFluidIn 0.55s cubic-bezier(0.22,1,0.36,1) 0.04s backwards" : "videoCaptionFadeIn 0.2s ease",
+          }}>
+          {shownRomaji}
+        </div>
+      )}
       {shownTranslation && (
         <div
           key={`${animKey}-tr`}
@@ -395,7 +441,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsSyllableZoom = false }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false }) {
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : 16 }}>
       {videoSync.ready && (
@@ -406,7 +452,7 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
         // ordinary clock drift between the two independent decoders, not a content offset.
         <VideoSyncVideo src={videoSync.videoUrl} offsetSeconds={0} audioRef={audioRef} isPlaying={isPlaying} style={{ objectFit: "contain" }} />
       )}
-      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} syllableZoom={captionsSyllableZoom} />}
+      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} />}
     </div>
   );
 }
