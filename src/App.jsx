@@ -2130,6 +2130,36 @@ const _debugLevelBg = (level) => {
 };
 const _debugFmtTs = (ts) => new Date(ts * 1000).toTimeString().slice(0, 8);
 
+// Relative "Xm Ys ago" formatter for the cookie-refresh age (seconds, or null = never).
+function _debugFmtAge(ageS) {
+  if (ageS == null) return "—";
+  if (ageS < 60) return `${ageS}s`;
+  const m = Math.floor(ageS / 60), s = ageS % 60;
+  if (m < 60) return `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+// Colored "authed" status node — shared by DebugTab + DebugFloatingWindow's sysinfo rows.
+function _debugAuthedNode(authed, t) {
+  if (authed === true) return <span style={{ color: "#6bdf96", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} weight="bold" />{t("debugAuthedYes")}</span>;
+  if (authed === false) return <span style={{ color: "#ff7070", display: "flex", alignItems: "center", gap: 4 }}><WarningCircle size={11} weight="fill" />{t("debugAuthedNo")}</span>;
+  return <span style={{ color: "var(--t3)" }}>{t("debugAuthedUnknown")}</span>;
+}
+
+// Auth/session rows appended to the sysinfo grid — surfaces what used to be invisible
+// (raw print() output + the separate /diag endpoint) directly in the Debug menu.
+function _debugAuthRows(info, t) {
+  const err = info.lastStreamError;
+  return [
+    [t("debugAuthStatus"), _debugAuthedNode(info.authed, t)],
+    [t("debugCookieRefresh"), info.cookieRefreshAgeS == null ? t("debugCookieRefreshNever") : `${_debugFmtAge(info.cookieRefreshAgeS)} ago`],
+    [t("debugLastStreamError"), err
+      ? <span title={`${err.videoId}: ${err.error}`}>{err.videoId} — {err.error.slice(0, 60)}{err.error.length > 60 ? "…" : ""}</span>
+      : t("debugLastStreamErrorNone")],
+  ];
+}
+
 function _buildDebugReport(info, logs) {
   return [
     "=== Kodama Debug Report ===",
@@ -2144,6 +2174,10 @@ function _buildDebugReport(info, logs) {
       `Plattform:  ${info.platform}`,
       `Uptime:     ${info.uptime}`,
       `Data dir:   ${info.data_dir}`,
+      `\n--- Session/Auth ---`,
+      `Authed:           ${info.authed === true ? "yes" : info.authed === false ? "no" : "unknown"}`,
+      `Cookie-Refresh:   ${_debugFmtAge(info.cookieRefreshAgeS)} ago`,
+      `Last stream err:  ${info.lastStreamError ? `${info.lastStreamError.videoId} — ${info.lastStreamError.error}` : "none"}`,
     ].join("\n") : "Backend nicht erreichbar",
     `\n=== Logs (${logs.length} Einträge) ===`,
     ...logs.map(l => `[${_debugFmtTs(l.ts)}] [${l.level}] [${l.source}] ${l.msg}`),
@@ -2226,6 +2260,7 @@ function DebugFloatingWindow({ onClose }) {
     ["Profil",     info.profile],
     ["Plattform",  info.platform],
     ["Uptime",     info.uptime],
+    ..._debugAuthRows(info, t),
   ] : [];
 
   return createPortal(
@@ -2400,6 +2435,7 @@ function DebugTab({ t }) {
               ["Profil",     info.profile],
               ["Plattform",  info.platform],
               ["Uptime",     info.uptime],
+              ..._debugAuthRows(info, t),
             ].map(([k, v]) => (
               <CardRoot key={k} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-2.5 px-3.5 py-2.5">
                 <span className="text-t11 text-muted min-w-[76px] shrink-0">{k}</span>

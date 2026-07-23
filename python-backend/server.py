@@ -797,7 +797,7 @@ def load_profile(name):
     try:
         _ytm = make_ytmusic(name)
     except Exception as e:
-        print(f"[auth] load_profile failed for {name}: {e}", flush=True)
+        _logging.error(f"[auth] load_profile failed for {name}: {e}")
         return False
     _current_profile = name
     _playlist_cache.clear()
@@ -860,11 +860,11 @@ def _refresh_ytm_psidts(force=False):
         fresh = {c.name: c.value for c in sess.cookies
                  if c.name in _SHORT_LIVED_COOKIES}
         if authed is False:
-            print(f"[cookies] refresh ping is LOGGED OUT (statuses: {', '.join(statuses)}) — "
-                  f"the stored cookies are no longer valid; re-login required.", flush=True)
+            _logging.warning(f"[cookies] refresh ping is LOGGED OUT (statuses: {', '.join(statuses)}) — "
+                  f"the stored cookies are no longer valid; re-login required.")
         if not fresh:
-            print(f"[cookies] refresh: no rotating cookies returned "
-                  f"(authed={authed}, statuses: {', '.join(statuses)})", flush=True)
+            _logging.info(f"[cookies] refresh: no rotating cookies returned "
+                  f"(authed={authed}, statuses: {', '.join(statuses)})")
             return
         # Merge fresh tokens into the cookie header (replace existing, else append)
         parts, seen = [], set()
@@ -895,9 +895,9 @@ def _refresh_ytm_psidts(force=False):
         _psidts_last_refresh = now
         if authed is not None:
             _LAST_AUTHED = authed
-        print(f"[cookies] session refreshed (authed={authed}): {', '.join(sorted(fresh.keys()))} | {', '.join(statuses)}", flush=True)
+        _logging.info(f"[cookies] session refreshed (authed={authed}): {', '.join(sorted(fresh.keys()))} | {', '.join(statuses)}")
     except Exception as e:
-        print(f"[cookies] PSIDTS refresh failed (non-fatal): {e}", flush=True)
+        _logging.warning(f"[cookies] PSIDTS refresh failed (non-fatal): {e}")
 
 def _psidts_refresher_loop():
     while True:
@@ -938,7 +938,7 @@ def refresh_cookies():
         pass
     _psidts_last_refresh = time.time()
     has_ts = "__Secure-1PSIDTS" in cookie_str or "__Secure-3PSIDTS" in cookie_str
-    print(f"[cookies] WebView refresh applied (PSIDTS present: {has_ts})", flush=True)
+    _logging.info(f"[cookies] WebView refresh applied (PSIDTS present: {has_ts})")
     return jsonify({"ok": True, "psidts": has_ts})
 
 def get_ytmusic():
@@ -1478,7 +1478,7 @@ def cookie_login():
 
     # Try to initialize YTMusic — with the brand-account context if one was selected, so the
     # validation test actually exercises the chosen (brand) account, not the default one.
-    print(f"[login] cookie-login profile={profile_name} brand_account={'yes id=' + delegated if delegated else 'no (default account)'}", flush=True)
+    _logging.info(f"[login] cookie-login profile={profile_name} brand_account={'yes id=' + delegated if delegated else 'no (default account)'}")
     try:
         ytm_temp = YTMusic(path, user=delegated or None)
         # Quick test
@@ -1516,6 +1516,7 @@ def cookie_login():
         _adding_account = False
         return jsonify({"ok": True, "profile": profile_name})
     except Exception as e:
+        _logging.error(f"[login] cookie-login profile={profile_name} FAILED: {e}")
         if os.path.exists(path):
             os.remove(path)
         return jsonify({"error": f"Login fehlgeschlagen: {str(e)}"}), 500
@@ -5441,6 +5442,8 @@ def debug_info():
     with _debug_log_lock:
         logs = list(_debug_log)
 
+    cookie_refresh_age_s = None if _psidts_last_refresh == 0 else int(time.time() - _psidts_last_refresh)
+
     return jsonify({
         "python":     sys.version.split()[0],
         "ytdlp":      _pkg_version("yt-dlp"),
@@ -5452,6 +5455,12 @@ def debug_info():
         "uptime":     uptime_str,
         "data_dir":   _base_dir,
         "logs":       logs[-300:],
+        # Auth/session diagnostics — surfaces what previously only lived in /diag or raw
+        # print() output invisible in packaged builds, so session-refresh reports have
+        # something concrete to go on (see project_alpha33_backlog session-refresh item).
+        "authed":            _LAST_AUTHED,
+        "cookieRefreshAgeS": cookie_refresh_age_s,
+        "lastStreamError":   _LAST_STREAM_ERROR,
     })
 
 
