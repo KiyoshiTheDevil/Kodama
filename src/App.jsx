@@ -9914,7 +9914,7 @@ export default function App() {
   const [likedIds, setLikedIds] = useState(new Set());
   const [downloadingIds, setDownloadingIds] = useState(new Set());
   const [premiumSongIds, setPremiumSongIds] = useState(new Set());
-  const [offlineMode, setOfflineMode] = useState(() => localStorage.getItem("kiyoshi-offline") === "true");
+  const [offlineMode, setOfflineMode] = usePersistedState("kiyoshi-offline", false);
   const [isActuallyOffline, setIsActuallyOffline] = useState(() => !navigator.onLine);
   const [debugFloat, setDebugFloat] = useState(false);
   const [downloadQueue, setDownloadQueue] = useState([]); // [{videoId, title, artists, thumbnail, status, progress}]
@@ -10130,7 +10130,7 @@ export default function App() {
     if (saved) document.documentElement.style.setProperty("--accent", saved);
     return saved || "#e040fb";
   });
-  const [theme, setTheme] = useState(() => localStorage.getItem("kiyoshi-theme") || "dark");
+  const [theme, setTheme] = usePersistedState("kiyoshi-theme", "dark");
   const [highContrast, setHighContrast] = useState(() => {
     const hc = localStorage.getItem("kiyoshi-high-contrast") === "true";
     if (hc) document.documentElement.setAttribute("data-highcontrast", "true");
@@ -10150,12 +10150,8 @@ export default function App() {
       document.documentElement.style.setProperty("--font", "'MiSans Latin', system-ui, sans-serif");
     }
   }, []);
-  const [ambientVisualizer, setAmbientVisualizer] = useState(() =>
-    localStorage.getItem("kiyoshi-ambient-visualizer") !== "false"
-  );
-  const [instrumentalViz, setInstrumentalViz] = useState(() =>
-    localStorage.getItem("kiyoshi-instrumental-viz") !== "false"
-  );
+  const [ambientVisualizer, setAmbientVisualizer] = usePersistedState("kiyoshi-ambient-visualizer", true);
+  const [instrumentalViz, setInstrumentalViz] = usePersistedState("kiyoshi-instrumental-viz", true);
   const instrumentalVizRef = useRef(instrumentalViz); instrumentalVizRef.current = instrumentalViz;
   const [vizConfig, setVizConfig] = useState(() => {
     try { return { ...VIZ_DEFAULTS, ...JSON.parse(localStorage.getItem("kiyoshi-visualizer-config") || "{}") }; }
@@ -10166,21 +10162,13 @@ export default function App() {
     localStorage.setItem("kiyoshi-visualizer-config", JSON.stringify(next));
     return next;
   }), []);
-  const [ambientBackground, setAmbientBackground] = useState(() =>
-    localStorage.getItem("kiyoshi-ambient-bg") === "true"
-  );
+  const [ambientBackground, setAmbientBackground] = usePersistedState("kiyoshi-ambient-bg", false);
   const [flashbang, setFlashbang] = useState(false);
   const lightClickRef = useRef({ count: 0, lastTime: 0 });
 
-  const [accentDynamic, setAccentDynamic] = useState(() => localStorage.getItem("kiyoshi-accent-dynamic") === "true");
-  const handleAccentDynamicChange = useCallback((on) => {
-    setAccentDynamic(on);
-    localStorage.setItem("kiyoshi-accent-dynamic", on ? "true" : "false");
-  }, []);
-  const [accentSat, setAccentSat] = useState(() => { const v = parseFloat(localStorage.getItem("kiyoshi-accent-sat")); return isNaN(v) ? 0.5 : v; });
-  const [accentLight, setAccentLight] = useState(() => { const v = parseFloat(localStorage.getItem("kiyoshi-accent-light")); return isNaN(v) ? 0.6 : v; });
-  const handleAccentSatChange = useCallback((v) => { setAccentSat(v); localStorage.setItem("kiyoshi-accent-sat", String(v)); }, []);
-  const handleAccentLightChange = useCallback((v) => { setAccentLight(v); localStorage.setItem("kiyoshi-accent-light", String(v)); }, []);
+  const [accentDynamic, setAccentDynamic] = usePersistedState("kiyoshi-accent-dynamic", false);
+  const [accentSat, setAccentSat] = usePersistedState("kiyoshi-accent-sat", 0.5);
+  const [accentLight, setAccentLight] = usePersistedState("kiyoshi-accent-light", 0.6);
 
   const handleAccentChange = useCallback((color) => {
     setAccent(color);
@@ -10191,7 +10179,6 @@ export default function App() {
   const handleThemeChange = useCallback((t) => {
     setTheme(t);
     document.documentElement.setAttribute("data-theme", t);
-    localStorage.setItem("kiyoshi-theme", t);
     if (t === "light") {
       const now = Date.now();
       if (now - lightClickRef.current.lastTime < 700) {
@@ -10352,7 +10339,7 @@ export default function App() {
     import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: closeTray }).catch(() => {}));
   }, []);
 
-  const [obsEnabled,   setObsEnabled]   = useState(() => localStorage.getItem("kiyoshi-obs-enabled") === "true");
+  const [obsEnabled,   setObsEnabled]   = usePersistedState("kiyoshi-obs-enabled", false);
   const [obsPort,      setObsPort]      = useState(() => parseInt(localStorage.getItem("kiyoshi-obs-port") || "9848", 10));
   const [obsPortInput, setObsPortInput] = useState(() => localStorage.getItem("kiyoshi-obs-port") || "9848");
 
@@ -10378,7 +10365,6 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const toggleObs = async (enabled) => {
     setObsEnabled(enabled);
-    localStorage.setItem("kiyoshi-obs-enabled", enabled);
     if (enabled) {
       await fetch(`${API}/overlay/server/start`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ port: obsPort }) }).catch(() => {});
     } else {
@@ -11223,16 +11209,15 @@ export default function App() {
 
   // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
   // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
-  const [appIcon, setAppIcon] = useState(() => localStorage.getItem("kodama-app-icon") || APP_ICON_DEFAULT);
+  const [appIcon, setAppIcon] = usePersistedState("kodama-app-icon", APP_ICON_DEFAULT);
   const applyAppIcon = useCallback(async (file) => {
     try { const { invoke } = await import("@tauri-apps/api/core"); await invoke("set_app_icon", { file }); }
     catch (e) { console.error("[AppIcon] set failed:", e); }
   }, []);
   const handleAppIconChange = useCallback((file) => {
     setAppIcon(file);
-    localStorage.setItem("kodama-app-icon", file);
     applyAppIcon(file);
-  }, [applyAppIcon]);
+  }, [applyAppIcon, setAppIcon]);
   // Re-apply the user's chosen icon on each launch (only if they customized it).
   useEffect(() => {
     const stored = localStorage.getItem("kodama-app-icon");
@@ -11543,11 +11528,10 @@ export default function App() {
   const handleToggleOffline = useCallback(() => {
     setOfflineMode(prev => {
       const next = !prev;
-      localStorage.setItem("kiyoshi-offline", String(next));
       if (next) setView("downloads");
       return next;
     });
-  }, []);
+  }, [setOfflineMode]);
 
   useEffect(() => {
     let bgIntervalId = null;
@@ -12361,11 +12345,11 @@ export default function App() {
             accent={accent}
             onAccentChange={handleAccentChange}
             accentDynamic={accentDynamic}
-            onAccentDynamicChange={handleAccentDynamicChange}
+            onAccentDynamicChange={setAccentDynamic}
             accentSat={accentSat}
-            onAccentSatChange={handleAccentSatChange}
+            onAccentSatChange={setAccentSat}
             accentLight={accentLight}
-            onAccentLightChange={handleAccentLightChange}
+            onAccentLightChange={setAccentLight}
             theme={theme}
             onThemeChange={handleThemeChange}
             animations={animations}
@@ -12451,23 +12435,15 @@ export default function App() {
             appFont={appFont}
             onAppFontChange={handleAppFontChange}
             ambientVisualizer={ambientVisualizer}
-            onToggleAmbientVisualizer={() => {
-              const next = !ambientVisualizer;
-              setAmbientVisualizer(next);
-              localStorage.setItem("kiyoshi-ambient-visualizer", String(next));
-            }}
+            onToggleAmbientVisualizer={() => setAmbientVisualizer(v => !v)}
             vizConfig={vizConfig}
             onUpdateViz={updateViz}
             instrumentalViz={instrumentalViz}
-            onToggleInstrumentalViz={v => { setInstrumentalViz(v); localStorage.setItem("kiyoshi-instrumental-viz", v ? "true" : "false"); if (!v && autoCoverRef.current) { autoCoverRef.current = false; setShowLyrics(true); } }}
+            onToggleInstrumentalViz={v => { setInstrumentalViz(v); if (!v && autoCoverRef.current) { autoCoverRef.current = false; setShowLyrics(true); } }}
             vizPreviewTrack={currentTrack}
             vizPreviewPlaying={isPlaying}
             ambientBackground={ambientBackground}
-            onToggleAmbientBackground={() => {
-              const next = !ambientBackground;
-              setAmbientBackground(next);
-              localStorage.setItem("kiyoshi-ambient-bg", String(next));
-            }}
+            onToggleAmbientBackground={() => setAmbientBackground(v => !v)}
             obsEnabled={obsEnabled}
             obsPort={obsPort}
             obsPortInput={obsPortInput}
