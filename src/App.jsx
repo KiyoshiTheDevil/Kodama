@@ -128,6 +128,7 @@ import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
 import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
 import { useAccentColor } from "./ui/use-accent-color.js";
+import { usePersistedState } from "./hooks/use-persisted-state.js";
 import { SelActionBtn, PlaylistLayout } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
 import { DownloadsView } from "./views/downloads-view.jsx";
@@ -10214,14 +10215,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [discordRpc, setDiscordRpc] = useState(() => localStorage.getItem("kiyoshi-discord-rpc") !== "false");
+  const [discordRpc, setDiscordRpc] = usePersistedState("kiyoshi-discord-rpc", true);
   // Which field drives Discord's compact member-list status line (like PreMiD's "Pick Status
   // Display"): "song" (title) / "artist" / "app" (the fixed "Kodama" app name).
-  const [discordStatusDisplay, setDiscordStatusDisplay] = useState(() => localStorage.getItem("kiyoshi-discord-status-display") || "song");
+  const [discordStatusDisplay, setDiscordStatusDisplay] = usePersistedState("kiyoshi-discord-status-display", "song");
   // Opt-in (default off): register plays in the account's actual YT Music watch history
   // (via ytmusicapi's playbackTracking ping) so they count toward YT Music's own Recap/stats
   // — separate from Kodama's own local History list, which always works regardless of this.
-  const [ytmusicHistorySync, setYtmusicHistorySync] = useState(() => localStorage.getItem("kiyoshi-ytmusic-history-sync") === "true");
+  const [ytmusicHistorySync, setYtmusicHistorySync] = usePersistedState("kiyoshi-ytmusic-history-sync", false);
 
   // Dynamic accent: when enabled, derive --accent live from the current cover; otherwise
   // fall back to the fixed accent. Re-runs whenever the track or the mode changes.
@@ -10346,7 +10347,7 @@ export default function App() {
     return () => clearInterval(id);
   }, [ytmusicHistorySync, isPlaying, currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [closeTray, setCloseTray] = useState(() => localStorage.getItem("kiyoshi-close-tray") !== "false");
+  const [closeTray, setCloseTray] = usePersistedState("kiyoshi-close-tray", true);
   useEffect(() => {
     import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: closeTray }).catch(() => {}));
   }, []);
@@ -10430,7 +10431,7 @@ export default function App() {
     if (!videoSync.ready) setShowVideoView(false);
   }, [videoSync.ready, currentTrack?.videoId]);
   const [isCustomLyrics, setIsCustomLyrics] = useState(false);
-  const [showAgentTags, setShowAgentTags] = useState(() => localStorage.getItem("kiyoshi-lyrics-agent-tags") !== "false");
+  const [showAgentTags, setShowAgentTags] = usePersistedState("kiyoshi-lyrics-agent-tags", true);
   const importLyricsRef = useRef(null);
   const removeCustomLyricsRef = useRef(null);
   const openLyricsBrowserRef = useRef(null);
@@ -11019,7 +11020,7 @@ export default function App() {
     setCollection(c => ({ ...c, title: d.title, thumbnail: d.thumbnail || c.thumbnail, tracks: d.tracks || [], total: d.tracks?.length || 0, albumArtists: d.artists, albumArtistBrowseId: d.artistBrowseId, year: d.year, cached: !refresh && !!d.cached }));
   }, [addRecentPlaylist]);
 
-  const [animations, setAnimations] = useState(() => localStorage.getItem("kiyoshi-animations") !== "false");
+  const [animations, setAnimations] = usePersistedState("kiyoshi-animations", true);
   // Defer the queue panel's ambient blur until the slide-in transition has settled.
   useEffect(() => {
     if (!queueOpen) { setQueueSettled(false); return; }
@@ -11038,13 +11039,11 @@ export default function App() {
     const s = parseInt(localStorage.getItem("kiyoshi-lyrics-romaji-font-size"));
     return isNaN(s) ? 18 : s;
   });
-  const [hideExplicit, setHideExplicit] = useState(() => localStorage.getItem("kiyoshi-hide-explicit") === "true");
-  const [showTrackNumbers, setShowTrackNumbers] = useState(() => localStorage.getItem("kodama-track-numbers") === "true");
-  const handleTrackNumbersChange = useCallback((on) => { setShowTrackNumbers(on); localStorage.setItem("kodama-track-numbers", String(on)); }, []);
+  const [hideExplicit, setHideExplicit] = usePersistedState("kiyoshi-hide-explicit", false);
+  const [showTrackNumbers, setShowTrackNumbers] = usePersistedState("kodama-track-numbers", false);
   // Anonymous active-user stats: default ON, one-click opt-out. See analytics/.
-  const [anonStats, setAnonStats] = useState(() => localStorage.getItem("kodama-anon-stats") !== "false");
-  const handleAnonStatsChange = useCallback((on) => { setAnonStats(on); localStorage.setItem("kodama-anon-stats", String(on)); }, []);
-  const [hideUserHandle, setHideUserHandle] = useState(() => localStorage.getItem("kiyoshi-hide-handle") === "true");
+  const [anonStats, setAnonStats] = usePersistedState("kodama-anon-stats", true);
+  const [hideUserHandle, setHideUserHandle] = usePersistedState("kiyoshi-hide-handle", false);
   const [uiZoom, setUiZoom] = useState(() => {
     const saved = parseFloat(localStorage.getItem("kiyoshi-ui-zoom"));
     return ZOOM_STEPS.includes(saved) ? saved : 1.0;
@@ -11137,7 +11136,7 @@ export default function App() {
       return merged;
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [autoplay, setAutoplay] = useState(() => localStorage.getItem("kiyoshi-autoplay") !== "false");
+  const [autoplay, setAutoplay] = usePersistedState("kiyoshi-autoplay", true);
   const [crossfade, setCrossfade] = useState(() => {
     const s = parseInt(localStorage.getItem("kiyoshi-crossfade"));
     return isNaN(s) ? 0 : s;
@@ -12370,7 +12369,7 @@ export default function App() {
             theme={theme}
             onThemeChange={handleThemeChange}
             animations={animations}
-            onAnimationsChange={v => { setAnimations(v); localStorage.setItem("kiyoshi-animations", v); }}
+            onAnimationsChange={setAnimations}
             lyricsFontSize={lyricsFontSize}
             onLyricsFontSizeChange={v => { setLyricsFontSize(v); localStorage.setItem("kiyoshi-lyrics-font-size", v); }}
             lyricsTranslationFontSize={lyricsTranslationFontSize}
@@ -12380,7 +12379,7 @@ export default function App() {
             lyricsProviders={lyricsProviders}
             onLyricsProvidersChange={v => { setLyricsProviders(v); localStorage.setItem("kiyoshi-lyrics-providers", JSON.stringify(v)); }}
             autoplay={autoplay}
-            onAutoplayChange={v => { setAutoplay(v); localStorage.setItem("kiyoshi-autoplay", v); }}
+            onAutoplayChange={setAutoplay}
             appIcon={appIcon}
             onAppIconChange={handleAppIconChange}
             remoteEnabled={remoteEnabled}
@@ -12397,13 +12396,13 @@ export default function App() {
             playbackProgressive={playbackProgressive}
             onPlaybackProgressiveChange={v => { setPlaybackProgressive(v); localStorage.setItem("kodama-playback-mode", v ? "progressive" : "classic"); }}
             closeTray={closeTray}
-            onCloseTrayChange={v => { setCloseTray(v); localStorage.setItem("kiyoshi-close-tray", String(v)); import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: v }).catch(() => {})); }}
+            onCloseTrayChange={v => { setCloseTray(v); import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: v }).catch(() => {})); }}
             discordRpc={discordRpc}
-            onDiscordRpcChange={(v) => { setDiscordRpc(v); localStorage.setItem("kiyoshi-discord-rpc", v); if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
+            onDiscordRpcChange={(v) => { setDiscordRpc(v); if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
             discordStatusDisplay={discordStatusDisplay}
-            onDiscordStatusDisplayChange={(v) => { setDiscordStatusDisplay(v); localStorage.setItem("kiyoshi-discord-status-display", v); }}
+            onDiscordStatusDisplayChange={setDiscordStatusDisplay}
             ytmusicHistorySync={ytmusicHistorySync}
-            onYtmusicHistorySyncChange={(v) => { setYtmusicHistorySync(v); localStorage.setItem("kiyoshi-ytmusic-history-sync", String(v)); }}
+            onYtmusicHistorySyncChange={setYtmusicHistorySync}
             language={language}
             onLanguageChange={handleLanguageChange}
             updateInfo={updateInfo}
@@ -12417,13 +12416,13 @@ export default function App() {
             tab={settingsTab}
             setTab={setSettingsTab}
             hideExplicit={hideExplicit}
-            onHideExplicitChange={v => { setHideExplicit(v); localStorage.setItem("kiyoshi-hide-explicit", v); }}
+            onHideExplicitChange={setHideExplicit}
             showTrackNumbers={showTrackNumbers}
-            onTrackNumbersChange={handleTrackNumbersChange}
+            onTrackNumbersChange={setShowTrackNumbers}
             anonStats={anonStats}
-            onAnonStatsChange={handleAnonStatsChange}
+            onAnonStatsChange={setAnonStats}
             hideUserHandle={hideUserHandle}
-            onToggleHideUserHandle={v => { setHideUserHandle(v); localStorage.setItem("kiyoshi-hide-handle", String(v)); }}
+            onToggleHideUserHandle={setHideUserHandle}
             uiZoom={uiZoom}
             onUiZoomChange={v => { setUiZoom(v); localStorage.setItem("kiyoshi-ui-zoom", v); }}
             appFontScale={appFontScale}
@@ -12431,7 +12430,7 @@ export default function App() {
             showRomaji={showRomaji}
             onToggleRomaji={() => { const next = !showRomaji; setShowRomaji(next); localStorage.setItem("kiyoshi-lyrics-romaji", String(next)); }}
             showAgentTags={showAgentTags}
-            onToggleAgentTags={() => { const next = !showAgentTags; setShowAgentTags(next); localStorage.setItem("kiyoshi-lyrics-agent-tags", String(next)); }}
+            onToggleAgentTags={() => setShowAgentTags(v => !v)}
             syllableZoom={syllableZoom}
             onToggleSyllableZoom={() => { const next = !syllableZoom; setSyllableZoom(next); localStorage.setItem("kiyoshi-lyrics-syllable-zoom", String(next)); }}
             fluidLyrics={fluidLyrics}
