@@ -129,6 +129,7 @@ import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./u
 import { Tooltip } from "./ui/tooltip.jsx";
 import { useAccentColor } from "./ui/use-accent-color.js";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
+import { LyricsPrefsProvider, useLyricsPrefs } from "./preferences.jsx";
 import { SelActionBtn, PlaylistLayout } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
 import { DownloadsView } from "./views/downloads-view.jsx";
@@ -6777,7 +6778,16 @@ function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, ambien
 // wordGroupIndices/paintWordSeq/paintLineWords now live in ./lyrics/paint.js — extracted so the
 // video-sync caption overlay can reuse the exact same karaoke word painting for its active line.
 
-export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, showTranslation = false, translationLang = "DE", translationFontSize = 20, showRomaji = false, romajiFontSize = 18, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, showAgentTags = true, ambientVisualizer = true, syllableZoom = false, fluidLyrics = false, ambientBackground = false, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
+export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
+  // Display preferences come from context (src/preferences.jsx) instead of props — none of
+  // them are per-instance, they were just settings threaded down from App(). Rendered outside
+  // the provider (Big Picture) these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
+  // the prop defaults used to give that instance.
+  const {
+    showTranslation, translationLang, translationFontSize,
+    showRomaji, romajiFontSize, showAgentTags,
+    syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground,
+  } = useLyricsPrefs();
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
   // bottom-anchored chips above it while it's visible so they aren't covered.
   const chipBottomLift = (fullscreen && playerBarVisible) ? 104 : 0;
@@ -11809,6 +11819,22 @@ export default function App() {
     </div>
   ), [view, animations]);
 
+  // Memoised so the identity only changes when a preference actually changes — App() re-renders
+  // often, and an inline object would re-render every consumer each time.
+  const lyricsPrefs = useMemo(() => ({
+    showTranslation: showLyricsTranslation,
+    translationLang: lyricsTranslationLang,
+    translationFontSize: lyricsTranslationFontSize,
+    showRomaji,
+    romajiFontSize: lyricsRomajiFontSize,
+    showAgentTags,
+    syllableZoom,
+    fluidLyrics,
+    ambientVisualizer,
+    ambientBackground,
+  }), [showLyricsTranslation, lyricsTranslationLang, lyricsTranslationFontSize, showRomaji,
+       lyricsRomajiFontSize, showAgentTags, syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground]);
+
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
     <LangContext.Provider value={language}>
@@ -11816,6 +11842,7 @@ export default function App() {
     <AnimationContext.Provider value={animations}>
     <FontScaleContext.Provider value={appFontScale}>
     <ZoomContext.Provider value={uiZoom}>
+    <LyricsPrefsProvider value={lyricsPrefs}>
       <style>{GLOBAL_KEYFRAMES}</style>
       {!animations && (
         <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
@@ -12168,7 +12195,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
               }}>
-                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} showTranslation={showLyricsTranslation} translationLang={lyricsTranslationLang} translationFontSize={lyricsTranslationFontSize} showRomaji={showRomaji} romajiFontSize={lyricsRomajiFontSize} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} showAgentTags={showAgentTags} ambientVisualizer={ambientVisualizer} syllableZoom={syllableZoom} fluidLyrics={fluidLyrics} ambientBackground={ambientBackground} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} />
+                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} />
               </div>
               <div style={{
                 position: "absolute", top: 0, bottom: 0, left: 0,
@@ -12874,6 +12901,7 @@ export default function App() {
           />
         )}
       </div>
+    </LyricsPrefsProvider>
     </ZoomContext.Provider>
     </FontScaleContext.Provider>
     </AnimationContext.Provider>
