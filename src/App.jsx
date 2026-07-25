@@ -10379,36 +10379,20 @@ export default function App() {
   const [forcedLyricsProvider, setForcedLyricsProvider] = useState(null);
   const [currentLyricsSource, setCurrentLyricsSource] = useState("");
   const [failedLyricsProviders, setFailedLyricsProviders] = useState(new Set());
-  const [showLyricsTranslation, setShowLyricsTranslation] = useState(() =>
-    localStorage.getItem("kiyoshi-lyrics-translation") === "true"
-  );
-  const [lyricsTranslationLang, setLyricsTranslationLang] = useState(() =>
-    localStorage.getItem("kiyoshi-lyrics-translation-lang") || "DE"
-  );
-  const [showRomaji, setShowRomaji] = useState(() =>
-    localStorage.getItem("kiyoshi-lyrics-romaji") === "true"
-  );
-  const [syllableZoom, setSyllableZoom] = useState(() =>
-    localStorage.getItem("kiyoshi-lyrics-syllable-zoom") === "true"
-  );
-  const [fluidLyrics, setFluidLyrics] = useState(() =>
-    localStorage.getItem("kiyoshi-lyrics-fluid") === "true"
-  );
-  const [videoSyncEnabled, setVideoSyncEnabled] = useState(() =>
-    localStorage.getItem("kiyoshi-video-sync") === "true"
-  );
+  const [showLyricsTranslation, setShowLyricsTranslation] = usePersistedState("kiyoshi-lyrics-translation", false);
+  const [lyricsTranslationLang, setLyricsTranslationLang] = usePersistedState("kiyoshi-lyrics-translation-lang", "DE");
+  const [showRomaji, setShowRomaji] = usePersistedState("kiyoshi-lyrics-romaji", false);
+  const [syllableZoom, setSyllableZoom] = usePersistedState("kiyoshi-lyrics-syllable-zoom", false);
+  const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", false);
+  const [videoSyncEnabled, setVideoSyncEnabled] = usePersistedState("kiyoshi-video-sync", false);
   // "auto" = best available; otherwise a max-height cap (string, matches <select>/ToggleButton
   // values) for users on a weaker/metered connection.
-  const [videoSyncQuality, setVideoSyncQuality] = useState(() =>
-    localStorage.getItem("kiyoshi-video-sync-quality") || "auto"
-  );
+  const [videoSyncQuality, setVideoSyncQuality] = usePersistedState("kiyoshi-video-sync-quality", "auto");
   const videoSync = useVideoSync(currentTrack?.videoId, videoSyncEnabled, videoSyncQuality === "auto" ? null : Number(videoSyncQuality));
   // How lyrics are shown alongside the video (when the user has them toggled on via the normal
   // Lyrics button) — "split" (video+lyrics side by side) or "captions" (bottom-strip overlay,
   // video stays full-size).
-  const [videoLyricsStyle, setVideoLyricsStyle] = useState(() =>
-    localStorage.getItem("kiyoshi-video-lyrics-style") || "split"
-  );
+  const [videoLyricsStyle, setVideoLyricsStyle] = usePersistedState("kiyoshi-video-lyrics-style", "split");
   const [showVideoView, setShowVideoView] = useState(false);
   // The audio/video switch only exists while a synced video is available for THIS track — drop
   // back to the normal cover/lyrics view the moment that stops being true (track change, or the
@@ -11013,18 +10997,9 @@ export default function App() {
     const id = setTimeout(() => setQueueSettled(true), animations ? 320 : 0);
     return () => clearTimeout(id);
   }, [queueOpen, animations]);
-  const [lyricsFontSize, setLyricsFontSize] = useState(() => {
-    const s = parseInt(localStorage.getItem("kiyoshi-lyrics-font-size"));
-    return isNaN(s) ? 32 : s;
-  });
-  const [lyricsTranslationFontSize, setLyricsTranslationFontSize] = useState(() => {
-    const s = parseInt(localStorage.getItem("kiyoshi-lyrics-translation-font-size"));
-    return isNaN(s) ? 20 : s;
-  });
-  const [lyricsRomajiFontSize, setLyricsRomajiFontSize] = useState(() => {
-    const s = parseInt(localStorage.getItem("kiyoshi-lyrics-romaji-font-size"));
-    return isNaN(s) ? 18 : s;
-  });
+  const [lyricsFontSize, setLyricsFontSize] = usePersistedState("kiyoshi-lyrics-font-size", 32);
+  const [lyricsTranslationFontSize, setLyricsTranslationFontSize] = usePersistedState("kiyoshi-lyrics-translation-font-size", 20);
+  const [lyricsRomajiFontSize, setLyricsRomajiFontSize] = usePersistedState("kiyoshi-lyrics-romaji-font-size", 18);
   const [hideExplicit, setHideExplicit] = usePersistedState("kiyoshi-hide-explicit", false);
   const [showTrackNumbers, setShowTrackNumbers] = usePersistedState("kodama-track-numbers", false);
   // Anonymous active-user stats: default ON, one-click opt-out. See analytics/.
@@ -11123,10 +11098,7 @@ export default function App() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [autoplay, setAutoplay] = usePersistedState("kiyoshi-autoplay", true);
-  const [crossfade, setCrossfade] = useState(() => {
-    const s = parseInt(localStorage.getItem("kiyoshi-crossfade"));
-    return isNaN(s) ? 0 : s;
-  });
+  const [crossfade, setCrossfade] = usePersistedState("kiyoshi-crossfade", 0);
   // Progressive playback (default): stream the song for a fast start. Off = classic full
   // download first (more stable on weak devices). Both stay in the Rust audio core.
   const [playbackProgressive, setPlaybackProgressive] = useState(
@@ -12132,22 +12104,11 @@ export default function App() {
             onRefetchLyrics={() => { setForcedLyricsProvider(null); setLyricsRefetchKey(k => k + 1); }}
             language={language}
             showLyricsTranslation={showLyricsTranslation}
-            onToggleLyricsTranslation={() => {
-              const next = !showLyricsTranslation;
-              setShowLyricsTranslation(next);
-              localStorage.setItem("kiyoshi-lyrics-translation", String(next));
-            }}
+            onToggleLyricsTranslation={() => setShowLyricsTranslation(v => !v)}
             lyricsTranslationLang={lyricsTranslationLang}
-            onSetLyricsTranslationLang={(lang) => {
-              setLyricsTranslationLang(lang);
-              localStorage.setItem("kiyoshi-lyrics-translation-lang", lang);
-            }}
+            onSetLyricsTranslationLang={setLyricsTranslationLang}
             showRomaji={showRomaji}
-            onToggleRomaji={() => {
-              const next = !showRomaji;
-              setShowRomaji(next);
-              localStorage.setItem("kiyoshi-lyrics-romaji", String(next));
-            }}
+            onToggleRomaji={() => setShowRomaji(v => !v)}
             isCustomLyrics={isCustomLyrics}
             onImportLyrics={() => importLyricsRef.current?.()}
             onOpenLyricsBrowser={() => openLyricsBrowserRef.current?.()}
@@ -12355,11 +12316,11 @@ export default function App() {
             animations={animations}
             onAnimationsChange={setAnimations}
             lyricsFontSize={lyricsFontSize}
-            onLyricsFontSizeChange={v => { setLyricsFontSize(v); localStorage.setItem("kiyoshi-lyrics-font-size", v); }}
+            onLyricsFontSizeChange={setLyricsFontSize}
             lyricsTranslationFontSize={lyricsTranslationFontSize}
-            onLyricsTranslationFontSizeChange={v => { setLyricsTranslationFontSize(v); localStorage.setItem("kiyoshi-lyrics-translation-font-size", v); }}
+            onLyricsTranslationFontSizeChange={setLyricsTranslationFontSize}
             lyricsRomajiFontSize={lyricsRomajiFontSize}
-            onLyricsRomajiFontSizeChange={v => { setLyricsRomajiFontSize(v); localStorage.setItem("kiyoshi-lyrics-romaji-font-size", v); }}
+            onLyricsRomajiFontSizeChange={setLyricsRomajiFontSize}
             lyricsProviders={lyricsProviders}
             onLyricsProvidersChange={v => { setLyricsProviders(v); localStorage.setItem("kiyoshi-lyrics-providers", JSON.stringify(v)); }}
             autoplay={autoplay}
@@ -12374,7 +12335,7 @@ export default function App() {
             onRememberDevice={remoteRememberDevice}
             onPairDevice={() => setPairModalOpen(true)}
             crossfade={crossfade}
-            onCrossfadeChange={v => { setCrossfade(v); localStorage.setItem("kiyoshi-crossfade", v); }}
+            onCrossfadeChange={setCrossfade}
             crossfadeOverrides={crossfadeOverrides}
             onRemoveCrossfadeOverride={removeCrossfadeOverride}
             playbackProgressive={playbackProgressive}
@@ -12412,19 +12373,19 @@ export default function App() {
             appFontScale={appFontScale}
             onFontScaleChange={v => { setAppFontScale(v); localStorage.setItem("kiyoshi-font-scale", v); }}
             showRomaji={showRomaji}
-            onToggleRomaji={() => { const next = !showRomaji; setShowRomaji(next); localStorage.setItem("kiyoshi-lyrics-romaji", String(next)); }}
+            onToggleRomaji={() => setShowRomaji(v => !v)}
             showAgentTags={showAgentTags}
             onToggleAgentTags={() => setShowAgentTags(v => !v)}
             syllableZoom={syllableZoom}
-            onToggleSyllableZoom={() => { const next = !syllableZoom; setSyllableZoom(next); localStorage.setItem("kiyoshi-lyrics-syllable-zoom", String(next)); }}
+            onToggleSyllableZoom={() => setSyllableZoom(v => !v)}
             fluidLyrics={fluidLyrics}
-            onToggleFluidLyrics={() => { const next = !fluidLyrics; setFluidLyrics(next); localStorage.setItem("kiyoshi-lyrics-fluid", String(next)); }}
+            onToggleFluidLyrics={() => setFluidLyrics(v => !v)}
             videoSyncEnabled={videoSyncEnabled}
-            onToggleVideoSync={() => { const next = !videoSyncEnabled; setVideoSyncEnabled(next); localStorage.setItem("kiyoshi-video-sync", String(next)); }}
+            onToggleVideoSync={() => setVideoSyncEnabled(v => !v)}
             videoSyncQuality={videoSyncQuality}
-            onVideoSyncQualityChange={(v) => { setVideoSyncQuality(v); localStorage.setItem("kiyoshi-video-sync-quality", v); }}
+            onVideoSyncQualityChange={setVideoSyncQuality}
             videoLyricsStyle={videoLyricsStyle}
-            onVideoLyricsStyleChange={(v) => { setVideoLyricsStyle(v); localStorage.setItem("kiyoshi-video-lyrics-style", v); }}
+            onVideoLyricsStyleChange={setVideoLyricsStyle}
             highContrast={highContrast}
             onToggleHighContrast={() => {
               const next = !highContrast;
