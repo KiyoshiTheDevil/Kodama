@@ -129,7 +129,7 @@ import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./u
 import { Tooltip } from "./ui/tooltip.jsx";
 import { useAccentColor } from "./ui/use-accent-color.js";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
-import { LyricsPrefsProvider, useLyricsPrefs } from "./preferences.jsx";
+import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
 import { SelActionBtn, PlaylistLayout } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
 import { DownloadsView } from "./views/downloads-view.jsx";
@@ -5018,7 +5018,9 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
   );
 }
 
-function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible, crossfade = 0, crossfadeOverrides = {}, onSetCrossfadeOverride, onRemoveCrossfadeOverride }) {
+function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+  // Per-transition fade editing reads and writes the global crossfade preferences.
+  const { crossfade, crossfadeOverrides, setCrossfadeOverride, removeCrossfadeOverride } = usePlaybackPrefs();
   const t = useLang();
   const [panelTab, setPanelTab] = useState("queue");
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
@@ -5325,8 +5327,8 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
           to={fadeEdit.to}
           globalDefault={crossfade}
           current={crossfadeOverrides[fadeKey(fadeEdit.from, fadeEdit.to)]?.secs ?? null}
-          onSave={(secs) => onSetCrossfadeOverride?.(fadeEdit.from.videoId, fadeEdit.to.videoId, secs, fadeEdit.from.title, fadeEdit.to.title)}
-          onClear={() => onRemoveCrossfadeOverride?.(fadeKey(fadeEdit.from, fadeEdit.to))}
+          onSave={(secs) => setCrossfadeOverride(fadeEdit.from.videoId, fadeEdit.to.videoId, secs, fadeEdit.from.title, fadeEdit.to.title)}
+          onClear={() => removeCrossfadeOverride(fadeKey(fadeEdit.from, fadeEdit.to))}
           onClose={() => setFadeEdit(null)}
         />
       )}
@@ -5334,13 +5336,16 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   );
 }
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
     showTranslation: showLyricsTranslation, setShowTranslation,
     translationLang: lyricsTranslationLang, setTranslationLang,
   } = useLyricsPrefs();
+  // Read-only here: crossfade/crossfadeOverrides are mirrored into refs below, and the
+  // timing-critical audio paths read those refs, not these values.
+  const { crossfade, crossfadeOverrides, remoteEnabled, playbackProgressive } = usePlaybackPrefs();
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
@@ -11844,6 +11849,17 @@ export default function App() {
        lyricsTranslationFontSize, showRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
        fluidLyrics, ambientVisualizer, ambientBackground]);
 
+  const playbackPrefs = useMemo(() => ({
+    crossfade,
+    setCrossfade,
+    crossfadeOverrides,
+    setCrossfadeOverride,
+    removeCrossfadeOverride,
+    remoteEnabled,
+    playbackProgressive,
+  }), [crossfade, setCrossfade, crossfadeOverrides, setCrossfadeOverride, removeCrossfadeOverride,
+       remoteEnabled, playbackProgressive]);
+
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
     <LangContext.Provider value={language}>
@@ -11852,6 +11868,7 @@ export default function App() {
     <FontScaleContext.Provider value={appFontScale}>
     <ZoomContext.Provider value={uiZoom}>
     <LyricsPrefsProvider value={lyricsPrefs}>
+    <PlaybackPrefsProvider value={playbackPrefs}>
       <style>{GLOBAL_KEYFRAMES}</style>
       {!animations && (
         <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
@@ -12118,10 +12135,6 @@ export default function App() {
             videoSync={videoSync}
             queueOpen={queueOpen}
             onToggleQueue={() => setQueueOpen(q => !q)}
-            crossfade={crossfade}
-            crossfadeOverrides={crossfadeOverrides}
-            remoteEnabled={remoteEnabled}
-            playbackProgressive={playbackProgressive}
             fullscreen={fullscreen}
             onToggleFullscreen={async () => {
               const { invoke } = await import('@tauri-apps/api/core');
@@ -12286,10 +12299,6 @@ export default function App() {
             likedIds={likedIds}
             onToggleLike={handleToggleLike}
             visible={queueOpen}
-            crossfade={crossfade}
-            crossfadeOverrides={crossfadeOverrides}
-            onSetCrossfadeOverride={setCrossfadeOverride}
-            onRemoveCrossfadeOverride={removeCrossfadeOverride}
           />
         </div>
         {/* Login Screen - shown when no profile exists */}
@@ -12903,6 +12912,7 @@ export default function App() {
           />
         )}
       </div>
+    </PlaybackPrefsProvider>
     </LyricsPrefsProvider>
     </ZoomContext.Provider>
     </FontScaleContext.Provider>

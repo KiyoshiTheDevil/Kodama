@@ -33,3 +33,23 @@ const LyricsPrefsContext = createContext(LYRICS_PREFS_DEFAULTS);
 
 export const LyricsPrefsProvider = LyricsPrefsContext.Provider;
 export const useLyricsPrefs = () => useContext(LyricsPrefsContext);
+
+// ─── Playback ────────────────────────────────────────────────────────────────
+// Values and plain setters only. Actions with real side effects stay props --
+// toggleRemote starts/stops the backend's phone endpoints, and the playback-mode
+// setter writes the sentinel strings "progressive"/"classic" rather than a boolean,
+// so neither is a preference write we want to hide behind a context setter.
+export const PLAYBACK_PREFS_DEFAULTS = {
+  crossfade:               0,
+  setCrossfade:            () => {},
+  crossfadeOverrides:      {},
+  setCrossfadeOverride:    () => {},
+  removeCrossfadeOverride: () => {},
+  remoteEnabled:           false,
+  playbackProgressive:     true,
+};
+
+const PlaybackPrefsContext = createContext(PLAYBACK_PREFS_DEFAULTS);
+
+export const PlaybackPrefsProvider = PlaybackPrefsContext.Provider;
+export const usePlaybackPrefs = () => useContext(PlaybackPrefsContext);
