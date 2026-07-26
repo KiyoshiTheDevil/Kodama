@@ -5334,7 +5334,7 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   );
 }
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, language = "de", isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -6200,7 +6200,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Sleep Timer — HeroUI Dropdown */}
           <Dropdown>
             <DropdownTrigger
-              title={sleepRemaining !== null ? `${translate(language, "sleepTimer")}: ${formatSleepRemaining(sleepRemaining)}` : translate(language, "sleepTimer")}
+              title={sleepRemaining !== null ? `${t("sleepTimer")}: ${formatSleepRemaining(sleepRemaining)}` : t("sleepTimer")}
               className={cn("shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative transition-colors duration-150 hover:bg-hover", sleepRemaining !== null ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}
             >
@@ -6213,17 +6213,17 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
             >
               <div className="px-3 pt-2.5 pb-1 text-t11 font-bold text-muted uppercase tracking-wider">
-                {translate(language, "sleepTimer")}
+                {t("sleepTimer")}
               </div>
               <DropdownMenu
-                aria-label={translate(language, "sleepTimer")}
+                aria-label={t("sleepTimer")}
                 className="min-w-44"
                 onAction={(key) => { if (key === "off") setSleepTimerEnd(null); else setSleepTimerEnd(Date.now() + Number(key) * 60 * 1000); }}
               >
                 <DropdownSection>
                   {[5, 10, 15, 20, 30, 45, 60].map(min => (
-                    <DropdownItem key={min} id={String(min)} textValue={`${min} ${translate(language, "minutes")}`}>
-                      {min} {translate(language, "minutes")}
+                    <DropdownItem key={min} id={String(min)} textValue={`${min} ${t("minutes")}`}>
+                      {min} {t("minutes")}
                       {sleepTimerEnd && Math.abs((sleepTimerEnd - Date.now()) / 60000 - min) < 1 && (
                         <Check size={12} className="ml-auto text-accent" />
                       )}
@@ -6232,9 +6232,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 </DropdownSection>
                 {sleepRemaining !== null ? (
                   <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                    <DropdownItem id="off" textValue={translate(language, "cancelSleepTimer")} className="text-[#f44336]">
+                    <DropdownItem id="off" textValue={t("cancelSleepTimer")} className="text-[#f44336]">
                       <X size={13} />
-                      {translate(language, "cancelSleepTimer")}
+                      {t("cancelSleepTimer")}
                       <span className="ml-auto text-t12 font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>
                     </DropdownItem>
                   </DropdownSection>
@@ -6287,15 +6287,15 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                     {(albumId || artistId) ? (
                       <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                         {albumId && onOpenAlbum ? (
-                          <DropdownItem textValue={translate(language, "goToAlbum")} onAction={() => { if (expanded) onExpandToggle(); onOpenAlbum({ browseId: albumId, title: track.album }); }}>
+                          <DropdownItem textValue={t("goToAlbum")} onAction={() => { if (expanded) onExpandToggle(); onOpenAlbum({ browseId: albumId, title: track.album }); }}>
                             <VinylRecord size={14} />
-                            {translate(language, "goToAlbum")}
+                            {t("goToAlbum")}
                           </DropdownItem>
                         ) : null}
                         {artistId && onOpenArtist ? (
-                          <DropdownItem textValue={translate(language, "goToArtist")} onAction={() => { if (expanded) onExpandToggle(); onOpenArtist({ browseId: artistId, artist: track.artists }); }}>
+                          <DropdownItem textValue={t("goToArtist")} onAction={() => { if (expanded) onExpandToggle(); onOpenArtist({ browseId: artistId, artist: track.artists }); }}>
                             <Microphone size={14} />
-                            {translate(language, "goToArtist")}
+                            {t("goToArtist")}
                           </DropdownItem>
                         ) : null}
                       </DropdownSection>
@@ -6303,23 +6303,23 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
 
                     {/* Lyrics actions */}
                     <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                      <DropdownItem textValue={translate(language, "refetchLyrics")} onAction={() => onRefetchLyrics?.()}>
+                      <DropdownItem textValue={t("refetchLyrics")} onAction={() => onRefetchLyrics?.()}>
                         <ArrowClockwise size={14} />
-                        {translate(language, "refetchLyrics")}
+                        {t("refetchLyrics")}
                       </DropdownItem>
-                      <DropdownItem textValue={translate(language, "importLyrics")} onAction={() => onImportLyrics?.()}>
+                      <DropdownItem textValue={t("importLyrics")} onAction={() => onImportLyrics?.()}>
                         <UploadSimple size={14} />
-                        {translate(language, "importLyrics")}
+                        {t("importLyrics")}
                       </DropdownItem>
                       {isCustomLyrics ? (
-                        <DropdownItem textValue={translate(language, "removeCustomLyrics")} onAction={() => onRemoveCustomLyrics?.()} className="text-[#f44336]">
+                        <DropdownItem textValue={t("removeCustomLyrics")} onAction={() => onRemoveCustomLyrics?.()} className="text-[#f44336]">
                           <Trash size={14} />
-                          {translate(language, "removeCustomLyrics")}
+                          {t("removeCustomLyrics")}
                         </DropdownItem>
                       ) : null}
-                      <DropdownItem textValue={translate(language, "translateLyrics")} onAction={() => setShowTranslation(v => !v)}>
+                      <DropdownItem textValue={t("translateLyrics")} onAction={() => setShowTranslation(v => !v)}>
                         <Translate size={14} />
-                        {translate(language, "translateLyrics")}
+                        {t("translateLyrics")}
                         {showLyricsTranslation && <Check size={12} className="ml-auto text-accent" />}
                       </DropdownItem>
                       {showLyricsTranslation ? (
@@ -6347,69 +6347,69 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                     {/* Lyrics Browser — replaces the old per-provider quick-switch list with
                         the dedicated two-pane browser/preview modal. */}
                     <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                      <DropdownItem textValue={translate(language, "browseLyrics")} onAction={() => onOpenLyricsBrowser?.()}>
+                      <DropdownItem textValue={t("browseLyrics")} onAction={() => onOpenLyricsBrowser?.()}>
                         <Microphone size={14} />
-                        {translate(language, "browseLyrics")}
+                        {t("browseLyrics")}
                       </DropdownItem>
                     </DropdownSection>
 
                     {/* Download / Export */}
                     <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                       {downloaded ? (
-                        <DropdownItem textValue={translate(language, "downloaded")} isDisabled>
+                        <DropdownItem textValue={t("downloaded")} isDisabled>
                           <DownloadSimple size={14} />
-                          {translate(language, "downloaded")}
+                          {t("downloaded")}
                         </DropdownItem>
                       ) : downloading ? (
-                        <DropdownItem textValue={translate(language, "downloading")} isDisabled>
+                        <DropdownItem textValue={t("downloading")} isDisabled>
                           <DownloadSimple size={14} />
-                          {translate(language, "downloading")}
+                          {t("downloading")}
                         </DropdownItem>
                       ) : (
-                        <DropdownItem textValue={translate(language, "download")} onAction={() => onDownloadSong?.(track)}>
+                        <DropdownItem textValue={t("download")} onAction={() => onDownloadSong?.(track)}>
                           <DownloadSimple size={14} />
-                          {translate(language, "download")}
+                          {t("download")}
                         </DropdownItem>
                       )}
-                      <DropdownItem textValue={translate(language, "saveAsMp3")} onAction={() => onExportSong?.(track, "mp3")}>
+                      <DropdownItem textValue={t("saveAsMp3")} onAction={() => onExportSong?.(track, "mp3")}>
                         <MusicNote size={14} />
-                        {translate(language, "saveAsMp3")}
+                        {t("saveAsMp3")}
                       </DropdownItem>
-                      <DropdownItem textValue={translate(language, "saveAsOpus")} onAction={() => onExportSong?.(track, "opus")}>
+                      <DropdownItem textValue={t("saveAsOpus")} onAction={() => onExportSong?.(track, "opus")}>
                         <MusicNote size={14} />
-                        {translate(language, "saveAsOpus")}
+                        {t("saveAsOpus")}
                       </DropdownItem>
                     </DropdownSection>
 
                     <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                       <DropdownSubmenuTrigger>
-                        <DropdownItem textValue={translate(language, "share")}>
+                        <DropdownItem textValue={t("share")}>
                           <ShareNodes size={14} />
-                          {translate(language, "share")}
+                          {t("share")}
                           <DropdownSubmenuIndicator className="ml-auto" />
                         </DropdownItem>
                         <DropdownPopover className="min-w-56">
-                          <DropdownMenu aria-label={translate(language, "share")}>
+                          <DropdownMenu aria-label={t("share")}>
                             <DropdownSection>
-                              <DropdownItem textValue={translate(language, "copyShareLink")}
-                                onAction={() => navigator.clipboard.writeText(buildShareLink(track)).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                              <DropdownItem textValue={t("copyShareLink")}
+                                onAction={() => navigator.clipboard.writeText(buildShareLink(track)).then(() => toast.success(t("linkCopied"))).catch(() => {})}>
                                 <ShareNodes size={14} />
-                                {translate(language, "copyShareLink")}
+                                {t("copyShareLink")}
                               </DropdownItem>
-                              <DropdownItem textValue={translate(language, "copyKodamaLink")}
-                                onAction={() => navigator.clipboard.writeText(`kodama://song/${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                              <DropdownItem textValue={t("copyKodamaLink")}
+                                onAction={() => navigator.clipboard.writeText(`kodama://song/${track.videoId}`).then(() => toast.success(t("linkCopied"))).catch(() => {})}>
                                 <Copy size={14} />
-                                {translate(language, "copyKodamaLink")}
+                                {t("copyKodamaLink")}
                               </DropdownItem>
-                              <DropdownItem textValue={translate(language, "copyYtMusicLink")}
-                                onAction={() => navigator.clipboard.writeText(`https://music.youtube.com/watch?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                              <DropdownItem textValue={t("copyYtMusicLink")}
+                                onAction={() => navigator.clipboard.writeText(`https://music.youtube.com/watch?v=${track.videoId}`).then(() => toast.success(t("linkCopied"))).catch(() => {})}>
                                 <Copy size={14} />
-                                {translate(language, "copyYtMusicLink")}
+                                {t("copyYtMusicLink")}
                               </DropdownItem>
-                              <DropdownItem textValue={translate(language, "copyYoutubeLink")}
-                                onAction={() => navigator.clipboard.writeText(`https://youtube.com/watch?v=${track.videoId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})}>
+                              <DropdownItem textValue={t("copyYoutubeLink")}
+                                onAction={() => navigator.clipboard.writeText(`https://youtube.com/watch?v=${track.videoId}`).then(() => toast.success(t("linkCopied"))).catch(() => {})}>
                                 <Copy size={14} />
-                                {translate(language, "copyYoutubeLink")}
+                                {t("copyYoutubeLink")}
                               </DropdownItem>
                             </DropdownSection>
                           </DropdownMenu>
@@ -12138,8 +12138,7 @@ export default function App() {
             cachedSongIds={cachedSongIds}
             downloadingIds={downloadingIds}
             onRefetchLyrics={() => { setForcedLyricsProvider(null); setLyricsRefetchKey(k => k + 1); }}
-            language={language}
-                                  isCustomLyrics={isCustomLyrics}
+            isCustomLyrics={isCustomLyrics}
             onImportLyrics={() => importLyricsRef.current?.()}
             onOpenLyricsBrowser={() => openLyricsBrowserRef.current?.()}
             onRemoveCustomLyrics={() => removeCustomLyricsRef.current?.()}
