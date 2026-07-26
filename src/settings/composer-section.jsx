@@ -25,9 +25,3 @@ export function ComposerSettingsSection() {
     </>
   );
 }
-
-
-
-// Tiny external store for the active settings sub-section. The scroll-spy writes here and only
-// the settings sidebar subscribes (useSyncExternalStore) — so scrolling never re-renders the
-// whole App tree (which caused a brief lag when the section state lived in App).
