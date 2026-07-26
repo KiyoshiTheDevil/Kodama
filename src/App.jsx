@@ -1,10 +1,6 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, createContext, useContext, useSyncExternalStore } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, TextArea, SwitchRoot, SwitchControl, SwitchThumb, CardRoot,
- ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, KbdRoot, KbdContent,
- Skeleton, ToggleButton, ToggleButtonGroupRoot, ScrollShadowRoot, ChipRoot, ChipLabel,
- TabsRoot, TabListContainer, TabList, Tab, TabIndicator } from "@heroui/react";
+import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, SwitchRoot, SwitchControl, SwitchThumb, CardRoot, ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, KbdRoot, KbdContent, Skeleton, ToggleButton, ToggleButtonGroupRoot, ScrollShadowRoot, ChipRoot, ChipLabel, TabsRoot, TabListContainer, TabList, Tab, TabIndicator } from "@heroui/react";
 import { DropdownMenu, ModalDialog } from "./ui/zoomed-heroui.jsx";
 import { parseColor, SharedElementTransition } from "react-aria-components";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -12,106 +8,11 @@ const appWindow = getCurrentWebviewWindow();
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LANGUAGES, translate, translationProgress } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
-import OverlayEditor from "./overlay/OverlayEditor.jsx";
 import { audioLevels, startAudioLevels } from "./audioLevels.js";
-import { generateIdentity, importIdentityFile, exportIdentityFile, buildSignedRequest } from "./unison/identity.js";
-import {
-  IconContext,
-  Minus, X, Play, Pause,
-  House, Books, Heart,
-  CaretLineLeft, CaretLineRight,
-  CaretLeft, CaretRight,
-  MagnifyingGlass, Gear, Palette, PlayCircle, Microphone,
-  VinylRecord, MusicNote, Playlist, ImageSquare,
-  DotsSixVertical,
-  GripLines,
-  Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce,
-  SpeakerX, SpeakerLow, SpeakerHigh,
-  Queue, ChatText,
-  CaretUp, CaretDown, Flag,
-  ArrowsIn, ArrowsOut,
-  ArrowLeft,
-  ArrowClockwise,
-  Check,
-  DotsThreeVertical,
-  PushPin,
-  ClockCounterClockwise,
-  Clock,
-  CaretLineUp,
-  CheckCircle,
-  Plus,
-  DownloadSimple,
-  Trash,
-  PencilSimple,
-  ArrowCircleUp,
-  Copy,
-  ArrowSquareOut,
-  SunHorizon,
-  Sun,
-  CloudSun,
-  Moon,
-  MoonStars,
-  Translate,
-  Link,
-  UploadSimple,
-  PersonArmsSpread,
-  Keyboard,
-  PaintBrushBroad,
-  HardDrives,
-  ArrowsClockwise,
-  Crown,
-  UserPlus,
-  UserCheck,
-  WifiHigh,
-  WifiX,
-  Bug,
-  TextSize,
-  Sliders,
-  Eye,
-  EyeSlash,
-  Tag,
-  CircleHalf,
-  WaveformLines,
-  Radio,
-  Sparkles,
-  Flask,
-  ShareNodes,
-  DeviceMobile,
-  Globe,
-  Lock,
-  LockOpen,
-  Key,
-  ScreencastSimple,
-  CircleFill,
-  Robot,
-  Headphones,
-  PodcastIcon,
-  Gamepad,
-  ClapperboardPlay,
-  HeadphonesSimple,
-  Columns,
-  Eyedropper,
-  Info,
-  WarningCircle,
-  Star,
-  BrandTwitch,
-  BrandYoutube,
-  BrandLastfm,
-  BrandBluesky,
-  BrandTiktok,
-  BrandGithub,
-  BrandDiscord,
-  MugHot,
-  UserCircle,
-  Users,
-  SignOut,
-  Power,
-  Bell,
-  Megaphone,
-  PaperPlaneTilt,
-} from "./icons.jsx";
+import { generateIdentity, importIdentityFile, exportIdentityFile } from "./unison/identity.js";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, CaretLeft, CaretRight, MagnifyingGlass, Gear, PlayCircle, Microphone, VinylRecord, MusicNote, Playlist, ImageSquare, GripLines, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, Clock, CaretLineUp, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, ArrowSquareOut, SunHorizon, Sun, CloudSun, Moon, MoonStars, Translate, Link, UploadSimple, PersonArmsSpread, Keyboard, PaintBrushBroad, HardDrives, ArrowsClockwise, UserPlus, UserCheck, WifiX, Bug, TextSize, Sliders, Eye, EyeSlash, Tag, CircleHalf, WaveformLines, Radio, Sparkles, Flask, ShareNodes, DeviceMobile, Globe, Lock, LockOpen, Key, ScreencastSimple, Headphones, PodcastIcon, Gamepad, ClapperboardPlay, HeadphonesSimple, Columns, Eyedropper, Info, WarningCircle, BrandTwitch, BrandYoutube, BrandLastfm, BrandBluesky, BrandTiktok, BrandGithub, BrandDiscord, MugHot, UserCircle, Users, SignOut, Power, Bell, Megaphone } from "./icons.jsx";
 
-import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, useFontScale, TrackNumberContext, openComposer } from "./context.jsx";
+import { API, thumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
 import { NewsModal, renderNewsBody } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
@@ -119,19 +20,16 @@ import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
 import { RemotePairModal, RemoteControlPanel } from "./ui/remote-control.jsx";
 import { FadeEditorModal } from "./modals/fade-editor-modal.jsx";
 import { DEFAULT_LYRICS_PROVIDERS, PROVIDER_SYNC } from "./lyrics/providers.js";
-import { parseLrc, parseTtml, parseDurationToSeconds } from "./lyrics/parse.js";
-import { fetchLyrics } from "./lyrics/fetch.js";
-import { paintLineWords } from "./lyrics/paint.js";
+import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { unisonSetNickname, unisonResetNickname, unisonFetchDisplayName } from "./unison/api.js";
-import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
-import { ExplicitBadge, ArtistLinks, TrackRow, GridCard, SkeletonRow } from "./ui/rows.jsx";
+import { ExplicitBadge, ArtistLinks, TrackRow, GridCard } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
 import { useAccentColor } from "./ui/use-accent-color.js";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
 import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
 import { LyricsOverlay } from "./lyrics/overlay.jsx";
-import { SelActionBtn, PlaylistLayout } from "./views/track-table.jsx";
+import { SelActionBtn } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
 import { DownloadsView } from "./views/downloads-view.jsx";
 import { HistoryView } from "./views/history-view.jsx";
