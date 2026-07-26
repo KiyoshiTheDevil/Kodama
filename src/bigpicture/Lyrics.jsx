@@ -2,7 +2,7 @@
 // glow, translations, romaji) 1:1, just with a larger font for lean-back viewing. It reads the
 // live playback time straight from the global <audio> element, so it stays in sync without any
 // extra bridging; the current track comes from the player bridge.
-import { LyricsOverlay } from "../App.jsx";
+import { LyricsOverlay } from "../lyrics/overlay.jsx";
 import { useNowPlaying, getAudio } from "./playerBridge.js";
 import { bpt } from "./bpI18n.js";
 
