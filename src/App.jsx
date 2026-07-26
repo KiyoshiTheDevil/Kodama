@@ -5334,7 +5334,13 @@ function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds
   );
 }
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, language = "de", showLyricsTranslation = false, onToggleLyricsTranslation, lyricsTranslationLang = "DE", onSetLyricsTranslationLang, showRomaji = false, onToggleRomaji, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, crossfade = 0, crossfadeOverrides = {}, remoteEnabled = false, playbackProgressive = true, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, language = "de", isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+  // The lyrics translation toggle + target language live in the ⋮ menu; they are global
+  // preferences, so they come from context rather than being threaded through App().
+  const {
+    showTranslation: showLyricsTranslation, setShowTranslation,
+    translationLang: lyricsTranslationLang, setTranslationLang,
+  } = useLyricsPrefs();
   const [progress, setProgress] = useState(0);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
@@ -6311,7 +6317,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {translate(language, "removeCustomLyrics")}
                         </DropdownItem>
                       ) : null}
-                      <DropdownItem textValue={translate(language, "translateLyrics")} onAction={() => onToggleLyricsTranslation?.()}>
+                      <DropdownItem textValue={translate(language, "translateLyrics")} onAction={() => setShowTranslation(v => !v)}>
                         <Translate size={14} />
                         {translate(language, "translateLyrics")}
                         {showLyricsTranslation && <Check size={12} className="ml-auto text-accent" />}
@@ -6326,7 +6332,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           <DropdownPopover className="min-w-40 max-h-80 overflow-y-auto">
                             <DropdownMenu aria-label="Language">
                               {LANGS.map(({ code, name }) => (
-                                <DropdownItem key={code} textValue={name} onAction={() => onSetLyricsTranslationLang?.(code)}
+                                <DropdownItem key={code} textValue={name} onAction={() => setTranslationLang(code)}
                                   className={lyricsTranslationLang === code ? "text-primary" : "text-secondary"}>
                                   {name}
                                   {lyricsTranslationLang === code && <Check size={12} className="ml-auto text-accent" />}
@@ -11823,7 +11829,9 @@ export default function App() {
   // often, and an inline object would re-render every consumer each time.
   const lyricsPrefs = useMemo(() => ({
     showTranslation: showLyricsTranslation,
+    setShowTranslation: setShowLyricsTranslation,
     translationLang: lyricsTranslationLang,
+    setTranslationLang: setLyricsTranslationLang,
     translationFontSize: lyricsTranslationFontSize,
     showRomaji,
     romajiFontSize: lyricsRomajiFontSize,
@@ -11832,8 +11840,9 @@ export default function App() {
     fluidLyrics,
     ambientVisualizer,
     ambientBackground,
-  }), [showLyricsTranslation, lyricsTranslationLang, lyricsTranslationFontSize, showRomaji,
-       lyricsRomajiFontSize, showAgentTags, syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground]);
+  }), [showLyricsTranslation, setShowLyricsTranslation, lyricsTranslationLang, setLyricsTranslationLang,
+       lyricsTranslationFontSize, showRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
+       fluidLyrics, ambientVisualizer, ambientBackground]);
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
@@ -12130,13 +12139,7 @@ export default function App() {
             downloadingIds={downloadingIds}
             onRefetchLyrics={() => { setForcedLyricsProvider(null); setLyricsRefetchKey(k => k + 1); }}
             language={language}
-            showLyricsTranslation={showLyricsTranslation}
-            onToggleLyricsTranslation={() => setShowLyricsTranslation(v => !v)}
-            lyricsTranslationLang={lyricsTranslationLang}
-            onSetLyricsTranslationLang={setLyricsTranslationLang}
-            showRomaji={showRomaji}
-            onToggleRomaji={() => setShowRomaji(v => !v)}
-            isCustomLyrics={isCustomLyrics}
+                                  isCustomLyrics={isCustomLyrics}
             onImportLyrics={() => importLyricsRef.current?.()}
             onOpenLyricsBrowser={() => openLyricsBrowserRef.current?.()}
             onRemoveCustomLyrics={() => removeCustomLyricsRef.current?.()}

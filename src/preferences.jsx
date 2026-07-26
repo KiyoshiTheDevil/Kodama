@@ -12,9 +12,13 @@ import { createContext, useContext } from "react";
 // If Big Picture should honour the real settings some day, wrap it in the provider instead of
 // changing these numbers.
 
+// The setters are no-ops in the default value: outside the provider there is nothing to write
+// to. That is the correct behaviour for Big Picture, which has no settings UI of its own.
 export const LYRICS_PREFS_DEFAULTS = {
   showTranslation:     false,
+  setShowTranslation:  () => {},
   translationLang:     "DE",
+  setTranslationLang:  () => {},
   translationFontSize: 20,
   showRomaji:          false,
   romajiFontSize:      18,
