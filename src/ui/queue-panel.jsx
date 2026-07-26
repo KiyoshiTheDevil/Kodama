@@ -39,7 +39,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
       <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
         {track.thumbnail
           ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
+          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
       </div>
 
       {/* Title + artist */}
@@ -76,7 +76,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
       {isDraggable && (
         <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
           <Button variant="ghost" size="sm" isIconOnly onPress={() => { if (anim) dissolve(rowRef.current, () => onRemove(track.videoId)); else onRemove(track.videoId); }}
-            className="h-7 min-w-7 rounded-[var(--r-sm)] text-muted hover:text-[#ff7070]!">
+            className="h-7 min-w-7 rounded-[var(--r-sm)] text-muted hover:text-[var(--status-danger)]!">
             <Trash size={13} />
           </Button>
         </span>
@@ -248,7 +248,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
           {/* Clear queue icon button — always rendered to keep pill width stable */}
           <Tooltip text={t("clearQueue")}>
             <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue([])}
-              className={`shrink-0 rounded-[var(--r-md)] text-muted hover:text-[#ff7070]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+              className={`shrink-0 rounded-[var(--r-md)] text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
             ><Trash size={13} /></Button>
           </Tooltip>
         </div>
@@ -303,7 +303,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
               <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("previouslyPlayed")}</span>
               <Tooltip text={t("clearPlayed")}>
                 <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue(q => q.slice(currentIdx))}
-                  className="shrink-0 h-6 min-w-6 rounded-[var(--r-sm)] text-muted opacity-0 group-hover/qsec:opacity-100 hover:text-[#ff7070]!"
+                  className="shrink-0 h-6 min-w-6 rounded-[var(--r-sm)] text-muted opacity-0 group-hover/qsec:opacity-100 hover:text-[var(--status-danger)]!"
                 ><Trash size={11} /></Button>
               </Tooltip>
             </div>

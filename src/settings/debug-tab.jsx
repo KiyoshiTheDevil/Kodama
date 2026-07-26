@@ -8,13 +8,13 @@ import { frontendLogs as _frontendLogs } from "../debug/console-log.js";
 
 const _debugLevelColor = (level) => {
   if (level === "ERROR") return "#ff6b6b";
-  if (level === "WARN")  return "#f0b429";
+  if (level === "WARN")  return "var(--status-warning)";
   if (level === "INFO")  return "#64b5f6";
   return "var(--text-muted)";
 };
 const _debugLevelBg = (level) => {
-  if (level === "ERROR") return "rgba(255,107,107,0.12)";
-  if (level === "WARN")  return "rgba(240,180,41,0.10)";
+  if (level === "ERROR") return "var(--status-danger-soft)";
+  if (level === "WARN")  return "var(--status-warning-soft)";
   if (level === "INFO")  return "rgba(100,181,246,0.08)";
   return "transparent";
 };
@@ -32,8 +32,8 @@ function _debugFmtAge(ageS) {
 
 // Colored "authed" status node — shared by DebugTab + DebugFloatingWindow's sysinfo rows.
 function _debugAuthedNode(authed, t) {
-  if (authed === true) return <span style={{ color: "#6bdf96", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} weight="bold" />{t("debugAuthedYes")}</span>;
-  if (authed === false) return <span style={{ color: "#ff7070", display: "flex", alignItems: "center", gap: 4 }}><WarningCircle size={11} weight="fill" />{t("debugAuthedNo")}</span>;
+  if (authed === true) return <span style={{ color: "var(--status-success)", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} weight="bold" />{t("debugAuthedYes")}</span>;
+  if (authed === false) return <span style={{ color: "var(--status-danger)", display: "flex", alignItems: "center", gap: 4 }}><WarningCircle size={11} weight="fill" />{t("debugAuthedNo")}</span>;
   return <span style={{ color: "var(--t3)" }}>{t("debugAuthedUnknown")}</span>;
 }
 
@@ -174,7 +174,7 @@ export function DebugFloatingWindow({ onClose }) {
         <Button variant={activeTab === "info" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("info")}>Sysinfo</Button>
         <Button variant={activeTab === "logs" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("logs")}>Logs</Button>
         <div className="w-px h-3 bg-border mx-0.5" />
-        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[#ff7070]! rounded-full"><X size={12} weight="bold" /></Button>
+        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[var(--status-danger)]! rounded-full"><X size={12} weight="bold" /></Button>
       </div>
 
       {/* Body */}
@@ -301,7 +301,7 @@ export function DebugTab({ t }) {
         {error ? (
           <div style={{
             padding: "12px 16px", borderRadius: "var(--r-lg)",
-            background: "rgba(255,60,60,0.12)", color: "#ff7070",
+            background: "var(--status-danger-soft)", color: "var(--status-danger)",
             fontSize: 12, display: "flex", alignItems: "center", gap: 8,
           }}>
             <WarningCircle size={14} weight="fill" style={{ flexShrink: 0 }} />
@@ -320,8 +320,8 @@ export function DebugTab({ t }) {
               ["ytmusicapi", info.ytmusicapi],
               ["Flask",      info.flask],
               ["Node.js",    info.node
-                ? <span style={{ color: "#6bdf96", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} weight="bold" />{info.node.split(/[/\\]/).pop()}</span>
-                : <span style={{ color: "#ff7070" }}>—</span>],
+                ? <span style={{ color: "var(--status-success)", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} weight="bold" />{info.node.split(/[/\\]/).pop()}</span>
+                : <span style={{ color: "var(--status-danger)" }}>—</span>],
               ["Profil",     info.profile],
               ["Plattform",  info.platform],
               ["Uptime",     info.uptime],

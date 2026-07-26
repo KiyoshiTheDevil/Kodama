@@ -213,12 +213,12 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                               </button>
                               <span className="tabular-nums min-w-[18px] text-center text-secondary" style={{ fontSize: "var(--t11)" }}>{count}</span>
                               <button onClick={() => doVote(r, -1)} title={t("downvote")}
-                                className={cn("flex items-center justify-center size-6 rounded-md hover:bg-hover transition-colors", my === -1 ? "text-[#e05252]" : "text-muted")}>
+                                className={cn("flex items-center justify-center size-6 rounded-md hover:bg-hover transition-colors", my === -1 ? "text-[var(--status-danger)]" : "text-muted")}>
                                 <CaretDown size={13} weight="bold" />
                               </button>
                               <Dropdown>
                                 <DropdownTrigger title={t("report")}
-                                  className="ml-auto flex items-center justify-center size-6 rounded-md hover:bg-hover text-muted hover:text-[#e05252] transition-colors">
+                                  className="ml-auto flex items-center justify-center size-6 rounded-md hover:bg-hover text-muted hover:text-[var(--status-danger)] transition-colors">
                                   <Flag size={13} />
                                 </DropdownTrigger>
                                 <DropdownPopover className={cn("z-[400]!", REPORT_POPOVER_ANIM)}>

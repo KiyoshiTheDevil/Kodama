@@ -37,7 +37,7 @@ export function FadeEditorModal({ from, to, current, globalDefault = 0, onSave, 
                 </p>
                 <div className="flex items-center justify-between gap-2 pt-1">
                   {current != null
-                    ? <Button variant="ghost" size="sm" className="text-[#ff7070]!" onPress={() => { onClear(); onClose(); }}>{t("removeOverride")}</Button>
+                    ? <Button variant="ghost" size="sm" className="text-[var(--status-danger)]!" onPress={() => { onClear(); onClose(); }}>{t("removeOverride")}</Button>
                     : <span />}
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onPress={onClose}>{t("cancel")}</Button>

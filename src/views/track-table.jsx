@@ -28,7 +28,7 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
       size="sm"
       isIconOnly={iconOnly}
       onPress={onClick}
-      className={`rounded-xl shrink-0 ${danger ? "text-[#ff7070]! hover:text-white! hover:bg-[rgba(239,68,68,0.85)]!" : ""} ${horizontal ? "gap-2 px-4.5!" : ""}`}
+      className={`rounded-xl shrink-0 ${danger ? "text-[var(--status-danger)]! hover:text-white! hover:bg-[rgba(239,68,68,0.85)]!" : ""} ${horizontal ? "gap-2 px-4.5!" : ""}`}
     >
       {icon}
       {!iconOnly && <span className="text-t13 font-medium whitespace-nowrap">{label}</span>}
@@ -76,7 +76,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
         <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-md bg-elevated">
           {track.thumbnail
             ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
+            : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
           {isPlaying && (
             <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
               {anim ? [1, 2, 3].map(b => (
@@ -111,9 +111,9 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
         onClick={e => { e.stopPropagation(); if (!isPremiumOnly && onDownload && !isCached && !isDownloading) onDownload(track); }}
       >
         {isPremiumOnly ? (
-          <Crown size={14} weight="fill" className="text-[#f0b429]" />
+          <Crown size={14} weight="fill" className="text-[var(--status-warning)]" />
         ) : isCached ? (
-          <CheckCircle size={14} className="text-[#4caf50]" />
+          <CheckCircle size={14} className="text-[var(--status-success)]" />
         ) : isDownloading ? (
           <DownloadSimple size={14} className="text-accent animate-pulse" />
         ) : onDownload ? (
@@ -378,7 +378,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                   };
                   return allCached ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ ...btnBase, cursor: "default", color: "#4caf50", background: "rgba(76,175,80,0.12)", border: "0.5px solid rgba(76,175,80,0.3)" }}>
+                      <div style={{ ...btnBase, cursor: "default", color: "var(--status-success)", background: "var(--status-success-soft)", border: "0.5px solid var(--status-success-line)" }}>
                         <CheckCircle size={14} weight="fill" />
                         {t("downloaded")}
                       </div>
@@ -391,7 +391,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                             justifyContent: "center", cursor: "default", transition: "background 0.15s",
                             color: "rgba(255,255,255,0.7)", padding: 0, backdropFilter: "blur(6px)",
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(224,82,82,0.25)"; e.currentTarget.style.color = "#e05252"; }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "var(--status-danger-line)"; e.currentTarget.style.color = "var(--status-danger)"; }}
                           onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
                         >
                           <Trash size={14} />

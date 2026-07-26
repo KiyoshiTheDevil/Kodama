@@ -62,7 +62,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
       <div style={{ width: 100, height: 100, borderRadius: "50%", overflow: "hidden", background: "var(--bg-elevated)", margin: "0 auto 10px" }}>
         {a.thumbnail
           ? <img src={thumb(a.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)" }} />}
+          : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}
       </div>
       <div className="sr-title" style={{ fontSize: "var(--t13)", fontWeight: 500, transition: "color 0.15s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
       {a.subtitle && <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginTop: 3 }}>{a.subtitle}</div>}
@@ -127,7 +127,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
       </div>
 
       {loading && <div style={{ padding: "0 16px", color: "var(--text-secondary)" }}>{t("loadingDots")}</div>}
-      {error && <div style={{ padding: "0 16px", color: "#f44336" }}>{t("errorLoading")}: {error}</div>}
+      {error && <div style={{ padding: "0 16px", color: "var(--status-danger)" }}>{t("errorLoading")}: {error}</div>}
       {!loading && !error && visible.length === 0 && (
         <div style={{ padding: "0 16px", color: "var(--text-muted)" }}>{t("noResults")}</div>
       )}

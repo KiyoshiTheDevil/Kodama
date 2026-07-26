@@ -51,7 +51,7 @@ export function RemotePairModal({ isOpen, onClose, info, devices, onDevice, onRe
                     {t("remoteRemember")}
                   </button>
                   <div className="flex gap-2 w-full pt-1">
-                    <Button variant="ghost" className="flex-1 text-[#ff7070]!" onPress={() => onDevice(dev.id, "deny")}>{t("remoteDeny")}</Button>
+                    <Button variant="ghost" className="flex-1 text-[var(--status-danger)]!" onPress={() => onDevice(dev.id, "deny")}>{t("remoteDeny")}</Button>
                     <Button className="flex-1 bg-accent! text-white!" onPress={() => { onRemember(dev.id, dev.name, remember); onDevice(dev.id, "approve"); }}>{t("remoteApprove")}</Button>
                   </div>
                 </div>
@@ -108,7 +108,7 @@ export function RemoteControlPanel({ devices, onDevice, onPair, trustedIds, onRe
                 onPress={() => onRemember(d.id, d.name, !trustedIds.has(d.id))}>
                 <PushPin size={13} weight={trustedIds.has(d.id) ? "fill" : "regular"} />
               </Button>
-              <Button size="sm" variant="ghost" isIconOnly className="h-7 min-w-7 text-muted hover:text-[#ff7070]!" onPress={() => onDevice(d.id, "remove")}><Trash size={13} /></Button>
+              <Button size="sm" variant="ghost" isIconOnly className="h-7 min-w-7 text-muted hover:text-[var(--status-danger)]!" onPress={() => onDevice(d.id, "remove")}><Trash size={13} /></Button>
             </div>
           ))}
         </div>

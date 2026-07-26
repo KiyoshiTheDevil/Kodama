@@ -31,14 +31,14 @@ export function LikedView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpe
 
   if (error && errorCode === "auth_expired") return (
     <div style={{ padding: 28 }}>
-      <div style={{ color: "#f44336", marginBottom: 8 }}>{t("sessionExpired")}</div>
+      <div style={{ color: "var(--status-danger)", marginBottom: 8 }}>{t("sessionExpired")}</div>
       <div style={{ color: "var(--text-secondary)", fontSize: "var(--t13)" }}>{t("sessionExpiredHint")}</div>
     </div>
   );
 
   if (error) return (
     <div style={{ padding: 28 }}>
-      <div style={{ color: "#f44336", marginBottom: 8 }}>{t("errorLoading")}</div>
+      <div style={{ color: "var(--status-danger)", marginBottom: 8 }}>{t("errorLoading")}</div>
       <div style={{ color: "var(--text-secondary)", fontSize: "var(--t13)" }}>{error}</div>
       <div style={{ color: "var(--text-muted)", fontSize: "var(--t12)", marginTop: 12 }}>
         {t("backendHint")} <code style={{ background: "var(--bg-elevated)", padding: "1px 6px", borderRadius: 4 }}>python server.py</code>

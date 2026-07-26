@@ -180,7 +180,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
                 </Button>
               )}
               <Button variant="ghost" size="sm" isIconOnly onPress={() => setConfirmRemove(a.name)} title={t("removeAccountTitle")}
-                className="text-muted hover:text-[#f44336]">
+                className="text-muted hover:text-[var(--status-danger)]">
                 <Trash size={14} />
               </Button>
             </div>

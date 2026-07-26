@@ -71,7 +71,7 @@ export function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu
       <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-md bg-elevated">
         {track.thumbnail
           ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
+          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
         {isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
             {anim
@@ -114,7 +114,7 @@ export function GridCard({ thumbnail, title, subtitle, count, onClick, onPlay, o
       <div className="gcard-thumb aspect-square bg-elevated" onClick={onClick}>
         {thumbnail
           ? <img src={thumb(thumbnail)} alt="" className="gcard-img" />
-          : <div className="w-full h-full bg-[linear-gradient(135deg,#2a1535,#1a0a25)]" />}
+          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
         {(count != null && count !== "") && (
           <span className="gcard-badge"><MusicNote size={11} weight="fill" />{count}</span>
         )}

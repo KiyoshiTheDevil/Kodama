@@ -238,7 +238,7 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
         }}>
           {hq
             ? <img src={thumb(hq)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)" }} />
+            : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
           }
         </div>
 

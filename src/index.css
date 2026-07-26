@@ -218,11 +218,41 @@
   --r-md:  6px;
   --r-lg:  8px;
   --r-xl:  12px;
+  /* 2xl matches Tailwind's own 2xl (16px) on purpose — see the note in @theme inline
+     about not remapping Tailwind's radius scale. No 3xl here: the stray 20px/28px
+     radii in the codebase are drift and should snap to an existing step. */
+  --r-2xl: 16px;
+  --r-full: 999px;   /* pills and circles — was hardcoded as 50 / 99 / 9999 */
   /* Legacy aliases */
   --radius:    var(--r-lg);
   --radius-lg: var(--r-xl);
 
   /* â”€â”€ Misc â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* Semantic status ----------------------------------------------------------
+     One value per role. Before these existed the app used three different reds for
+     "error" (#f44336 / #ff7070 / #e05252), two greens and two ambers, so the colour
+     shifted depending on which screen you were on. The -soft / -line variants are
+     derived, so changing the base recolours the tint and border with it. */
+  --status-danger:        #ff7070;
+  --status-danger-soft:   color-mix(in srgb, var(--status-danger) 12%, transparent);
+  --status-danger-line:   color-mix(in srgb, var(--status-danger) 30%, transparent);
+  --status-success:       #6bdf96;
+  --status-success-soft:  color-mix(in srgb, var(--status-success) 12%, transparent);
+  --status-success-line:  color-mix(in srgb, var(--status-success) 30%, transparent);
+  --status-warning:       #f0b429;
+  --status-warning-soft:  color-mix(in srgb, var(--status-warning) 12%, transparent);
+  --status-warning-line:  color-mix(in srgb, var(--status-warning) 30%, transparent);
+
+  /* Elevation ----------------------------------------------------------------
+     No shadow tokens existed at all; every shadow was written out by hand. Keep the
+     blur inside a view's content padding, or it bleeds to the scroll container edge. */
+  --elevation-1: 0 2px 8px rgba(0,0,0,0.22);
+  --elevation-2: 0 4px 14px rgba(0,0,0,0.28);
+  --elevation-3: 0 10px 24px rgba(0,0,0,0.42);
+
+  /* Cover-art fallback, repeated in ~19 places before it was a token. */
+  --placeholder-gradient: linear-gradient(135deg, #2a1535, #1a0a25);
+
   --slider-track: #333333;
   --font: 'MiSans Latin', system-ui, sans-serif;
 }
@@ -276,6 +306,14 @@
   --text-secondary: var(--t2);
   --text-muted:     var(--t3);
   --slider-track: #b8b8b8;
+  /* Darker so they stay legible on light surfaces — the dark-theme values sit around
+     3:1 against white, which is below the 4.5:1 needed for body text. */
+  --status-danger:   #d32f2f;
+  --status-success:  #2e7d32;
+  --status-warning:  #b26a00;
+  --elevation-1: 0 2px 8px rgba(0,0,0,0.10);
+  --elevation-2: 0 4px 14px rgba(0,0,0,0.14);
+  --elevation-3: 0 10px 24px rgba(0,0,0,0.20);
 }
 
 /* â”€â”€â”€ High Contrast Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

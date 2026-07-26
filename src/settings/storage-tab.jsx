@@ -131,7 +131,7 @@ function CacheTab({ t }) {
       {fetchError && (
         <div style={{
           padding: "12px 16px", marginBottom: 6, borderRadius: "var(--r-lg)",
-          background: "rgba(255,60,60,0.12)", color: "#ff7070", fontSize: 12,
+          background: "var(--status-danger-soft)", color: "var(--status-danger)", fontSize: 12,
         }}>
           {t("cacheStatsError")}: {fetchError}
         </div>
@@ -146,11 +146,11 @@ function CacheTab({ t }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {overLimit && (
-              <div style={{ fontSize: 11, color: "#ff7070", fontWeight: 600 }}>
+              <div style={{ fontSize: 11, color: "var(--status-danger)", fontWeight: 600 }}>
                 {t("cacheWarning")}
               </div>
             )}
-            <div style={{ fontSize: 22, fontWeight: 700, color: overLimit ? "#ff7070" : "var(--t1)" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: overLimit ? "var(--status-danger)" : "var(--t1)" }}>
               {stats ? fmtBytes(totalBytes) : "…"}
             </div>
           </div>
@@ -199,7 +199,7 @@ function CacheTab({ t }) {
 
             {/* Clear button */}
             <Button variant="ghost" size="sm" isDisabled={isClearing || wasCleared} onPress={() => clear(key)}
-              className={cn("min-w-[72px]", wasCleared && "text-[#6bdf96]!")}>
+              className={cn("min-w-[72px]", wasCleared && "text-[var(--status-success)]!")}>
               {wasCleared
                 ? <><Check size={11} />{t("cacheCleared")}</>
                 : isClearing ? "…" : t("cacheClear")}

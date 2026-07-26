@@ -545,7 +545,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             placeholder="••••••••"
             autoFocus={autoFocus}
             onKeyDown={e => { if (e.key === "Enter" && value.length > 0) onSubmit(value); }}
-            className={cn("pr-11", error && "border-[#f44336]!")}
+            className={cn("pr-11", error && "border-[var(--status-danger)]!")}
           />
         </TextFieldRoot>
         <button
@@ -556,7 +556,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
           {show ? <EyeSlash size={18} /> : <Eye size={18} />}
         </button>
       </div>
-      {error && <div className="text-t12 font-medium" style={{ color: "#f44336" }}>{error}</div>}
+      {error && <div className="text-t12 font-medium" style={{ color: "var(--status-danger)" }}>{error}</div>}
       <Button variant="primary" isDisabled={value.length === 0} onPress={() => value.length > 0 && onSubmit(value)}>
         {t("pinSubmit")}
       </Button>
@@ -627,7 +627,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <>
                   <PinDots count={PIN_LEN} filled={pinDigits.length} />
                   {pinError && (
-                    <div style={{ fontSize: "var(--t12)", color: "#f44336", fontWeight: 500 }}>
+                    <div style={{ fontSize: "var(--t12)", color: "var(--status-danger)", fontWeight: 500 }}>
                       {t("pinWrong")}
                     </div>
                   )}
@@ -651,10 +651,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             {pinEmergencyConfirm && (
               <div style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-                background: "rgba(244,67,54,0.08)", border: "0.5px solid rgba(244,67,54,0.3)",
+                background: "var(--status-danger-soft)", border: "0.5px solid var(--status-danger-line)",
                 borderRadius: 12, padding: "16px 24px", marginTop: 8,
               }}>
-                <div style={{ fontSize: "var(--t12)", color: "#f44336", fontWeight: 600, textAlign: "center", maxWidth: 280 }}>
+                <div style={{ fontSize: "var(--t12)", color: "var(--status-danger)", fontWeight: 600, textAlign: "center", maxWidth: 280 }}>
                   {t("pinEmergencyConfirmText")}
                 </div>
                 <div className="flex gap-2">
@@ -706,7 +706,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               <>
                 <PinDots count={PIN_LEN} filled={pinSetupDigits.length} />
                 {pinSetupError && (
-                  <div style={{ fontSize: "var(--t12)", color: "#f44336", fontWeight: 500 }}>{pinSetupError}</div>
+                  <div style={{ fontSize: "var(--t12)", color: "var(--status-danger)", fontWeight: 500 }}>{pinSetupError}</div>
                 )}
                 <PinKeypad onKey={handleSetupKey} />
               </>
@@ -804,7 +804,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
                           <button className="flex-1 min-w-0 text-left text-t13 font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
                           <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} title={t("export") || "Exportieren"}><DownloadSimple size={13} /></Button>
-                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[#f44336]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
+                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
                         </div>
                       ))}
                     </div>
@@ -1075,7 +1075,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ov.toTitle || key.split("__")[1]}</span>
                           </span>
                           <span style={{ fontSize: "var(--t11)", fontWeight: 700, color: "var(--accent)", width: 30, textAlign: "right" }}>{ov.secs}s</span>
-                          <Button variant="ghost" size="sm" isIconOnly className="h-7 min-w-7 text-muted hover:text-[#ff7070]!" onPress={() => onRemoveCrossfadeOverride?.(key)}>
+                          <Button variant="ghost" size="sm" isIconOnly className="h-7 min-w-7 text-muted hover:text-[var(--status-danger)]!" onPress={() => onRemoveCrossfadeOverride?.(key)}>
                             <Trash size={13} />
                           </Button>
                         </div>
@@ -1379,7 +1379,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
                 <SectionLabel style={{ marginTop: 24 }}>{t("pinEmergency")}</SectionLabel>
                 <CardRoot variant="secondary" className="px-4 py-3.5 gap-0! text-t12 text-muted leading-[1.7]"
-                  style={{ background: "rgba(244,67,54,0.06)" }}>
+                  style={{ background: "var(--status-danger-soft)" }}>
                   <div style={{ marginBottom: 12, color: "var(--text-secondary)", fontWeight: 500 }}>{t("pinEmergencyDesc")}</div>
                   {!pinEmergencyConfirm ? (
                     <Button variant="danger-soft" size="sm" onPress={() => setPinEmergencyConfirm(true)}>
@@ -1387,7 +1387,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </Button>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ color: "#f44336", fontWeight: 600, fontSize: "var(--t12)" }}>
+                      <div style={{ color: "var(--status-danger)", fontWeight: 600, fontSize: "var(--t12)" }}>
                         {t("pinEmergencyConfirmText")}
                       </div>
                       <div className="flex gap-2">
@@ -1581,7 +1581,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     {/* Action area */}
                     {updateDownloaded ? (
                       <>
-                        <div className="text-t12 my-2 flex items-center gap-1.5" style={{ color: "#4caf50" }}>
+                        <div className="text-t12 my-2 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}>
                           <CheckCircle size={14} weight="fill" />
                           {t("savedToDownloads")}
                         </div>
@@ -1610,7 +1610,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   </>
                 ) : (
                   <div className="flex flex-col items-center gap-2.5 py-10 px-4 text-muted">
-                    <CheckCircle size={36} weight="fill" style={{ color: "#4caf50" }} />
+                    <CheckCircle size={36} weight="fill" style={{ color: "var(--status-success)" }} />
                     <div className="text-t13 font-medium text-secondary text-center">{t("upToDate")}</div>
                   </div>
                 )}
@@ -1837,7 +1837,7 @@ function FfmpegUpdateRow() {
         {phase === "downloading" ? (
           <span className="text-t12 text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} />{percent}%</span>
         ) : phase === "done" ? (
-          <span className="text-t12 flex items-center gap-1.5" style={{ color: "#4caf50" }}><CheckCircle size={14} weight="fill" />{t("ffmpegUpdated")}</span>
+          <span className="text-t12 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ffmpegUpdated")}</span>
         ) : info?.updateAvailable ? (
           <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate")}</Button>
         ) : (!loading && info && !info.installed) ? (
@@ -1854,7 +1854,7 @@ function FfmpegUpdateRow() {
         </ProgressBar>
       )}
       {phase === "error" && (
-        <div className="text-t12 mt-1.5 flex items-center gap-1.5" style={{ color: "#ff7070" }}>{t("ffmpegUpdateFailed")}</div>
+        <div className="text-t12 mt-1.5 flex items-center gap-1.5" style={{ color: "var(--status-danger)" }}>{t("ffmpegUpdateFailed")}</div>
       )}
     </>
   );
@@ -1896,7 +1896,7 @@ function YtDlpUpdateRow() {
       {phase === "updating" ? (
         <span className="text-t12 text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} /></span>
       ) : phase === "done" ? (
-        <span className="text-t12 flex items-center gap-1.5" style={{ color: "#4caf50" }}><CheckCircle size={14} weight="fill" />{t("ytdlpUpdated") || "yt-dlp updated"}</span>
+        <span className="text-t12 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ytdlpUpdated") || "yt-dlp updated"}</span>
       ) : phase === "error" ? (
         <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate") || "Update"}</Button>
       ) : info?.updateAvailable ? (

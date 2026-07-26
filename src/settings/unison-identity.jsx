@@ -148,7 +148,7 @@ export function UnisonIdentitySection() {
                   </Button>
                 ) : null}
               </div>
-              {nickErr ? <div className="text-t10 text-[#e05252]">{nickErr}</div>
+              {nickErr ? <div className="text-t10 text-[var(--status-danger)]">{nickErr}</div>
                 : <div className="text-t10 text-muted">{t("unisonNameDerived")}</div>}
             </div>
 
@@ -160,10 +160,10 @@ export function UnisonIdentitySection() {
                 <DownloadSimple size={15} className="rotate-180" />{t("unisonImportKey")}
               </Button>
             </div>
-            <Button variant="ghost" className="justify-center text-[#e05252]!" onPress={remove}>{t("unisonRemove")}</Button>
+            <Button variant="ghost" className="justify-center text-[var(--status-danger)]!" onPress={remove}>{t("unisonRemove")}</Button>
           </>
         )}
-        {err ? <div className="text-t11 text-[#e05252]">{err}</div> : null}
+        {err ? <div className="text-t11 text-[var(--status-danger)]">{err}</div> : null}
       </CardRoot>
     </>
   );

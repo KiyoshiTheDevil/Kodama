@@ -222,7 +222,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
           <div style={{ width: size, height: size, background: "var(--bg-elevated)" }}>
             {item.thumbnail
               ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
-              : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {isPodcast ? <PodcastIcon size={size * 0.3} style={{ opacity: 0.4 }} /> : <MusicNote size={size * 0.3} style={{ opacity: 0.25 }} />}
                 </div>
             }
@@ -407,7 +407,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                       <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: "var(--bg-elevated)" }}>
                         {item.thumbnail
                           ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
-                          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)" }} />
+                          : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
                         }
                         {/* Gradient + title/artist overlay (bottom-left) */}
                         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 32%, transparent 60%)", pointerEvents: "none" }} />

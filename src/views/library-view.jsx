@@ -169,7 +169,7 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
       </div>
 
       {loading && <div style={{ color: "var(--text-secondary)" }}>{t("loadingDots")}</div>}
-      {error && <div style={{ color: "#f44336" }}>{error}</div>}
+      {error && <div style={{ color: "var(--status-danger)" }}>{error}</div>}
       {!loading && !error && (
         <div style={{
           display: "grid",

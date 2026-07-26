@@ -40,7 +40,7 @@ export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onO
       border: "0.5px solid rgba(255,255,255,0.15)",
       background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.75)",
     }}
-    onMouseEnter={e => { e.currentTarget.style.color = "#f44336"; e.currentTarget.style.borderColor = "#f44336"; e.currentTarget.style.background = "rgba(244,67,54,0.12)"; }}
+    onMouseEnter={e => { e.currentTarget.style.color = "var(--status-danger)"; e.currentTarget.style.borderColor = "var(--status-danger)"; e.currentTarget.style.background = "var(--status-danger-soft)"; }}
     onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.75)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(0,0,0,0.3)"; }}
     >
       <Trash size={13} /> {t("clearHistory")}

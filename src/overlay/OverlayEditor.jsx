@@ -344,7 +344,7 @@ function FillList({ t, fills, onChange }) {
             {f.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
           </button>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/frow:opacity-100 hover:text-[#ff7070] transition-[color,opacity]"><Minus size={13} /></button>
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/frow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
         </div>
       ))}
     </Section>
@@ -371,7 +371,7 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
             {s.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
           </button>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/srow:opacity-100 hover:text-[#ff7070] transition-[color,opacity]"><Minus size={13} /></button>
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/srow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
         </div>
       ))}
       {list.length > 0 && (
@@ -407,7 +407,7 @@ function EffectList({ t, effects, onChange }) {
               {e.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
             </button>
             <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/erow:opacity-100 hover:text-[#ff7070] transition-[color,opacity]"><Minus size={13} /></button>
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/erow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
           </div>
           {e.type === "shadow" && (<>
             <ColorField value={e.color} onChange={(c) => set(i, { color: c })} opacity={e.opacity ?? 50} onOpacity={(o) => set(i, { opacity: o })} />
@@ -1509,7 +1509,7 @@ export default function OverlayEditor({
             <>
               <div className="text-t12 font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
               <div className="text-t11 text-muted mb-3 leading-snug">{t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}</div>
-              <Button variant="secondary" size="sm" className="gap-1.5 text-[#ff7070]!" onPress={deleteSelected}>
+              <Button variant="secondary" size="sm" className="gap-1.5 text-[var(--status-danger)]!" onPress={deleteSelected}>
                 <Trash size={13} /> {t("ovlMenuDelete")}
               </Button>
             </>
@@ -1598,7 +1598,7 @@ export default function OverlayEditor({
                     <InputRoot className="text-t12! h-8! bg-[var(--surface-2)]! border-border!" placeholder={(TYPE_META[selected.type] || {}).label} />
                   </TextFieldRoot>
                   <Button variant="ghost" size="sm" isIconOnly onPress={duplicateSelected} aria-label={t("ovlMenuDuplicate")} className="shrink-0"><Copy size={14} /></Button>
-                  <Button variant="ghost" size="sm" isIconOnly onPress={() => deleteLayer(selected.id)} aria-label={t("ovlMenuDelete")} className="shrink-0 text-[#ff7070]!"><Trash size={14} /></Button>
+                  <Button variant="ghost" size="sm" isIconOnly onPress={() => deleteLayer(selected.id)} aria-label={t("ovlMenuDelete")} className="shrink-0 text-[var(--status-danger)]!"><Trash size={14} /></Button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Segmented value={null} onChange={(w) => alignSelected("x", w)} options={[

@@ -655,7 +655,7 @@ function CtxItem({ icon: Icon, label, onSelect, danger, id, textValue }) {
       id={id}
       textValue={textValue || (typeof label === "string" ? label : undefined)}
       onAction={onSelect}
-      className={danger ? "text-[#e05252]! data-[focused]:text-[#e05252]! data-[hovered]:text-[#e05252]!" : undefined}
+      className={danger ? "text-[var(--status-danger)]! data-[focused]:text-[var(--status-danger)]! data-[hovered]:text-[var(--status-danger)]!" : undefined}
     >
       {Icon ? <span className="w-4 flex justify-center shrink-0">{Icon}</span> : null}
       {label}
@@ -1024,7 +1024,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
             onPointerCancel={cancelQuitHold}
           >
             <span className="absolute inset-0 origin-left pointer-events-none"
-              style={{ background: "rgba(244,67,54,0.28)", transform: quitHolding ? "scaleX(1)" : "scaleX(0)", transition: quitHolding ? "transform 1s linear" : "transform 0.15s ease" }} />
+              style={{ background: "var(--status-danger-line)", transform: quitHolding ? "scaleX(1)" : "scaleX(0)", transition: quitHolding ? "transform 1s linear" : "transform 0.15s ease" }} />
             <span className="w-4 flex justify-center shrink-0 relative z-[1]"><Power size={16} /></span>
             <span className="relative z-[1]">{t("quitApp")}</span>
           </DropdownItem>
@@ -1265,7 +1265,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
               <div
                 className="w-9 h-9 rounded flex items-center justify-center transition-all duration-150"
                 style={{
-                  color: isActuallyOffline ? "#f0b429" : "var(--text-muted)",
+                  color: isActuallyOffline ? "var(--status-warning)" : "var(--text-muted)",
                   opacity: isActuallyOffline ? 1 : 0.45,
                 }}
                 onMouseEnter={e => {
@@ -2123,7 +2123,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           }}>
             {track?.thumbnail
               ? <img src={thumb(hiResThumb(track.thumbnail, 800))} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <div style={{ width: "100%", height: "100%", background: track ? "linear-gradient(135deg,#2a1535,#1a0a25)" : "transparent" }} />}
+              : <div style={{ width: "100%", height: "100%", background: track ? "var(--placeholder-gradient)" : "transparent" }} />}
           </div>
           <div style={{ overflow: "hidden" }}>
             <div style={{ fontSize: "var(--t13)", fontWeight: 500, display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
@@ -2287,7 +2287,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 </DropdownSection>
                 {sleepRemaining !== null ? (
                   <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                    <DropdownItem id="off" textValue={t("cancelSleepTimer")} className="text-[#f44336]">
+                    <DropdownItem id="off" textValue={t("cancelSleepTimer")} className="text-[var(--status-danger)]">
                       <X size={13} />
                       {t("cancelSleepTimer")}
                       <span className="ml-auto text-t12 font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>
@@ -2367,7 +2367,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                         {t("importLyrics")}
                       </DropdownItem>
                       {isCustomLyrics ? (
-                        <DropdownItem textValue={t("removeCustomLyrics")} onAction={() => onRemoveCustomLyrics?.()} className="text-[#f44336]">
+                        <DropdownItem textValue={t("removeCustomLyrics")} onAction={() => onRemoveCustomLyrics?.()} className="text-[var(--status-danger)]">
                           <Trash size={14} />
                           {t("removeCustomLyrics")}
                         </DropdownItem>
@@ -3012,7 +3012,7 @@ function FfmpegUpdateBanner({ installed, latest, onClose }) {
     <div style={{ position: "fixed", left: "50%", bottom: 124, transform: "translateX(-50%)", zIndex: 9990 }}
       className="animate-[pillRiseIn_0.3s_cubic-bezier(0.22,1,0.36,1)]">
       <div className="flex items-center gap-3 pl-4 pr-2.5 py-2.5 rounded-2xl bg-elevated border-[0.5px] border-border shadow-[0_10px_40px_rgba(0,0,0,0.55)] w-[400px] max-w-[calc(100vw-32px)]">
-        <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${phase === "error" ? "bg-[rgba(255,112,112,0.16)] text-[#ff7070]" : "bg-accent-dim text-accent"}`}>
+        <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${phase === "error" ? "bg-[rgba(255,112,112,0.16)] text-[var(--status-danger)]" : "bg-accent-dim text-accent"}`}>
           {phase === "done" ? <CheckCircle size={18} weight="fill" /> : <ArrowClockwise size={16} weight="bold" />}
         </div>
         <div className="min-w-0 flex-1">
@@ -5286,8 +5286,8 @@ export default function App() {
             {isOffline && view !== "downloads" && (
               <div style={{
                 position: "sticky", bottom: 0, left: 0, right: 0,
-                background: "rgba(240,180,41,0.12)", borderTop: "1px solid rgba(240,180,41,0.3)",
-                color: "#f0b429", display: "flex", alignItems: "center", gap: 8,
+                background: "var(--status-warning-soft)", borderTop: "1px solid var(--status-warning-line)",
+                color: "var(--status-warning)", display: "flex", alignItems: "center", gap: 8,
                 padding: "6px 16px", fontSize: 13, zIndex: 10,
               }}>
                 <WifiX size={15} weight="bold" />
@@ -5851,7 +5851,7 @@ export default function App() {
           >
             <div className="flex items-center gap-2">
               {downloadQueueMin && (allFinished
-                ? <CheckCircle size={14} weight="fill" className="text-[#4caf50] shrink-0" />
+                ? <CheckCircle size={14} weight="fill" className="text-[var(--status-success)] shrink-0" />
                 : <Spinner size="sm" className="shrink-0" />)}
               <span className="text-t10 font-bold uppercase tracking-wider text-muted px-0.5">
                 {translate(language, "downloadQueue")}
@@ -5877,7 +5877,7 @@ export default function App() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       {isFinished
-                        ? <CheckCircle size={15} weight="fill" className="text-[#4caf50] shrink-0" />
+                        ? <CheckCircle size={15} weight="fill" className="text-[var(--status-success)] shrink-0" />
                         : <Spinner size="sm" className="shrink-0" />}
                       <div className="text-t12 font-semibold truncate flex-1">{batch.title}</div>
                       {!isFinished && (

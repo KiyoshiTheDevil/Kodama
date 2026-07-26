@@ -26,7 +26,7 @@ function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square",
         <div style={{ width: w, height: h, background: "var(--bg-elevated)" }}>
           {thumbnail
             ? <img className="home-card-img" src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
-            : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#2a1535,#1a0a25)", display: "flex", alignItems: "center", justifyContent: "center" }}><Fallback size={Math.round(w * 0.3)} style={{ opacity: 0.3 }} /></div>}
+            : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)", display: "flex", alignItems: "center", justifyContent: "center" }}><Fallback size={Math.round(w * 0.3)} style={{ opacity: 0.3 }} /></div>}
         </div>
         {onPlay && !isCircle && (
           <div className="home-card-play" style={{ position: "absolute", bottom: 8, right: 8, opacity: 0, transform: "translateY(8px)", transition: "opacity 0.2s, transform 0.2s", pointerEvents: "none" }}>
@@ -158,7 +158,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
     </div>
   );
 
-  if (error) return <div style={{ padding: 28, color: "#f44336" }}>{error}</div>;
+  if (error) return <div style={{ padding: 28, color: "var(--status-danger)" }}>{error}</div>;
   if (!artist) return null;
 
   const topTracks = (artist.tracks || []).filter(tr => !hideExplicit || !tr.isExplicit);
@@ -254,7 +254,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
               </Button>
             )}
           </div>
-          {subError && <div style={{ marginTop: 8, fontSize: "var(--t11)", color: "#ff7070", maxWidth: 280, lineHeight: 1.35 }}>{subError}</div>}
+          {subError && <div style={{ marginTop: 8, fontSize: "var(--t11)", color: "var(--status-danger)", maxWidth: 280, lineHeight: 1.35 }}>{subError}</div>}
         </div>
         {/* Artist description — bottom right of hero */}
         {artist.description && <ArtistDescription text={artist.description} name={artist.name} url={artist.descriptionUrl} />}
