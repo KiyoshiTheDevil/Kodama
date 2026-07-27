@@ -205,7 +205,15 @@ function parseDurationToSeconds(str) {
 // The text is taken from *between* the timing tags rather than matched directly, because it
 // may contain parentheses of its own — "85 (" and "Explicit) - " are real words in the wild,
 // and a pattern like /([^(]*)\((\d+),(\d+)\)/ silently drops them.
-function parseQrc(qrc) {
+//
+// QQ ships credits as ordinary timed lines at the top ("E85 (Explicit) - Don Toliver",
+// "Lyrics by：…", "Produced by：…"), which otherwise scroll past as if they were lyrics.
+// Pass { title, artist } to strip them: only the leading block is examined and dropping
+// stops at the first line that does not look like a credit, so nothing later is ever lost.
+const QRC_CREDIT = /^\s*(?:lyrics?|words?|music|composed?|composer|arranged?|arranger|produced?|producer|mixed?|mixing|mastered?|mastering|vocals?|作词|作曲|编曲|制作人|混音|母带|演唱|原唱)\b[^:：]{0,24}[:：]/i;
+const qrcNorm = (s) => (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+function parseQrc(qrc, meta = null) {
   if (typeof qrc !== "string") return [];
   const out = [];
   for (const raw of qrc.split("\n")) {
@@ -231,7 +239,20 @@ function parseQrc(qrc) {
       text: words.map(w => w.text).join(""),
     });
   }
-  return out;
+
+  // Drop the leading credit block. A line qualifies if it reads like "<role>: …" or if it
+  // repeats both the track title and the artist (QQ's header line). The scan stops at the
+  // first line that is neither, and bails out entirely if that would leave nothing.
+  const t = qrcNorm(meta?.title), a = qrcNorm(meta?.artist);
+  let start = 0;
+  while (start < out.length) {
+    const text = out[start].text.trim();
+    const n = qrcNorm(text);
+    const isHeader = t && a && n.includes(t) && n.includes(a);
+    if (!QRC_CREDIT.test(text) && !isHeader) break;
+    start++;
+  }
+  return start && start < out.length ? out.slice(start) : out;
 }
 
 export { parseLrc, parseRichSync, parseTtml, parseQrc, ttmlTimeToSeconds, parseDurationToSeconds };
