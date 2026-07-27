@@ -120,7 +120,7 @@
   "ffmpegSetupTitle": "pali open wan",
   "ffmpegDownloadingTitle": "ilo FFmpeg li kama...",
   "ffmpegErrorTitle": "kama ilo li pakala",
-  "ffmpegNeededDesc": "ilo FFmpeg li lon ala. ona li kama wan. ona li kepeken tawa pana kalama MP3.",
+  "ffmpegNeededDesc": "ilo FFmpeg li lon ala. ona li kama wan (~130 MB). ona li kepeken tawa pana kalama MP3.",
   "ffmpegSkip": "weka",
   "ffmpegDownload": "o kama jo e ilo FFmpeg",
   "ffmpegStartAnyway": "o open lon taso",
