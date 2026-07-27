@@ -1,6 +1,14 @@
 use rodio::Source;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
+
+/// Whether anything in the UI is currently rendering the spectrum. The analysis thread runs
+/// an FFT and emits a 48-band payload ~30x a second, and that stream used to run for the whole
+/// duration of playback even with the visualizer switched off — nothing consumed it, but the
+/// WebView still had to parse every message, which competed with frame delivery and made CSS
+/// animations visibly stutter. The frontend refcounts its visualizers and flips this.
+static LEVELS_WANTED: AtomicBool = AtomicBool::new(false);
 
 use super::analyzer;
 use super::decoder::StreamingSource;
@@ -71,6 +79,10 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             let mut idle_zeros = 0u32;
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(33));
+                // Nobody is drawing the spectrum — skip the FFT and the emit entirely.
+                if !LEVELS_WANTED.load(Ordering::Relaxed) {
+                    continue;
+                }
                 let buf = { cur.lock().unwrap().clone() };
                 let written = buf.as_ref().map(|b| b.written()).unwrap_or(0);
                 let active = buf.is_some() && written != last_written;
@@ -489,6 +501,13 @@ pub fn send_audio(state: &tauri::State<AudioPlayer>, cmd: AudioCmd) -> Result<()
         .ok_or_else(|| "Audio player not initialized".to_string())?
         .send(cmd)
         .map_err(|e| e.to_string())
+}
+
+/// Told by the frontend whether any visualizer is on screen, so the analysis thread can stop
+/// running the FFT and emitting ~30 messages a second when nothing would draw them.
+#[tauri::command]
+pub fn audio_set_levels_enabled(enabled: bool) {
+    LEVELS_WANTED.store(enabled, Ordering::Relaxed);
 }
 
 #[tauri::command]

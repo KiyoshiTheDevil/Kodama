@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { thumb, hiResThumb, useZoom } from "../context.jsx";
 import { ExplicitBadge } from "../ui/rows.jsx";
-import { audioLevels } from "../audioLevels.js";
+import { audioLevels, acquireAudioLevels } from "../audioLevels.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 
 function vizToRGB(c) {
@@ -56,6 +56,8 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
     const cv = specRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d");
+    // Tell Rust the spectrum is actually being drawn; it stays silent otherwise.
+    const releaseLevels = acquireAudioLevels();
     const accentVar = (getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()) || "#e040fb";
     let raf = 0, smoothLevel = 0;
     const sm = [], pk = [];
@@ -189,7 +191,7 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); if (coverRef.current) coverRef.current.style.transform = ""; };
+    return () => { cancelAnimationFrame(raf); releaseLevels(); if (coverRef.current) coverRef.current.style.transform = ""; };
   }, [ambientVisualizer, narrow]);
 
   return (

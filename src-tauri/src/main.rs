@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
-use audio::{AudioPlayer, start_audio_thread, audio_play, audio_crossfade, audio_pause, audio_resume, audio_stop, audio_seek, audio_set_volume};
+use audio::{AudioPlayer, start_audio_thread, audio_play, audio_crossfade, audio_pause, audio_resume, audio_stop, audio_seek, audio_set_volume, audio_set_levels_enabled};
 use discord::{DiscordRpc, disconnect_rpc, update_discord_rpc, clear_discord_rpc};
 use window::{WasMaximized, set_fullscreen, open_login_window, close_login_window, open_composer_window, remove_window_border_for, ensure_session_keeper, rotate_session_cookies, stop_session_keeper};
 use server::{ServerProcess, stop_server};
@@ -246,7 +246,7 @@ fn main() {
             media::media_update, media::media_clear,
             appicon::set_app_icon,
             audio_play, audio_crossfade, audio_pause, audio_resume,
-            audio_stop, audio_seek, audio_set_volume,
+            audio_stop, audio_seek, audio_set_volume, audio_set_levels_enabled,
             relaunch_app, quit_app, stop_server_cmd,
             update_tray_labels, set_close_to_tray,
             capture_screenshot,
