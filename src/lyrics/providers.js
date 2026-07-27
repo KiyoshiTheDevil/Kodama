@@ -12,6 +12,19 @@ export const DEFAULT_LYRICS_PROVIDERS = [
   { id: "simp",       label: "SimpMusic",     enabled: true },
 ];
 
+// Reconcile a saved provider list with the current defaults: drop entries that no longer
+// exist, append newly added ones, and take the label from the defaults. That last part
+// matters because the saved list stores the label too — without it a renamed provider keeps
+// its old name in settings forever. The user's order and enabled flags are preserved.
+export function mergeLyricsProviders(saved) {
+  const byId = new Map(DEFAULT_LYRICS_PROVIDERS.map(p => [p.id, p]));
+  const kept = (Array.isArray(saved) ? saved : [])
+    .filter(p => p && byId.has(p.id))
+    .map(p => ({ ...p, label: byId.get(p.id).label }));
+  const have = new Set(kept.map(p => p.id));
+  return [...kept, ...DEFAULT_LYRICS_PROVIDERS.filter(p => !have.has(p.id))];
+}
+
 // Sync-type tags shown next to each provider in settings.
 export const PROVIDER_SYNC = {
   better:     { label: "Syllable", icon: "/sync-syllable.svg", color: "#ce93d8", bg: "rgba(206,147,216,0.12)" },

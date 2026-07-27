@@ -15,7 +15,7 @@ import { NewsModal } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
 import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
 import { RemotePairModal } from "./ui/remote-control.jsx";
-import { DEFAULT_LYRICS_PROVIDERS } from "./lyrics/providers.js";
+import { DEFAULT_LYRICS_PROVIDERS, mergeLyricsProviders } from "./lyrics/providers.js";
 import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
@@ -4375,30 +4375,17 @@ export default function App() {
   // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),
   // damit position:fixed / 100vh-Werte korrekt bleiben.
   const [lyricsProviders, setLyricsProviders] = useState(() => {
-    const validIds = new Set(DEFAULT_LYRICS_PROVIDERS.map(p => p.id));
     try {
       const saved = localStorage.getItem("kiyoshi-lyrics-providers");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Remove providers that no longer exist (e.g. old Kimuco entry)
-        const filtered = parsed.filter(p => validIds.has(p.id));
-        // Add any new default providers not yet in the saved list
-        const ids = filtered.map(p => p.id);
-        const merged = [...filtered, ...DEFAULT_LYRICS_PROVIDERS.filter(p => !ids.includes(p.id))];
-        return merged;
-      }
+      if (saved) return mergeLyricsProviders(JSON.parse(saved));
     } catch {}
     return DEFAULT_LYRICS_PROVIDERS;
   });
-  // Migration: add newly introduced providers / remove obsolete ones
+  // Migration: add newly introduced providers, drop obsolete ones, refresh renamed labels.
   useEffect(() => {
-    const validIds = new Set(DEFAULT_LYRICS_PROVIDERS.map(p => p.id));
     setLyricsProviders(current => {
-      const filtered = current.filter(p => validIds.has(p.id));
-      const ids = filtered.map(p => p.id);
-      const missing = DEFAULT_LYRICS_PROVIDERS.filter(p => !ids.includes(p.id));
-      if (missing.length === 0 && filtered.length === current.length) return current;
-      const merged = [...filtered, ...missing];
+      const merged = mergeLyricsProviders(current);
+      if (JSON.stringify(merged) === JSON.stringify(current)) return current;
       localStorage.setItem("kiyoshi-lyrics-providers", JSON.stringify(merged));
       return merged;
     });
