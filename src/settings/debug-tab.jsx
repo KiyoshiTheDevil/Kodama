@@ -158,7 +158,7 @@ export function DebugFloatingWindow({ onClose }) {
       position: "fixed", left: pos.x, top: pos.y, zIndex: 9998,
       width: 660, height: 480, display: "flex", flexDirection: "column",
       background: "var(--bg-surface)", border: "0.5px solid var(--stroke)",
-      borderRadius: "var(--r-xl)", boxShadow: "0 20px 60px rgba(0,0,0,0.75)",
+      borderRadius: "var(--r-xl)", boxShadow: "var(--elevation-4)",
       fontFamily: "var(--font)", overflow: "hidden",
       resize: "both", minWidth: 380, minHeight: 260,
     }}>

@@ -218,7 +218,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
           : ctx ? (e) => { e.preventDefault(); onContextMenu?.(e, ctx); } : undefined}
         style={{ flexShrink: 0, width: size, cursor: "default" }}
       >
-        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "50%" : 10, overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}>
+        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "50%" : 10, overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
           <div style={{ width: size, height: size, background: "var(--bg-elevated)" }}>
             {item.thumbnail
               ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
@@ -232,7 +232,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
               <div
                 className="home-card-play-btn"
                 onClick={(e) => handleCardPlayDirect(e, item, section)}
-                style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "0 4px 14px rgba(0,0,0,0.5)" }}
+                style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "var(--elevation-2)" }}
               >
                 {isLoading
                   ? <Spinner size="sm" classNames={{ circle1: "border-white", circle2: "border-white" }} />

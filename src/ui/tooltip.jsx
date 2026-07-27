@@ -55,7 +55,7 @@ export function Tooltip({ text, children }) {
             fontSize: "var(--t11)", fontWeight: 500,
             border: "0.5px solid var(--border)",
             whiteSpace: "nowrap",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+            boxShadow: "var(--elevation-2)",
           }}>{text}</div>
         </div>,
         document.body

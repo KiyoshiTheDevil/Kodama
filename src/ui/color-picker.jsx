@@ -233,7 +233,7 @@ export function ColorPicker({ value, onChange, swatch }) {
           position: "fixed", top: popPos.top, left: popPos.left, zIndex: 9999,
           width: 244, padding: 12, borderRadius: "var(--r-xl)",
           background: "#1c1c1c", border: "0.5px solid rgba(255,255,255,0.12)",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+          boxShadow: "var(--elevation-4)",
           userSelect: "none",
         }}>
           {/* Drag header — move the panel (Figma-style), with a close button */}
@@ -258,7 +258,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`,
               transform: "translate(-50%, -50%)",
               width: 14, height: 14, borderRadius: "50%",
-              border: "2px solid #fff", boxShadow: "0 1px 6px rgba(0,0,0,0.5)",
+              border: "2px solid #fff", boxShadow: "var(--elevation-1)",
               background: currentHex, pointerEvents: "none",
             }} />
           </div>
@@ -274,7 +274,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               position: "absolute", left: `${(hsv.h / 360) * 100}%`, top: "50%",
               transform: "translate(-50%, -50%)",
               width: 18, height: 18, borderRadius: "50%",
-              border: "2.5px solid #fff", boxShadow: "0 1px 6px rgba(0,0,0,0.5)",
+              border: "2.5px solid #fff", boxShadow: "var(--elevation-1)",
               background: hueColor, pointerEvents: "none",
             }} />
           </div>
@@ -313,7 +313,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               {fmtOpen && (
                 <div style={{
                   position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4, borderRadius: "var(--r-lg)",
-                  background: "#242424", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                  background: "#242424", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-3)",
                 }}>
                   {["hex", "rgb", "hsl"].map((f) => (
                     <button key={f} onClick={() => { setMode(f); setFmtOpen(false); }}

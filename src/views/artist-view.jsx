@@ -22,7 +22,7 @@ function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square",
       onContextMenu={onContextMenu}
       style={{ flexShrink: 0, width: w, cursor: "default" }}
     >
-      <div style={{ position: "relative", marginBottom: 8, borderRadius: isCircle ? "50%" : 10, overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}>
+      <div style={{ position: "relative", marginBottom: 8, borderRadius: isCircle ? "50%" : 10, overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
         <div style={{ width: w, height: h, background: "var(--bg-elevated)" }}>
           {thumbnail
             ? <img className="home-card-img" src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
@@ -30,7 +30,7 @@ function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square",
         </div>
         {onPlay && !isCircle && (
           <div className="home-card-play" style={{ position: "absolute", bottom: 8, right: 8, opacity: 0, transform: "translateY(8px)", transition: "opacity 0.2s, transform 0.2s", pointerEvents: "none" }}>
-            <div className="home-card-play-btn" onClick={(e) => { e.stopPropagation(); onPlay(e); }} style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "0 4px 14px rgba(0,0,0,0.5)" }}>
+            <div className="home-card-play-btn" onClick={(e) => { e.stopPropagation(); onPlay(e); }} style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "var(--elevation-2)" }}>
               <Play size={17} weight="fill" style={{ color: "white", marginLeft: 2 }} />
             </div>
           </div>

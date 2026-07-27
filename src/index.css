@@ -246,9 +246,10 @@
   /* Elevation ----------------------------------------------------------------
      No shadow tokens existed at all; every shadow was written out by hand. Keep the
      blur inside a view's content padding, or it bleeds to the scroll container edge. */
-  --elevation-1: 0 2px 8px rgba(0,0,0,0.22);
-  --elevation-2: 0 4px 14px rgba(0,0,0,0.28);
-  --elevation-3: 0 10px 24px rgba(0,0,0,0.42);
+  --elevation-1: 0 2px 8px rgba(0,0,0,0.22);    /* badges, slider thumbs */
+  --elevation-2: 0 4px 14px rgba(0,0,0,0.28);   /* cards, small buttons, tooltips */
+  --elevation-3: 0 10px 24px rgba(0,0,0,0.42);  /* dropdowns, popovers, context menus */
+  --elevation-4: 0 18px 48px rgba(0,0,0,0.5);   /* modals, floating windows, the big cover */
 
   /* Cover-art fallback, repeated in ~19 places before it was a token. */
   --placeholder-gradient: linear-gradient(135deg, #2a1535, #1a0a25);
@@ -314,6 +315,7 @@
   --elevation-1: 0 2px 8px rgba(0,0,0,0.10);
   --elevation-2: 0 4px 14px rgba(0,0,0,0.14);
   --elevation-3: 0 10px 24px rgba(0,0,0,0.20);
+  --elevation-4: 0 18px 48px rgba(0,0,0,0.26);
 }
 
 /* â”€â”€â”€ High Contrast Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -465,7 +467,7 @@ html, body, #root {
   position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; color: #fff; pointer-events: none;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+  box-shadow: var(--elevation-1);
 }
 .gcard-actions { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .gcard-btn {
@@ -473,8 +475,8 @@ html, body, #root {
   color: #fff; cursor: default; opacity: 0; transform: translateY(8px) scale(0.9);
   transition: opacity .22s ease, transform .22s cubic-bezier(0.22,1,0.36,1), background .15s ease;
 }
-.gcard-btn-play { background: var(--accent); box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
-.gcard-btn-shuffle { width: 36px; height: 36px; background: rgba(0,0,0,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.gcard-btn-play { background: var(--accent); box-shadow: var(--elevation-3); }
+.gcard-btn-shuffle { width: 36px; height: 36px; background: rgba(0,0,0,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--elevation-2); }
 .gcard-btn-shuffle:hover { background: rgba(0,0,0,0.72); }
 .gcard:hover .gcard-btn { opacity: 1; transform: translateY(0) scale(1); }
 .gcard:hover .gcard-btn-shuffle { transition-delay: .03s; }
@@ -504,7 +506,7 @@ html, body, #root {
 .home-card:hover .home-card-img  { transform: scale(1.04); }
 /* Play button gets its own lift/brighten when hovered directly. */
 .home-card-play-btn { transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease; }
-.home-card-play-btn:hover { transform: scale(1.12); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.6) !important; }
+.home-card-play-btn:hover { transform: scale(1.12); filter: brightness(1.1); box-shadow: var(--elevation-3) !important; }
 .home-card-play-btn:active { transform: scale(1.04); }
 
 /* Horizontal carousels â€” same treatment, vertical size stays 8px */

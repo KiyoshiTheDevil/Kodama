@@ -232,7 +232,7 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
         {/* Album cover */}
         <div ref={coverRef} style={{
           width: coverSize, height: coverSize, borderRadius: compact ? 12 : 16, overflow: "hidden",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
+          boxShadow: "var(--elevation-4)",
           transform: isPlaying ? "scale(1.03)" : "scale(0.97)",
           transition: ambientVisualizer ? "none" : "transform 0.6s cubic-bezier(0.4,0,0.2,1)",
         }}>

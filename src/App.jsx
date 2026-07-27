@@ -806,7 +806,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
       style={{
         position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 4,
         background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.35)", overflow: "hidden", padding: 4,
+        boxShadow: "var(--elevation-3)", overflow: "hidden", padding: 4,
       }}
     >
       {suggestions.map((s, i) => (
@@ -2645,7 +2645,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000,
     }}>
       <CardRoot variant="secondary" className="relative gap-0!"
-        style={{ width: 420, maxWidth: "92vw", padding: 36, boxShadow: "0 32px 80px rgba(0,0,0,0.6)" }}>
+        style={{ width: 420, maxWidth: "92vw", padding: 36, boxShadow: "var(--elevation-4)" }}>
         {onCancel && step !== "waiting" && (
           <Button isIconOnly size="sm" variant="ghost" className="absolute top-3.5 right-3.5 size-7 min-w-0 rounded-full text-muted hover:text-primary" onPress={onCancel}>
             <X size={16} />
@@ -2770,7 +2770,7 @@ function LanguagePickerScreen({ currentLanguage, onConfirm }) {
       overflowY: "auto", padding: "20px 0",
     }}>
       <CardRoot variant="secondary" className="flex flex-col gap-0! shrink-0"
-        style={{ width: 420, maxWidth: "92vw", padding: 36, maxHeight: "calc(100vh - 40px)", boxShadow: "0 32px 80px rgba(0,0,0,0.6)" }}>
+        style={{ width: 420, maxWidth: "92vw", padding: 36, maxHeight: "calc(100vh - 40px)", boxShadow: "var(--elevation-4)" }}>
         {/* Logo + heading */}
         <img src="/Kodama%20Logo.png" alt="Kodama" style={{ width: 64, height: 64, alignSelf: "center", marginBottom: 14 }} />
         <div style={{ fontSize: "var(--t20)", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>Kodama</div>
@@ -5313,7 +5313,7 @@ export default function App() {
                     pointerEvents: "auto",
                     border: "0.5px solid var(--border)",
                     borderRadius: "var(--r-2xl)",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                    boxShadow: "var(--elevation-4)",
                     animation: "ctxMenuIn 0.2s ease-out",
                   }}>
                   {/* Title */}
