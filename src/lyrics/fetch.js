@@ -72,7 +72,7 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     const r = await fetch(`${API}/lyrics?${params}`, opt);
     if (r.ok) {
       const d = await r.json();
-      if (d?.qrc) { const lrc = parseQrc(d.qrc, { title, artist }); if (lrc.length) return { source: "Portato (QQ)", lrc }; }
+      if (d?.qrc) { const lrc = parseQrc(d.qrc, { title, artist }); if (lrc.length) return { source: "Better Lyrics Portato", lrc }; }
     }
     return null;
   };

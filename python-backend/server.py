@@ -1727,7 +1727,7 @@ def get_lyrics():
                 if m:
                     qrc = _html.unescape(m.group(1))
                     if qrc.strip():
-                        result = {"source": "Portato (QQ)", "qrc": qrc}
+                        result = {"source": "Better Lyrics Portato", "qrc": qrc}
         except Exception as e:
             _logging.warning(f"[lyrics] Portato error: {e}")
 

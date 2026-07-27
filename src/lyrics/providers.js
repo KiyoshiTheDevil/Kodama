@@ -4,7 +4,7 @@
 export const DEFAULT_LYRICS_PROVIDERS = [
   { id: "better",     label: "Better Lyrics", enabled: true },
   { id: "unison",     label: "Unison",        enabled: true },
-  { id: "portato",    label: "Portato (QQ)",  enabled: true },
+  { id: "portato",    label: "Better Lyrics Portato", enabled: true },
   { id: "paxsenix-netease", label: "NetEase (Paxsenix)", enabled: true },
   { id: "musixmatch", label: "Musixmatch",    enabled: true },
   { id: "lrclib",     label: "LRCLIB",        enabled: true },
