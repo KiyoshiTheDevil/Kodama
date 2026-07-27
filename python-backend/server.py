@@ -1672,6 +1672,26 @@ def get_lyrics():
         except Exception as e:
             print(f"[lyrics] Better Lyrics error: {e}", flush=True)
 
+    # 2b. Better Lyrics "Portato" — same API, /qq path, sourced from QQ Music.
+    # Returns QRC (word-timed) wrapped in QQ's XML envelope rather than TTML.
+    if not result and source in ("auto", "portato"):
+        try:
+            import re as _re, html as _html
+            params = {"s": title, "a": artist}
+            if album: params["al"] = album
+            if duration: params["d"] = duration
+            r = req.get("https://lyrics-api.boidu.dev/qq/getLyrics", params=params, timeout=8)
+            if r.ok:
+                raw = (r.json() or {}).get("lyrics") or ""
+                # The timed lines sit XML-escaped in the LyricContent attribute of <Lyric_1/>.
+                m = _re.search(r'LyricContent="(.*?)"\s*/>', raw, _re.S)
+                if m:
+                    qrc = _html.unescape(m.group(1))
+                    if qrc.strip():
+                        result = {"source": "Portato (QQ)", "qrc": qrc}
+        except Exception as e:
+            _logging.warning(f"[lyrics] Portato error: {e}")
+
     # 3. Kugou
     if not result and source in ("auto", "kugou"):
         try:

@@ -1,7 +1,7 @@
 // Multi-provider lyrics fetch. Extracted from App.jsx.
 import { API } from "../context.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
-import { parseLrc, parseRichSync, parseTtml } from "./parse.js";
+import { parseLrc, parseRichSync, parseTtml, parseQrc } from "./parse.js";
 
 async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_LYRICS_PROVIDERS, videoId = "", signal = undefined) {
   const opt = signal ? { signal } : undefined; // AbortSignal so a track change can cancel in-flight
@@ -62,6 +62,17 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     }
     return null;
   };
+  const tryPortato = async () => {
+    const params = new URLSearchParams({ title, artist, source: "portato" });
+    if (album) params.set("album", album);
+    if (duration) params.set("duration", Math.round(duration));
+    const r = await fetch(`${API}/lyrics?${params}`, opt);
+    if (r.ok) {
+      const d = await r.json();
+      if (d?.qrc) { const lrc = parseQrc(d.qrc); if (lrc.length) return { source: "Portato (QQ)", lrc }; }
+    }
+    return null;
+  };
   const tryMusixmatch = async () => {
     const params = new URLSearchParams({ title, artist, source: "musixmatch" });
     if (duration) params.set("duration", Math.round(duration));
@@ -74,7 +85,7 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     return null;
   };
 
-  const tryFns = { better: tryBetter, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
+  const tryFns = { better: tryBetter, portato: tryPortato, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
   const enabledProviders = providers.filter(p => p.enabled && tryFns[p.id]);
 
   // Fetch all providers in parallel — so we know which ones have no lyrics

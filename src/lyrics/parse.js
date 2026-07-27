@@ -197,4 +197,41 @@ function parseDurationToSeconds(str) {
   return null;
 }
 
-export { parseLrc, parseRichSync, parseTtml, ttmlTimeToSeconds, parseDurationToSeconds };
+// QQ Music QRC (Better Lyrics' /qq endpoint). Metadata lines like [ti:...] are skipped;
+// timed lines look like
+//   [lineStart,lineDuration]word(start,duration)word(start,duration)...
+// with every value in milliseconds. Produces the same word-sync shape as parseRichSync.
+//
+// The text is taken from *between* the timing tags rather than matched directly, because it
+// may contain parentheses of its own — "85 (" and "Explicit) - " are real words in the wild,
+// and a pattern like /([^(]*)\((\d+),(\d+)\)/ silently drops them.
+function parseQrc(qrc) {
+  if (typeof qrc !== "string") return [];
+  const out = [];
+  for (const raw of qrc.split("\n")) {
+    const line = raw.trim();
+    const head = line.match(/^\[(\d+),(\d+)\]/);
+    if (!head) continue;                       // [ti:...] / [ar:...] / [offset:...]
+    const body = line.slice(head[0].length);
+    const tag = /\((\d+),(\d+)\)/g;
+    const words = [];
+    let m, cursor = 0;
+    while ((m = tag.exec(body)) !== null) {
+      const text = body.slice(cursor, m.index);
+      cursor = m.index + m[0].length;
+      const start = Number(m[1]) / 1000;
+      words.push({ text, time: start, end: start + Number(m[2]) / 1000, isSpace: text.trim() === "" });
+    }
+    if (!words.length) continue;
+    out.push({
+      time: Number(head[1]) / 1000,
+      endTime: (Number(head[1]) + Number(head[2])) / 1000,
+      words,
+      wordSync: true,
+      text: words.map(w => w.text).join(""),
+    });
+  }
+  return out;
+}
+
+export { parseLrc, parseRichSync, parseTtml, parseQrc, ttmlTimeToSeconds, parseDurationToSeconds };
