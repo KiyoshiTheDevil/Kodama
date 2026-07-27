@@ -1679,16 +1679,22 @@ def get_lyrics():
             keyword = f"{title} {artist}".strip()
             duration_ms = int(float(duration) * 1000) if duration else 0
 
-            # Step 1: search for song to get hash
+            # Step 1: search for song to get hash.
+            # Uses songsearch.kugou.com, not mobilecdn.kugou.com: the latter now serves a
+            # certificate that does not match its own hostname, so every request to it fails
+            # TLS verification -- which is why Kugou lyrics stopped working entirely.
             search_r = req.get(
-                "https://mobilecdn.kugou.com/api/v3/search/song",
-                params={"keyword": keyword, "page": 1, "pagesize": 5, "format": "json"},
-                timeout=8
+                "https://songsearch.kugou.com/song_search_v2",
+                params={"keyword": keyword, "page": 1, "pagesize": 5},
+                timeout=8,
+                headers={"User-Agent": "Mozilla/5.0"},
             )
             if search_r.ok:
-                songs = search_r.json().get("data", {}).get("info", [])
+                # The response is JSON but padded with whitespace and not always served with a
+                # JSON content type, so parse the body explicitly.
+                songs = json.loads(search_r.text.strip()).get("data", {}).get("lists", [])
                 if songs:
-                    hash_val = songs[0].get("hash", "")
+                    hash_val = songs[0].get("FileHash", "")
 
                     # Step 2: get lyrics candidates
                     cand_r = req.get(
