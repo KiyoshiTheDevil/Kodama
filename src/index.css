@@ -455,6 +455,24 @@ html, body, #root {
    The cover floats on the page (no card box), the title sits below it, an optional
    song-count pill sits on the artwork, and play/shuffle reveal on hover. Explicit
    easing here (not Tailwind's hover:scale) so the zoom eases in instead of hard-cutting. */
+/* Modal motion. HeroUI's defaults are 250ms in and only 100ms out, and the dialog enters
+   by shrinking from 105% — the close in particular reads as an instant cut rather than an
+   animation. Slow both a little and enter by growing instead, matching the treatment the
+   dropdown popovers already got. Unlayered so it beats HeroUI's @layer rules.
+   The exit duration is mirrored by EXIT_MS in src/modals/use-animated-close.js. */
+.modal__container[data-entering="true"] {
+  --tw-duration: 0.26s;
+  --tw-enter-scale: 0.95;
+  --tw-enter-translate-y: 10px;
+}
+.modal__container[data-exiting="true"] {
+  --tw-duration: 0.2s;
+  --tw-exit-scale: 0.96;
+  --tw-exit-translate-y: 6px;
+}
+.modal__backdrop[data-entering="true"] { --tw-duration: 0.22s; }
+.modal__backdrop[data-exiting="true"]  { --tw-duration: 0.2s; }
+
 .gcard-thumb {
   position: relative; border-radius: 16px; overflow: hidden;
   /* Kept tight (blur stays within the view's ~24px content padding) so the leftmost column's

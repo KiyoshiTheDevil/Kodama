@@ -2,6 +2,7 @@
 // Auto-attaches a diagnostic snapshot (versions, auth/profile state, current + last-failed track,
 // backend logs, frontend console errors) so reports are triageable without back-and-forth.
 import { useState, useEffect } from "react";
+import { useAnimatedClose } from "./use-animated-close.js";
 import { cn, Button, Spinner, TextFieldRoot, InputRoot, TextArea, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
 import { ModalDialog } from "../ui/zoomed-heroui.jsx";
 import { Bug, CheckCircle, Info, ImageSquare, PaperPlaneTilt } from "../icons.jsx";
@@ -22,6 +23,7 @@ const OS_INFO = (() => {
 })();
 
 export function BugReportModal({ onClose, screenshot, t, version, currentTrack }) {
+  const [isOpen, close] = useAnimatedClose(onClose);
   const zoom = useZoom();
   const CATS = [
     { value: "Bug", label: t("catBug") || "Bug" },
@@ -82,7 +84,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
           screenshot: (includeShot && screenshot) ? screenshot : undefined,
         }),
       });
-      if (r.ok) { setStatus("ok"); setTimeout(onClose, 1500); }
+      if (r.ok) { setStatus("ok"); setTimeout(close, 1500); }
       else if (r.status === 503) setStatus("unconfigured");
       else setStatus("error");
     } catch { setStatus("error"); }
@@ -116,7 +118,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
   );
 
   return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
+    <ModalRoot isOpen={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
       <ModalBackdrop className="z-[300]!">
         <ModalContainer placement="center" size="lg" className="w-[560px] max-w-[92vw]">
           <ModalDialog>
@@ -212,7 +214,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
             {status !== "ok" && (
               <ModalFooter>
                 <span className="text-t11 text-muted mr-auto">{contact.trim() ? (t("reportContactNote") || "Rückfragen möglich") : (t("reportAnon") || "Anonym · keine Account-Daten")}</span>
-                <Button variant="ghost" onPress={onClose}>{t("cancel")}</Button>
+                <Button variant="ghost" onPress={close}>{t("cancel")}</Button>
                 <Button color="accent" variant="solid" isDisabled={(!title.trim() && !description.trim() && !steps.trim()) || sending} onPress={submit}>
                   {sending ? <Spinner size="sm" /> : <span className="flex items-center gap-1.5"><PaperPlaneTilt size={15} />{t("reportSend") || "Senden"}</span>}
                 </Button>

@@ -4,6 +4,7 @@
 // the full text of whichever version is currently previewed; Select applies it and closes.
 // Extracted from App.jsx.
 import { useState, useEffect, useMemo } from "react";
+import { useAnimatedClose } from "./use-animated-close.js";
 import { cn, Button, Spinner, toast, ModalRoot, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
 import { DropdownMenu, ModalDialog } from "../ui/zoomed-heroui.jsx";
 import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy } from "../icons.jsx";
@@ -25,6 +26,7 @@ const REPORT_POPOVER_ANIM =
 
 function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter, currentVersionId, onApply, onClose }) {
   const t = useLang();
+  const [isOpen, close] = useAnimatedClose(onClose);
   const [results, setResults] = useState(null); // null = loading, [] = none
   const [votes, setVotes] = useState({});       // { [versionId]: { my: -1|0|1, count } }
   const [selectedIdx, setSelectedIdx] = useState(-1); // row currently previewed (right pane)
@@ -151,7 +153,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
   const handleSelect = () => {
     if (!selected) return;
     onApply(selected);
-    onClose();
+    close();
   };
 
   const handleCopy = () => {
@@ -162,7 +164,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
   };
 
   return (
-    <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
+    <ModalRoot isOpen={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
       <ModalBackdrop className="z-[300]!">
         <ModalContainer placement="center" className="max-w-[94vw]">
           {/* w-[...]! directly on the dialog, not w-full on an ambiguous parent: HeroUI's
@@ -238,7 +240,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
               </div>
               <div className="px-4 pt-3 shrink-0">
                 <Button variant="ghost" fullWidth className="justify-center gap-2"
-                  onPress={() => { openComposer(track?.videoId).catch(console.error); onClose(); }}>
+                  onPress={() => { openComposer(track?.videoId).catch(console.error); close(); }}>
                   <img src="/Boidu Composer Icon.svg" style={{ width: 16, height: 16 }} alt="" />{t("openComposerBtn")}
                 </Button>
               </div>
@@ -251,7 +253,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
               <div className="flex flex-col flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--bg-base)" }}>
                 <div className="flex items-center justify-between px-4 pt-4 pb-2.5 shrink-0">
                   <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("lyricsPreview")}</span>
-                  <button onClick={onClose} title={t("close") || "Close"}
+                  <button onClick={close} title={t("close") || "Close"}
                     className="flex items-center justify-center size-7 rounded-full hover:bg-hover text-muted hover:text-primary transition-colors">
                     <X size={13} weight="bold" />
                   </button>
