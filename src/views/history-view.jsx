@@ -33,7 +33,7 @@ export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onO
 
   const clearHistoryBtn = tracks.length > 0 ? (
     <button onClick={clearHistory} style={{
-      borderRadius: 28, height: 42, display: "flex", alignItems: "center",
+      borderRadius: "var(--r-full)", height: 42, display: "flex", alignItems: "center",
       padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
       cursor: "default", transition: "background 0.15s, border-color 0.15s, color 0.15s",
       fontFamily: "var(--font)", backdropFilter: "blur(6px)",

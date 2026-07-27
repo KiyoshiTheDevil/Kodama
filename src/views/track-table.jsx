@@ -262,7 +262,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                       display: "inline-flex", alignItems: "center",
                       background: `rgba(${accentColor},0.25)`,
                       border: `1px solid rgba(${accentColor},0.42)`,
-                      borderRadius: 20, padding: "3px 12px",
+                      borderRadius: "var(--r-full)", padding: "3px 12px",
                       fontSize: "var(--t13)", fontWeight: 600,
                       color: "var(--accent)", transition: "background 0.15s, border-color 0.15s",
                       marginRight: 10,
@@ -295,7 +295,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               <button onClick={() => tracks.length && onPlay(tracks[0], tracks)} style={{
                 background: `rgba(${accentColor},0.18)`,
                 border: `1px solid rgba(${accentColor},0.38)`,
-                borderRadius: 28, height: 50, padding: "0 28px",
+                borderRadius: "var(--r-full)", height: 50, padding: "0 28px",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 cursor: "default", transition: "background 0.18s, border-color 0.18s, transform 0.15s",
                 fontSize: "var(--t15)", fontWeight: 700, color: "var(--accent)",
@@ -310,7 +310,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               {/* Shuffle: start the collection in a shuffled order without touching the player-bar shuffle toggle */}
               <button title={t("shuffle")} onClick={() => { if (!tracks.length) return; const sh = [...tracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }} style={{
                 background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)",
-                borderRadius: 28, height: 50, padding: "0 22px",
+                borderRadius: "var(--r-full)", height: 50, padding: "0 22px",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
                 cursor: "default", transition: "background 0.18s, transform 0.15s",
                 fontSize: "var(--t14)", fontWeight: 600, color: "var(--text-secondary)",
@@ -340,7 +340,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                     placeholder={t("searchInPlaylist")}
                     style={{
                       background: "rgba(0,0,0,0.35)", border: "0.5px solid rgba(255,255,255,0.18)",
-                      borderRadius: 20, padding: "9px 14px", fontSize: "var(--t13)", color: "#fff",
+                      borderRadius: "var(--r-full)", padding: "9px 14px", fontSize: "var(--t13)", color: "#fff",
                       outline: "none", width: 200, flexShrink: 0, fontFamily: "var(--font)",
                     }}
                   />
@@ -371,7 +371,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                   const allCached = cachedSongIds && tracks.every(tr => cachedSongIds.has(tr.videoId));
                   const someDownloading = downloadingIds && tracks.some(tr => downloadingIds.has(tr.videoId));
                   const btnBase = {
-                    borderRadius: 28, height: 42, display: "flex", alignItems: "center",
+                    borderRadius: "var(--r-full)", height: 42, display: "flex", alignItems: "center",
                     padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
                     cursor: "default", transition: "background 0.15s, border-color 0.15s",
                     fontFamily: "var(--font)", backdropFilter: "blur(6px)", border: "0.5px solid rgba(255,255,255,0.15)",
@@ -450,8 +450,8 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
             <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)" }}>{t("fetchingSongs")}</span>
             <span style={{ fontSize: "var(--t11)", color: "var(--accent)", fontWeight: 500 }}>{progress}%</span>
           </div>
-          <div style={{ height: 3, background: "var(--bg-elevated)", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,var(--accent),#c020e0)", width: `${progress}%`, transition: "width 0.4s ease" }} />
+          <div style={{ height: 3, background: "var(--bg-elevated)", borderRadius: "var(--r-full)", overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: "var(--r-full)", background: "linear-gradient(90deg,var(--accent),#c020e0)", width: `${progress}%`, transition: "width 0.4s ease" }} />
           </div>
         </div>
       )}

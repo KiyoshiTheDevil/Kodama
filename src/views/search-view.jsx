@@ -118,7 +118,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
             <button key={tab_.id} onClick={() => setFilter(tab_.id)} style={{
               background: filter === tab_.id ? "var(--accent)" : "var(--bg-elevated)",
               color: filter === tab_.id ? "#fff" : "var(--text-secondary)",
-              border: "none", borderRadius: 20, padding: "6px 16px",
+              border: "none", borderRadius: "var(--r-full)", padding: "6px 16px",
               fontSize: "var(--t13)", cursor: "default", fontFamily: "var(--font)",
               transition: "all 0.15s",
             }}>{tab_.label}</button>

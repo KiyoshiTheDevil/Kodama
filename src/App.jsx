@@ -5254,7 +5254,7 @@ export default function App() {
             >
               <div style={{
                 position: "absolute", top: "50%", right: 1, transform: "translateY(-50%)",
-                width: 3, height: 44, borderRadius: 2, background: "var(--accent)",
+                width: 3, height: 44, borderRadius: "var(--r-full)", background: "var(--accent)",
                 opacity: sidebarResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
               }} />
             </div>
@@ -5528,7 +5528,7 @@ export default function App() {
                 >
                   <div style={{
                     position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-                    width: 3, height: 44, borderRadius: 2, background: "var(--accent)",
+                    width: 3, height: 44, borderRadius: "var(--r-full)", background: "var(--accent)",
                     opacity: splitResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
                   }} />
                 </div>
@@ -5570,7 +5570,7 @@ export default function App() {
             >
               <div style={{
                 position: "absolute", top: "50%", left: 1, transform: "translateY(-50%)",
-                width: 3, height: 44, borderRadius: 2, background: "var(--accent)",
+                width: 3, height: 44, borderRadius: "var(--r-full)", background: "var(--accent)",
                 opacity: queueResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
               }} />
             </div>
