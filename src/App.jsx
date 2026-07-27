@@ -532,7 +532,7 @@ function TitleBar() {
 
   const btnBase = {
     background: "none", border: "none", cursor: "default",
-    width: 36, height: 28, borderRadius: 5,
+    width: 36, height: 28, borderRadius: "var(--r-md)",
     display: "flex", alignItems: "center", justifyContent: "center",
     flexShrink: 0, transition: "background 0.12s",
     color: "rgba(255,255,255,0.75)",
@@ -805,7 +805,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
       onMouseDown={e => e.preventDefault()} /* keep field focus so onClick fires before blur */
       style={{
         position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 4,
-        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10,
+        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)",
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)", overflow: "hidden", padding: 4,
       }}
     >
@@ -2691,7 +2691,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
               {t("localProfileDesc")}
             </div>
             {/* Vorteile-Panel */}
-            <div style={{ background: "var(--bg-elevated)", borderRadius: 10, padding: "12px 14px", marginBottom: 20, border: "0.5px solid var(--border)" }}>
+            <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--r-xl)", padding: "12px 14px", marginBottom: 20, border: "0.5px solid var(--border)" }}>
               <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "var(--accent)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 110 16A8 8 0 018 0zm.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
                 {t("googleBenefits")}
@@ -2792,7 +2792,7 @@ function LanguagePickerScreen({ currentLanguage, onConfirm }) {
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = "var(--bg-elevated)"; }}
               >
-                <div style={{ width: 44, height: 28, borderRadius: 5, overflow: "hidden", flexShrink: 0 }}
+                <div style={{ width: 44, height: 28, borderRadius: "var(--r-md)", overflow: "hidden", flexShrink: 0 }}
                   dangerouslySetInnerHTML={{ __html: lang.flag }} />
                 <span style={{ flex: 1, fontSize: "var(--t14)", fontWeight: 500, color: active ? "var(--accent)" : "var(--text-primary)" }}>{lang.label}</span>
                 {active && <Check size={15} style={{ color: "var(--accent)" }} />}

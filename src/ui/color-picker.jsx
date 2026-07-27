@@ -231,7 +231,7 @@ export function ColorPicker({ value, onChange, swatch }) {
       {open && createPortal(
         <div ref={popoverRef} style={{
           position: "fixed", top: popPos.top, left: popPos.left, zIndex: 9999,
-          width: 244, padding: 12, borderRadius: 14,
+          width: 244, padding: 12, borderRadius: "var(--r-xl)",
           background: "#1c1c1c", border: "0.5px solid rgba(255,255,255,0.12)",
           boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
           userSelect: "none",
@@ -248,11 +248,11 @@ export function ColorPicker({ value, onChange, swatch }) {
           {/* Gradient square */}
           <div ref={gradientRef} onPointerDown={onGradientDrag}
             style={{
-              width: "100%", height: 160, borderRadius: 10,
+              width: "100%", height: 160, borderRadius: "var(--r-xl)",
               background: `linear-gradient(to right, #fff, ${hueColor})`,
               position: "relative", cursor: "crosshair", marginBottom: 10, overflow: "hidden",
             }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent, #000)", borderRadius: 10 }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent, #000)", borderRadius: "var(--r-xl)" }} />
             <div style={{
               position: "absolute",
               left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`,
@@ -266,7 +266,7 @@ export function ColorPicker({ value, onChange, swatch }) {
           {/* Hue slider */}
           <div ref={hueRef} onPointerDown={onHueDrag}
             style={{
-              width: "100%", height: 14, borderRadius: 7,
+              width: "100%", height: 14, borderRadius: "var(--r-full)",
               background: "linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)",
               position: "relative", cursor: "default", marginBottom: 12,
             }}>

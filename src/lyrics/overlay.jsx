@@ -869,7 +869,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                 onClick={() => openUrl("https://lrc-maker.github.io").catch(console.error)}
                 style={{
                   background: "rgba(255,255,255,0.08)", border: "none",
-                  borderRadius: 10, padding: "8px 16px", cursor: "default",
+                  borderRadius: "var(--r-xl)", padding: "8px 16px", cursor: "default",
                   color: "#fff", fontSize: "var(--t13)", fontFamily: "var(--font)",
                   display: "flex", alignItems: "center", gap: 8,
                   transition: "background 0.15s",
@@ -885,7 +885,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                 onClick={() => openComposer(track?.videoId).catch(console.error)}
                 style={{
                   background: "rgba(255,255,255,0.08)", border: "none",
-                  borderRadius: 10, padding: "8px 16px", cursor: "default",
+                  borderRadius: "var(--r-xl)", padding: "8px 16px", cursor: "default",
                   color: "#fff", fontSize: "var(--t13)", fontFamily: "var(--font)",
                   display: "flex", alignItems: "center", gap: 8,
                   transition: "background 0.15s",
@@ -901,7 +901,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               onClick={importCustomLyrics}
               style={{
                 background: "rgba(255,255,255,0.06)", border: "none",
-                borderRadius: 10, padding: "8px 20px", cursor: "default",
+                borderRadius: "var(--r-xl)", padding: "8px 20px", cursor: "default",
                 color: "#fff", fontSize: "var(--t13)", fontFamily: "var(--font)",
                 display: "flex", alignItems: "center", gap: 8,
                 transition: "background 0.15s",

@@ -44,7 +44,7 @@ export function RemotePairModal({ isOpen, onClose, info, devices, onDevice, onRe
                   </div>
                   <button onClick={() => setRemember(r => !r)}
                     style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t12)", color: "var(--text-secondary)" }}>
-                    <span style={{ width: 17, height: 17, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    <span style={{ width: 17, height: 17, borderRadius: "var(--r-md)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                       border: `1.5px solid ${remember ? "var(--accent)" : "var(--text-muted)"}`, background: remember ? "var(--accent)" : "transparent" }}>
                       {remember && <Check size={11} weight="bold" className="text-white" />}
                     </span>
@@ -58,7 +58,7 @@ export function RemotePairModal({ isOpen, onClose, info, devices, onDevice, onRe
               ) : base ? (
                 <div className="flex flex-col items-center gap-4 py-1">
                   {qr
-                    ? <img src={qr} alt="QR" style={{ width: 180, height: 180, borderRadius: 14, background: "#fff", padding: 8 }} />
+                    ? <img src={qr} alt="QR" style={{ width: 180, height: 180, borderRadius: "var(--r-xl)", background: "#fff", padding: 8 }} />
                     : <div style={{ width: 180, height: 180 }} />}
                   <ol style={{ alignSelf: "stretch", margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 5, fontSize: "var(--t13)", color: "var(--text-secondary)", listStyleType: "decimal" }}>
                     <li>{t("remoteStep1")}</li>

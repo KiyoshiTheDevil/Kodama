@@ -737,7 +737,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               {navItems.find(i => i.id === tab)?.badge && (
                 <span style={{
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
-                  padding: "3px 8px", borderRadius: 5,
+                  padding: "3px 8px", borderRadius: "var(--r-md)",
                   background: "var(--accent)", color: "#fff",
                   textTransform: "uppercase",
                 }}>{navItems.find(i => i.id === tab)?.badge}</span>
@@ -1064,7 +1064,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
                 <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 6px", paddingLeft: 2 }}>{t("customCrossfadesDesc")}</div>
                 {Object.keys(crossfadeOverrides).length > 0 && (
-                  <div style={{ margin: "2px 0 6px", padding: "10px 12px", background: "var(--fill-subtle)", borderRadius: 10 }}>
+                  <div style={{ margin: "2px 0 6px", padding: "10px 12px", background: "var(--fill-subtle)", borderRadius: "var(--r-xl)" }}>
                     <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", marginBottom: 8 }}>{t("customCrossfadesTitle")}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {Object.entries(crossfadeOverrides).map(([key, ov]) => (
