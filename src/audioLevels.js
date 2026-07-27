@@ -7,10 +7,12 @@ export const audioLevels = {
   ts: 0, // performance.now() of the last update — lets consumers detect staleness
 };
 
-let started = false;
+// The guard lives on globalThis, not in module scope: Vite re-evaluates this module on hot
+// reload, which would reset a plain `let` and register a second listener for an event that
+// fires ~30x a second — one more per reload, all writing to the same singleton.
 export function startAudioLevels() {
-  if (started) return;
-  started = true;
+  if (globalThis.__kodamaAudioLevels) return;
+  globalThis.__kodamaAudioLevels = true;
   import("@tauri-apps/api/event")
     .then(({ listen }) => {
       listen("audio-levels", ({ payload }) => {
