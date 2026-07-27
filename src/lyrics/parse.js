@@ -1,7 +1,9 @@
 // Lyrics parsers (LRC / TTML / Musixmatch richsync) + small time helpers. Pure functions,
 // no external deps — extracted from App.jsx.
 
-function parseLrc(lrc) {
+// Pass `meta` ({ title, artist }) for sources that prefix their lyrics with credits — Kugou
+// does, most others do not, so the stripping only happens where it is asked for.
+function parseLrc(lrc, meta = null) {
   if (!lrc) return [];
   const lines = [];
   for (const line of lrc.split("\n")) {
@@ -11,7 +13,8 @@ function parseLrc(lrc) {
       lines.push({ time, text: m[3].trim() });
     }
   }
-  return lines.sort((a, b) => a.time - b.time);
+  lines.sort((a, b) => a.time - b.time);
+  return meta ? stripLeadingCredits(lines, meta) : lines;
 }
 
 function parseRichSync(richsync) {
@@ -214,7 +217,11 @@ function parseDurationToSeconds(str) {
 // "lyrical". `\b` is unusable here: it is defined on ASCII word characters, so it never fires
 // between a CJK keyword like 制作人 and the space that follows it, which silently let every
 // NetEase credit line through.
-const CREDIT_LINE = /^\s*(?:lyrics?|words?|music|composed?|composer|arranged?|arranger|produced?|producer|mixed?|mixing|mastered?|mastering|vocals?|作词|作曲|编曲|制作人|混音|母带|演唱|原唱)(?![\p{L}\p{N}])[^:：]{0,24}[:：]/iu;
+// CJK credits appear both spelled out (作词) and as a single character (词：Yunomi/nicamoq),
+// and in simplified as well as traditional/Japanese forms (词/詞, 编曲/編曲), so all of them
+// are listed. A bare 词/曲/歌 is safe here because the pattern is anchored to the start of a
+// line and still requires a colon within a few characters.
+const CREDIT_LINE = /^\s*(?:lyrics?|words?|music|composed?|composer|arranged?|arranger|produced?|producer|mixed?|mixing|mastered?|mastering|vocals?|作词|作詞|作曲|编曲|編曲|制作人|製作人|混音|母带|母帶|演唱|原唱|歌手|词|詞|曲|歌)(?![\p{L}\p{N}])[^:：]{0,24}[:：]/iu;
 const creditNorm = (s) => (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
 function parseQrc(qrc, meta = null) {

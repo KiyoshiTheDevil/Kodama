@@ -50,7 +50,7 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     const r = await fetch(`${API}/lyrics?${params}`, opt);
     if (r.ok) {
       const d = await r.json();
-      if (d.synced) return { source: "Kugou", lrc: parseLrc(d.synced) };
+      if (d.synced) return { source: "Kugou", lrc: parseLrc(d.synced, { title, artist }) };
     }
     return null;
   };
