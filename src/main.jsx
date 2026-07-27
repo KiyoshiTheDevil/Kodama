@@ -12,11 +12,6 @@ import "./index.css";
 
 installErrorCapture(); // capture frontend errors for the bug-report tool
 
-// TEMPORARY: traces what happens to modal enter/exit animations. Remove with the module.
-if (import.meta.env.DEV) {
-  import("./debug/modal-anim-probe.js").then(m => m.installModalAnimProbe()).catch(() => {});
-}
-
 // Suppress WebView2/WebKit's native right-click menu (Back/Refresh/Save as/Print) in
 // packaged builds — it's a browser artifact that doesn't belong in a desktop app and has
 // no use for end users. Left enabled in dev so right-click → Inspect still works there.
