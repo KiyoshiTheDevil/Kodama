@@ -54,7 +54,14 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "").catch(() => null);
+      // Providers land one by one, so the list fills in as they answer instead of staying
+      // empty until the slowest one is done — a version can be picked as soon as it shows up.
+      // The Unison expansion below then replaces the list once everything has arrived.
+      const res = await fetchLyrics(
+        track.title, track.artists, track.album, parseDurationToSeconds(track.duration),
+        providers, track.videoId || "", undefined,
+        ({ results: partial }) => { if (!cancelled) setResults(partial); },
+      ).catch(() => null);
       let base = res?.allResults || [];
       // Expand the single Unison entry into every community submission for this song.
       if (providers.some(p => p.enabled && p.id === "unison")) {

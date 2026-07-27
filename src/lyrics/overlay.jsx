@@ -479,14 +479,35 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       try { localStorage.removeItem(cacheKey); } catch {}
     }
 
-    fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "", ac.signal).then(res => {
+    // Show the winning version the moment it is decided, rather than after the slowest
+    // provider has answered — a single slow source used to hold up the whole view.
+    // `best === undefined` means a higher-priority provider is still outstanding.
+    let shown = false;
+    const applyBest = ({ best }) => {
+      if (cancelled || shown || best === undefined) return;
+      shown = true;
+      if (best) {
+        setLyrics(best.lrc);
+        setSource(best.source);
+        setSubmitterName(best.submitterName || null);
+        setAppliedVersionId(null);
+        onSourceChange?.(best.source);
+      }
+      setLoading(false);
+    };
+
+    fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), providers, track.videoId || "", ac.signal, applyBest).then(res => {
       if (cancelled) return;
       if (res?.lrc) {
-        setLyrics(res.lrc);
-        setSource(res.source);
-        setSubmitterName(res.submitterName || null);
-        setAppliedVersionId(null);
-        onSourceChange?.(res.source);
+        // applyBest has normally shown this already; only fill in if it somehow did not.
+        if (!shown) {
+          setLyrics(res.lrc);
+          setSource(res.source);
+          setSubmitterName(res.submitterName || null);
+          setAppliedVersionId(null);
+          onSourceChange?.(res.source);
+        }
+        // Cached only now: failedIds needs every provider to have answered.
         try { localStorage.setItem(cacheKey, JSON.stringify({ lrc: res.lrc, source: res.source, submitterName: res.submitterName || null, failedIds: res.failedIds || [] })); } catch {}
       }
       // Mark providers that were tried but failed

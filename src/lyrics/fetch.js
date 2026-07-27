@@ -3,7 +3,10 @@ import { API } from "../context.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
 import { parseLrc, parseRichSync, parseTtml, parseQrc } from "./parse.js";
 
-async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_LYRICS_PROVIDERS, videoId = "", signal = undefined) {
+// `onUpdate` is called every time a provider settles, so callers can show what has arrived
+// instead of waiting for the slowest one. It receives { best, results, failedIds, pending }.
+// The returned promise still resolves to the same final shape as before.
+async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_LYRICS_PROVIDERS, videoId = "", signal = undefined, onUpdate = null) {
   const opt = signal ? { signal } : undefined; // AbortSignal so a track change can cancel in-flight
   const tryBetter = async () => {
     const params = new URLSearchParams({ title, artist, source: "better" });
@@ -88,23 +91,42 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
   const tryFns = { better: tryBetter, portato: tryPortato, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
   const enabledProviders = providers.filter(p => p.enabled && tryFns[p.id]);
 
-  // Fetch all providers in parallel — so we know which ones have no lyrics
-  const settled = await Promise.all(
-    enabledProviders.map(p => tryFns[p.id]().catch(() => null).then(r => ({ id: p.id, result: r })))
-  );
+  // All providers run in parallel — so we learn which ones have nothing, and so a slow one
+  // never holds up a fast one.
+  const done = new Map(); // providerId -> tagged result, or null when it had nothing
 
-  // Pick best result in priority order, collect failures + every available version
-  const failedIds = [];
-  let bestResult = null;
-  const allResults = [];
-  for (const p of enabledProviders) {
-    const { result } = settled.find(s => s.id === p.id);
-    if (result) {
-      const tagged = { ...result, providerId: p.id };
-      allResults.push(tagged);
-      if (!bestResult) bestResult = tagged;
-    } else failedIds.push(p.id);
-  }
+  // Which result the view should show. It stays the highest-priority hit, so a result only
+  // counts as decided once every provider ranked above it has come back empty; until then
+  // this returns undefined, meaning "keep waiting" rather than "nothing found".
+  const decideBest = () => {
+    for (const p of enabledProviders) {
+      if (!done.has(p.id)) return undefined;
+      const r = done.get(p.id);
+      if (r) return r;
+    }
+    return null;
+  };
+
+  await Promise.all(enabledProviders.map(p =>
+    tryFns[p.id]().catch(() => null).then(r => {
+      done.set(p.id, r ? { ...r, providerId: p.id } : null);
+      if (onUpdate) {
+        try {
+          onUpdate({
+            best: decideBest(),
+            results: enabledProviders.map(q => done.get(q.id)).filter(Boolean),
+            failedIds: enabledProviders.filter(q => done.get(q.id) === null).map(q => q.id),
+            pending: enabledProviders.filter(q => !done.has(q.id)).map(q => q.id),
+          });
+        } catch { /* a listener must never break the fetch */ }
+      }
+    })
+  ));
+
+  // enabledProviders is in priority order, so the first surviving entry is the best one.
+  const allResults = enabledProviders.map(p => done.get(p.id)).filter(Boolean);
+  const failedIds = enabledProviders.filter(p => !done.get(p.id)).map(p => p.id);
+  const bestResult = allResults[0] || null;
 
   return bestResult ? { ...bestResult, failedIds, allResults } : { failedIds, allResults };
 }
