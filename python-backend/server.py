@@ -1614,6 +1614,45 @@ def end_add():
     _adding_account = False
     return jsonify({"ok": True})
 
+def _pax_pick(songs, title, artist, want_ms):
+    """Pick the search hit that is actually the same recording.
+
+    Sorting by duration alone is not enough: a query for nomico's "Bad Apple!!" came back
+    with "Bad Apple (from Lovelight)", a different song of similar length, and its lyrics
+    would have been shown as if they belonged to the track. Title *and* artist have to
+    relate before a candidate is considered at all; duration then breaks the tie between
+    the original, covers and live versions.
+    """
+    import re as _re
+
+    def norm(s):
+        return _re.sub(r"[^0-9a-z一-鿿぀-ヿ]+", "", (s or "").lower())
+
+    want_title, want_artist = norm(title), norm(artist)
+    best, best_score = None, -1
+    for song in songs or []:
+        name = norm(song.get("name"))
+        artists = norm(" ".join((a or {}).get("name", "") for a in (song.get("artists") or [])))
+        if want_title and name and not (want_title in name or name in want_title):
+            continue
+        if want_artist and artists and not (want_artist in artists or artists in want_artist):
+            continue
+        score = 10
+        if name == want_title:
+            score += 5
+        if want_ms and song.get("duration"):
+            diff = abs(song["duration"] - want_ms)
+            if diff <= 3000:
+                score += 5
+            elif diff <= 10000:
+                score += 2
+            else:
+                score -= 4
+        if score > best_score:
+            best, best_score = song, score
+    return best
+
+
 def _lyrics_cache_key(title, artist, source):
     import hashlib
     raw = f"{title.lower().strip()}|{artist.lower().strip()}|{source}"
@@ -1704,11 +1743,7 @@ def get_lyrics():
             if sr.ok:
                 songs = ((sr.json() or {}).get("result") or {}).get("songs") or []
                 want_ms = int(float(duration) * 1000) if duration else 0
-                # Prefer the closest duration when we know it — NetEase returns plenty of
-                # covers and live versions whose lyrics would be timed differently.
-                if want_ms and songs:
-                    songs = sorted(songs, key=lambda x: abs((x.get("duration") or 0) - want_ms))
-                song_id = songs[0].get("id") if songs else None
+                song_id = (_pax_pick(songs, title, artist, want_ms) or {}).get("id")
                 if song_id:
                     lr = req.get("https://lyrics.paxsenix.org/netease/lyrics",
                                  params={"id": song_id, "word": "true"}, timeout=5)
