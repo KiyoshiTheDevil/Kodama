@@ -404,7 +404,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                       onClick={() => onPlay(item, speedDialItems)}
                       onContextMenu={(e) => { e.preventDefault(); onTrackContextMenu?.(e, item); }}
                       style={{ cursor: "default", minWidth: 0 }}>
-                      <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: "var(--bg-elevated)" }}>
+                      <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", borderRadius: "var(--r-lg)", overflow: "hidden", background: "var(--bg-elevated)" }}>
                         {item.thumbnail
                           ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
                           : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
@@ -430,7 +430,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                   <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 14 }}>
                     {pages.map((_, pi) => (
                       <button key={pi} onClick={() => setSpeedDialPage(pi)} style={{
-                        width: pi === curPage ? 18 : 7, height: 7, borderRadius: 4, border: "none", padding: 0,
+                        width: pi === curPage ? 18 : 7, height: 7, borderRadius: "var(--r-sm)", border: "none", padding: 0,
                         background: pi === curPage ? "var(--accent)" : "color-mix(in srgb, var(--text-muted) 55%, transparent)",
                         cursor: "default", transition: "width 0.2s, background 0.2s",
                       }} />

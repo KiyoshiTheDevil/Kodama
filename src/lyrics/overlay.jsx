@@ -964,7 +964,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   ? "transform 0.25s ease-out, opacity 0.4s ease-out, filter 0.4s ease-out"
                   : "filter 0.4s ease, opacity 0.4s ease",
                 userSelect: "none",
-                borderRadius: 8,
+                borderRadius: "var(--r-lg)",
                 padding: "2px 8px",
                 margin: "0 -8px 24px",
                 textAlign,

@@ -84,7 +84,7 @@ export function RemoteControlPanel({ devices, onDevice, onPair, trustedIds, onRe
   const approved = devices.filter(d => d.status === "approved");
   const pendingCount = devices.filter(d => d.status === "pending").length;
   return (
-    <div style={{ margin: "2px 0 6px", padding: "14px 16px", background: "var(--fill-subtle)", borderRadius: 12, display: "flex", flexDirection: "column", gap: 11 }}>
+    <div style={{ margin: "2px 0 6px", padding: "14px 16px", background: "var(--fill-subtle)", borderRadius: "var(--r-xl)", display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Button size="sm" className="bg-accent! text-white!" onPress={onPair}>
           <DeviceMobile size={14} /> {t("remotePairNew")}

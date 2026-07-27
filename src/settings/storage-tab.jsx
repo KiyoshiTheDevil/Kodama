@@ -156,7 +156,7 @@ function CacheTab({ t }) {
           </div>
         </div>
         {/* Stacked bar */}
-        <div style={{ height: 6, borderRadius: 99, overflow: "hidden", background: "var(--bg-base)", display: "flex" }}>
+        <div style={{ height: 6, borderRadius: "var(--r-full)", overflow: "hidden", background: "var(--bg-base)", display: "flex" }}>
           {stats && totalBytes > 0 && categories.map(c => {
             const pct = (stats[c.key]?.size ?? 0) / totalBytes * 100;
             return pct > 0 ? (
@@ -168,7 +168,7 @@ function CacheTab({ t }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", marginTop: 10 }}>
           {categories.map(c => (
             <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--t3)" }}>
-              <div style={{ width: 8, height: 8, borderRadius: 99, background: c.color, flexShrink: 0 }} />
+              <div style={{ width: 8, height: 8, borderRadius: "var(--r-full)", background: c.color, flexShrink: 0 }} />
               {c.label}
             </div>
           ))}

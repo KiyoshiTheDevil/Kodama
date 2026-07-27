@@ -61,7 +61,7 @@ export function GamepadTest() {
         <span style={{ opacity: 0.6 }}>Gamepad API in WebView2 — press F9 to close</span>
       </div>
 
-      <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
+      <div style={{ marginBottom: 16, padding: 12, borderRadius: "var(--r-lg)", background: "rgba(255,255,255,0.05)" }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>
           {pads.length ? `✅ ${pads.length} controller(s) delivering input` : "⌛ No controller data yet — connect one and PRESS A BUTTON"}
         </div>
@@ -75,7 +75,7 @@ export function GamepadTest() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
             {p.buttons.map((b, i) => (
               <span key={i} style={{
-                minWidth: 34, textAlign: "center", padding: "3px 6px", borderRadius: 6,
+                minWidth: 34, textAlign: "center", padding: "3px 6px", borderRadius: "var(--r-md)",
                 background: b.pressed ? "#e040fb" : "rgba(255,255,255,0.08)",
                 color: b.pressed ? "#fff" : "#aaa", fontWeight: b.pressed ? 700 : 400,
               }} title={`button ${i}`}>{i}{b.value > 0 && b.value < 1 ? `·${b.value.toFixed(1)}` : ""}</span>

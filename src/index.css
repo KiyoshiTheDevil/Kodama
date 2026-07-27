@@ -455,10 +455,10 @@ html, body, #root {
   position: relative; border-radius: 16px; overflow: hidden;
   /* Kept tight (blur stays within the view's ~24px content padding) so the leftmost column's
      shadow doesn't spill to the scroll container's edge and draw a visible seam by the sidebar. */
-  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  box-shadow: var(--elevation-2);
   transition: transform .24s cubic-bezier(0.22,1,0.36,1), box-shadow .24s ease;
 }
-.gcard:hover .gcard-thumb { transform: translateY(-5px); box-shadow: 0 10px 24px rgba(0,0,0,0.42); }
+.gcard:hover .gcard-thumb { transform: translateY(-5px); box-shadow: var(--elevation-3); }
 .gcard-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s cubic-bezier(0.22,1,0.36,1); }
 .gcard:hover .gcard-img { transform: scale(1.05); }
 .gcard-badge {

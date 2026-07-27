@@ -55,7 +55,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
   );
   const renderArtist = (a, i) => (
     <div key={a.browseId || i} onClick={() => a.browseId && onOpenArtist?.({ browseId: a.browseId, artist: a.title })}
-      style={{ cursor: "default", borderRadius: 8, padding: "12px 0", textAlign: "center" }}
+      style={{ cursor: "default", borderRadius: "var(--r-lg)", padding: "12px 0", textAlign: "center" }}
       onMouseEnter={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--accent)"}
       onMouseLeave={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--text-primary)"}
     >

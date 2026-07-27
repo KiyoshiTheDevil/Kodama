@@ -9,7 +9,7 @@ export function ExplicitBadge() {
     <span style={{
       display: "inline-flex", alignItems: "center", justifyContent: "center",
       background: "var(--text-muted)", color: "var(--bg-primary)",
-      borderRadius: 3, fontSize: 9, fontWeight: 700, padding: "1px 4px",
+      borderRadius: "var(--r-xs)", fontSize: 9, fontWeight: 700, padding: "1px 4px",
       letterSpacing: "0.05em", flexShrink: 0, lineHeight: 1.2, userSelect: "none",
     }}>E</span>
   );
@@ -148,15 +148,15 @@ export function SkeletonRow() {
       display: "flex", alignItems: "center", gap: 12,
       padding: "8px 16px", borderRadius: "var(--radius)",
     }}>
-      <div style={{ width: 44, height: 44, borderRadius: 6, background: "var(--bg-elevated)", flexShrink: 0,
+      <div style={{ width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--bg-elevated)", flexShrink: 0,
         animation: "pulse 1.4s ease-in-out infinite" }} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ height: 12, width: "45%", borderRadius: 4, background: "var(--bg-elevated)",
+        <div style={{ height: 12, width: "45%", borderRadius: "var(--r-sm)", background: "var(--bg-elevated)",
           animation: "pulse 1.4s ease-in-out infinite" }} />
-        <div style={{ height: 10, width: "30%", borderRadius: 4, background: "var(--bg-elevated)",
+        <div style={{ height: 10, width: "30%", borderRadius: "var(--r-sm)", background: "var(--bg-elevated)",
           animation: "pulse 1.4s ease-in-out 0.2s infinite" }} />
       </div>
-      <div style={{ height: 10, width: 36, borderRadius: 4, background: "var(--bg-elevated)",
+      <div style={{ height: 10, width: 36, borderRadius: "var(--r-sm)", background: "var(--bg-elevated)",
         animation: "pulse 1.4s ease-in-out infinite" }} />
     </div>
   );

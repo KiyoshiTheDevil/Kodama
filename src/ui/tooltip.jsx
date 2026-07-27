@@ -51,7 +51,7 @@ export function Tooltip({ text, children }) {
           <div style={{
             zoom,
             background: "var(--bg-elevated)", color: "var(--text-primary)",
-            padding: "5px 9px", borderRadius: 6,
+            padding: "5px 9px", borderRadius: "var(--r-md)",
             fontSize: "var(--t11)", fontWeight: 500,
             border: "0.5px solid var(--border)",
             whiteSpace: "nowrap",

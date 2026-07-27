@@ -113,7 +113,7 @@ function AccentColorPicker({ value, onChange }) {
             onClick={() => onChange(p.value)}
             title={p.label}
             className="w-full h-full rounded-md cursor-default transition-transform hover:scale-105 leading-[0]"
-            style={value === p.value ? { outline: `2.5px solid ${p.value}`, outlineOffset: 2, borderRadius: 6 } : undefined}
+            style={value === p.value ? { outline: `2.5px solid ${p.value}`, outlineOffset: 2, borderRadius: "var(--r-md)" } : undefined}
           >
             <ColorSwatchRoot color={p.value} shape="square" className="w-full! h-full!" />
           </button>
@@ -591,7 +591,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
         {/* ── PIN entry overlay ─────────────────────────────────────────────── */}
         {pinEnabled && !pinVerified && (
           <div style={{
-            position: "absolute", inset: 0, zIndex: 20, borderRadius: 12,
+            position: "absolute", inset: 0, zIndex: 20, borderRadius: "var(--r-xl)",
             background: "var(--bg-base)",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 24,
@@ -652,7 +652,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               <div style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
                 background: "var(--status-danger-soft)", border: "0.5px solid var(--status-danger-line)",
-                borderRadius: 12, padding: "16px 24px", marginTop: 8,
+                borderRadius: "var(--r-xl)", padding: "16px 24px", marginTop: 8,
               }}>
                 <div style={{ fontSize: "var(--t12)", color: "var(--status-danger)", fontWeight: 600, textAlign: "center", maxWidth: 280 }}>
                   {t("pinEmergencyConfirmText")}
@@ -688,7 +688,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
         {/* ── PIN setup / change dialog ─────────────────────────────────────── */}
         {pinSetup && (
           <div style={{
-            position: "absolute", inset: 0, zIndex: 30, borderRadius: 12,
+            position: "absolute", inset: 0, zIndex: 30, borderRadius: "var(--r-xl)",
             background: "color-mix(in srgb, var(--bg-base) 92%, transparent)", backdropFilter: "blur(8px)",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 24, animation: anim ? "fadeIn 0.18s ease" : undefined,
@@ -791,7 +791,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   <div className="flex gap-2 items-center mb-2">
                     <input value={vizPresetName} onChange={(e) => setVizPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }}
                       placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
-                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: 8, fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "0.5px solid var(--border)", outline: "none" }} />
+                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: "var(--r-lg)", fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "0.5px solid var(--border)", outline: "none" }} />
                     <Button variant="secondary" size="sm" className="shrink-0" onPress={saveVizPreset}>{t("save") || "Speichern"}</Button>
                     <Button variant="ghost" size="sm" className="gap-1.5 shrink-0" onPress={() => vizImportRef.current?.click()}>
                       <DownloadSimple size={13} className="rotate-180" />{t("import") || "Importieren"}
@@ -935,13 +935,13 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       )}
                       {/* Mini preview */}
                       <div style={{ background: th.bg, padding: 10, height: 80 }}>
-                        <div style={{ background: th.surface, borderRadius: 6, padding: "6px 8px", marginBottom: 5 }}>
-                          <div style={{ width: "60%", height: 5, borderRadius: 3, background: accent, marginBottom: 4 }} />
-                          <div style={{ width: "40%", height: 4, borderRadius: 3, background: th.text, opacity: 0.3 }} />
+                        <div style={{ background: th.surface, borderRadius: "var(--r-md)", padding: "6px 8px", marginBottom: 5 }}>
+                          <div style={{ width: "60%", height: 5, borderRadius: "var(--r-xs)", background: accent, marginBottom: 4 }} />
+                          <div style={{ width: "40%", height: 4, borderRadius: "var(--r-xs)", background: th.text, opacity: 0.3 }} />
                         </div>
                         <div style={{ display: "flex", gap: 4 }}>
-                          <div style={{ flex: 1, background: th.elevated, borderRadius: 4, height: 24 }} />
-                          <div style={{ flex: 1, background: th.elevated, borderRadius: 4, height: 24 }} />
+                          <div style={{ flex: 1, background: th.elevated, borderRadius: "var(--r-sm)", height: 24 }} />
+                          <div style={{ flex: 1, background: th.elevated, borderRadius: "var(--r-sm)", height: 24 }} />
                         </div>
                       </div>
                       {/* Label */}
@@ -959,7 +959,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SectionLabel>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {t("appIcon")}
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span>
                   </span>
                 </SectionLabel>
                 <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 10px", paddingLeft: 2 }}>{t("appIconDesc")}</div>
@@ -1056,7 +1056,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SettingRow label={t("progressivePlayback") || "Progressives Laden"} description={t("progressivePlaybackDesc") || "Schnellerer Start: streamt den Song statt ihn erst komplett herunterzuladen. Aus = klassisch (lädt vollständig, stabiler auf schwachen Geräten)."} icon={<WaveformLines />}>
                   <Toggle value={playbackProgressive} onChange={onPlaybackProgressiveChange} />
                 </SettingRow>
-                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("crossfade")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span></span>} description={`${t("crossfadeDesc")}: ${crossfade}s`} icon={<Sliders />}>
+                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("crossfade")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span></span>} description={`${t("crossfadeDesc")}: ${crossfade}s`} icon={<Sliders />}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <Slider min={0} max={12} step={1} value={crossfade} onChange={onCrossfadeChange} width={120} />
                     <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 28 }}>{crossfade}s</span>
@@ -1120,7 +1120,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SettingRow label={t("ytmusicHistorySync")} description={t("ytmusicHistorySyncDesc")} icon={<ClockCounterClockwise />}>
                   <Toggle value={ytmusicHistorySync} onChange={onYtmusicHistorySyncChange} />
                 </SettingRow>
-                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: 4, lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
+                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
                   <Toggle value={remoteEnabled} onChange={onToggleRemote} />
                 </SettingRow>
                 {remoteEnabled && (

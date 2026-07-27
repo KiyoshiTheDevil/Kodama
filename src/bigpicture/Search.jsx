@@ -18,7 +18,7 @@ function KeyBtn({ children, onPress, span, active }) {
   return (
     <div ref={ref} onClick={onPress} style={{
       gridColumn: span ? `span ${span}` : undefined,
-      minHeight: 56, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: 56, borderRadius: "var(--r-xl)", display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: 22, fontWeight: 600, cursor: "default",
       color: active && !focused ? "var(--accent)" : "#fff",
       background: focused ? "var(--accent)" : (active ? "color-mix(in srgb, var(--accent) 22%, rgba(255,255,255,0.07))" : "rgba(255,255,255,0.07)"),
@@ -57,12 +57,12 @@ function ResultRow({ track }) {
   const artists = Array.isArray(track.artists) ? track.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ") : (track.artists || "");
   return (
     <div ref={ref} onClick={() => sendPlay(track)} style={{
-      display: "flex", alignItems: "center", gap: 16, padding: "10px 14px", borderRadius: 12, cursor: "default",
+      display: "flex", alignItems: "center", gap: 16, padding: "10px 14px", borderRadius: "var(--r-xl)", cursor: "default",
       background: focused ? "rgba(255,255,255,0.10)" : "transparent",
       outline: focused ? "3px solid var(--accent)" : "3px solid transparent",
       transition: "background .12s, outline-color .12s",
     }}>
-      <div style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "linear-gradient(135deg,#2a1535,#17091f)" }}>
+      <div style={{ width: 52, height: 52, borderRadius: "var(--r-lg)", overflow: "hidden", flexShrink: 0, background: "linear-gradient(135deg,#2a1535,#17091f)" }}>
         {track.thumbnail ? <img src={thumbHi(track.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : null}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>

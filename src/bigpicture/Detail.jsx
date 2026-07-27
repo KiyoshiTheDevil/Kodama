@@ -59,12 +59,12 @@ function TrackRow({ track, index, onPlay }) {
   });
   return (
     <div ref={ref} onClick={() => onPlay(track)} style={{
-      display: "flex", alignItems: "center", gap: 16, padding: "10px 14px", borderRadius: 12, cursor: "default",
+      display: "flex", alignItems: "center", gap: 16, padding: "10px 14px", borderRadius: "var(--r-xl)", cursor: "default",
       background: focused ? "rgba(255,255,255,0.10)" : "transparent",
       outline: focused ? "3px solid var(--accent)" : "3px solid transparent",
       transition: "background .12s, outline-color .12s",
     }}>
-      <div style={{ width: 46, height: 46, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: "linear-gradient(135deg,#2a1535,#17091f)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 46, height: 46, borderRadius: "var(--r-lg)", overflow: "hidden", flexShrink: 0, position: "relative", background: "linear-gradient(135deg,#2a1535,#17091f)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {track.thumbnail
           ? <img src={thumbHi(track.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           : <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, fontWeight: 700 }}>{index + 1}</span>}

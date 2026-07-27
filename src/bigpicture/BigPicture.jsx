@@ -246,7 +246,7 @@ export function BigPicture() {
             {menu.title ? <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, fontWeight: 600, padding: "12px 16px 12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{menu.title}</div> : null}
             {menu.actions.map((a, i) => (
               <div key={i} onClick={() => { setMenu(null); a.run && a.run(); }} style={{
-                padding: "15px 16px", borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: "default",
+                padding: "15px 16px", borderRadius: "var(--r-xl)", fontSize: 18, fontWeight: 600, cursor: "default",
                 color: i === menuIndex ? "#0a0a0f" : "#fff",
                 background: i === menuIndex ? "var(--accent)" : "transparent",
                 transition: "background .1s, color .1s",

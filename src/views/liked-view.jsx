@@ -41,7 +41,7 @@ export function LikedView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpe
       <div style={{ color: "var(--status-danger)", marginBottom: 8 }}>{t("errorLoading")}</div>
       <div style={{ color: "var(--text-secondary)", fontSize: "var(--t13)" }}>{error}</div>
       <div style={{ color: "var(--text-muted)", fontSize: "var(--t12)", marginTop: 12 }}>
-        {t("backendHint")} <code style={{ background: "var(--bg-elevated)", padding: "1px 6px", borderRadius: 4 }}>python server.py</code>
+        {t("backendHint")} <code style={{ background: "var(--bg-elevated)", padding: "1px 6px", borderRadius: "var(--r-sm)" }}>python server.py</code>
       </div>
     </div>
   );

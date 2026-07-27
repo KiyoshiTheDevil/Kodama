@@ -221,7 +221,7 @@ export function ColorPicker({ value, onChange, swatch }) {
   return (
     <>
       <div ref={triggerRef} onClick={openPicker} style={{
-        width: 32, height: 32, borderRadius: 8,
+        width: 32, height: 32, borderRadius: "var(--r-lg)",
         border: "0.5px solid var(--border)",
         cursor: "default", flexShrink: 0,
         ...(swatch || {}),
@@ -241,7 +241,7 @@ export function ColorPicker({ value, onChange, swatch }) {
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 20, marginBottom: 8, cursor: "move", color: "var(--text-muted)" }}>
             <DotsSixVertical size={14} />
             <button data-no-drag onClick={close} aria-label="Close"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "none", border: "none", color: "var(--text-muted)", cursor: "default" }}>
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: "var(--r-md)", background: "none", border: "none", color: "var(--text-muted)", cursor: "default" }}>
               <X size={13} />
             </button>
           </div>
@@ -291,7 +291,7 @@ export function ColorPicker({ value, onChange, swatch }) {
                   } catch {}
                 }}
                 style={{
-                  width: 30, height: 30, flexShrink: 0, borderRadius: 8,
+                  width: 30, height: 30, flexShrink: 0, borderRadius: "var(--r-lg)",
                   background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
                   color: "var(--text-muted)", cursor: "default",
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -303,7 +303,7 @@ export function ColorPicker({ value, onChange, swatch }) {
             <div style={{ position: "relative", flexShrink: 0 }}>
               <button onClick={() => setFmtOpen((o) => !o)}
                 style={{
-                  height: 30, padding: "0 8px", borderRadius: 8, minWidth: 56,
+                  height: 30, padding: "0 8px", borderRadius: "var(--r-lg)", minWidth: 56,
                   display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4,
                   background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
                   color: "var(--text-primary)", fontSize: "var(--t12)", cursor: "default",
@@ -312,13 +312,13 @@ export function ColorPicker({ value, onChange, swatch }) {
               </button>
               {fmtOpen && (
                 <div style={{
-                  position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4, borderRadius: 8,
+                  position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4, borderRadius: "var(--r-lg)",
                   background: "#242424", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                 }}>
                   {["hex", "rgb", "hsl"].map((f) => (
                     <button key={f} onClick={() => { setMode(f); setFmtOpen(false); }}
                       style={{
-                        display: "block", width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: 6,
+                        display: "block", width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: "var(--r-md)",
                         background: f === mode ? "rgba(255,255,255,0.08)" : "none", border: "none",
                         color: "var(--text-primary)", fontSize: "var(--t12)", cursor: "default",
                       }}>
@@ -340,7 +340,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               onBlur={() => { editing.current = false; setValText(_format(curHexRef.current, mode)); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") { editing.current = false; e.currentTarget.blur(); if (e.key === "Escape") close(); } }}
               style={{
-                flex: 1, minWidth: 0, height: 30, boxSizing: "border-box", padding: "0 10px", borderRadius: 8,
+                flex: 1, minWidth: 0, height: 30, boxSizing: "border-box", padding: "0 10px", borderRadius: "var(--r-lg)",
                 background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
                 color: "var(--text-primary)", fontSize: "var(--t12)", fontFamily: "monospace",
                 outline: "none", letterSpacing: "0.03em",
@@ -354,7 +354,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               {swatchGrid.map((c) => (
                 <button key={c} title={c} onClick={() => applyHex(c)}
                   style={{
-                    width: "100%", aspectRatio: "1", borderRadius: 6,
+                    width: "100%", aspectRatio: "1", borderRadius: "var(--r-md)",
                     background: c,
                     border: c.toLowerCase() === currentHex.toLowerCase() ? "2px solid var(--accent)" : "0.5px solid rgba(255,255,255,0.15)",
                     cursor: "default", padding: 0,

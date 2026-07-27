@@ -812,7 +812,7 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
       {suggestions.map((s, i) => (
         <div key={i} onClick={() => pickSuggestion(s)}
           style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 6,
+            display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: "var(--r-md)",
             cursor: "default", fontSize: "var(--t13)", color: "var(--text-secondary)",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}
@@ -2152,7 +2152,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           <Tooltip text={isLiked ? t("unlike") : t("like")}>
             <Button variant="ghost" isIconOnly onPress={track ? toggleLike : undefined}
               className={cn(isLiked ? "text-accent" : "text-muted hover:text-secondary")}
-              style={{ visibility: track ? "visible" : "hidden", contain: "layout style", borderRadius: "9999px", width: 36, height: 36, minWidth: 36, padding: 0 }}>
+              style={{ visibility: track ? "visible" : "hidden", contain: "layout style", borderRadius: "var(--r-full)", width: 36, height: 36, minWidth: 36, padding: 0 }}>
               <Heart size={16} weight={isLiked ? "fill" : "regular"}
                 style={likePulsing ? { animation: "heartPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards" } : undefined} />
             </Button>
@@ -2784,7 +2784,7 @@ function LanguagePickerScreen({ currentLanguage, onConfirm }) {
               <button key={lang.code} onClick={() => setSelected(lang.code)}
                 style={{
                   display: "flex", alignItems: "center", gap: 14, flexShrink: 0,
-                  padding: "13px 14px", borderRadius: 12, cursor: "default", fontFamily: "var(--font)", textAlign: "left",
+                  padding: "13px 14px", borderRadius: "var(--r-xl)", cursor: "default", fontFamily: "var(--font)", textAlign: "left",
                   border: `1.5px solid ${active ? "var(--accent)" : "transparent"}`,
                   background: active ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--bg-elevated)",
                   transition: "background 0.15s, border-color 0.15s",
@@ -5312,7 +5312,7 @@ export default function App() {
                   style={{
                     pointerEvents: "auto",
                     border: "0.5px solid var(--border)",
-                    borderRadius: 16,
+                    borderRadius: "var(--r-2xl)",
                     boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
                     animation: "ctxMenuIn 0.2s ease-out",
                   }}>

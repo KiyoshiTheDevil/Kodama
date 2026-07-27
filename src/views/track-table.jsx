@@ -226,7 +226,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
         <div style={{ display: "flex", gap: 26, alignItems: "flex-end", padding: "0 28px 28px" }}>
           {/* Cover */}
           <div style={{
-            width: 190, height: 190, borderRadius: 12, flexShrink: 0,
+            width: 190, height: 190, borderRadius: "var(--r-xl)", flexShrink: 0,
             overflow: "hidden", background: "var(--bg-elevated)",
             boxShadow: `0 18px 52px rgba(${accentColor},0.38)`,
           }}>

@@ -40,8 +40,8 @@ function SeekBar({ position, duration }) {
         <span style={{ opacity: focused ? 1 : 0, color: "var(--accent)", fontSize: 13, fontWeight: 600 }}>◀ 10s ▶</span>
         <span>{fmt(duration)}</span>
       </div>
-      <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: pct + "%", background: "var(--accent)", borderRadius: 4 }} />
+      <div style={{ height: 8, borderRadius: "var(--r-sm)", background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: pct + "%", background: "var(--accent)", borderRadius: "var(--r-sm)" }} />
       </div>
     </div>
   );
@@ -51,7 +51,7 @@ function LyricsBtn({ onPress }) {
   const { ref, focused } = useFocusable({ onEnterPress: onPress });
   return (
     <div ref={ref} onClick={onPress} style={{
-      display: "inline-flex", alignItems: "center", gap: 10, marginTop: 30, padding: "12px 22px", borderRadius: 999, cursor: "default",
+      display: "inline-flex", alignItems: "center", gap: 10, marginTop: 30, padding: "12px 22px", borderRadius: "var(--r-full)", cursor: "default",
       color: focused ? "#0a0a0f" : "#fff", fontSize: 17, fontWeight: 700,
       background: focused ? "var(--accent)" : "rgba(255,255,255,0.08)",
       outline: focused ? "3px solid var(--accent)" : "3px solid transparent",

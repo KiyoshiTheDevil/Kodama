@@ -81,7 +81,7 @@ export function LyricsProviderList({ providers, onChange }) {
               <span style={{
                 display: "flex", alignItems: "center", gap: 6,
                 fontSize: "var(--t10)", whiteSpace: "nowrap", flexShrink: 0,
-                padding: "2px 6px", borderRadius: 4,
+                padding: "2px 6px", borderRadius: "var(--r-sm)",
                 background: p.enabled ? sync.bg : "rgba(255,255,255,0.05)",
                 color: p.enabled ? sync.color : "var(--text-muted)",
                 transition: "all 0.2s",

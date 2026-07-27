@@ -99,7 +99,7 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
               display: "flex", alignItems: "center", gap: 6,
               background: tab === tb.id ? "color-mix(in srgb, var(--accent) 20%, transparent)" : "transparent",
               color: tab === tb.id ? "var(--accent)" : "var(--text-secondary)",
-              border: "none", borderRadius: 8, padding: "7px 14px",
+              border: "none", borderRadius: "var(--r-lg)", padding: "7px 14px",
               fontSize: "var(--t13)", cursor: "default", fontFamily: "var(--font)",
               transition: "all 0.15s", fontWeight: tab === tb.id ? 600 : 400,
             }}>{tb.icon}{tb.label}</button>
