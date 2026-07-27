@@ -249,7 +249,8 @@
   --elevation-1: 0 2px 8px rgba(0,0,0,0.22);    /* badges, slider thumbs */
   --elevation-2: 0 4px 14px rgba(0,0,0,0.28);   /* cards, small buttons, tooltips */
   --elevation-3: 0 10px 24px rgba(0,0,0,0.42);  /* dropdowns, popovers, context menus */
-  --elevation-4: 0 18px 48px rgba(0,0,0,0.5);   /* modals, floating windows, the big cover */
+  --elevation-4: 0 18px 48px rgba(0,0,0,0.5);   /* modals, floating windows */
+  --elevation-5: 0 28px 70px rgba(0,0,0,0.58);  /* the big cover art — largest floating object */
 
   /* Cover-art fallback, repeated in ~19 places before it was a token. */
   --placeholder-gradient: linear-gradient(135deg, #2a1535, #1a0a25);
@@ -316,6 +317,7 @@
   --elevation-2: 0 4px 14px rgba(0,0,0,0.14);
   --elevation-3: 0 10px 24px rgba(0,0,0,0.20);
   --elevation-4: 0 18px 48px rgba(0,0,0,0.26);
+  --elevation-5: 0 28px 70px rgba(0,0,0,0.32);
 }
 
 /* â”€â”€â”€ High Contrast Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
