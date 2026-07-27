@@ -113,7 +113,10 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
     const level = detectSync(r.lrc);
     if (level === "line") return PROVIDER_SYNC.lrclib;  // Line badge
     if (level === "plain") return { label: "Plain", color: "#9e9e9e", bg: "rgba(158,158,158,0.12)" };
-    return r.providerId === "musixmatch" ? PROVIDER_SYNC.musixmatch : PROVIDER_SYNC.better;
+    // Word-level: use whatever granularity the provider declares, rather than assuming
+    // everything except Musixmatch is syllable-level — that held only while Better Lyrics
+    // and Musixmatch were the sole word-capable sources.
+    return PROVIDER_SYNC[r.providerId] || PROVIDER_SYNC.better;
   };
 
   // Exactly one row is "active": prefer an exact version-id match (set when a version
