@@ -1692,6 +1692,33 @@ def get_lyrics():
         except Exception as e:
             _logging.warning(f"[lyrics] Portato error: {e}")
 
+    # 2c. Paxsenix — one provider per upstream source, each with its own entry in the
+    # settings list so it gets its own toggle and its own place in the priority order.
+    # The service is slow and self-reports a ~64% success rate, so the timeouts are tight;
+    # the frontend shows whatever has already arrived, so a straggler holds nothing up.
+    if not result and source in ("auto", "paxsenix-netease"):
+        try:
+            q = f"{title} {artist}".strip()
+            sr = req.get("https://lyrics.paxsenix.org/netease/search",
+                         params={"q": q}, timeout=5)
+            if sr.ok:
+                songs = ((sr.json() or {}).get("result") or {}).get("songs") or []
+                want_ms = int(float(duration) * 1000) if duration else 0
+                # Prefer the closest duration when we know it — NetEase returns plenty of
+                # covers and live versions whose lyrics would be timed differently.
+                if want_ms and songs:
+                    songs = sorted(songs, key=lambda x: abs((x.get("duration") or 0) - want_ms))
+                song_id = songs[0].get("id") if songs else None
+                if song_id:
+                    lr = req.get("https://lyrics.paxsenix.org/netease/lyrics",
+                                 params={"id": song_id, "word": "true"}, timeout=5)
+                    if lr.ok:
+                        data = lr.json()
+                        if isinstance(data, list) and data:
+                            result = {"source": "NetEase (Paxsenix)", "netease": data}
+        except Exception as e:
+            _logging.warning(f"[lyrics] Paxsenix NetEase error: {e}")
+
     # 3. Kugou
     if not result and source in ("auto", "kugou"):
         try:

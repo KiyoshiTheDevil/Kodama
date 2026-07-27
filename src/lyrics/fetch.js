@@ -1,7 +1,7 @@
 // Multi-provider lyrics fetch. Extracted from App.jsx.
 import { API } from "../context.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
-import { parseLrc, parseRichSync, parseTtml, parseQrc } from "./parse.js";
+import { parseLrc, parseRichSync, parseTtml, parseQrc, parseNetease } from "./parse.js";
 
 // `onUpdate` is called every time a provider settles, so callers can show what has arrived
 // instead of waiting for the slowest one. It receives { best, results, failedIds, pending }.
@@ -76,6 +76,19 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     }
     return null;
   };
+  const tryPaxNetease = async () => {
+    const params = new URLSearchParams({ title, artist, source: "paxsenix-netease" });
+    if (duration) params.set("duration", Math.round(duration));
+    const r = await fetch(`${API}/lyrics?${params}`, opt);
+    if (r.ok) {
+      const d = await r.json();
+      if (d?.netease) {
+        const lrc = parseNetease(d.netease, { title, artist });
+        if (lrc.length) return { source: "NetEase (Paxsenix)", lrc };
+      }
+    }
+    return null;
+  };
   const tryMusixmatch = async () => {
     const params = new URLSearchParams({ title, artist, source: "musixmatch" });
     if (duration) params.set("duration", Math.round(duration));
@@ -88,7 +101,7 @@ async function fetchLyrics(title, artist, album, duration, providers = DEFAULT_L
     return null;
   };
 
-  const tryFns = { better: tryBetter, portato: tryPortato, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
+  const tryFns = { better: tryBetter, portato: tryPortato, "paxsenix-netease": tryPaxNetease, unison: tryUnison, lrclib: tryLrclib, kugou: tryKugou, simp: trySimp, musixmatch: tryMusixmatch };
   const enabledProviders = providers.filter(p => p.enabled && tryFns[p.id]);
 
   // All providers run in parallel — so we learn which ones have nothing, and so a slow one
