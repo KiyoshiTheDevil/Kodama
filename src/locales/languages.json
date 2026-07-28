@@ -30,19 +30,24 @@
   {
     "code": "it-IT",
     "label": "Italiano",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#008C45\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#F4F5F0\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CD212A\"/></svg>"
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#008C45\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#F4F5F0\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CD212A\"/></svg>",
+    "translators": ["Tusei Tu (tuseitu.sg)"]
+  },
+  {
+    "code": "es-MX",
+    "label": "Español (México)",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#006847\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CE1126\"/></svg>"
+  },
+  {
+    "code": "ru-RU",
+    "label": "Русский",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"3\" height=\"2\" fill=\"#FFFFFF\"/><rect width=\"3\" height=\"1.333\" y=\"0.667\" fill=\"#0039A6\"/><rect width=\"3\" height=\"0.667\" y=\"1.333\" fill=\"#D52B1E\"/></svg>"
   },
   {
     "code": "id-ID",
     "label": "Bahasa Indonesia",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"3\" height=\"1\" fill=\"#FF0000\"/><rect width=\"3\" height=\"1\" y=\"1\" fill=\"#FFFFFF\"/></svg>",
     "translators": ["mukeenanyafiq"],
-    "comingSoon": true
-  },
-  {
-    "code": "es-MX",
-    "label": "Español (México)",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#006847\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CE1126\"/></svg>",
     "comingSoon": true
   },
   {
@@ -55,12 +60,6 @@
     "code": "hu-HU",
     "label": "Magyar",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 6 3\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"6\" height=\"1\" fill=\"#CE2939\"/><rect width=\"6\" height=\"1\" y=\"1\" fill=\"#FFFFFF\"/><rect width=\"6\" height=\"1\" y=\"2\" fill=\"#477050\"/></svg>",
-    "comingSoon": true
-  },
-  {
-    "code": "ru-RU",
-    "label": "Русский",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"3\" height=\"2\" fill=\"#FFFFFF\"/><rect width=\"3\" height=\"1.333\" y=\"0.667\" fill=\"#0039A6\"/><rect width=\"3\" height=\"0.667\" y=\"1.333\" fill=\"#D52B1E\"/></svg>",
     "comingSoon": true
   },
   {
