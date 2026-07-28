@@ -1326,6 +1326,13 @@ function hexToRgb(str) {
   if (rgb) return [+rgb[1], +rgb[2], +rgb[3]];
   return null;
 }
+// Handle of the running accent cross-fade, so a new track can cancel the previous one.
+// It was missing entirely: modules are strict mode, so merely reading it threw a
+// ReferenceError on the first line of setAccentSmooth below. The caller caught that and
+// restored the fixed accent — which is why the dynamic accent derived a colour correctly
+// and then never applied it.
+let accentFadeRaf = 0;
+
 function setAccentSmooth(toHex, duration = 380) {
   const root = document.documentElement;
   const a = hexToRgb(getComputedStyle(root).getPropertyValue("--accent"));
@@ -3597,10 +3604,21 @@ export default function App() {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       if (cancelled) return;
-      try { setAccentSmooth(vibrantAccentFromImage(img, accentSat, accentLight)); }
-      catch { document.documentElement.style.setProperty("--accent", accent); }
+      // Both failure paths used to fall back in silence, so a broken dynamic accent looked
+      // exactly like a disabled one — which is how the missing accentFadeRaf stayed hidden.
+      // They log now; the console ring feeds the Debug tab.
+      try {
+        setAccentSmooth(vibrantAccentFromImage(img, accentSat, accentLight));
+      } catch (e) {
+        console.warn("[accent] deriving from cover failed, keeping the fixed accent:", e?.message || e);
+        document.documentElement.style.setProperty("--accent", accent);
+      }
     };
-    img.onerror = () => { if (!cancelled) document.documentElement.style.setProperty("--accent", accent); };
+    img.onerror = () => {
+      if (cancelled) return;
+      console.warn("[accent] cover failed to load for accent extraction:", url);
+      document.documentElement.style.setProperty("--accent", accent);
+    };
     img.src = url;
     return () => { cancelled = true; };
   }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight]);
