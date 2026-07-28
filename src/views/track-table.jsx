@@ -10,6 +10,22 @@ import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
 import { ArrowClockwise, ArrowLeft, CheckCircle, ClockCounterClockwise, Crown, DownloadSimple, Heart, MagnifyingGlass, Pause, Play, Shuffle, Trash } from "../icons.jsx";
 
+// Collapsing-header geometry. CARD_H is the height the pinned card reserves in the flow;
+// the poster is pulled up under it by exactly that much, so the header's total height is
+// POSTER_H at every scroll position. Keeping it constant is what stops the virtualised
+// list from jumping — the page is the scroll container, so a shrinking header would move
+// every row's offset mid-scroll.
+// The pinned bar is a floating card, inset from the edges rather than a full-width slab.
+// BAND_TOP keeps it clear of TitleBar (fixed at y=4..36) and of the ScrollShadow, which fades
+// the container's first 28px.
+const BAND_TOP = 30;
+const CARD_H = 66;
+const POSTER_H = 400;
+// Exactly the distance the poster travels before its bottom edge meets the pinned card. Any
+// shorter and the collapse finishes early, leaving a band of empty backdrop between the card
+// and the first row.
+const COLLAPSE_DIST = POSTER_H - BAND_TOP - CARD_H;
+
 function formatTotalDuration(tracks) {
   const totalSecs = tracks.reduce((sum, t) => sum + (parseDurationToSeconds(t.duration) || 0), 0);
   if (totalSecs <= 0) return null;
@@ -138,10 +154,17 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
   const t = useLang();
   const [trackSearch, setTrackSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
-  const searchInputRef = useRef(null);
+  // The header renders its search field twice — once in the poster, once in the collapsed
+  // bar — so focus has to go to whichever one is currently on screen.
+  const posterSearchRef = useRef(null);
+  const bandSearchRef = useRef(null);
+  const posterRef = useRef(null);
+  const bandRef = useRef(null);
 
   useEffect(() => {
-    if (searchVisible) searchInputRef.current?.focus();
+    if (!searchVisible) return;
+    const collapsed = parseFloat(bandRef.current?.style.opacity || "0") > 0.5;
+    (collapsed ? bandSearchRef : posterSearchRef).current?.focus();
   }, [searchVisible]);
 
   const visibleTracks = tracks.filter(tr => {
@@ -193,254 +216,354 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
     scrollMargin: listScrollMargin,
   });
 
+  // ── Collapsing header ───────────────────────────────────────────────────────
+  // The poster fades into a compact bar as you scroll. Progress is written straight to
+  // the DOM from a rAF-throttled scroll handler — putting it in state would re-render
+  // the whole (virtualised) list on every frame.
+  useEffect(() => {
+    if (!scrollEl) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const t = Math.min(1, Math.max(0, scrollEl.scrollTop / COLLAPSE_DIST));
+      const p = posterRef.current;
+      const b = bandRef.current;
+      if (p) {
+        p.style.opacity = String(Math.max(0, 1 - t * 1.7));
+        // "none" rather than a no-op scale(1) at rest: any transform promotes the subtree to
+        // its own layer and re-rasterises the text, which visibly softens it (the header's
+        // button labels looked blurry until this).
+        p.style.transform = t === 0
+          ? "none"
+          : `translateY(${(-t * 26).toFixed(1)}px) scale(${(1 - t * 0.06).toFixed(3)})`;
+        p.style.pointerEvents = t > 0.5 ? "none" : "auto";
+      }
+      if (b) {
+        const o = Math.max(0, t * 2 - 1);
+        b.style.opacity = String(o);
+        b.style.pointerEvents = o > 0.5 ? "auto" : "none";
+      }
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    apply();
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => { scrollEl.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [scrollEl]);
+
+  const roundBtn = (px) => ({
+    background: "rgba(0,0,0,0.3)", border: "none",
+    borderRadius: "50%", width: px, height: px, display: "flex", alignItems: "center",
+    justifyContent: "center", cursor: "default",
+    transition: "background 0.15s, transform 0.12s",
+    color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)", flexShrink: 0,
+  });
+
+  // HeroUI presses its buttons to scale(.97); these are hand-rolled elements, so they'd
+  // otherwise feel dead next to the rest of the app. Applied via inline style because the
+  // hover handlers below already write to style, which would beat a CSS :active rule.
+  const press = {
+    onPointerDown: e => { e.currentTarget.style.transform = "scale(0.97)"; },
+    onPointerUp: e => { e.currentTarget.style.transform = ""; },
+    onPointerLeave: e => { e.currentTarget.style.transform = ""; },
+  };
+
+  const backButton = (px) => (
+    <button
+      {...press}
+      onClick={onBack || undefined} disabled={!onBack}
+      style={{ ...roundBtn(px), background: "rgba(0,0,0,0.38)", color: onBack ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)" }}
+      onMouseEnter={e => { if (onBack) e.currentTarget.style.background = "rgba(0,0,0,0.58)"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.38)"; e.currentTarget.style.transform = ""; }}
+    >
+      <ArrowLeft size={Math.round(px * 0.45)} />
+    </button>
+  );
+
+  const coverArt = (px, radius) => (
+    <div style={{
+      width: px, height: px, borderRadius: radius, flexShrink: 0, overflow: "hidden",
+      background: "var(--bg-elevated)",
+      boxShadow: px > 80 ? `0 18px 52px rgba(${accentColor},0.38)` : "var(--elevation-2)",
+    }}>
+      {thumbnail
+        ? <img src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, rgba(${accentColor},0.8), rgba(${accentColor},0.3))`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isLiked
+              ? <Heart size={Math.round(px * 0.38)} weight="fill" style={{ color: "rgba(255,255,255,0.9)" }} />
+              : typeLabel
+              ? <ClockCounterClockwise size={Math.round(px * 0.38)} style={{ color: "rgba(255,255,255,0.9)" }} />
+              : null}
+          </div>}
+    </div>
+  );
+
+  // Compact one-liner for the bar; the poster gets the richer row with the artist chip.
+  const compactMeta = (trackSearch
+    ? [`${visibleTracks.length} ${t("xOfY")} ${tracks.length}`]
+    : [
+        isAlbum && albumArtists ? albumArtists : null,
+        isAlbum && year ? String(year) : null,
+        `${total || tracks.length} ${t("songs")}`,
+        totalDuration,
+      ]
+  ).filter(Boolean).join("  ·  ");
+
+  // One action set, two sizes. Everything stays reachable in the collapsed bar too — the
+  // secondary actions shrink to icons rather than disappearing into a menu.
+  const headerActions = (compact) => {
+    const px = compact ? 34 : 44;
+    const pillH = compact ? 34 : 48;
+    const fs = compact ? "var(--t13)" : "var(--t14)";
+    const pill = {
+      borderRadius: "var(--r-full)", height: pillH, display: "flex", alignItems: "center",
+      justifyContent: "center", gap: compact ? 7 : 9, cursor: "default", fontWeight: 700,
+      fontSize: fs, fontFamily: "var(--font)", flexShrink: 0,
+      transition: "background 0.18s, border-color 0.18s, transform 0.12s",
+    };
+    const allCached = cachedSongIds && tracks.length > 0 && tracks.every(tr => cachedSongIds.has(tr.videoId));
+    const someDownloading = downloadingIds && tracks.some(tr => downloadingIds.has(tr.videoId));
+    return (
+      <>
+        {/* Play carries the app accent rather than the collection's own cover colour: with
+            the dynamic accent on, that follows the playing track, so the primary action
+            stays in step with the rest of the UI instead of sitting on the playlist's hue. */}
+        <button
+          {...press}
+          onClick={() => tracks.length && onPlay(tracks[0], tracks)}
+          style={{ ...pill, padding: compact ? "0 16px" : "0 26px", background: "var(--accent)", border: "none", color: "var(--accent-foreground)" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 86%, #fff)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.transform = ""; }}
+        >
+          <Play size={compact ? 13 : 15} weight="fill" style={{ color: "var(--accent-foreground)" }} />
+          {t("playAll")}
+        </button>
+
+        <Tooltip text={t("shuffle")}><button
+          {...press}
+          onClick={() => { if (!tracks.length) return; const sh = [...tracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}
+          style={compact
+            ? { ...roundBtn(px), color: "#fff" }
+            : { ...pill, padding: "0 22px", background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", fontWeight: 600 }}
+          onMouseEnter={e => { e.currentTarget.style.background = compact ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.12)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = compact ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = ""; }}
+        >
+          <Shuffle size={15} />
+          {!compact && t("shuffle")}
+        </button></Tooltip>
+
+        <div style={{ width: 1, height: compact ? 18 : 22, background: "rgba(255,255,255,0.12)", margin: "0 2px", flexShrink: 0 }} />
+
+        {extraActions}
+
+        {/* Search: field and toggle share one group, so the collapsed (zero-width) field
+            doesn't leave a second row gap behind and push the divider out of rhythm. */}
+        <div style={{ display: "flex", alignItems: "center", gap: searchVisible ? 8 : 0, flexShrink: 0 }}>
+          <div style={{ width: searchVisible ? (compact ? 180 : 200) : 0, overflow: "hidden", transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)", display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <input
+              ref={compact ? bandSearchRef : posterSearchRef}
+              value={trackSearch}
+              onChange={e => setTrackSearch(e.target.value)}
+              placeholder={t("searchInPlaylist")}
+              style={{
+                background: "rgba(0,0,0,0.35)", border: "none",
+                borderRadius: "var(--r-full)", padding: "0 16px",
+                height: px, boxSizing: "border-box",
+                fontSize: "var(--t13)", color: "#fff", outline: "none",
+                width: compact ? 180 : 200, flexShrink: 0, fontFamily: "var(--font)",
+              }}
+            />
+          </div>
+
+          <Tooltip text={t("searchInPlaylist")}><button
+            {...press}
+            onClick={() => { setSearchVisible(v => !v); if (searchVisible) setTrackSearch(""); }}
+            style={{ ...roundBtn(px), background: searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
+            onMouseLeave={e => { e.currentTarget.style.background = searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = ""; }}
+          >
+            <MagnifyingGlass size={15} />
+          </button></Tooltip>
+        </div>
+
+        {/* Download all / downloaded */}
+        {onDownloadAll && tracks.length > 0 && (allCached ? (
+          <>
+            <div style={{ ...pill, padding: compact ? "0 12px" : "0 18px", color: "var(--status-success)", background: "var(--status-success-soft)", border: "none", fontWeight: 600, backdropFilter: "blur(6px)" }}>
+              <CheckCircle size={14} weight="fill" />
+              {!compact && t("downloaded")}
+            </div>
+            {onRemoveAll && (
+              <Tooltip text={t("removeDownload")}><button
+                {...press}
+                onClick={() => onRemoveAll(tracks)}
+                style={{ ...roundBtn(px), color: "rgba(255,255,255,0.7)" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--status-danger-line)"; e.currentTarget.style.color = "var(--status-danger)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; e.currentTarget.style.transform = ""; }}
+              >
+                <Trash size={14} />
+              </button></Tooltip>
+            )}
+          </>
+        ) : compact ? (
+          <Tooltip text={t("downloadAll")}><button
+            {...press}
+            onClick={() => onDownloadAll(tracks)} disabled={someDownloading}
+            style={{ ...roundBtn(px), opacity: someDownloading ? 0.65 : 1 }}
+            onMouseEnter={e => { if (!someDownloading) e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = ""; }}
+          >
+            <DownloadSimple size={14} style={someDownloading ? { animation: "pulse 1s ease-in-out infinite" } : undefined} />
+          </button></Tooltip>
+        ) : (
+          <button
+            {...press}
+            onClick={() => onDownloadAll(tracks)} disabled={someDownloading}
+            style={{ ...pill, padding: "0 18px", background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.85)", border: "none", fontWeight: 600, opacity: someDownloading ? 0.65 : 1 }}
+            onMouseEnter={e => { if (!someDownloading) e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = ""; }}
+          >
+            <DownloadSimple size={14} style={someDownloading ? { animation: "pulse 1s ease-in-out infinite" } : undefined} />
+            {t("downloadAll")}
+          </button>
+        ))}
+
+        {cached && onRefresh && (
+          <Tooltip text={t("refresh")}><button
+            onClick={onRefresh}
+            onPointerDown={e => { e.currentTarget.style.transform = "rotate(30deg) scale(0.97)"; }}
+            onPointerUp={e => { e.currentTarget.style.transform = "rotate(30deg)"; }}
+            style={roundBtn(px)}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "rotate(30deg)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = "rotate(0deg)"; }}
+          >
+            <ArrowClockwise size={14} />
+          </button></Tooltip>
+        )}
+      </>
+    );
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
       <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:.9}}`}</style>
 
-      {/* Hero header */}
-      <div style={{
-        position: "relative",
-      }}>
-        {/* Navigation row */}
-        <div style={{ padding: "48px 22px 18px", display: "flex", gap: 8 }}>
-          <button
-            onClick={onBack || undefined}
-            disabled={!onBack}
-            style={{
-              width: 36, height: 36, borderRadius: "50%",
-              background: "rgba(0,0,0,0.38)", border: "0.5px solid rgba(255,255,255,0.12)",
-              color: onBack ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "default",
-              backdropFilter: "blur(8px)", transition: "background 0.15s",
-              padding: 0,
-            }}
-            onMouseEnter={e => { if (onBack) e.currentTarget.style.background = "rgba(0,0,0,0.58)"; }}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.38)"}
-          >
-            <ArrowLeft size={16} />
-          </button>
-        </div>
+      {/* ── Collapsing hero header ──────────────────────────────────────────────
+          Two states of the same header: a centred poster on arrival, a compact bar
+          once you scroll. The card is sticky and reserves CARD_H in the flow; the
+          poster is pulled up under it by exactly that much, so the header occupies
+          POSTER_H at every scroll position. That constant height is deliberate — the
+          page is the scroll container, so a header that actually shrank would move
+          listScrollMargin and make the virtualised rows jump under the cursor.
 
-        {/* Album / playlist info */}
-        <div style={{ display: "flex", gap: 26, alignItems: "flex-end", padding: "0 28px 28px" }}>
-          {/* Cover */}
-          <div style={{
-            width: 190, height: 190, borderRadius: "var(--r-xl)", flexShrink: 0,
-            overflow: "hidden", background: "var(--bg-elevated)",
-            boxShadow: `0 18px 52px rgba(${accentColor},0.38)`,
-          }}>
-            {thumbnail
-              ? <img src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, rgba(${accentColor},0.8), rgba(${accentColor},0.3))`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {isLiked
-                    ? <Heart size={72} weight="fill" style={{ color: "rgba(255,255,255,0.9)" }} />
-                    : typeLabel
-                    ? <ClockCounterClockwise size={72} style={{ color: "rgba(255,255,255,0.9)" }} />
-                    : null}
-                </div>}
+          The bar is a direct child of the column below, NOT of a header wrapper: a sticky
+          element only stays pinned while its own parent box is still on screen, so wrapping
+          it in a 400px header made it scroll away with that wrapper. Its parent has to span
+          the whole scrollable content. */}
+
+        {/* Collapsed bar */}
+        <div ref={bandRef} style={{
+          position: "sticky", top: BAND_TOP, zIndex: 6, height: CARD_H,
+          opacity: 0, pointerEvents: "none",
+          // Inset far enough that the shadow fades out before the content card's edge.
+          // That card clips with overflow:hidden, so a shadow still carrying weight when it
+          // gets there is cut off mid-falloff and draws a hard seam against the sidebar.
+          margin: "0 24px",
+          borderRadius: "var(--r-xl)",
+          boxShadow: "var(--elevation-3)",
+        }}>
+          {/* The frosted look is built rather than sampled. backdrop-filter is unreliable in
+              this spot: it does apply, but only up to a radius of roughly 5px — beyond that
+              Chromium stops honouring it and the rows behind become legible again. So the
+              card paints its own blurred copy of the cover under a dark wash, which is what
+              the effect was meant to show anyway, and stays fully opaque to the list. */}
+          <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: "inherit", overflow: "hidden", pointerEvents: "none" }}>
+            {thumbnail && (
+              <div style={{
+                position: "absolute", inset: -60,
+                backgroundImage: `url(${thumb(thumbnail)})`,
+                backgroundSize: "cover", backgroundPosition: "center",
+                filter: "blur(30px) saturate(160%)",
+              }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: thumbnail ? "rgba(10,10,10,0.62)" : "var(--bg-elevated)" }} />
           </div>
 
-          {/* Info */}
-          <div style={{ minWidth: 0, flex: 1 }}>
-            {/* Type label */}
-            <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
-              {typeLabel ?? (isAlbum ? t("album") : t("playlist"))}
+          <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", gap: 14, padding: "0 14px" }}>
+            {backButton(34)}
+            {coverArt(40, "var(--r-md)")}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: "var(--t15)", fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+              <div style={{ fontSize: "var(--t11)", color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{compactMeta}</div>
             </div>
-
-            {/* Title */}
-            <div style={{ fontSize: 38, fontWeight: 800, lineHeight: 1.1, marginBottom: 14, color: "#fff", textShadow: "0 2px 20px rgba(0,0,0,0.55)" }}>{title}</div>
-
-            {/* Metadata row with pipe separators */}
-            <div style={{ fontSize: "var(--t13)", color: "rgba(255,255,255,0.65)", marginBottom: 20, display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
-              {isAlbum && albumArtists && (
-                <>
-                  <span
-                    onClick={() => albumArtistBrowseId && onOpenArtist?.({ browseId: albumArtistBrowseId, artist: albumArtists })}
-                    style={{
-                      cursor: "default",
-                      display: "inline-flex", alignItems: "center",
-                      background: `rgba(${accentColor},0.25)`,
-                      border: `1px solid rgba(${accentColor},0.42)`,
-                      borderRadius: "var(--r-full)", padding: "3px 12px",
-                      fontSize: "var(--t13)", fontWeight: 600,
-                      color: "var(--accent)", transition: "background 0.15s, border-color 0.15s",
-                      marginRight: 10,
-                    }}
-                    onMouseEnter={e => { if (albumArtistBrowseId) { e.currentTarget.style.background = `rgba(${accentColor},0.38)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.65)`; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = `rgba(${accentColor},0.25)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.42)`; }}
-                  >{albumArtists}</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                </>
-              )}
-              {isAlbum && year && (
-                <>
-                  <span>{year}</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                </>
-              )}
-              <span>{total || tracks.length} {t("songs")}</span>
-              {totalDuration && (
-                <>
-                  <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
-                  <span>{totalDuration}</span>
-                </>
-              )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {headerActions(true)}
             </div>
+          </div>
+        </div>
 
-            {/* Action buttons — play left, secondary right */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              {/* Left: play + shuffle */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => tracks.length && onPlay(tracks[0], tracks)} style={{
-                background: `rgba(${accentColor},0.18)`,
-                border: `1px solid rgba(${accentColor},0.38)`,
-                borderRadius: "var(--r-full)", height: 50, padding: "0 28px",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                cursor: "default", transition: "background 0.18s, border-color 0.18s, transform 0.15s",
-                fontSize: "var(--t15)", fontWeight: 700, color: "var(--accent)",
-                fontFamily: "var(--font)", backdropFilter: "blur(6px)",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = `rgba(${accentColor},0.3)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.6)`; e.currentTarget.style.transform = "scale(1.03)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = `rgba(${accentColor},0.18)`; e.currentTarget.style.borderColor = `rgba(${accentColor},0.38)`; e.currentTarget.style.transform = "scale(1)"; }}
-              >
-                <Play size={14} weight="fill" style={{ color: "var(--accent)" }} />
-                {t("playAll")}
-              </button>
-              {/* Shuffle: start the collection in a shuffled order without touching the player-bar shuffle toggle */}
-              <button title={t("shuffle")} onClick={() => { if (!tracks.length) return; const sh = [...tracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }} style={{
-                background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)",
-                borderRadius: "var(--r-full)", height: 50, padding: "0 22px",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                cursor: "default", transition: "background 0.18s, transform 0.15s",
-                fontSize: "var(--t14)", fontWeight: 600, color: "var(--text-secondary)",
-                fontFamily: "var(--font)",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.transform = "scale(1.03)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "scale(1)"; }}
-              >
-                <Shuffle size={15} />
-                {t("shuffle")}
-              </button>
-              </div>
+        {/* Poster */}
+        <div ref={posterRef} style={{
+          position: "relative", marginTop: -CARD_H, height: POSTER_H,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: `${BAND_TOP + 16}px 28px 0`, textAlign: "center",
+        }}>
+          <div style={{ position: "absolute", top: 26, left: 22 }}>{backButton(36)}</div>
 
-              {/* Right: secondary actions */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {extraActions}
-                {/* Inline search input */}
-                <div style={{
-                  width: searchVisible ? 200 : 0, overflow: "hidden",
-                  transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
-                  display: "flex", alignItems: "center",
-                }}>
-                  <input
-                    ref={searchInputRef}
-                    value={trackSearch}
-                    onChange={e => setTrackSearch(e.target.value)}
-                    placeholder={t("searchInPlaylist")}
-                    style={{
-                      background: "rgba(0,0,0,0.35)", border: "0.5px solid rgba(255,255,255,0.18)",
-                      borderRadius: "var(--r-full)", padding: "9px 14px", fontSize: "var(--t13)", color: "#fff",
-                      outline: "none", width: 200, flexShrink: 0, fontFamily: "var(--font)",
-                    }}
-                  />
-                </div>
-                {searchVisible && trackSearch && (
-                  <span style={{ fontSize: "var(--t12)", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-                    {visibleTracks.length} {t("xOfY")} {tracks.length}
-                  </span>
-                )}
-                {/* Search toggle */}
-                <Tooltip text={t("searchInPlaylist")}><button
-                  onClick={() => { setSearchVisible(v => !v); if (searchVisible) setTrackSearch(""); }}
+          {coverArt(148, "var(--r-xl)")}
+
+          <div style={{ marginTop: 18, fontSize: "var(--t11)", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            {typeLabel ?? (isAlbum ? t("album") : t("playlist"))}
+          </div>
+
+          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, margin: "5px 0 7px", color: "#fff", textShadow: "0 2px 20px rgba(0,0,0,0.55)", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {title}
+          </div>
+
+          {/* Metadata — albums additionally carry the artist chip and the year */}
+          <div style={{ fontSize: "var(--t13)", color: "rgba(255,255,255,0.65)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", rowGap: 6 }}>
+            {isAlbum && albumArtists && (
+              <>
+                <span
+                  onClick={() => albumArtistBrowseId && onOpenArtist?.({ browseId: albumArtistBrowseId, artist: albumArtists })}
                   style={{
-                    background: searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)",
-                    border: "0.5px solid rgba(255,255,255,0.15)",
-                    borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                    justifyContent: "center", cursor: "default", transition: "background 0.15s",
-                    color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)",
+                    cursor: "default", display: "inline-flex", alignItems: "center",
+                    // Slightly denser fill than before: without the outline the chip needs a
+                    // touch more body to stay legible as a distinct, clickable thing.
+                    background: `rgba(${accentColor},0.34)`, border: "none",
+                    borderRadius: "var(--r-full)", padding: "3px 12px",
+                    fontSize: "var(--t13)", fontWeight: 600, color: "#fff",
+                    transition: "background 0.15s", marginRight: 10,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = searchVisible ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.3)"}
-                >
-                  <MagnifyingGlass size={15} />
-                </button></Tooltip>
-
-                {/* Download / downloaded state */}
-                {onDownloadAll && tracks.length > 0 && (() => {
-                  const allCached = cachedSongIds && tracks.every(tr => cachedSongIds.has(tr.videoId));
-                  const someDownloading = downloadingIds && tracks.some(tr => downloadingIds.has(tr.videoId));
-                  const btnBase = {
-                    borderRadius: "var(--r-full)", height: 42, display: "flex", alignItems: "center",
-                    padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
-                    cursor: "default", transition: "background 0.15s, border-color 0.15s",
-                    fontFamily: "var(--font)", backdropFilter: "blur(6px)", border: "0.5px solid rgba(255,255,255,0.15)",
-                  };
-                  return allCached ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ ...btnBase, cursor: "default", color: "var(--status-success)", background: "var(--status-success-soft)", border: "0.5px solid var(--status-success-line)" }}>
-                        <CheckCircle size={14} weight="fill" />
-                        {t("downloaded")}
-                      </div>
-                      {onRemoveAll && (
-                        <Tooltip text={t("removeDownload")}><button
-                          onClick={() => onRemoveAll(tracks)}
-                          style={{
-                            background: "rgba(0,0,0,0.3)", border: "0.5px solid rgba(255,255,255,0.15)",
-                            borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                            justifyContent: "center", cursor: "default", transition: "background 0.15s",
-                            color: "rgba(255,255,255,0.7)", padding: 0, backdropFilter: "blur(6px)",
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "var(--status-danger-line)"; e.currentTarget.style.color = "var(--status-danger)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
-                        >
-                          <Trash size={14} />
-                        </button></Tooltip>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => onDownloadAll(tracks)}
-                      disabled={someDownloading}
-                      style={{
-                        ...btnBase,
-                        background: "rgba(0,0,0,0.3)",
-                        color: "rgba(255,255,255,0.85)",
-                        opacity: someDownloading ? 0.65 : 1,
-                        cursor: someDownloading ? "default" : "default",
-                      }}
-                      onMouseEnter={e => { if (!someDownloading) e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
-                      onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.3)"}
-                    >
-                      {someDownloading
-                        ? <DownloadSimple size={14} style={{ animation: "pulse 1s ease-in-out infinite" }} />
-                        : <DownloadSimple size={14} />}
-                      {t("downloadAll")}
-                    </button>
-                  );
-                })()}
-
-                {/* Refresh */}
-                {cached && onRefresh && (
-                  <Tooltip text={t("refresh")}><button
-                    onClick={onRefresh}
-                    style={{
-                      background: "rgba(0,0,0,0.3)", border: "0.5px solid rgba(255,255,255,0.15)",
-                      borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center",
-                      justifyContent: "center", cursor: "default", transition: "background 0.15s, transform 0.15s",
-                      color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "rotate(30deg)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = "rotate(0deg)"; }}
-                  >
-                    <ArrowClockwise size={14} />
-                  </button></Tooltip>
-                )}
-              </div>
-            </div>
-
+                  onMouseEnter={e => { if (albumArtistBrowseId) e.currentTarget.style.background = `rgba(${accentColor},0.5)`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `rgba(${accentColor},0.34)`; }}
+                >{albumArtists}</span>
+                <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
+              </>
+            )}
+            {isAlbum && year && (
+              <>
+                <span>{year}</span>
+                <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
+              </>
+            )}
+            <span>{total || tracks.length} {t("songs")}</span>
+            {totalDuration && (
+              <>
+                <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
+                <span>{totalDuration}</span>
+              </>
+            )}
+            {searchVisible && trackSearch && (
+              <>
+                <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 10px", fontSize: "var(--t14)" }}>|</span>
+                <span>{visibleTracks.length} {t("xOfY")} {tracks.length}</span>
+              </>
+            )}
           </div>
-        </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap", rowGap: 10, maxWidth: "100%" }}>
+            {headerActions(false)}
+          </div>
       </div>
 
       {/* Loading progress */}
