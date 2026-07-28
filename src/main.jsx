@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import OverlayEditorApp from "./OverlayEditorApp.jsx";
+import MiniPlayerApp from "./miniplayer/MiniPlayerApp.jsx";
 // Big Picture mode — still early/WIP (see src/bigpicture/), reachable via F10 or the
 // "Launch" button in Settings > Experimental. The gamepad test spike (GamepadTest.jsx)
 // stays out — it was only ever a throwaway harness for verifying the Gamepad API, not
@@ -21,13 +22,21 @@ if (!import.meta.env.DEV) {
 
 console.log("[boot] main.jsx executing at +" + (Date.now() - (window.__bootStart || Date.now())) + "ms");
 
-const isOverlayEditor = new URLSearchParams(window.location.search).get("overlayEditor") === "1";
+const params = new URLSearchParams(window.location.search);
+const isOverlayEditor = params.get("overlayEditor") === "1";
+// The mini player is its own small window and shares nothing with the main tree — render it
+// alone, without App or Big Picture (a second App would start a second audio pipeline).
+const isMiniPlayer = params.get("miniPlayer") === "1";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <>
-    {isOverlayEditor ? <OverlayEditorApp /> : <App />}
-    <BigPicture />
-  </>
+  isMiniPlayer ? (
+    <MiniPlayerApp />
+  ) : (
+    <>
+      {isOverlayEditor ? <OverlayEditorApp /> : <App />}
+      <BigPicture />
+    </>
+  )
 );
 
 // Fade out the HTML boot splash now that React has taken over.

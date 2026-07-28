@@ -7,7 +7,7 @@ const appWindow = getCurrentWebviewWindow();
 import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
-import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone } from "./icons.jsx";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
@@ -48,6 +48,7 @@ import { LikedView } from "./views/liked-view.jsx";
 import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
 import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
+import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 
 
 
@@ -2028,6 +2029,60 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     });
   }, [track, isPlaying, progress, duration, shuffle, repeat]);
 
+  // Mini player: same snapshot, but it lives in its own window, so it goes over Tauri's
+  // event bus instead of the in-process store above. Position travels as a timestamped
+  // anchor that the mini player interpolates, so this stays at ~1 message/s rather than
+  // one per progress tick. miniStateRef keeps the latest payload around for the handshake.
+  const miniStateRef = useRef(null);
+  const miniSentRef = useRef({ sig: "", at: 0 });
+  useEffect(() => {
+    const tr = track;
+    const artists = Array.isArray(tr?.artists)
+      ? tr.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
+      : (tr?.artists || "");
+    const payload = {
+      title: tr?.title || "", artists, thumbnail: tr?.thumbnail || "",
+      isPlaying: !!isPlaying, position: progress || 0, duration: Math.floor(duration || 0),
+      at: Date.now(), hasTrack: !!tr,
+    };
+    miniStateRef.current = payload;
+    // Send immediately when something the mini player renders statically changes; otherwise
+    // throttle, since `progress` alone would fire this several times per second.
+    const sig = `${tr?.videoId || ""}|${!!isPlaying}|${payload.duration}`;
+    const now = Date.now();
+    if (sig === miniSentRef.current.sig && now - miniSentRef.current.at < 1000) return;
+    miniSentRef.current = { sig, at: now };
+    emitNowPlaying(payload);
+  }, [track, isPlaying, progress, duration]);
+  useEffect(() => {
+    let unlisten;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen(EV_HELLO, () => {
+        // The mini player just mounted and has nothing yet — answer with the current state.
+        if (!miniStateRef.current) return;
+        const a = audioRef.current;
+        emitNowPlaying({
+          ...miniStateRef.current,
+          position: typeof a?.currentTime === "number" ? a.currentTime : miniStateRef.current.position,
+          at: Date.now(),
+        });
+      }).then(fn => { unlisten = fn; });
+    });
+    return () => { unlisten && unlisten(); };
+  }, []);
+  // Opening the mini player sends this window to the tray; this brings it back.
+  useEffect(() => {
+    let unlisten;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen(EV_SHOW_MAIN, async () => {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const w = getCurrentWindow();
+        try { await w.show(); await w.unminimize(); await w.setFocus(); } catch {}
+      }).then(fn => { unlisten = fn; });
+    });
+    return () => { unlisten && unlisten(); };
+  }, []);
+
   // Seek drag state for the HeroUI seek slider (seconds while dragging, else null).
   const [seekDrag, setSeekDrag] = useState(null);
 
@@ -2214,7 +2269,13 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 2, width: 390, justifyContent: "flex-end", lineHeight: 0 }}>
+        {/* Right cluster. Width is fixed so the transport in the middle keeps its position
+            instead of shifting whenever a control appears or hides. Budget at 36px per icon
+            button: volume 112 (icon + slider), five toggles 180, video switch 68, expand +
+            fullscreen 72, gaps 16 → ~448. Keep some slack here when adding another control,
+            and mind that left (340) + this + transport (224) must stay under the window's
+            minWidth in tauri.conf.json. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 2, width: 460, justifyContent: "flex-end", lineHeight: 0 }}>
           {/* Volume icon + slider */}
           <div data-volume-area style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Tooltip text={volume === 0 ? t("unmute") : t("mute")}>
@@ -2483,6 +2544,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               className={cn("rounded-full", queueOpen ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               <Queue size={16} />
+            </Button>
+          </Tooltip>
+          {/* Mini player — opens the small always-on-top window */}
+          <Tooltip text={t("miniPlayerTooltip")}>
+            <Button variant="ghost" isIconOnly onPress={() => { openMiniPlayer().catch(() => {}); }}
+              className="rounded-full text-secondary hover:text-primary"
+              style={{ contain: "layout style" }}>
+              <MiniPlayerEnter size={16} />
             </Button>
           </Tooltip>
           {/* Lyrics toggle */}

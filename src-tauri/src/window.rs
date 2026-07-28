@@ -25,6 +25,96 @@ unsafe extern "system" fn nccalc_subclass(
     DefSubclassProc(hwnd, msg, wparam, lparam)
 }
 
+/// Subclass proc that keeps a window square while it is being resized. WM_SIZING arrives
+/// with the rect Windows is *about* to apply, so correcting it here is invisible — unlike
+/// fixing the size afterwards from JS, which lets a non-square frame paint for a frame first.
+#[cfg(windows)]
+unsafe extern "system" fn square_subclass(
+    hwnd: windows::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+    _id: usize,
+    _data: usize,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::Foundation::{LRESULT, RECT};
+    use windows::Win32::UI::Shell::DefSubclassProc;
+    use windows::Win32::UI::WindowsAndMessaging::WM_SIZING;
+
+    // Which handle is being dragged (wParam). Spelled out locally so this doesn't depend on
+    // how the windows crate happens to type these constants.
+    const WMSZ_LEFT: usize = 1;
+    const WMSZ_RIGHT: usize = 2;
+    const WMSZ_TOP: usize = 3;
+    const WMSZ_TOPLEFT: usize = 4;
+    const WMSZ_TOPRIGHT: usize = 5;
+    const WMSZ_BOTTOM: usize = 6;
+    const WMSZ_BOTTOMLEFT: usize = 7;
+
+    if msg == WM_SIZING {
+        let r = &mut *(lparam.0 as *mut RECT);
+        let w = r.right - r.left;
+        let h = r.bottom - r.top;
+        let edge = wparam.0;
+        // Side handles: the dragged axis dictates the size. Corner handles: take the larger
+        // of the two, so the frame follows the pointer instead of lagging behind it.
+        let size = match edge {
+            WMSZ_LEFT | WMSZ_RIGHT => w,
+            WMSZ_TOP | WMSZ_BOTTOM => h,
+            _ => w.max(h),
+        };
+        // Grow away from the edge being held, so the opposite corner stays put.
+        if matches!(edge, WMSZ_TOP | WMSZ_TOPLEFT | WMSZ_TOPRIGHT) {
+            r.top = r.bottom - size;
+        } else {
+            r.bottom = r.top + size;
+        }
+        if matches!(edge, WMSZ_LEFT | WMSZ_TOPLEFT | WMSZ_BOTTOMLEFT) {
+            r.left = r.right - size;
+        } else {
+            r.right = r.left + size;
+        }
+        return LRESULT(1); // TRUE — we changed the rect
+    }
+    DefSubclassProc(hwnd, msg, wparam, lparam)
+}
+
+/// Constrain a window to a 1:1 aspect ratio for the whole duration of a resize drag.
+/// Windows: a WM_SIZING subclass. macOS: NSWindow does it natively. No-op elsewhere.
+pub fn lock_square(window: &tauri::WebviewWindow) {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::Shell::SetWindowSubclass;
+        if let Ok(h) = window.hwnd() {
+            // Subclass id 2 — id 1 belongs to the borderless-frame fix above.
+            unsafe { let _ = SetWindowSubclass(HWND(h.0 as _), Some(square_subclass), 2, 0); }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::base::id;
+        use cocoa::foundation::NSSize;
+        use objc::{msg_send, sel, sel_impl};
+        if let Ok(ns) = window.ns_window() {
+            unsafe {
+                let _: () = msg_send![ns as id, setContentAspectRatio: NSSize::new(1.0, 1.0)];
+            }
+        }
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = window;
+    }
+}
+
+#[tauri::command]
+pub fn lock_square_for(app: tauri::AppHandle, label: String) {
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = app.run_on_main_thread(move || lock_square(&win));
+    }
+}
+
 /// Remove the coloured outer border Windows 11 draws around borderless (decorations:false)
 /// windows — by default it follows the system accent colour. We set DWMWA_BORDER_COLOR to
 /// DWMWA_COLOR_NONE (sides + bottom) and install a WM_NCCALCSIZE subclass for the residual

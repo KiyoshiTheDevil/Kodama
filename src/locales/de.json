@@ -58,7 +58,6 @@
   "filterArtists": "Künstler",
   "filterAlbums": "Alben",
   "filterPlaylists": "Playlists",
-  "filterPlaylists": "Playlists",
   "sortDefault": "Standard",
   "sortAlphaAZ": "A → Z",
   "sortAlphaZA": "Z → A",
@@ -918,7 +917,6 @@
   "showLess": "Weniger anzeigen",
   "subscribers": "Abonnenten",
   "monthlyListeners": "monatliche Hörer",
-  "startRadio": "Radio starten",
   "videos": "Videos",
   "relatedArtists": "Fans hören auch",
   "subscribe": "Abonnieren",
@@ -927,5 +925,12 @@
   "translatedBy": "Übersetzt von",
   "totalCacheUsage": "Gesamter Cache-Verbrauch",
   "cacheStatsError": "Cache-Statistik-Fehler",
-  "hideDebugMenu": "Debug-Menü ausblenden"
+  "hideDebugMenu": "Debug-Menü ausblenden",
+  "miniPlayerTooltip": "Mini-Player",
+  "miniPlayerIdle": "Nichts in Wiedergabe",
+  "miniPlayerOpenMain": "Hauptfenster öffnen",
+  "miniPlayerClose": "Mini-Player schließen",
+  "miniPlayerPrev": "Vorheriger Titel",
+  "miniPlayerPlayPause": "Wiedergabe / Pause",
+  "miniPlayerNext": "Nächster Titel"
 }

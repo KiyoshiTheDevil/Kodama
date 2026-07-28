@@ -16,7 +16,7 @@
         "title": "Kodama",
         "width": 1100,
         "height": 700,
-        "minWidth": 960,
+        "minWidth": 1040,
         "minHeight": 560,
         "fullscreen": false,
         "resizable": true,

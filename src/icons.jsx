@@ -26,6 +26,32 @@ function fa(name, alwaysSolid = false) {
   };
 }
 
+/**
+ * Project-drawn icons that live in public/ as SVG files. Rendered through a CSS mask rather
+ * than an <img> so they inherit the current text colour like the Font Awesome glyphs do —
+ * an <img> would keep whatever fill the file was exported with. Only the shape (alpha) is
+ * used, so the fill colour inside the SVG is irrelevant.
+ */
+function maskIcon(url) {
+  return function MaskIcon({ size = 16, weight, className = "", style, ...rest }) {
+    return (
+      <span
+        className={className}
+        style={{
+          display: "inline-block", width: size, height: size, background: "currentColor",
+          WebkitMaskImage: `url("${url}")`, maskImage: `url("${url}")`,
+          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center", maskPosition: "center",
+          WebkitMaskSize: "contain", maskSize: "contain",
+          ...style,
+        }}
+        aria-hidden="true"
+        {...rest}
+      />
+    );
+  };
+}
+
 function fab(name) {
   return function FaBrandIcon({ size, className = "", style, ...rest }) {
     return (
@@ -176,6 +202,10 @@ export const Info               = fa("circle-info");
 export const WarningCircle      = fa("circle-exclamation");
 export const Flag               = fa("flag");
 export const Star               = fa("star", true);
+
+// ── Project-drawn icons (public/*.svg) ────────────────────────────────────────
+export const MiniPlayerEnter    = maskIcon("/mini-player-enable.svg");  // collapse into the mini player
+export const MiniPlayerExit     = maskIcon("/mini-player-disable.svg"); // back to the main window
 
 // ── Brand icons ───────────────────────────────────────────────────────────────
 export const BrandTwitch        = fab("twitch");

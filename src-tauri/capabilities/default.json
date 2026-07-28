@@ -2,12 +2,13 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Permissions for the main window",
-  "windows": ["main", "overlay-editor"],
+  "windows": ["main", "overlay-editor", "mini-player"],
   "permissions": [
     "core:default",
     "deep-link:default",
     "core:window:allow-close",
     "core:window:allow-show",
+    "core:window:allow-hide",
     "core:window:allow-minimize",
     "core:window:allow-unminimize",
     "core:window:allow-toggle-maximize",
@@ -15,6 +16,7 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-size",
+    "core:window:allow-scale-factor",
     "core:window:allow-set-position",
     "core:window:allow-outer-size",
     "core:window:allow-outer-position",
@@ -22,6 +24,9 @@
     "core:window:allow-set-resizable",
     "core:window:allow-set-title",
     "core:webview:allow-create-webview-window",
+    "core:window:allow-set-focus",
+    "core:window:allow-get-all-windows",
+    "core:webview:allow-get-all-webviews",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://**" }]
