@@ -318,12 +318,10 @@
   "welcome": "Bienvenido/a",
   "reauthTitle": "Sesión expirada",
   "reauthDesc": "Tu sesión a expirado. Inicia sesión otra vez para seguir usando tu librería.",
-  "sessionExpired": "Sesión expirada",
   "loginDesc": "Conecta tu cuenta de Youtube Music para usar tu librería.",
   "loginButton": "🔑 Inicia sesión en Youtube Music",
   "loginHint": "Una ventana de navegador se abrirá. Inicia sesión — la aplicación detecta tu inicio de sesión automáticamente.",
   "loginWaiting": "Esperando inicio de sesión…",
-  "loginWaitingDesc": "Inicia sesión en YouTube Music en la ventana abierta. Se cerrará automáticamente.",
   "oauthStepTitle": "Iniciar sesión con Google",
   "oauthInstruction": "Abre la página del dispositivo de Google e introduce este código para permitir a Kodama acceder a tu cuenta de Youtube Music:",
   "openGoogleBtn": "Abrir página de Google",
@@ -338,7 +336,6 @@
   "ffmpegSetupTitle": "Configuración de una vez",
   "ffmpegDownloadingTitle": "Instalando FFmpeg…",
   "ffmpegErrorTitle": "Descarga fallida",
-  "ffmpegNeededDesc": "No se encontro FFmpeg, se descargará una vez (~130 MB). Se requiere para exportar MP3.",
   "ffmpegSkip": "Saltar",
   "ffmpegDownload": "Descargar FFmpeg",
   "ffmpegNotInstalled": "No instalado",
@@ -377,5 +374,6 @@
   "playlistPrivacy": "Privacidad",
   "privacyPrivate": "Privado",
   "privacyPublic": "Público",
-  "privacyUnlisted": "No listado"
+  "privacyUnlisted": "No listado",
+  "sessionExpired": "Sesión expirada"
 }
