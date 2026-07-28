@@ -318,12 +318,10 @@
   "welcome": "Добро пожаловать",
   "reauthTitle": "Время сеанса истекло",
   "reauthDesc": "Время входа истекло. Войдите снова, чтобы продолжить использовать вашу библиотеку.",
-  "sessionExpired": "Время сеанса истекло",
   "loginDesc": "Подключите свой аккаунт YouTube Music, чтобы использовать вашу библиотеку.",
   "loginButton": "🔑 Войдите в YouTube Music",
   "loginHint": "Откроется окно браузера. Вход в систему — приложение обнаруживает ваш логин автоматически.",
   "loginWaiting": "Ожидание входа…",
-  "loginWaitingDesc": "Вход в YouTube Music в открывшемся окне. Оно закроется автоматически.",
   "oauthStepTitle": "Войти с Google",
   "oauthInstruction": "Откройте страницу устройства Google и введите этот код, чтобы позволить Kodama получить доступ к вашему аккаунту YouTube Music:",
   "openGoogleBtn": "Открыть страницу Google",
@@ -338,7 +336,6 @@
   "ffmpegSetupTitle": "Одноразовая настройка",
   "ffmpegDownloadingTitle": "Установка FFmpeg…",
   "ffmpegErrorTitle": "Ошибка при загрузке",
-  "ffmpegNeededDesc": "FFmpeg не найден и будет загружен один раз (~130 MB). Это необходимо для экспорта MP3.",
   "ffmpegSkip": "Пропустить",
   "ffmpegDownload": "Скачать FFmpeg",
   "ffmpegNotInstalled": "Не установлен",
@@ -396,5 +393,6 @@
   "trackAdded": "Песня добавлена",
   "trackRemoved": "Песня удалена",
   "removeDownload": "Удалить загрузку",
-  "premiumOnly": "Доступно только для подписчиков YouTube Music Premium"
+  "premiumOnly": "Доступно только для подписчиков YouTube Music Premium",
+  "sessionExpired": "Время сеанса истекло"
 }
