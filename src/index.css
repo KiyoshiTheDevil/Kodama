@@ -721,9 +721,14 @@ button:not([class]) {
   outline: none;
 }
 
+/* The `to` frame deliberately declares no transform. With animation-fill-mode: both, whatever
+   the end frame declares stays applied forever — a translateX(0) would leave every view under
+   a permanent identity transform, which (a) neutralises backdrop-filter on all descendants and
+   (b) keeps the subtree on its own layer, softening text. Omitting it lets the animation still
+   interpolate to the element's base value and then drop the transform entirely. */
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateX(-18px); }
-  to   { opacity: 1; transform: translateX(0); }
+  to   { opacity: 1; }
 }
 /* Scroll-to-top pill: rise up from below as it appears. Ends at translateY(0) (no transform)
    so the descendant backdrop-filter works once the animation finishes. */
