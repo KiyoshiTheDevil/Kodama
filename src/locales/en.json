@@ -932,5 +932,6 @@
   "miniPlayerClose": "Close mini player",
   "miniPlayerPrev": "Previous track",
   "miniPlayerPlayPause": "Play / Pause",
-  "miniPlayerNext": "Next track"
+  "miniPlayerNext": "Next track",
+  "rowMoreActions": "More actions"
 }

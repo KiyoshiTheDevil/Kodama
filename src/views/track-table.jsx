@@ -1,6 +1,6 @@
 // The track-table view stack: a selection-action button, the shared table row, and the
 // PlaylistLayout (used by playlist / album / liked / downloads / history). Extracted from App.jsx.
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@heroui/react";
 import { thumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
@@ -8,7 +8,7 @@ import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
-import { ArrowClockwise, ArrowLeft, CheckCircle, ClockCounterClockwise, Crown, DownloadSimple, Heart, MagnifyingGlass, Pause, Play, Shuffle, Trash } from "../icons.jsx";
+import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClockwise, Crown, DotsThreeVertical, DownloadSimple, Heart, MagnifyingGlass, Minus, Pause, Play, Shuffle, Sort, SortDown, SortUp, Trash } from "../icons.jsx";
 
 // Collapsing-header geometry. CARD_H is the height the pinned card reserves in the flow;
 // the poster is pulled up under it by exactly that much, so the header's total height is
@@ -53,14 +53,44 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
   return iconOnly ? <Tooltip text={label}>{btn}</Tooltip> : btn;
 }
 
-export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect }) {
+// Column track shared by the rows and the header, so the two can't drift apart.
+// Title | actions | artist | (album) | download | duration | (select)
+//
+// The duration column stays narrow because its header is a clock icon rather than the word
+// "DURATION", which was wide enough to make the column read as misaligned with its values.
+export function trackGridCols(isAlbum, withSelect) {
+  return [
+    "minmax(0,2fr)", "76px", "minmax(0,1fr)",
+    ...(isAlbum ? [] : ["minmax(0,1fr)"]),
+    "28px", "56px",
+    ...(withSelect ? ["36px"] : []),
+  ].join(" ");
+}
+
+// Selection box, shared by the header (tri-state) and the rows. A square rather than a
+// circle — it reads as "select", not as a radio choice.
+export function SelectBox({ state, size = 16 }) {
+  const on = state === "all" || state === "some";
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "var(--r-sm, 4px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: on ? "var(--accent)" : "var(--bg-elevated)",
+      border: on ? "none" : "1.5px solid var(--text-muted)",
+      color: "var(--accent-foreground)", transition: "background 0.15s, border-color 0.15s",
+    }}>
+      {state === "all" && <Check size={Math.round(size * 0.64)} weight="bold" />}
+      {state === "some" && <Minus size={Math.round(size * 0.64)} weight="bold" />}
+    </div>
+  );
+}
+
+export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect, isLiked = false, onToggleLike }) {
   const anim = useAnimations();
   const t = useLang();
   const showNum = useTrackNumbers();
 
-  const gridCols = onToggleSelect
-    ? (isAlbum ? "28px minmax(0,2fr) minmax(0,1fr) 28px 52px" : "28px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px")
-    : (isAlbum ? "minmax(0,2fr) minmax(0,1fr) 28px 52px" : "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px");
+  const gridCols = trackGridCols(isAlbum, !!onToggleSelect);
 
   const row = (
     <div
@@ -76,16 +106,6 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
             : "hover:bg-hover"
       } ${isPremiumOnly ? "opacity-40" : ""}`}
     >
-      {onToggleSelect && (
-        <div
-          onClick={e => { e.stopPropagation(); onToggleSelect(); }}
-          className={`flex items-center justify-center shrink-0 cursor-default transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-        >
-          {selected
-            ? <CheckCircle size={18} weight="fill" className="text-accent" />
-            : <div className="w-4 h-4 rounded-full border-[1.5px] border-[var(--text-muted)] bg-elevated" />}
-        </div>
-      )}
       {/* Title */}
       <div className="flex items-center gap-3 min-w-0">
         {showNum && <span className={`w-6 text-right shrink-0 text-t12 tabular-nums ${isPlaying ? "text-accent" : "text-muted"}`}>{index + 1}</span>}
@@ -107,6 +127,40 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
             {track.isExplicit && <ExplicitBadge />}
           </div>
         </div>
+      </div>
+      {/* Row actions, sitting right after the title. The heart stays visible only when the
+          track is actually liked — that's a state worth reading at a glance. The empty heart
+          and the menu are mere affordances, so they wait for hover instead of turning a long
+          list into a field of grey icons. */}
+      <div className="flex items-center shrink-0" onClick={e => e.stopPropagation()}>
+        {onToggleLike && (
+          <Tooltip text={isLiked ? t("unlike") : t("like")}>
+            <Button
+              variant="ghost" size="sm" isIconOnly
+              onPress={() => onToggleLike(track)}
+              className={`rounded-full shrink-0 ${isLiked ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100"}`}
+            >
+              <Heart size={15} weight={isLiked ? "fill" : "regular"} />
+            </Button>
+          </Tooltip>
+        )}
+        {onContextMenu && (
+          <Tooltip text={t("rowMoreActions")}>
+            <Button
+              variant="ghost" size="sm" isIconOnly
+              onPress={(e) => {
+                // react-aria hands over a press event, not a mouse event, so there are no
+                // pointer coordinates. Anchor the menu under the button instead — which
+                // reads better here anyway than opening it wherever the cursor happened to be.
+                const r = e.target?.getBoundingClientRect?.();
+                onContextMenu(r ? { clientX: r.left, clientY: r.bottom + 4 } : { clientX: 0, clientY: 0 }, track);
+              }}
+              className="rounded-full shrink-0 text-muted opacity-0 group-hover:opacity-100"
+            >
+              <DotsThreeVertical size={15} />
+            </Button>
+          </Tooltip>
+        )}
       </div>
       {/* Artist */}
       <div className="text-t12 text-secondary truncate">
@@ -136,10 +190,20 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           <DownloadSimple size={14} className="text-muted cursor-default opacity-0 transition-opacity group-hover:opacity-100" />
         ) : null}
       </div>
-      {/* Duration */}
-      <div className="text-t12 text-muted text-right">
+      {/* Duration — centred, so the times sit directly under the clock in the header rather
+          than being pushed to the column edge while the narrow icon floats above their end. */}
+      <div className="text-t12 text-muted text-center tabular-nums">
         {track.duration || "—"}
       </div>
+      {/* Selection — last column, so the title side stays undisturbed */}
+      {onToggleSelect && (
+        <div
+          onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+          className={`flex items-center justify-center shrink-0 cursor-default transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+        >
+          <SelectBox state={selected ? "all" : "none"} />
+        </div>
+      )}
     </div>
   );
 
@@ -167,14 +231,45 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
     (collapsed ? bandSearchRef : posterSearchRef).current?.focus();
   }, [searchVisible]);
 
-  const visibleTracks = tracks.filter(tr => {
-    if (hideExplicit && tr.isExplicit) return false;
-    if (trackSearch.trim()) {
-      const q = trackSearch.toLowerCase();
-      return (tr.title || "").toLowerCase().includes(q) || (tr.artists || "").toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // Column sorting. Deliberately not persisted — it's a way of looking at the collection,
+  // not a property of it — so it resets whenever a different one is opened. Clicking a
+  // column cycles ascending → descending → off; the third state matters for albums, where
+  // the stored order IS the running order and there'd otherwise be no way back to it.
+  const [sort, setSort] = useState({ key: null, dir: "asc" });
+  useEffect(() => { setSort({ key: null, dir: "asc" }); }, [title]);
+
+  const collator = useMemo(() => {
+    // Locale-aware so umlauts land where a German reader expects them ("Ärzte" under A).
+    const opts = { sensitivity: "base", numeric: true };
+    try { return new Intl.Collator(localStorage.getItem("kiyoshi-lang") || undefined, opts); }
+    catch { return new Intl.Collator(undefined, opts); }
+  }, []);
+
+  const visibleTracks = useMemo(() => {
+    const q = trackSearch.trim().toLowerCase();
+    const out = tracks.filter(tr => {
+      if (hideExplicit && tr.isExplicit) return false;
+      if (q) {
+        return (tr.title || "").toLowerCase().includes(q) || (tr.artists || "").toLowerCase().includes(q);
+      }
+      return true;
+    });
+    if (!sort.key) return out;
+
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const text = (tr, key) => {
+      const v = tr[key];
+      if (Array.isArray(v)) return v.map(a => (a && a.name) || a).filter(Boolean).join(", ");
+      return String(v || "");
+    };
+    // Sort a copy: `tracks` is the caller's array and the parent still indexes into it.
+    return [...out].sort((a, b) => {
+      if (sort.key === "duration") {
+        return ((parseDurationToSeconds(a.duration) || 0) - (parseDurationToSeconds(b.duration) || 0)) * dir;
+      }
+      return collator.compare(text(a, sort.key), text(b, sort.key)) * dir;
+    });
+  }, [tracks, trackSearch, hideExplicit, sort, collator]);
 
   const totalDuration = formatTotalDuration(tracks);
   const skeletonCount = total ? Math.max(0, total - tracks.length) : 0;
@@ -249,6 +344,36 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     return () => { scrollEl.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [scrollEl]);
+
+  // A column header that sorts. Cycles asc → desc → off; the arrow only appears on the
+  // column actually in effect, so the header stays quiet when nothing is sorted.
+  const sortableHead = (key, label, align = "left", tip = null) => {
+    const active = sort.key === key;
+    const cell = (
+      <div
+        onClick={() => setSort(s =>
+          s.key !== key ? { key, dir: "asc" }
+          : s.dir === "asc" ? { key, dir: "desc" }
+          : { key: null, dir: "asc" }
+        )}
+        className="group"
+        style={{
+          display: "flex", alignItems: "center", gap: 5, cursor: "default", userSelect: "none",
+          justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
+          color: active ? "var(--accent)" : "inherit",
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={e => { if (!active) e.currentTarget.style.color = "var(--text-secondary)"; }}
+        onMouseLeave={e => { if (!active) e.currentTarget.style.color = "inherit"; }}
+      >
+        <span style={{ display: "flex", alignItems: "center" }}>{label}</span>
+        {active
+          ? (sort.dir === "asc" ? <SortUp size={11} /> : <SortDown size={11} />)
+          : <Sort size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+      </div>
+    );
+    return tip ? <Tooltip text={tip}>{cell}</Tooltip> : cell;
+  };
 
   const roundBtn = (px) => ({
     background: "rgba(0,0,0,0.3)", border: "none",
@@ -329,7 +454,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
             stays in step with the rest of the UI instead of sitting on the playlist's hue. */}
         <button
           {...press}
-          onClick={() => tracks.length && onPlay(tracks[0], tracks)}
+          onClick={() => visibleTracks.length && onPlay(visibleTracks[0], visibleTracks)}
           style={{ ...pill, padding: compact ? "0 16px" : "0 26px", background: "var(--accent)", border: "none", color: "var(--accent-foreground)" }}
           onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 86%, #fff)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.transform = ""; }}
@@ -340,7 +465,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
 
         <Tooltip text={t("shuffle")}><button
           {...press}
-          onClick={() => { if (!tracks.length) return; const sh = [...tracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}
+          onClick={() => { if (!visibleTracks.length) return; const sh = [...visibleTracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}
           style={compact
             ? { ...roundBtn(px), color: "#fff" }
             : { ...pill, padding: "0 22px", background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", fontWeight: 600 }}
@@ -582,33 +707,33 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
       {/* Column headers */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: onToggleSelect
-          ? (isAlbum ? "28px minmax(0,2fr) minmax(0,1fr) 28px 52px" : "28px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px")
-          : (isAlbum ? "minmax(0,2fr) minmax(0,1fr) 28px 52px" : "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 28px 52px"),
+        gridTemplateColumns: trackGridCols(isAlbum, !!onToggleSelect),
         gap: 8, padding: "8px 16px", margin: "0 12px",
         borderBottom: "0.5px solid var(--border)",
         fontSize: "var(--t11)", fontWeight: 600, color: "var(--text-muted)",
         textTransform: "uppercase", letterSpacing: "0.08em",
       }}>
+        {sortableHead("title", t("colTitle"))}
+        <div></div>
+        {sortableHead("artists", t("colArtist"))}
+        {!isAlbum && sortableHead("album", t("colAlbum"))}
+        <div></div>
+        {/* A clock instead of the word: "DURATION" was far wider than the times below it, so
+            even though both were right-aligned the label started much further left and the
+            column read as misaligned. An icon of roughly value width settles it. */}
+        {sortableHead("duration", <Clock size={13} />, "center", t("colDuration"))}
         {onToggleSelect && (() => {
-          const allSelected = visibleTracks.length > 0 && visibleTracks.every(tr => selectedTracks?.has(tr.videoId));
+          const picked = visibleTracks.filter(tr => selectedTracks?.has(tr.videoId)).length;
+          const state = picked === 0 ? "none" : picked === visibleTracks.length ? "all" : "some";
           return (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}
-              onClick={() => onSelectAll?.(visibleTracks, allSelected)}
-              title={allSelected ? t("deselectAll") : t("selectAll")}
+              onClick={() => onSelectAll?.(visibleTracks, state === "all")}
+              title={state === "all" ? t("deselectAll") : t("selectAll")}
             >
-              {allSelected
-                ? <CheckCircle size={18} weight="fill" style={{ color: "var(--accent)" }} />
-                : <div style={{ width: 16, height: 16, borderRadius: "50%", border: "1.5px solid var(--text-muted)", background: "var(--bg-elevated)" }} />
-              }
+              <SelectBox state={state} size={18} />
             </div>
           );
         })()}
-        <div>{t("colTitle")}</div>
-        <div>{t("colArtist")}</div>
-        {!isAlbum && <div>{t("colAlbum")}</div>}
-        <div></div>
-        <div style={{ textAlign: "right" }}>{t("colDuration")}</div>
       </div>
 
       {/* Track list (virtualized — only on-screen rows are mounted) */}
@@ -638,6 +763,8 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                     onDownload={onDownloadSong}
                     selected={selectedTracks?.has(tr.videoId)}
                     onToggleSelect={onToggleSelect ? () => onToggleSelect(tr) : undefined}
+                    isLiked={likedIds?.has(tr.videoId)}
+                    onToggleLike={onToggleLike}
                   />
                 ) : (
                   <SkeletonRow />

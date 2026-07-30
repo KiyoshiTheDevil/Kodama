@@ -932,5 +932,6 @@
   "miniPlayerClose": "Mini-Player schließen",
   "miniPlayerPrev": "Vorheriger Titel",
   "miniPlayerPlayPause": "Wiedergabe / Pause",
-  "miniPlayerNext": "Nächster Titel"
+  "miniPlayerNext": "Nächster Titel",
+  "rowMoreActions": "Weitere Aktionen"
 }

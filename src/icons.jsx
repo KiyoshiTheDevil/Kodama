@@ -202,6 +202,10 @@ export const Info               = fa("circle-info");
 export const WarningCircle      = fa("circle-exclamation");
 export const Flag               = fa("flag");
 export const Star               = fa("star", true);
+// Sort glyphs only exist as solids in Font Awesome — the regular set has no outline variant.
+export const Sort               = fa("sort", true);
+export const SortUp             = fa("sort-up", true);
+export const SortDown           = fa("sort-down", true);
 
 // ── Project-drawn icons (public/*.svg) ────────────────────────────────────────
 export const MiniPlayerEnter    = maskIcon("/mini-player-enable.svg");  // collapse into the mini player
