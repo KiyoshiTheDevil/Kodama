@@ -3880,16 +3880,24 @@ def get_home():
         home = get_ytmusic().get_home(limit=15)
         sections = []
         for section in home:
+            # YT hands back null entries every so often — observed as null items inside the
+            # "Live performances" shelf. Since the home shelves rotate per request, that made
+            # the whole endpoint fail intermittently while every other view kept working.
+            if not section:
+                continue
             title = section.get("title", "")
-            contents = section.get("contents", [])
+            contents = section.get("contents") or []
             section_is_podcast = _is_podcast_section(title)
             items = []
             for item in contents:
+                if not item:
+                    continue
                 # Song / video
                 if item.get("videoId") and not section_is_podcast:
-                    artist_list = item.get("artists", [])
+                    artist_list = item.get("artists") or []
                     artists = _artist_names(artist_list)
-                    artist_browse_id = (artist_list[0].get("id") or "") if artist_list else ""
+                    first = artist_list[0] if artist_list else None
+                    artist_browse_id = (first.get("id") or "") if isinstance(first, dict) else ""
                     album = item.get("album") or {}
                     thumbs = item.get("thumbnails", [])
                     thumb = _pick_thumb(thumbs)
@@ -3973,6 +3981,10 @@ def get_home():
                 sections.append({"title": title, "items": items})
         return jsonify({"sections": sections})
     except Exception as e:
+        # With only str(e) the frontend showed "no suggestions" and the traceback was gone,
+        # so a parsing bug here was indistinguishable from an empty feed. The ring buffer
+        # feeds the Debug tab, so the next one is diagnosable from a user's report.
+        _logging.exception(f"[home] failed to build the feed: {e}")
         return jsonify({"error": str(e)}), 500
 
 
