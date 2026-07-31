@@ -44,7 +44,6 @@ import { SelActionBtn } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
 import { DownloadsView } from "./views/downloads-view.jsx";
 import { HistoryView } from "./views/history-view.jsx";
-import { LikedView } from "./views/liked-view.jsx";
 import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
 import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
@@ -677,7 +676,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
   const [query, setQuery] = useState("");
   // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
   const [suggestions, setSuggestions] = useState([]);
@@ -847,7 +846,19 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
     <ListBox
       aria-label="Navigation"
       selectionMode="none"
-      onAction={(key) => { setView(key); onCloseOverlay?.(); }}
+      onAction={(key) => {
+        // Liked Songs is YT Music's own "LM" auto-playlist, so it goes through the normal
+        // collection path rather than a view of its own. That way it inherits streaming,
+        // caching, refresh and download-all instead of reimplementing a subset of them.
+        // forcedTitle keeps our translated label — the backend hardcodes a German one for
+        // local profiles.
+        if (key === "liked") {
+          onOpenPlaylist?.({ playlistId: "LM", title: t("likedSongs"), forcedTitle: t("likedSongs"), thumbnail: "" });
+        } else {
+          setView(key);
+        }
+        onCloseOverlay?.();
+      }}
       className="w-full"
     >
       {items.map(item => (
@@ -857,7 +868,9 @@ function Sidebar({ view, setView, onSearch, collapsed, onToggleCollapse, onOpenS
           textValue={item.label}
           className={cn(
             "text-t13 min-h-10 rounded-xl",
-            view === item.id && "bg-accent-dim text-accent",
+            // activeNavId, not view: Liked Songs opens as a collection, so the entry has to
+            // stay lit even though `view` says "collection".
+            (activeNavId || view) === item.id && "bg-accent-dim text-accent",
             collapsed && "justify-center"
           )}
           onMouseEnter={e => {
@@ -4820,6 +4833,19 @@ export default function App() {
       if (wasLiked) s.delete(track.videoId); else s.add(track.videoId);
       return s;
     });
+    // Un-liking while the Liked Songs collection is open: drop the row right away instead of
+    // leaving a track sitting in a list it no longer belongs to. Same dissolve the other
+    // removals use, and the same "targeted event, no refetch" approach — a reload would
+    // flash the whole list for one row.
+    if (wasLiked && view === "collection" && collection?.playlistId === "LM") {
+      const drop = () => setCollection(c => (c?.playlistId === "LM" ? {
+        ...c,
+        tracks: c.tracks.filter(x => x.videoId !== track.videoId),
+        total: typeof c.total === "number" ? Math.max(0, c.total - 1) : c.total,
+      } : c));
+      const el = document.querySelector(`[data-track-id="${CSS.escape(track.videoId)}"]`);
+      if (animations && el) dissolve(el, drop); else drop();
+    }
     try {
       await fetch(`${API}/like/${track.videoId}`, {
         method: "POST",
@@ -4852,7 +4878,9 @@ export default function App() {
         return s;
       });
     }
-  }, [likedIds]);
+    // collection?.playlistId rather than the whole object: it's a string, so this doesn't
+    // rebuild the callback on every chunk that streams into an open collection.
+  }, [likedIds, view, collection?.playlistId, animations]);
 
   // Detect real network connectivity changes
   useEffect(() => {
@@ -5268,7 +5296,7 @@ export default function App() {
           padding: fullscreen ? 0 : "8px 4px 8px 8px",
           position: "relative",
         }}>
-          <Sidebar view={view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
+          <Sidebar view={view} activeNavId={view === "collection" && collection?.playlistId === "LM" ? "liked" : view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
             onSwitchProfile={handleAccountSwitch}
             onAddProfile={async () => {
               try { await fetch(`${API}/auth/begin-add`, { method: "POST" }); } catch {}
@@ -5351,10 +5379,9 @@ export default function App() {
           <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%" }}>
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
-            {view === "liked" && <AnimatedView key={`liked-${viewRefreshKey}`}><LikedView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "liked")} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} onBack={goBack} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={goBack} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} /></AnimatedView>}
-            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView title={collection.title} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={goBack} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: collection.isAlbum ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
+            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView title={collection.title} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={goBack} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
             {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={goBack} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}
             {isOffline && view !== "downloads" && (
@@ -5416,7 +5443,7 @@ export default function App() {
                       onClick={() => setAddToPlaylistFor({ tracks: Array.from(selectedTracks.values()), fromSelection: true })}
                     />
                     {/* Remove from playlist — only when in playlist context */}
-                    {view === "collection" && collection?.playlistId && (
+                    {view === "collection" && collection?.playlistId && collection.playlistId !== "LM" && (
                       <>
                       <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }} />
                       <SelActionBtn
