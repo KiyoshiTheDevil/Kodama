@@ -54,5 +54,11 @@
   "searchResultsFor": "Résultats de la recherche pour",
   "noResults": "Aucun résultat trouvé.",
   "filterAll": "Tout",
-  "filterSongs": "Morceaux"
+  "filterSongs": "Morceaux",
+  "filterArtists": "Artistes",
+  "filterAlbums": "Albums",
+  "filterPlaylists": "Playlists",
+  "sortDefault": "Défaut",
+  "sortAlphaAZ": "A → Z",
+  "sortAlphaZA": "Z → A"
 }
