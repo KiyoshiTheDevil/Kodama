@@ -8,3 +8,9 @@ compatibility_date = "2025-01-01"
 [[kv_namespaces]]
 binding = "STATS"
 id = "adba41b3fa9841d4a6182c84d6355628"
+
+# Daily snapshot of the GitHub download totals + rescue of the previous month's counter.
+# 03:10 UTC — after midnight rollover, and off the top of the hour where Cloudflare queues
+# the most scheduled work.
+[triggers]
+crons = ["10 3 * * *"]

@@ -35,9 +35,13 @@ const CORS = {
   "Access-Control-Allow-Headers": "content-type",
 };
 
-function json(body, extra = {}) {
+// The second argument used to be spread straight into `headers`, so `{ status: 404 }`
+// became a header called "status" and every response — including errors — went out as
+// HTTP 200. Headers and status are separate now.
+function json(body, { headers = {}, status = 200 } = {}) {
   return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json", ...CORS, ...extra },
+    status,
+    headers: { "content-type": "application/json", ...CORS, ...headers },
   });
 }
 
@@ -53,6 +57,17 @@ function human(n) {
   return String(n);
 }
 
+// Dimension values land in KV key names, and anyone can POST to /ping — so they are
+// validated, not trusted. Anything unexpected is bucketed as "other" rather than dropped,
+// which keeps the daily totals across a dimension adding up to the DAU count.
+const DIM_OK = /^[A-Za-z0-9._-]{1,32}$/;
+const OS_OK = new Set(["windows", "macos", "linux"]);
+function dim(value, allowed) {
+  const v = typeof value === "string" ? value : "";
+  if (allowed) return allowed.has(v) ? v : "other";
+  return DIM_OK.test(v) ? v : "other";
+}
+
 async function readCount(env, key) {
   const v = await env.STATS.get(key);
   return v ? parseInt(v, 10) || 0 : 0;
@@ -61,12 +76,57 @@ async function readCount(env, key) {
 // Increment a counter (read-modify-write). KV is eventually consistent, not
 // transactional, so a rare concurrent collision may drop a count — acceptable
 // for a vanity counter. `ttl` keeps old daily/monthly keys from piling up.
-async function incr(env, key, ttl) {
-  const cur = await readCount(env, key);
-  await env.STATS.put(key, String(cur + 1), ttl ? { expirationTtl: ttl } : undefined);
+async function incr(env, key) {
+  const n = (await readCount(env, key)) + 1;
+  // The value is mirrored into the key's metadata: KV list() hands metadata back with the
+  // key names, so /history reads a whole series in one round trip instead of one get per
+  // day. No expirationTtl — these counters ARE the history now.
+  await env.STATS.put(key, String(n), { metadata: { n } });
+}
+
+
+/**
+ * GitHub only ever reports a release's *total* downloads, so "downloads in month X" cannot
+ * be reconstructed after the fact — it has to be sampled. This records one snapshot a day;
+ * the stats page turns consecutive snapshots into per-month deltas.
+ */
+async function snapshotDownloads(env) {
+  const r = await fetch(
+    "https://api.github.com/repos/KiyoshiTheDevil/Kodama/releases?per_page=100",
+    { headers: { "User-Agent": "kodama-stats-worker", Accept: "application/vnd.github+json" } },
+  );
+  if (!r.ok) return;
+  const releases = await r.json();
+  const perTag = {};
+  let total = 0;
+  for (const rel of releases) {
+    const n = (rel.assets || []).reduce((sum, a) => sum + (a.download_count || 0), 0);
+    perTag[rel.tag_name] = n;
+    total += n;
+  }
+  await env.STATS.put(`dl:${todayUTC()}`, JSON.stringify({ total, perTag }), { metadata: { n: total } });
+}
+
+/**
+ * Monthly counters only keep growing while pings arrive, so a month that has ended is never
+ * touched again. Re-writing the previous month once a day carries it past the 40-day expiry
+ * the old code set on it — without this, everything before the switch to permanent counters
+ * quietly disappears.
+ */
+async function preservePreviousMonth(env) {
+  const d = new Date();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  const key = `mau:${d.toISOString().slice(0, 7)}`;
+  const n = await readCount(env, key);
+  if (n > 0) await env.STATS.put(key, String(n), { metadata: { n } });
 }
 
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(Promise.all([snapshotDownloads(env), preservePreviousMonth(env)]));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -76,10 +136,10 @@ export default {
 
     // ── POST /ping ──────────────────────────────────────────────────────────
     if (url.pathname === "/ping" && request.method === "POST") {
-      let d, m;
+      let d, m, v, os, l;
       try {
         const b = await request.json();
-        d = b.d; m = b.m;
+        d = b.d; m = b.m; v = b.v; os = b.os; l = b.l;
       } catch { /* ignore malformed */ }
       if (!HEX64.test(d || "") || !HEX64.test(m || "")) {
         return json({ ok: false }, { status: 400 });
@@ -88,14 +148,19 @@ export default {
       const month = monthUTC();
 
       // DAU — no server dedup (client already pings once/day/install). 1 write.
-      // TTL 48h: only today's key is ever read.
-      await incr(env, `dau:${day}`, 60 * 60 * 48);
+      await incr(env, `dau:${day}`);
+
+      // One counter per dimension per day. Costs one KV write each — see the budget note
+      // above; the stats page shows how close the total is running to the daily ceiling.
+      await incr(env, `ver:${day}:${dim(v)}`);
+      await incr(env, `os:${day}:${dim(os, OS_OK)}`);
+      await incr(env, `lang:${day}:${dim(l)}`);
 
       // MAU — dedup on the stable monthly token so repeat pings are free.
       const seenKey = `seen:m:${month}:${m}`;
       if (!(await env.STATS.get(seenKey))) {
         await env.STATS.put(seenKey, "1", { expirationTtl: 60 * 60 * 24 * 40 });
-        await incr(env, `mau:${month}`, 60 * 60 * 24 * 40);
+        await incr(env, `mau:${month}`);
       }
       return json({ ok: true });
     }
@@ -124,8 +189,52 @@ export default {
           message: human(n),
           color: "blueviolet",
         },
-        { "Cache-Control": "max-age=300" },
+        { headers: { "Cache-Control": "max-age=300" } },
       );
+    }
+
+
+    // ── GET /history ────────────────────────────────────────────────────────
+    // The whole series at once, for the local stats page (tools/stats.html).
+    if (url.pathname === "/history") {
+      const out = { dau: {}, mau: {}, dl: {}, ver: {}, os: {}, lang: {} };
+
+      // Nested dimensions: key is `<prefix>:<day>:<value>`, grouped per day for the page.
+      for (const [prefix, bucket] of [["ver:", out.ver], ["os:", out.os], ["lang:", out.lang]]) {
+        let cursor;
+        do {
+          const r = await env.STATS.list({ prefix, cursor });
+          for (const k of r.keys) {
+            const rest = k.name.slice(prefix.length);
+            const cut = rest.indexOf(":");
+            if (cut < 0) continue;
+            const day = rest.slice(0, cut);
+            const value = rest.slice(cut + 1);
+            const n = (k.metadata && typeof k.metadata.n === "number")
+              ? k.metadata.n
+              : await readCount(env, k.name);
+            (bucket[day] ||= {})[value] = n;
+          }
+          cursor = r.list_complete ? null : r.cursor;
+        } while (cursor);
+      }
+
+      for (const [prefix, bucket] of [["dau:", out.dau], ["mau:", out.mau], ["dl:", out.dl]]) {
+        let cursor;
+        do {
+          const r = await env.STATS.list({ prefix, cursor });
+          for (const k of r.keys) {
+            const day = k.name.slice(prefix.length);
+            // Counters written before metadata existed need a real read. Only ever a
+            // handful of keys, and they get metadata the next time they are touched.
+            bucket[day] = (k.metadata && typeof k.metadata.n === "number")
+              ? k.metadata.n
+              : await readCount(env, k.name);
+          }
+          cursor = r.list_complete ? null : r.cursor;
+        } while (cursor);
+      }
+      return json(out, { headers: { "Cache-Control": "max-age=300" } });
     }
 
     return json({ ok: false, error: "not found" }, { status: 404 });
