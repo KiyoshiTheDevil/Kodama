@@ -5,7 +5,7 @@ import { PlaylistLayout } from "./track-table.jsx";
 import { GridCard } from "../ui/rows.jsx";
 import { Microphone, MusicNote, VinylRecord } from "../icons.jsx";
 
-export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onTrackContextMenu, hideExplicit, onOpenAlbum, onOpenArtist, onToggleLike, likedIds }) {
+export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, contextMenuTrackId, onTrackContextMenu, hideExplicit, onOpenAlbum, onOpenArtist, onToggleLike, likedIds }) {
   const t = useLang();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
         onBack={() => setSelectedGroup(null)}
         onOpenArtist={onOpenArtist}
         onOpenAlbum={onOpenAlbum}
-        onTrackContextMenu={onTrackContextMenu}
+        contextMenuTrackId={contextMenuTrackId} onTrackContextMenu={onTrackContextMenu}
         cachedSongIds={cachedSongIds}
         downloadingIds={downloadingIds}
         premiumSongIds={premiumSongIds}

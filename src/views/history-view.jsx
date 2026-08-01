@@ -6,7 +6,7 @@ import { PlaylistLayout } from "./track-table.jsx";
 import { particleBurst } from "../effects/particle-burst.js";
 import { Trash } from "../icons.jsx";
 
-export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onTrackContextMenu, cachedSongIds, downloadingIds, onDownloadSong, hideExplicit, onBack }) {
+export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, contextMenuTrackId, onTrackContextMenu, cachedSongIds, downloadingIds, onDownloadSong, hideExplicit, onBack }) {
   const t = useLang();
   const anim = useAnimations();
   const profileKey = () => `kiyoshi-history-${window.__activeProfile || "default"}`;
@@ -56,7 +56,7 @@ export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onO
       typeLabel={t("history")}
       isLiked={false}
       onOpenArtist={onOpenArtist} onOpenAlbum={onOpenAlbum}
-      onTrackContextMenu={(e, tr) => {
+      contextMenuTrackId={contextMenuTrackId} onTrackContextMenu={(e, tr) => {
         const idx = tracks.findIndex(x => x === tr);
         onTrackContextMenu(e, tr, { removeFromHistory: () => {
           if (anim) { try { particleBurst(document.querySelector(`[data-track-id="${CSS.escape(tr.videoId)}"]`)); } catch {} }

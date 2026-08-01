@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@heroui/react";
-import { thumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
+import { thumb, hiResThumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
@@ -53,6 +53,10 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
   return iconOnly ? <Tooltip text={label}>{btn}</Tooltip> : btn;
 }
 
+// Row height. The virtualiser estimates with this too — if the two drift apart the
+// scroll position jumps around while rows are measured.
+export const TRACK_ROW_H = 64;
+
 // Column track shared by the rows and the header, so the two can't drift apart.
 // Title | actions | artist | (album) | download | duration | (select)
 //
@@ -69,23 +73,28 @@ export function trackGridCols(isAlbum, withSelect) {
 
 // Selection box, shared by the header (tri-state) and the rows. A square rather than a
 // circle — it reads as "select", not as a radio choice.
-export function SelectBox({ state, size = 16 }) {
+export function SelectBox({ state }) {
   const on = state === "all" || state === "some";
+  const size = 17; // one size everywhere — header and rows differing read as a mistake
   return (
     <div style={{
-      width: size, height: size, borderRadius: "var(--r-sm, 4px)",
+      width: size, height: size, borderRadius: "var(--r-sm)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: on ? "var(--accent)" : "var(--bg-elevated)",
-      border: on ? "none" : "1.5px solid var(--text-muted)",
-      color: "var(--accent-foreground)", transition: "background 0.15s, border-color 0.15s",
+      // Unchecked stays hollow. A filled surface made it a dark chip sitting on the ambient
+      // backdrop rather than an outline waiting to be ticked.
+      background: on ? "var(--accent)" : "transparent",
+      border: on ? "1.5px solid var(--accent)" : "1.5px solid rgba(255,255,255,0.45)",
+      color: "var(--accent-foreground)",
+      boxSizing: "border-box",
+      transition: "background 0.15s, border-color 0.15s",
     }}>
-      {state === "all" && <Check size={Math.round(size * 0.64)} weight="bold" />}
-      {state === "some" && <Minus size={Math.round(size * 0.64)} weight="bold" />}
+      {state === "all" && <Check size={11} weight="bold" />}
+      {state === "some" && <Minus size={11} weight="bold" />}
     </div>
   );
 }
 
-export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect, isLiked = false, onToggleLike }) {
+export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect, isLiked = false, onToggleLike, menuOpen = false }) {
   const anim = useAnimations();
   const t = useLang();
   const showNum = useTrackNumbers();
@@ -97,8 +106,8 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
       data-track-id={track.videoId}
       onClick={isPremiumOnly ? undefined : () => onPlay(track)}
       onContextMenu={(!isPremiumOnly && onContextMenu) ? (e) => { e.preventDefault(); onContextMenu(e, track); } : undefined}
-      style={{ gridTemplateColumns: gridCols }}
-      className={`group grid items-center gap-2 px-4 py-1 min-h-[52px] rounded-lg cursor-default transition-colors ${
+      style={{ gridTemplateColumns: gridCols, minHeight: TRACK_ROW_H }}
+      className={`group grid items-center gap-2 px-4 py-1 rounded-2xl cursor-default transition-colors ${
         selected
           ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
           : isPlaying
@@ -109,9 +118,9 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
       {/* Title */}
       <div className="flex items-center gap-3 min-w-0">
         {showNum && <span className={`w-6 text-right shrink-0 text-t12 tabular-nums ${isPlaying ? "text-accent" : "text-muted"}`}>{index + 1}</span>}
-        <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-md bg-elevated">
+        <div className="relative w-12 h-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
           {track.thumbnail
-            ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
+            ? <img src={thumb(hiResThumb(track.thumbnail, 120))} alt="" className="w-full h-full object-cover" />
             : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
           {isPlaying && (
             <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
@@ -138,7 +147,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
             <Button
               variant="ghost" size="sm" isIconOnly
               onPress={() => onToggleLike(track)}
-              className={`rounded-full shrink-0 ${isLiked ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100"}`}
+              className={`rounded-full shrink-0 ${isLiked ? "text-accent" : `text-muted ${menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}`}
             >
               <Heart size={15} weight={isLiked ? "fill" : "regular"} />
             </Button>
@@ -155,7 +164,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
                 const r = e.target?.getBoundingClientRect?.();
                 onContextMenu(r ? { clientX: r.left, clientY: r.bottom + 4 } : { clientX: 0, clientY: 0 }, track);
               }}
-              className="rounded-full shrink-0 text-muted opacity-0 group-hover:opacity-100"
+              className={`rounded-full shrink-0 text-muted ${menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
             >
               <DotsThreeVertical size={15} />
             </Button>
@@ -213,7 +222,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
 }
 
 // ─── Shared playlist/collection layout ────────────────────────────────────
-export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel }) {
+export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel, contextMenuTrackId }) {
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
   const [trackSearch, setTrackSearch] = useState("");
@@ -306,7 +315,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollEl,
-    estimateSize: () => 52,
+    estimateSize: () => TRACK_ROW_H,
     overscan: 12,
     scrollMargin: listScrollMargin,
   });
@@ -377,7 +386,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
 
   const roundBtn = (px) => ({
     background: "rgba(0,0,0,0.3)", border: "none",
-    borderRadius: "50%", width: px, height: px, display: "flex", alignItems: "center",
+    borderRadius: "var(--r-2xl)", width: px, height: px, display: "flex", alignItems: "center",
     justifyContent: "center", cursor: "default",
     transition: "background 0.15s, transform 0.12s",
     color: "rgba(255,255,255,0.85)", padding: 0, backdropFilter: "blur(6px)", flexShrink: 0,
@@ -436,11 +445,13 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
   // One action set, two sizes. Everything stays reachable in the collapsed bar too — the
   // secondary actions shrink to icons rather than disappearing into a menu.
   const headerActions = (compact) => {
-    const px = compact ? 34 : 44;
-    const pillH = compact ? 34 : 48;
+    // One height for every control in the row. The icon buttons used to be 44 against the
+    // pills' 48, which read as a 2px gap above and below them.
+    const px = compact ? 34 : 48;
+    const pillH = px;
     const fs = compact ? "var(--t13)" : "var(--t14)";
     const pill = {
-      borderRadius: "var(--r-full)", height: pillH, display: "flex", alignItems: "center",
+      borderRadius: "var(--r-2xl)", height: pillH, display: "flex", alignItems: "center",
       justifyContent: "center", gap: compact ? 7 : 9, cursor: "default", fontWeight: 700,
       fontSize: fs, fontFamily: "var(--font)", flexShrink: 0,
       transition: "background 0.18s, border-color 0.18s, transform 0.12s",
@@ -491,7 +502,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               placeholder={t("searchInPlaylist")}
               style={{
                 background: "rgba(0,0,0,0.35)", border: "none",
-                borderRadius: "var(--r-full)", padding: "0 16px",
+                borderRadius: "var(--r-2xl)", padding: "0 16px",
                 height: px, boxSizing: "border-box",
                 fontSize: "var(--t13)", color: "#fff", outline: "none",
                 width: compact ? 180 : 200, flexShrink: 0, fontFamily: "var(--font)",
@@ -589,11 +600,13 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
         <div ref={bandRef} style={{
           position: "sticky", top: BAND_TOP, zIndex: 6, height: CARD_H,
           opacity: 0, pointerEvents: "none",
+          // Same 16px as the rows below, so the pinned card reads as part of the same list
+          // rather than as a differently-shaped panel sitting on top of it.
           // Inset far enough that the shadow fades out before the content card's edge.
           // That card clips with overflow:hidden, so a shadow still carrying weight when it
           // gets there is cut off mid-falloff and draws a hard seam against the sidebar.
           margin: "0 24px",
-          borderRadius: "var(--r-xl)",
+          borderRadius: "var(--r-2xl)",
           boxShadow: "var(--elevation-3)",
         }}>
           {/* The frosted look is built rather than sampled. backdrop-filter is unreliable in
@@ -640,8 +653,18 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
             {typeLabel ?? (isAlbum ? t("album") : t("playlist"))}
           </div>
 
-          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, margin: "5px 0 7px", color: "#fff", textShadow: "0 2px 20px rgba(0,0,0,0.55)", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {title}
+          {/* The shadow sits on the wrapper, not on the text: the text element needs
+              overflow:hidden for its ellipsis, and that clipped the shadow's 20px blur into a
+              visible rectangle around the title. drop-shadow on an unclipped parent works off
+              the already-clipped glyphs and spills outside freely. Its blur reads about twice
+              as strong as text-shadow's, hence the smaller number. */}
+          <div style={{ maxWidth: "100%", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.55))" }}>
+            {/* line-height has to leave room for descenders: at 1.15 the line box is shorter
+                than the font's own ascender-to-descender span, and overflow:hidden then cuts
+                the tail off a "g". The margins give back what the taller line box adds. */}
+            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.32, margin: "2px 0 4px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {title}
+            </div>
           </div>
 
           {/* Metadata — albums additionally carry the artist chip and the year */}
@@ -730,7 +753,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               onClick={() => onSelectAll?.(visibleTracks, state === "all")}
               title={state === "all" ? t("deselectAll") : t("selectAll")}
             >
-              <SelectBox state={state} size={18} />
+              <SelectBox state={state} />
             </div>
           );
         })()}
@@ -765,6 +788,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
                     onToggleSelect={onToggleSelect ? () => onToggleSelect(tr) : undefined}
                     isLiked={likedIds?.has(tr.videoId)}
                     onToggleLike={onToggleLike}
+                    menuOpen={!!contextMenuTrackId && contextMenuTrackId === tr.videoId}
                   />
                 ) : (
                   <SkeletonRow />

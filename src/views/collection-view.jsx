@@ -2,7 +2,7 @@
 // Extracted from App.jsx.
 import { PlaylistLayout } from "./track-table.jsx";
 
-export function CollectionView({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll }) {
+export function CollectionView({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, contextMenuTrackId, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll }) {
   return (
     <PlaylistLayout
       title={title} thumbnail={thumbnail} tracks={tracks} total={total}
@@ -10,7 +10,7 @@ export function CollectionView({ title, thumbnail, tracks, total, loading, progr
       onPlay={onPlay} currentTrack={currentTrack} isPlaying={isPlaying}
       onBack={onBack} isLiked={isLiked} onOpenArtist={onOpenArtist} onOpenAlbum={onOpenAlbum}
       isAlbum={isAlbum} albumArtists={albumArtists} albumArtistBrowseId={albumArtistBrowseId} year={year}
-      onRefresh={onRefresh} onTrackContextMenu={onTrackContextMenu}
+      onRefresh={onRefresh} contextMenuTrackId={contextMenuTrackId} onTrackContextMenu={onTrackContextMenu}
       cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={onDownloadSong} onDownloadAll={onDownloadAll} onRemoveAll={onRemoveAll}
       hideExplicit={hideExplicit} onToggleLike={onToggleLike} likedIds={likedIds}
       selectedTracks={selectedTracks} onToggleSelect={onToggleSelect} onSelectAll={onSelectAll}
