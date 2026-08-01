@@ -88,10 +88,21 @@ async function sendHeartbeat() {
     let id = localStorage.getItem("kodama-install-id");
     if (!id) { id = crypto.randomUUID(); localStorage.setItem("kodama-install-id", id); }
     const [d, m] = await Promise.all([_sha256Hex(`${id}:${day}`), _sha256Hex(`${id}:${month}`)]);
+    // Three coarse buckets alongside the tokens. Each is a property of the install, not of
+    // the person, and the server only ever adds them to daily totals — so this stays within
+    // the same promise: how many, never who. Version answers how fast updates land, os how
+    // much the macOS port is actually used, lang which translations are worth the effort.
+    const ua = navigator.userAgent || "";
+    const os = /Mac OS X|Macintosh/.test(ua) ? "macos" : /Linux/.test(ua) ? "linux" : "windows";
     await fetch(`${STATS_URL}/ping`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ d, m, v: APP_VERSION }),
+      body: JSON.stringify({
+        d, m,
+        v: APP_VERSION,
+        os,
+        l: localStorage.getItem("kiyoshi-lang") || "?",
+      }),
     });
     localStorage.setItem("kodama-hb-day", day); // only mark sent on success
   } catch { /* analytics is best-effort — never disturb the app */ }
