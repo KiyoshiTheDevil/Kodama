@@ -97,8 +97,20 @@
   </div>
   <script>
     (function () {
+      // The id may arrive in several shapes, so every form keeps working no matter which one
+      // the app currently produces — and links already shared stay valid:
+      //   ?v=ID   older links, which also carried t/a/c metadata
+      //   ?ID     short form
+      //   #ID     short form
+      //   /s/ID   path form (served via 404.html)
       var params = new URLSearchParams(location.search);
-      var v = params.get("v") || location.hash.replace(/^#/, "");
+      var bare = location.search.replace(/^\?/, "");
+      var path = location.pathname.replace(/\/+$/, "").split("/").pop();
+      var v = params.get("v")
+        || (/^[A-Za-z0-9_-]{6,}$/.test(bare) ? bare : "")
+        || location.hash.replace(/^#/, "")
+        || (path !== "s" ? path : "");
+
       var sub = document.getElementById("sub");
       if (!v || !/^[A-Za-z0-9_-]{6,}$/.test(v)) {
         sub.style.display = "none";
@@ -106,33 +118,9 @@
         return;
       }
 
-      // Optional metadata encoded in the link (title / artist / cover).
-      var title = params.get("t");
-      var artist = params.get("a");
-      var cover = params.get("c");
-      var hasMeta = false;
-      if (cover && /^https?:\/\//i.test(cover)) {
-        var img = document.getElementById("cover");
-        img.src = cover;
-        img.onload = function () { img.style.display = "block"; };
-        img.onerror = function () { img.style.display = "none"; };
-        hasMeta = true;
-      }
-      if (title) {
-        var te = document.getElementById("title");
-        te.textContent = title; te.style.display = "block"; hasMeta = true;
-        document.title = artist ? (title + " — " + artist) : title;
-      }
-      if (artist) {
-        var ae = document.getElementById("artist");
-        ae.textContent = artist; ae.style.display = "block"; hasMeta = true;
-      }
-      if (hasMeta) document.getElementById("divider").style.display = "block";
-
       var kodamaUrl = "kodama://song/" + v;
-      var ytmUrl = "https://music.youtube.com/watch?v=" + v;
       document.getElementById("kodama").href = kodamaUrl;
-      document.getElementById("ytm").href = ytmUrl;
+      document.getElementById("ytm").href = "https://music.youtube.com/watch?v=" + v;
       document.getElementById("actions").style.display = "block";
       sub.textContent = "Choose where to open this song:";
 
@@ -143,6 +131,50 @@
         f.src = kodamaUrl;
         document.body.appendChild(f);
       } catch (e) {}
+
+      function show(title, artist, cover) {
+        var any = false;
+        if (cover) {
+          var img = document.getElementById("cover");
+          img.src = cover;
+          img.onload = function () { img.style.display = "block"; };
+          img.onerror = function () { img.style.display = "none"; };
+          any = true;
+        }
+        if (title) {
+          var te = document.getElementById("title");
+          te.textContent = title; te.style.display = "block"; any = true;
+          document.title = artist ? (title + " — " + artist) : title;
+        }
+        if (artist) {
+          var ae = document.getElementById("artist");
+          ae.textContent = artist; ae.style.display = "block"; any = true;
+        }
+        if (any) document.getElementById("divider").style.display = "block";
+      }
+
+      // Metadata that older links still carry. Using it avoids a needless round trip and
+      // keeps those links rendering exactly as before.
+      var t = params.get("t"), a = params.get("a"), c = params.get("c");
+      if (t || a || c) {
+        show(t, a, (c && /^https?:\/\//i.test(c)) ? c : null);
+        return;
+      }
+
+      // Otherwise look it up from the id alone. YouTube's oEmbed endpoint answers with CORS,
+      // so no key and no backend are needed — which is the whole point of dropping the
+      // metadata from the link. If it fails, the page simply stays on the buttons.
+      fetch("https://www.youtube.com/oembed?format=json&url=" +
+            encodeURIComponent("https://www.youtube.com/watch?v=" + v))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) return;
+          // YouTube appends " - Topic" to the auto-generated artist channels behind most
+          // music tracks; it is channel plumbing, not part of the name.
+          var artist = (d.author_name || "").replace(/\s*-\s*Topic$/i, "").trim();
+          show(d.title || "", artist, d.thumbnail_url || "");
+        })
+        .catch(function () {});
     })();
   </script>
 </body>
