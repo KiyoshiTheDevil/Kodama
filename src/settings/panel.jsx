@@ -1641,7 +1641,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     {t("aboutDesc")}
                   </div>
                   <div className="flex gap-2.5 flex-wrap justify-center">
-                    <Button variant="secondary" size="sm" onPress={() => openUrl("https://kiyoshithedevil.github.io/Kodama/")}>
+                    <Button variant="secondary" size="sm" onPress={() => openUrl("https://kodama.kiyoshi.dev/")}>
                       <Globe size={14} />
                       Website
                     </Button>

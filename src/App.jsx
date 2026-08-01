@@ -1317,7 +1317,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
 // Universal share link → GitHub-Pages redirect page (tries kodama://, falls back to YT Music).
 // Works for everyone regardless of whether they have Kodama installed. Title/artist/cover are
 // encoded in the link so the landing page can show the song without any API call.
-const KODAMA_SHARE_BASE = "https://kiyoshithedevil.github.io/Kodama/s/";
+const KODAMA_SHARE_BASE = "https://kodama.kiyoshi.dev/s/";
 // Nothing but the id. Title, artist and a cover URL used to ride along as query parameters,
 // which blew the link up to ~250 characters and made it look like it was carrying tracking
 // data — enough to put people off sharing it. The share page resolves all of that from the
