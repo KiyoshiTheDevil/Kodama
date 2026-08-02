@@ -95,7 +95,15 @@ async function snapshotDownloads(env) {
     "https://api.github.com/repos/KiyoshiTheDevil/Kodama/releases?per_page=100",
     { headers: { "User-Agent": "kodama-stats-worker", Accept: "application/vnd.github+json" } },
   );
-  if (!r.ok) return;
+  if (!r.ok) {
+    // Unauthenticated GitHub allows 60 requests/hour PER IP, and Workers egress from shared
+    // addresses — so this can fail through no fault of ours. Record why instead of returning
+    // in silence, otherwise a cron that never produces data looks identical to one that
+    // never ran.
+    const note = { at: new Date().toISOString(), status: r.status, remaining: r.headers.get("x-ratelimit-remaining") };
+    await env.STATS.put("dlerr:last", JSON.stringify(note), { expirationTtl: 60 * 60 * 24 * 7 });
+    return note;
+  }
   const releases = await r.json();
   const perTag = {};
   let total = 0;
@@ -105,6 +113,7 @@ async function snapshotDownloads(env) {
     total += n;
   }
   await env.STATS.put(`dl:${todayUTC()}`, JSON.stringify({ total, perTag }), { metadata: { n: total } });
+  return { at: new Date().toISOString(), status: 200, total, releases: Object.keys(perTag).length };
 }
 
 /**
@@ -193,6 +202,20 @@ export default {
       );
     }
 
+
+    // ── GET /snapshot ───────────────────────────────────────────────────────
+    // Runs the daily job on demand. Idempotent: if today's snapshot already exists it
+    // reports that and writes nothing, so this can't be used to burn through KV writes.
+    if (url.pathname === "/snapshot") {
+      const key = `dl:${todayUTC()}`;
+      const existing = await env.STATS.get(key);
+      if (existing) {
+        return json({ ok: true, already: true, day: todayUTC(), data: JSON.parse(existing) });
+      }
+      const result = await snapshotDownloads(env);
+      const lastErr = await env.STATS.get("dlerr:last");
+      return json({ ok: !!(result && result.status === 200), result, lastError: lastErr ? JSON.parse(lastErr) : null });
+    }
 
     // ── GET /history ────────────────────────────────────────────────────────
     // The whole series at once, for the local stats page (tools/stats.html).
