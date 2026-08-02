@@ -1,15 +1,15 @@
 {
-  "version": "v1.0.0-alpha.32",
-  "pub_date": "2026-07-21T10:38:30Z",
-  "notes": "### Fixed\n- **Windows updates** no longer fail with *\"Error opening file for writing: node.exe\"* — a background helper process kept the file locked during the update.",
+  "version": "v1.0.0-alpha.33",
+  "pub_date": "2026-08-02T23:42:48Z",
+  "notes": "Changes:\n- Mini player — square always-on-top window with the cover art, controls on hover\n- Sortable track lists, redesigned rows, and playlist/album headers that collapse as you scroll\n- Liked Songs now opens as the real playlist instead of a reduced separate view\n- Shorter share links (kodama.kiyoshi.dev/s/?id) and a redesigned share page\n- Share links no longer prompt to open the app until you press Play in Kodama\n- Two more word-synced lyrics providers: Better Lyrics Portato (QQ) and NetEase\n- Lyrics appear as each provider answers instead of waiting for the slowest\n- Italian added (thanks Tusei Tu), Spanish and Russian unlocked, Vietnamese on the way\n- Video playback for tracks that are videos themselves, plus romaji in Video Sync captions\n- Big Picture mode is translated, library and grid cards are frameless\n- Daily anonymous ping now includes OS and language — no account, library, or listening data\nFixes:\n- Growing empty area under long playlists\n- Home feed stuck on \"No suggestions available\"\n- Library only loaded about 75 playlists\n- Accent colour taken from cover art never applied\n- Kugou lyrics failing, and credit headers left in Kugou and QQ results\n- Wrong synced/unsynced badge, and NetEase matching the wrong song\n- Tray menu in German for anyone who never picked a language\n- Big Picture couldn't be left with a keyboard\n- Seams between the sidebar and the cover view / grid cards\n- Missing close animation on the bug report and lyrics browser modals",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.32/Kodama_1.0.0-alpha.32_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnA2ZGZwN2NVUjFUSk5iZUhROHRwWjAvbjUwMFc2TDMySURDc3ZxUEhtamlqNUduUVJoMHREeWVubHUxMHZLanl0aUVHS04zNk9xYm52ZndKaGwyb2dRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NjMwMjcxCWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjMyX3g2NC1zZXR1cC5leGUKV0oreGJFTW5LaW5OSDhJdFRaaWwwNlBSa0M0eHF6TmY1c1lCREtWQTFYWEFvd2pFbTBFNVFwM1d4dGUrUXdKRzhSQTNKWU01Skh5ckFoZHFVTGFoQ3c9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.33/Kodama_1.0.0-alpha.33_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnJTR3JRV1Nwemp5ZzhWZXZwRG43M21UekVDbzFycm9iUEZnUVdzaU1JMmx5QVowVVNkOHFub29SSS9iV2wwTW1hRlVQTWxMQlM0U09WM3Ewa09xbXc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NzE0MDczCWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjMzX3g2NC1zZXR1cC5leGUKcy9TNksxM2ZYN2RhczlkWnhzcTRDQmRXeHNQL0tGQWt0QTNPMFZxdzVZcm05blpET2FWUHpUZ1ZJNVR4RGVnOG94RUFPUFB4OTZvd29yeFhFUm5GRHc9PQo="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.32/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmpMWGhqNVNzckhRdWpDMHh0K2doeFk2bHYwanhIZ3puYm85dGNhMkU1dXdtLzIxMWRjMjNuUWc2TmVJeFJuTU1uQWdwZkkxQXUrd0lZdG45WGk1OWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NjMwMDQwCWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKcWdBYnBnMmVicjV5VTJ1dnZQdXVYeERpMCtRVnNHMDJDeG16QzNhL1plZXFYck45eE1XUitCZyszVVAzKzl0UUNzV1grMEpIZFR5WHcwQlhBVUFRQWc9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.33/Kodama.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm9xYWEyaHFFSmNEZUU1d1Zkd210MCtUUk90aElnRDIyYlduRktIYVFET0duTVoyNkxUTEJ6M0ppQktsdEh6WG9PczNMeGN1bnc4YXVqTGtjaEw3aEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NzEzNDQxCWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKdGE3OXZGMUF0dUowWDhPY0I0TGRvcWN3THoxVjVZSXZmZ2NQc2V6Zk9YTS8xL0xmcEJuQTRqZCsrb0VJWjJSWDhBSmdia3h2NFVKUUJMRDJVV2ttQnc9PQo="
     }
   }
 }
