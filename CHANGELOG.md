@@ -4,9 +4,38 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ---
 
+> Changes landing after the latest release accumulate under the heading below, until a version
+> and date are stamped on it. Keep this note outside that block — the release workflow copies
+> everything between one `## [version]` heading and the next straight into the release notes.
+
 ## [Unreleased]
 
-> Changes landing after the latest release accumulate here.
+## [1.0.0-alpha.33] — 2026-08-03
+
+Changes:
+- Mini player — square always-on-top window with the cover art, controls on hover
+- Sortable track lists, redesigned rows, and playlist/album headers that collapse as you scroll
+- Liked Songs now opens as the real playlist instead of a reduced separate view
+- Shorter share links (kodama.kiyoshi.dev/s/?id) and a redesigned share page
+- Share links no longer prompt to open the app until you press Play in Kodama
+- Two more word-synced lyrics providers: Better Lyrics Portato (QQ) and NetEase
+- Lyrics appear as each provider answers instead of waiting for the slowest
+- Italian added (thanks Tusei Tu), Spanish and Russian unlocked, Vietnamese on the way
+- Video playback for tracks that are videos themselves, plus romaji in Video Sync captions
+- Big Picture mode is translated, library and grid cards are frameless
+- Daily anonymous ping now includes OS and language — no account, library, or listening data
+
+Fixes:
+- Growing empty area under long playlists
+- Home feed stuck on "No suggestions available"
+- Library only loaded about 75 playlists
+- Accent colour taken from cover art never applied
+- Kugou lyrics failing, and credit headers left in Kugou and QQ results
+- Wrong synced/unsynced badge, and NetEase matching the wrong song
+- Tray menu in German for anyone who never picked a language
+- Big Picture couldn't be left with a keyboard
+- Seams between the sidebar and the cover view / grid cards
+- Missing close animation on the bug report and lyrics browser modals
 
 ## [1.0.0-alpha.32] — 2026-07-21
 
