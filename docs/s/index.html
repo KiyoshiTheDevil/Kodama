@@ -18,83 +18,147 @@
     }
     :root {
       color-scheme: dark;
-      --accent: #e040fb;
+      --accent: #e040fb;          /* replaced at runtime with a colour taken from the cover */
+      --on-accent: #1a1414;
       --bg-base: #0d0d0d;
-      --bg-surface: #141414;
-      --bg-elevated: #1c1c1c;
+      --panel: #0a0a0a;
       --t1: #f5f5f5;
       --t2: #b4b4b4;
       --t3: #7a7a7a;
       --font: 'MiSans Latin', -apple-system, "Segoe UI", Roboto, sans-serif;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      font-family: var(--font);
-      background:
-        radial-gradient(120% 110% at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 55%),
-        var(--bg-base);
-      color: var(--t1); padding: 24px;
+      margin: 0; font-family: var(--font); color: var(--t1);
+      background: var(--bg-base); overflow: hidden;
     }
-    .card {
-      width: 100%; max-width: 360px; text-align: center;
-      background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 18px; padding: 26px 24px;
-      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
-      box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+    .split { display: flex; height: 100%; }
+
+    /* ── Left: the cover, and the cover again as the room it sits in ───────── */
+    .stage {
+      flex: 1 1 50%; position: relative; display: flex;
+      align-items: center; justify-content: center; padding: 6vh 5vw;
+      background: #11161a;
     }
-    .logo { width: 132px; height: auto; display: block; margin: 0 auto 20px; opacity: .95; }
+    .amb {
+      position: absolute; inset: -15%; z-index: 0;
+      background-size: cover; background-position: center;
+      filter: blur(90px) saturate(150%);
+      opacity: 0; transition: opacity 1.6s ease;
+    }
+    .amb.on { opacity: .85; }
     .cover {
-      width: 168px; height: 168px; object-fit: cover; border-radius: 14px;
-      display: block; margin: 0 auto 16px;
-      box-shadow: 0 14px 40px rgba(0,0,0,0.5);
-      background: var(--bg-elevated);
+      position: relative; z-index: 1;
+      width: min(42vw, 62vh); aspect-ratio: 1; object-fit: cover;
+      border-radius: 40px; background: #1c1c1c;
+      box-shadow: 0 40px 90px rgba(0,0,0,.45);
+      opacity: 0; transform: scale(.94);
+      transition: opacity .7s ease, transform .7s cubic-bezier(.22,1,.36,1);
     }
-    .title {
-      font-size: 17px; font-weight: 600; line-height: 1.3; margin: 0 0 3px;
-      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
-      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    .cover.on { opacity: 1; transform: none; }
+
+    /* ── Right: the panel that carries the words ───────────────────────────── */
+    .panel {
+      flex: 1 1 50%; position: relative; background: var(--panel);
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 6vh 6vw;
+    }
+    /* Explicit size: a canvas carries its own 300×150 intrinsic size, and inset:0 alone
+       does not stretch it — it would draw into a 150px-tall strip at the top. */
+    .viz { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    /* .brand is excluded: this rule is more specific, and forcing it to relative would
+       keep the top/left offsets — shifting it out of flow and onto the title. */
+    .panel > *:not(.viz):not(.brand) { position: relative; z-index: 1; }
+
+    .brand { position: absolute; top: 5vh; left: 6vw; z-index: 1; opacity: .5; }
+    .brand img { height: 20px; display: block; }
+
+    .kicker { font-size: 12px; letter-spacing: .16em; color: var(--t3); margin: 0 0 10px; }
+    h1 {
+      font-size: clamp(28px, 3.4vw, 52px); font-weight: 600; line-height: 1.12;
+      margin: 0 0 10px; letter-spacing: -.01em;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
     .artist {
-      font-size: 13px; color: var(--t2); margin: 0;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: clamp(14px, 1.2vw, 19px); color: var(--t2); margin: 0 0 34px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
-    .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 20px 0 16px; }
-    p.sub { font-size: 13px; color: var(--t2); margin: 0 0 18px; }
+    .actions { display: flex; flex-direction: column; gap: 10px; max-width: 340px; }
     a.btn {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      text-decoration: none; font-size: 14px; font-weight: 600; font-family: var(--font);
-      padding: 12px 16px; border-radius: 12px; margin-bottom: 9px;
-      transition: transform .12s ease, background .12s ease, filter .12s ease;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      text-decoration: none; font-family: var(--font); font-size: 15px; font-weight: 600;
+      padding: 14px 20px; border-radius: 999px;
+      transition: transform .12s ease, filter .16s ease, background .16s ease;
     }
     a.btn:active { transform: scale(.985); }
-    .primary { background: var(--accent); color: #fff; box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 35%, transparent); }
-    .primary:hover { filter: brightness(1.08); }
-    .secondary { background: rgba(255,255,255,0.06); color: var(--t1); }
-    .secondary:hover { background: rgba(255,255,255,0.11); }
-    .ghost { background: transparent; color: var(--t3); font-size: 12px; font-weight: 400; padding: 9px; margin-top: 5px; }
+    .primary { background: var(--accent); color: var(--on-accent); }
+    .primary:hover { filter: brightness(1.07); }
+    .secondary { background: rgba(255,255,255,.08); color: var(--t1); font-weight: 500; }
+    .secondary:hover { background: rgba(255,255,255,.14); }
+    .ghost { margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--t3); padding: 6px; }
     .ghost:hover { color: var(--t2); }
-    .err { color: #ff7070; font-size: 13px; }
+    /* Dead-end state: a shrug rather than a red error — nothing is broken, the link is just empty. */
+    .nothing { text-align: center; max-width: 420px; margin: 0 auto; }
+    .kao {
+      font-size: clamp(40px, 5vw, 60px); color: var(--t2); margin: 0 0 20px;
+      letter-spacing: .04em; animation: bob 4.5s ease-in-out infinite;
+    }
+    .nothing h2 { font-size: clamp(26px, 3vw, 38px); font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; }
+    .nothing p { color: var(--t3); font-size: 15px; line-height: 1.5; margin: 0 0 20px; }
+    .nothing .ghost { display: inline-flex; }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+      50%      { transform: translateY(-7px) rotate(1.5deg); }
+    }
+
+    /* Stacked on anything portrait or narrow — the split needs width to work. */
+    @media (max-width: 900px), (orientation: portrait) {
+      body { overflow: auto; }
+      .split { flex-direction: column; height: auto; min-height: 100%; }
+      .stage { flex: none; padding: 46px 24px 26px; }
+      .cover { width: min(74vw, 46vh); border-radius: 28px; }
+      /* grow, so short pages don't leave the page background showing under the panel */
+      .panel { flex: 1 0 auto; padding: 26px 24px 44px; text-align: center; }
+      .brand { position: static; margin: 0 auto 20px; opacity: .55; }
+      .actions { max-width: none; align-items: stretch; }
+      h1 { font-size: clamp(24px, 7vw, 34px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+      .kao { animation: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <img class="logo" src="Kodama-Logo-Full.svg" alt="Kodama">
-
-    <img class="cover" id="cover" alt="" style="display:none">
-    <h1 class="title" id="title" style="display:none"></h1>
-    <p class="artist" id="artist" style="display:none"></p>
-    <div class="divider" id="divider" style="display:none"></div>
-
-    <p class="sub" id="sub">Loading…</p>
-    <div id="actions" style="display:none">
-      <a class="btn primary" id="kodama">Open in Kodama</a>
-      <a class="btn secondary" id="ytm">Open in YouTube Music</a>
-      <a class="btn ghost" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Don't have Kodama? Get it here</a>
+  <div class="split">
+    <div class="stage">
+      <div class="amb" id="amb"></div>
+      <img class="cover" id="cover" alt="">
     </div>
-    <p class="err" id="err" style="display:none">No song specified in this link.</p>
+
+    <div class="panel">
+      <canvas class="viz" id="viz" aria-hidden="true"></canvas>
+      <div class="brand"><img src="Kodama-Logo-Full.svg" alt="Kodama"></div>
+
+      <p class="kicker" id="kicker">SHARED SONG</p>
+      <h1 id="title">Loading…</h1>
+      <p class="artist" id="artist"></p>
+
+      <div class="actions" id="actions" style="display:none">
+        <a class="btn primary" id="kodama">Play in Kodama</a>
+        <a class="btn secondary" id="ytm">Play in YouTube Music</a>
+        <a class="btn ghost" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Don't have Kodama? Get it here</a>
+      </div>
+      <div class="nothing" id="err" style="display:none">
+        <div class="kao" id="errKao" aria-hidden="true"></div>
+        <h2 id="errTitle"></h2>
+        <p id="errText"></p>
+        <a class="btn ghost" href="/">Take me to Kodama</a>
+      </div>
+    </div>
   </div>
+
   <script>
     (function () {
       // The id may arrive in several shapes, so every form keeps working no matter which one
@@ -111,18 +175,35 @@
         || location.hash.replace(/^#/, "")
         || (path !== "s" ? path : "");
 
-      var sub = document.getElementById("sub");
+      // Paired on purpose — the face and the line have to carry the same tone.
+      var DEAD_ENDS = [
+        ["(・o・;)", "Woh!",                "Couldn't find anything in the World Wide Web… This link doesn't carry a song."],
+        ["(⊙_⊙)",   "Huh?",                "This one arrived empty. There's no song attached to it."],
+        ["(・_・?)", "Hmm…",                "Searched high and low, but this link has no song in it."],
+        ["(￣～￣;)", "Awkward.",            "Whatever was supposed to be here didn't quite make it."],
+        ["(；・∀・)", "Well, that's empty.", "The link works fine — it just isn't pointing at anything."],
+        ["(ーー;)",  "Nothing to play.",    "Maybe the link got cut short somewhere along the way?"]
+      ];
+
       if (!v || !/^[A-Za-z0-9_-]{6,}$/.test(v)) {
-        sub.style.display = "none";
+        var pick = DEAD_ENDS[Math.floor(Math.random() * DEAD_ENDS.length)];
+        document.getElementById("errKao").textContent = pick[0];
+        document.getElementById("errTitle").textContent = pick[1];
+        document.getElementById("errText").textContent = pick[2];
+        // Nothing to show on the left, so drop the stage and let the message have the page.
+        document.querySelector(".stage").style.display = "none";
+        document.querySelector(".panel").style.alignItems = "center";
+        document.getElementById("kicker").style.display = "none";
+        document.getElementById("title").style.display = "none";
         document.getElementById("err").style.display = "block";
+        startViz();
         return;
       }
 
       var kodamaUrl = "kodama://song/" + v;
       document.getElementById("kodama").href = kodamaUrl;
       document.getElementById("ytm").href = "https://music.youtube.com/watch?v=" + v;
-      document.getElementById("actions").style.display = "block";
-      sub.textContent = "Choose where to open this song:";
+      document.getElementById("actions").style.display = "flex";
 
       // Best-effort auto-open in Kodama (silent — fails harmlessly if not installed).
       try {
@@ -132,50 +213,157 @@
         document.body.appendChild(f);
       } catch (e) {}
 
-      function show(title, artist, cover) {
-        var any = false;
-        if (cover) {
-          var img = document.getElementById("cover");
-          img.src = cover;
-          img.onload = function () { img.style.display = "block"; };
-          img.onerror = function () { img.style.display = "none"; };
-          any = true;
-        }
+      function setText(title, artist) {
         if (title) {
-          var te = document.getElementById("title");
-          te.textContent = title; te.style.display = "block"; any = true;
+          document.getElementById("title").textContent = title;
           document.title = artist ? (title + " — " + artist) : title;
         }
-        if (artist) {
-          var ae = document.getElementById("artist");
-          ae.textContent = artist; ae.style.display = "block"; any = true;
+        if (artist) document.getElementById("artist").textContent = artist;
+      }
+
+      // maxresdefault is 16:9 and clean. hqdefault — what oEmbed hands out — is a 4:3 canvas
+      // with the 16:9 frame letterboxed inside it, so its black bars end up baked into the
+      // square crop. Not every video has a maxres, hence the fallback.
+      function loadCover(id, fallbackUrl) {
+        var img = document.getElementById("cover");
+        img.crossOrigin = "anonymous";
+        var tried = false;
+        img.onload = function () {
+          img.classList.add("on");
+          var amb = document.getElementById("amb");
+          amb.style.backgroundImage = "url('" + img.src + "')";
+          amb.classList.add("on");
+          applyAccent(img);
+        };
+        img.onerror = function () {
+          if (tried) return;
+          tried = true;
+          img.src = fallbackUrl || ("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg");
+        };
+        img.src = "https://i.ytimg.com/vi/" + id + "/maxresdefault.jpg";
+      }
+
+      // Same idea as the app's dynamic accent: take the most saturated, brightest pixel
+      // rather than an average. An average of this artwork returns the sky — technically
+      // dominant, but not the colour anyone would name if asked.
+      // i.ytimg.com serves Access-Control-Allow-Origin: *, so the canvas stays readable;
+      // the covers inside the app come from a host that does not, which is why it needs a
+      // proxy and this page does not.
+      function applyAccent(img) {
+        try {
+          var N = 64, c = document.createElement("canvas");
+          c.width = c.height = N;
+          var cx = c.getContext("2d", { willReadFrequently: true });
+          cx.drawImage(img, 0, 0, N, N);
+          var d = cx.getImageData(0, 0, N, N).data;
+          var best = -1, br = 0, bg = 0, bb = 0;
+          for (var i = 0; i < d.length; i += 4) {
+            var r = d[i], g = d[i + 1], b = d[i + 2];
+            var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            var score = (mx === 0 ? 0 : (mx - mn) / mx) * (mx / 255);
+            if (score > best) { best = score; br = r; bg = g; bb = b; }
+          }
+          var hsl = rgbToHsl(br, bg, bb);
+          var hex = hslToHex(hsl[0], Math.min(1, Math.max(0.45, hsl[1])), Math.min(0.78, Math.max(0.55, hsl[2])));
+          document.documentElement.style.setProperty("--accent", hex);
+          // Light accents need dark labels; perceived brightness, not the raw average.
+          var lum = (0.299 * br + 0.587 * bg + 0.114 * bb) / 255;
+          document.documentElement.style.setProperty("--on-accent", lum > 0.55 ? "#1a1414" : "#ffffff");
+        } catch (e) { /* keep the default accent */ }
+      }
+
+      function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        var h = 0, l = (mx + mn) / 2;
+        var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+        if (d !== 0) {
+          if (mx === r) h = ((g - b) / d) % 6;
+          else if (mx === g) h = (b - r) / d + 2;
+          else h = (r - g) / d + 4;
+          h *= 60; if (h < 0) h += 360;
         }
-        if (any) document.getElementById("divider").style.display = "block";
+        return [h, s, l];
+      }
+      function hslToHex(h, s, l) {
+        var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+        var r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+        var to = function (val) { return Math.round((val + m) * 255).toString(16).padStart(2, "0"); };
+        return "#" + to(r) + to(g) + to(b);
       }
 
-      // Metadata that older links still carry. Using it avoids a needless round trip and
-      // keeps those links rendering exactly as before.
-      var t = params.get("t"), a = params.get("a"), c = params.get("c");
-      if (t || a || c) {
-        show(t, a, (c && /^https?:\/\//i.test(c)) ? c : null);
-        return;
+      // Metadata older links still carry. Using it avoids a needless round trip and keeps
+      // those links rendering exactly as before.
+      var t = params.get("t"), a = params.get("a"), cParam = params.get("c");
+      if (t || a) {
+        setText(t, a);
+        loadCover(v, (cParam && /^https?:\/\//i.test(cParam)) ? cParam : null);
+      } else {
+        loadCover(v, null);
+        // YouTube's oEmbed answers with CORS, so no key and no backend are needed — which is
+        // the whole point of dropping the metadata from the link.
+        fetch("https://www.youtube.com/oembed?format=json&url=" +
+              encodeURIComponent("https://www.youtube.com/watch?v=" + v))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d) { document.getElementById("title").textContent = "Shared song"; return; }
+            // YouTube appends " - Topic" to the auto-generated artist channels behind most
+            // music tracks; it is channel plumbing, not part of the name.
+            setText(d.title || "Shared song", (d.author_name || "").replace(/\s*-\s*Topic$/i, "").trim());
+          })
+          .catch(function () { document.getElementById("title").textContent = "Shared song"; });
       }
 
-      // Otherwise look it up from the id alone. YouTube's oEmbed endpoint answers with CORS,
-      // so no key and no backend are needed — which is the whole point of dropping the
-      // metadata from the link. If it fails, the page simply stays on the buttons.
-      fetch("https://www.youtube.com/oembed?format=json&url=" +
-            encodeURIComponent("https://www.youtube.com/watch?v=" + v))
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          if (!d) return;
-          // YouTube appends " - Topic" to the auto-generated artist channels behind most
-          // music tracks; it is channel plumbing, not part of the name.
-          var artist = (d.author_name || "").replace(/\s*-\s*Topic$/i, "").trim();
-          show(d.title || "", artist, d.thumbnail_url || "");
-        })
-        .catch(function () {});
+      startViz();
     })();
+
+    // Mirrored bars tapering to nothing at both ends, drifting on three summed sines — the
+    // same visualiser the landing page runs behind its hero, so both pages move alike.
+    function startViz() {
+      var c = document.getElementById("viz");
+      if (!c || !c.getContext) return;
+      var ctx = c.getContext("2d");
+      var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var W, H, dpr, bars;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = c.clientWidth; H = c.clientHeight;
+        c.width = W * dpr; c.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bars = Math.max(18, Math.floor(W / 18));
+      }
+      function bar(x, y, w, h, r) {
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+        else ctx.fillRect(x, y, w, h);
+      }
+      function frame(t) {
+        ctx.clearRect(0, 0, W, H);
+        var cy = H * 0.5, gap = W / bars, bw = Math.max(3, gap * 0.42);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#e040fb";
+        for (var i = 0; i < bars; i++) {
+          var n = i / (bars - 1);
+          var edge = Math.sin(Math.PI * n);
+          var s = Math.sin(n * 7 + t * 0.0016) * 0.5
+                + Math.sin(n * 13 - t * 0.0011) * 0.3
+                + Math.sin(n * 3.3 + t * 0.0024) * 0.2;
+          var h = (0.10 + 0.52 * Math.abs(s)) * edge * H * 0.44;
+          // Half the landing page's opacity: there the waveform sits behind a wide hero,
+          // here it runs directly under the title and buttons.
+          ctx.globalAlpha = 0.03 + 0.08 * edge;
+          var x = i * gap + gap / 2;
+          bar(x - bw / 2, cy - h, bw, h * 2, bw / 2);
+        }
+        ctx.globalAlpha = 1;
+        if (!reduce) requestAnimationFrame(frame);
+      }
+      resize();
+      window.addEventListener("resize", function () { resize(); if (reduce) frame(0); });
+      frame(0);
+    }
   </script>
 </body>
 </html>
