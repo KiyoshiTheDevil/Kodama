@@ -142,13 +142,16 @@ export function GridCard({ thumbnail, title, subtitle, count, onClick, onPlay, o
   );
 }
 
+// Fills its slot rather than sizing itself: it stands in for a track row inside a
+// virtualised list, so it has to occupy exactly the same height as the real thing.
+// It used to be 60px tall against rows of 64, which quietly skewed the list's total height.
 export function SkeletonRow() {
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 12,
-      padding: "8px 16px", borderRadius: "var(--radius)",
+      display: "flex", alignItems: "center", gap: 12, height: "100%",
+      padding: "0 16px", borderRadius: "var(--radius)",
     }}>
-      <div style={{ width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--bg-elevated)", flexShrink: 0,
+      <div style={{ width: 48, height: 48, borderRadius: "var(--r-md)", background: "var(--bg-elevated)", flexShrink: 0,
         animation: "pulse 1.4s ease-in-out infinite" }} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{ height: 12, width: "45%", borderRadius: "var(--r-sm)", background: "var(--bg-elevated)",

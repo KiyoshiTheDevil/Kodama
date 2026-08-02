@@ -18,6 +18,20 @@ import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClock
 // The pinned bar is a floating card, inset from the edges rather than a full-width slab.
 // BAND_TOP keeps it clear of TitleBar (fixed at y=4..36) and of the ScrollShadow, which fades
 // the container's first 28px.
+// Finds the ancestor that actually scrolls, by asking the layout rather than by looking for a
+// marker class. This used to be `closest(".scrollable")` — but `.scrollable` only styles
+// scrollbars (index.css) and is scattered over a dozen unrelated elements, so it is a guess,
+// not an answer. When the guess misses, the virtualiser gets no scroll element at all: its
+// offset stays 0, it forever renders the first handful of rows at the top of the list, and the
+// remaining (estimated) height below them shows up as a growing empty area as you scroll past.
+function findScrollParent(el) {
+  for (let n = el.parentElement; n; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+  }
+  return null;
+}
+
 const BAND_TOP = 30;
 const CARD_H = 66;
 const POSTER_H = 400;
@@ -303,7 +317,12 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
   useLayoutEffect(() => {
     const inner = listInnerRef.current;
     if (!inner) return;
-    const sc = inner.closest(".scrollable");
+    // Keep the container we already have while it is still valid — resolving it walks the
+    // ancestors with getComputedStyle, and this effect runs on every render (i.e. every
+    // scroll frame), so doing that unconditionally would cost a style recalc per frame.
+    const sc = (scrollEl && scrollEl.isConnected && scrollEl.contains(inner))
+      ? scrollEl
+      : findScrollParent(inner);
     if (sc !== scrollEl) setScrollEl(sc);
     if (!sc) return;
     const top = Math.max(0, Math.round(inner.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop));
@@ -769,8 +788,12 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               <div
                 key={vi.key}
                 data-index={i}
-                ref={rowVirtualizer.measureElement}
-                style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start - listScrollMargin}px)` }}
+                // Fixed height, deliberately NOT dynamically measured. Every row is exactly
+                // TRACK_ROW_H (48px cover, single truncated line), so measureElement could only
+                // ever feed back rounding noise — and any drift it records is permanent, since
+                // the size cache survives scrolling. With a fixed size the list's total height
+                // is always count * TRACK_ROW_H, which is what the scroll maths assumes.
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: TRACK_ROW_H, transform: `translateY(${vi.start - listScrollMargin}px)` }}
               >
                 {tr ? (
                   <TableRow track={tr} index={i}
