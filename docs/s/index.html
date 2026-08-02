@@ -205,13 +205,9 @@
       document.getElementById("ytm").href = "https://music.youtube.com/watch?v=" + v;
       document.getElementById("actions").style.display = "flex";
 
-      // Best-effort auto-open in Kodama (silent — fails harmlessly if not installed).
-      try {
-        var f = document.createElement("iframe");
-        f.style.display = "none";
-        f.src = kodamaUrl;
-        document.body.appendChild(f);
-      } catch (e) {}
+      // No auto-open on load: the browser's "Open Kodama?" prompt is anything but silent,
+      // and it lands on the visitor before they have even seen what the link points at.
+      // The protocol handler fires from the button only.
 
       function setText(title, artist) {
         if (title) {
