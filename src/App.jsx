@@ -1508,6 +1508,13 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   const URL_CACHE_MAX = 50;
   const urlCache = useRef(new Map());
 
+  // The cached URL is only valid for the mode that produced it — progressive hands out the
+  // streaming proxy, classic a local file path. Without this, switching modes kept serving the
+  // old URLs for every song already touched, so a user whose progressive playback failed had to
+  // restart the app before turning it off actually helped. (Reported: "I have to disable it and
+  // then restart the application".)
+  useEffect(() => { urlCache.current.clear(); }, [playbackProgressive]);
+
   const repeatRef = useRef(repeat);
   const shuffleRef = useRef(shuffle);
   const queueRef = useRef(queue);
