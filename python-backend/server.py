@@ -496,11 +496,31 @@ class _RingBufferHandler(_logging.Handler):
         except Exception:
             pass
 
+
+# Endpoints called on a timer. Their access log is never diagnostic, and at ~2 requests a
+# second /overlay/push alone filled 81% of the ring — leaving bug reports with two minutes of
+# it and nothing else. Dropped from the ring only; real log records are unaffected.
+_NOISY_PATHS = (
+    "/overlay/push", "/overlay/state", "/status", "/imgproxy",
+    "/remote/_sync", "/remote/_poll", "/remote/_status",
+)
+
+class _DropNoisyAccessLogs(_logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+        return not any(p in msg for p in _NOISY_PATHS)
+
 _ring_handler = _RingBufferHandler()
 _ring_handler.setFormatter(_logging.Formatter("%(name)s: %(message)s"))
 _ring_handler.setLevel(_logging.DEBUG)
+_ring_handler.addFilter(_DropNoisyAccessLogs())
 # Capture root logger + Werkzeug (Flask's HTTP request logger)
 _logging.getLogger().addHandler(_ring_handler)
+# The handler's own level is not enough: the root logger defaults to WARNING and discards
+# records before any handler sees them. Every _logging.info() in this file — including the
+# per-tier timings in /stream that exist precisely to diagnose slow playback — was being
+# dropped before it could reach the ring, and therefore never reached a bug report either.
+_logging.getLogger().setLevel(_logging.INFO)
 _logging.getLogger("werkzeug").addHandler(_ring_handler)
 _logging.getLogger("werkzeug").setLevel(_logging.INFO)
 
