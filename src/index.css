@@ -781,6 +781,26 @@ button:not([class]) {
    that to stay distinguishable — the same step up, not the same value. */
 [data-ambient="true"] .seek-buffer { background: rgba(255,255,255,0.28); }
 
+/* Preparing: a highlight drifting left to right while the stream URL is still being resolved.
+   Deliberately indeterminate — there is no quantity to show yet, and a bar that filled would
+   be inventing one. Transform-only so it animates off the main thread. */
+.seek-preparing {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; overflow: hidden;
+}
+.seek-preparing::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+  animation: seekPrepare 1.5s ease-in-out infinite;
+}
+@keyframes seekPrepare {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(322%); }  /* 100/45 ≈ 222% to clear the track, plus its own width */
+}
+@media (prefers-reduced-motion: reduce) {
+  .seek-preparing::before { animation: none; width: 100%; background: rgba(255,255,255,0.12); }
+}
+
 /* Ambient-background mode: the player seek/volume tracks turn translucent so the blurred
    cover shows through them instead of a solid surface bar. */
 [data-ambient="true"] .player-seek .slider__track,

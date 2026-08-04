@@ -356,6 +356,7 @@ class IpcAudio {
     this._currentTime = 0;
     this._duration = 0;
     this._buffered = null;    // 0..1 for network streams, null when there is nothing to show
+    this._preparing = false;  // play() issued for a new source, nothing decoding yet
     this._paused = true;
     this._volume = 0.16;      // same default as Rust thread (0.4² quadratic)
     this._listeners = {};
@@ -391,12 +392,14 @@ class IpcAudio {
       listen("audio-loaded", ({ payload }) => {
         if (this._fallback) return;
         if (payload.duration > 0) this._duration = payload.duration;
+        this._preparing = false;
         this._fire("loadedmetadata");
         this._fire("canplay");
       });
       listen("audio-error", ({ payload }) => {
         if (this._fallback) return;
         console.error("[IpcAudio] Rust decode error:", payload);
+        this._preparing = false;
         this._fire("error");
       });
     });
@@ -477,6 +480,9 @@ class IpcAudio {
   // (classic playback, local files, and the HTML5 fallback, which manages its own buffering).
   get bufferedFraction() { return this._fb ? null : this._buffered; }
 
+  // True while a newly-started track is being resolved and probed, before any audio exists.
+  get isPreparing() { return this._fb ? false : this._preparing; }
+
   get currentTime() { return this._fb ? this._fb.currentTime : this._currentTime; }
   set currentTime(t) {
     if (this._fb) { this._fb.currentTime = t; return; }
@@ -510,6 +516,10 @@ class IpcAudio {
       const seekTo = this._pendingSeekTo;
       this._pendingSeekTo = 0;
       this._paused = false;
+      // The gap between here and the first audio-loaded is the URL resolution (~2-4s of
+      // yt-dlp extraction, no bytes moving) plus the probe. Nothing else in the UI marks it.
+      this._preparing = true;
+      this._fire("preparing");
       console.log("[IpcAudio] play() → audio_play (new src)");
       this._cmd("audio_play", { url: this._src, seekTo });
     } else {
@@ -1436,6 +1446,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   const [progress, setProgress] = useState(0);
   // 0..1 while streaming, null when there is nothing to indicate (classic playback / local file).
   const [buffered, setBuffered] = useState(null);
+  const [preparing, setPreparing] = useState(false);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
   playbackProgressiveRef.current = playbackProgressive;
@@ -1906,14 +1917,25 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       });
     };
 
+    // The wait before a new track produces any audio. "error" has to clear it as well —
+    // otherwise a stream that never opens leaves the seek bar animating for good.
+    const onPreparing = () => setPreparing(true);
+    const onReady = () => setPreparing(false);
+
     // Always register listeners — even after a crossfade advance.
     a.addEventListener("timeupdate", onTimeUpdate);
     a.addEventListener("loadedmetadata", onDur);
     a.addEventListener("ended", onEnd);
+    a.addEventListener("preparing", onPreparing);
+    a.addEventListener("canplay", onReady);
+    a.addEventListener("error", onReady);
     return () => {
       a.removeEventListener("timeupdate", onTimeUpdate);
       a.removeEventListener("loadedmetadata", onDur);
       a.removeEventListener("ended", onEnd);
+      a.removeEventListener("preparing", onPreparing);
+      a.removeEventListener("canplay", onReady);
+      a.removeEventListener("error", onReady);
     };
   }, [streamUrl]);
 
@@ -2218,13 +2240,16 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 fully buffered: on a fast line the download finishes before playback even starts,
                 so hiding it at 100% meant it was never visible at all. Absent entirely for the
                 classic path and local files, where there is genuinely nothing to report. */}
-            {track && buffered !== null && (
+            {track && buffered !== null && !preparing && (
               <div
                 className="seek-buffer"
                 aria-hidden="true"
                 style={{ width: `${Math.max(0, Math.min(1, buffered)) * 100}%` }}
               />
             )}
+            {/* Indeterminate sweep for the stretch where there is nothing to measure: the URL is
+                still being resolved, so no bytes have moved and no duration is known yet. */}
+            {track && preparing && <div className="seek-preparing" aria-hidden="true" />}
             <SliderFill />
             <SliderThumb className="after:hidden! bg-transparent! shadow-none! w-0! min-w-0!" />
           </SliderTrack>
