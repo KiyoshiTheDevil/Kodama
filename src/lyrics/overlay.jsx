@@ -3,13 +3,42 @@ import { Button, ChipRoot, ChipLabel } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, openComposer } from "../context.jsx";
 import { translate } from "../i18n.js";
-import { CaretDown, UploadSimple } from "../icons.jsx";
+import { CaretDown, Minus, Plus, UploadSimple } from "../icons.jsx";
 import { fetchLyrics } from "./fetch.js";
 import { paintLineWords } from "./paint.js";
 import { parseLrc, parseTtml, parseDurationToSeconds } from "./parse.js";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
 import { LyricsBrowserModal } from "../modals/lyrics-browser-modal.jsx";
 import { useLyricsPrefs } from "../preferences.jsx";
+
+// Per-song lyric offsets, all in one entry so a large library doesn't scatter hundreds of
+// localStorage keys. Bounded: the oldest corrections are dropped once it grows past the cap,
+// since an offset for a song you no longer play costs nothing to lose.
+// 0.25s: fine enough to land on a natural feel, coarse enough that a full second is four
+// clicks rather than ten.
+const OFFSET_STEP = 0.25;
+const OFFSETS_KEY = "kodama-lyrics-offsets";
+const OFFSETS_MAX = 400;
+
+function readOffsets() {
+  try {
+    const o = JSON.parse(localStorage.getItem(OFFSETS_KEY) || "{}");
+    return (o && typeof o === "object") ? o : {};
+  } catch { return {}; }
+}
+
+function writeOffset(videoId, seconds) {
+  if (!videoId) return;
+  try {
+    const all = readOffsets();
+    // Re-inserting keeps the key at the end, so the cap evicts genuinely stale entries.
+    delete all[videoId];
+    if (seconds) all[videoId] = seconds;
+    const keys = Object.keys(all);
+    for (const k of keys.slice(0, Math.max(0, keys.length - OFFSETS_MAX))) delete all[k];
+    localStorage.setItem(OFFSETS_KEY, JSON.stringify(all));
+  } catch {}
+}
 
 export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
@@ -29,6 +58,14 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const [source, setSource] = useState("");
   const [submitterName, setSubmitterName] = useState(null);
   const [browserOpen, setBrowserOpen] = useState(false);
+  // Per-song timing correction in seconds. Kept per video because the usual cause is one
+  // badly timed lyrics file, not a system-wide delay. Positive = lyrics appear later.
+  const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
+  useEffect(() => { offsetRef.current = offset; }, [offset]);
+  // Derived from state rather than syncedRef: a ref change does not re-render, so the offset
+  // control would stay hidden until something else happened to redraw.
+  const hasSyncedLyrics = useMemo(() => !!(lyrics && lyrics.some(l => (l.time ?? -1) >= 0)), [lyrics]);
   // Identifies the exact version currently shown (Unison submission id), so the browser
   // can mark the right one active when two versions share text + submitter.
   const [appliedVersionId, setAppliedVersionId] = useState(null);
@@ -182,7 +219,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   useEffect(() => {
     const loop = () => {
       const { ct, pt, playing } = audioSnapRef.current;
-      const t = playing ? ct + (performance.now() - pt) / 1000 : ct;
+      // Subtracting looks at an earlier point in the song, which makes every line and every
+      // word fire that much later. Applied here so line detection, word highlighting and
+      // scrolling all shift together — there is no second place to keep in sync.
+      const t = (playing ? ct + (performance.now() - pt) / 1000 : ct) - offsetRef.current;
       const lyr = lyricsDataRef.current;
 
       // Line detection — React re-render only when line changes
@@ -575,6 +615,25 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     onInstChangeRef.current?.(false);
   }, [track?.videoId]);
 
+  // A correction belongs to one song, so it is loaded and dropped with the song.
+  useEffect(() => {
+    const v = readOffsets()[track?.videoId] || 0;
+    offsetRef.current = v;   // the rAF loop reads the ref, so set it in the same tick
+    setOffset(v);
+  }, [track?.videoId]);
+
+  // delta === null resets. Clamped: beyond a few seconds the lyrics are not merely out of
+  // sync, they are the wrong lyrics, and a slider into the void would only hide that.
+  // Reads and writes the ref rather than using a state updater, so repeated clicks in one
+  // tick still accumulate and the persist stays out of the (pure) updater.
+  const adjustOffset = (delta) => {
+    const next = delta === null ? 0
+      : Math.round(Math.min(10, Math.max(-10, offsetRef.current + delta)) * 100) / 100;
+    offsetRef.current = next;
+    setOffset(next);
+    writeOffset(track?.videoId, next);
+  };
+
   useEffect(() => {
     // Paused while the user is manually scrolling — resumed explicitly via the "Resume
     // autoscroll" button (which flips userScrolling back off, re-running this effect).
@@ -787,15 +846,54 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         transition: "transform 0.42s cubic-bezier(0.4,0,0.2,1), opacity 0.32s ease, bottom 0.4s ease",
         pointerEvents: scrollActive ? "auto" : "none",
       }}>
+        {/* Timing correction. Only for synced lyrics — with no timestamps there is nothing to
+            shift. Rides on the same reveal as the chip, so it is there exactly when someone is
+            already looking at this corner and gone the rest of the time. */}
+        {hasSyncedLyrics && (
+          // alignSelf stretch instead of a guessed pixel height: in a centred flex row the line
+          // takes the height of its tallest item, so this matches the chip whatever HeroUI
+          // gives it — and keeps matching if the chip is ever restyled.
+          <div className="flex items-center gap-0.5 self-stretch"
+            style={{
+              background: "rgba(255,255,255,0.1)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+              padding: "0 3px",
+              // Facing edges softened rather than rounded, so the two read as one unit.
+              // The pill side must be exactly half the height (28/2), NOT a huge value:
+              // when the two radii on a side exceed its length, the browser scales ALL
+              // four corners by the same factor — 999px would shrink the 4px corners to
+              // roughly nothing, which is why every value looked identical.
+              // Only while the source chip is there; alone this would be a flat-sided pill.
+              borderRadius: source ? "14px 4px 4px 14px" : "999px",
+            }}>
+            <button onClick={() => adjustOffset(-OFFSET_STEP)} title={translate(language, "lyricsOffsetEarlier")}
+              className="border-0 bg-transparent cursor-default rounded-full w-6 self-stretch flex items-center justify-center transition-all duration-200 hover:brightness-150"
+              style={{ color: "rgba(255,255,255,0.9)" }}>
+              <Minus size={11} weight="bold" />
+            </button>
+            <button onClick={() => adjustOffset(null)} title={translate(language, "lyricsOffsetReset")}
+              className="border-0 bg-transparent cursor-default px-1 transition-all duration-200 hover:brightness-150 tabular-nums"
+              style={{ color: offset ? "var(--accent)" : "rgba(255,255,255,0.9)", fontSize: "var(--t10)", fontWeight: 600, minWidth: 40 }}>
+              {offset > 0 ? "+" : ""}{String(Number(offset.toFixed(2)))}s
+            </button>
+            <button onClick={() => adjustOffset(OFFSET_STEP)} title={translate(language, "lyricsOffsetLater")}
+              className="border-0 bg-transparent cursor-default rounded-full w-6 self-stretch flex items-center justify-center transition-all duration-200 hover:brightness-150"
+              style={{ color: "rgba(255,255,255,0.9)" }}>
+              <Plus size={11} weight="bold" />
+            </button>
+          </div>
+        )}
         {source && (
           <button onClick={() => setBrowserOpen(true)} title={translate(language, "browseLyrics")}
             className="border-0 bg-transparent p-0 cursor-default">
             <ChipRoot size="sm" className="border-0! px-3.5! py-1.5! transition-all duration-200 hover:brightness-125"
-              style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}>
+              style={{
+                background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.9)",
+                backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+                borderRadius: hasSyncedLyrics ? "4px 14px 14px 4px" : "999px",
+              }}>
               <ChipLabel className="font-semibold tracking-wide flex items-center gap-1.5" style={{ fontSize: "var(--t10)" }}>
                 {source}
                 {submitterName && <span style={{ opacity: 0.55 }}> · {submitterName}</span>}
-                <CaretDown size={9} weight="bold" style={{ opacity: 0.6 }} />
               </ChipLabel>
             </ChipRoot>
           </button>
@@ -968,7 +1066,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               key={i}
               data-lyric="true"
               data-lyric-idx={i}
-              onClick={seekable ? () => { audioRef.current.currentTime = line.time; } : undefined}
+              onClick={seekable ? () => { audioRef.current.currentTime = Math.max(0, line.time + offsetRef.current); } : undefined}
               onMouseEnter={seekable ? e => { e.currentTarget.style.opacity = Math.min(1, opacity + 0.25); } : undefined}
               onMouseLeave={seekable ? e => { e.currentTarget.style.opacity = opacity; } : undefined}
               style={{
