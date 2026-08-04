@@ -355,6 +355,7 @@ class IpcAudio {
     this._pendingSeekTo = 0;  // seek target to use on the next play() call
     this._currentTime = 0;
     this._duration = 0;
+    this._buffered = null;    // 0..1 for network streams, null when there is nothing to show
     this._paused = true;
     this._volume = 0.16;      // same default as Rust thread (0.4² quadratic)
     this._listeners = {};
@@ -377,6 +378,9 @@ class IpcAudio {
         this._currentTime = payload.position;
         if (payload.duration > 0) this._duration = payload.duration;
         if (payload.paused !== this._paused) this._paused = payload.paused;
+        // null for anything not streamed over the network (local files are already complete),
+        // which is the signal for the seek bar to leave the buffer indicator off.
+        this._buffered = typeof payload.buffered === "number" ? payload.buffered : null;
         this._fire("timeupdate");
       });
       listen("audio-ended", () => {
@@ -468,6 +472,10 @@ class IpcAudio {
       this._probePromise.then(() => { if (this._fb) this._fb.src = url; });
     }
   }
+
+  // Fraction of the track that has arrived, or null when there is nothing meaningful to show
+  // (classic playback, local files, and the HTML5 fallback, which manages its own buffering).
+  get bufferedFraction() { return this._fb ? null : this._buffered; }
 
   get currentTime() { return this._fb ? this._fb.currentTime : this._currentTime; }
   set currentTime(t) {
@@ -1426,6 +1434,8 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // timing-critical audio paths read those refs, not these values.
   const { crossfade, crossfadeOverrides, remoteEnabled, playbackProgressive } = usePlaybackPrefs();
   const [progress, setProgress] = useState(0);
+  // 0..1 while streaming, null when there is nothing to indicate (classic playback / local file).
+  const [buffered, setBuffered] = useState(null);
   // Stable ref so fetchUrl can read the current playback mode without re-subscribing.
   const playbackProgressiveRef = useRef(playbackProgressive);
   playbackProgressiveRef.current = playbackProgressive;
@@ -1845,6 +1855,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       if (now - _lastProgressTs.current >= 250) {
         _lastProgressTs.current = now;
         setProgress(a.currentTime);
+        // Rides along with the existing throttle rather than opening its own timer — an extra
+        // periodic job in the player is exactly what caused the 15s stutter once before.
+        setBuffered(a.bufferedFraction ?? null);
       }
 
       if (!a.duration) return;
@@ -2199,6 +2212,19 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           className={cn("player-seek w-full", seekDrag !== null && "seeking")}
         >
           <SliderTrack>
+            {/* Buffer fill, behind the played fill. Byte-based, so it maps onto the seconds axis
+                only approximately — fine for an indicator, and the same approximation YouTube
+                makes. Shown for the whole time a network stream is playing, including once it is
+                fully buffered: on a fast line the download finishes before playback even starts,
+                so hiding it at 100% meant it was never visible at all. Absent entirely for the
+                classic path and local files, where there is genuinely nothing to report. */}
+            {track && buffered !== null && (
+              <div
+                className="seek-buffer"
+                aria-hidden="true"
+                style={{ width: `${Math.max(0, Math.min(1, buffered)) * 100}%` }}
+              />
+            )}
             <SliderFill />
             <SliderThumb className="after:hidden! bg-transparent! shadow-none! w-0! min-w-0!" />
           </SliderTrack>

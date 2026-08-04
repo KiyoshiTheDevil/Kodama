@@ -768,6 +768,19 @@ button:not([class]) {
 .switch { --switch-control-bg: var(--surface-2); }
 .slider__track { background-color: var(--surface-2); }
 
+/* Buffer fill for progressive playback, drawn inside the seek track behind the played fill.
+   The track needs to be a positioning context for it — HeroUI lays the fill out in flow, so
+   without this the absolute child would anchor to some ancestor further up. */
+.player-seek .slider__track { position: relative; }
+.seek-buffer {
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit;
+  pointer-events: none; background: rgba(255,255,255,0.18);
+  transition: width 0.25s linear;
+}
+/* Ambient mode already lightens the track itself (0.18), so the indicator has to sit above
+   that to stay distinguishable — the same step up, not the same value. */
+[data-ambient="true"] .seek-buffer { background: rgba(255,255,255,0.28); }
+
 /* Ambient-background mode: the player seek/volume tracks turn translucent so the blurred
    cover shows through them instead of a solid surface bar. */
 [data-ambient="true"] .player-seek .slider__track,

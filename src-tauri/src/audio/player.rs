@@ -26,11 +26,19 @@ pub enum AudioCmd {
 
 // Build a ready-to-play decoder source for any of our URL kinds (used by Play's progressive
 // path and by crossfade). Progressive = stream over HTTP; file:// / http = read fully first.
-fn build_streaming_source(url: &str, seek_to: f64) -> Result<StreamingSource, String> {
+// Returns the source plus, for the streaming case only, a handle to watch the buffer fill.
+// The other two branches have the whole file in hand before they return, so there is nothing
+// to watch — the caller reports them as fully buffered.
+fn build_streaming_source(
+    url: &str,
+    seek_to: f64,
+) -> Result<(StreamingSource, Option<super::http_source::DownloadProgress>), String> {
     if url.contains("/audio-stream/") {
         let hs = super::http_source::HttpStream::new(url.to_string()).map_err(|e| e.to_string())?;
-        StreamingSource::new_streaming(Box::new(hs), seek_to)
-    } else if let Some(p) = url.strip_prefix("file://") {
+        let prog = hs.progress();
+        return StreamingSource::new_streaming(Box::new(hs), seek_to).map(|s| (s, Some(prog)));
+    }
+    let source = if let Some(p) = url.strip_prefix("file://") {
         let data = std::fs::read(p.replace("%20", " ")).map_err(|e| format!("File read error: {e}"))?;
         StreamingSource::new_with_seek(data, seek_to)
     } else {
@@ -45,7 +53,8 @@ fn build_streaming_source(url: &str, seek_to: f64) -> Result<StreamingSource, St
         }
         let data = resp.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string())?;
         StreamingSource::new_with_seek(data, seek_to)
-    }
+    };
+    source.map(|s| (s, None))
 }
 
 pub struct AudioPlayer(Mutex<Option<std::sync::mpsc::SyncSender<AudioCmd>>>);
@@ -140,8 +149,14 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         let (data_tx, data_rx) = std::sync::mpsc::channel::<(Vec<u8>, f64, u64)>();
         // Progressive path delivers an already-probed, ready-to-play StreamingSource built off
         // the audio thread (so the probe's network reads don't block command handling).
-        let (source_tx, source_rx) =
-            std::sync::mpsc::channel::<(super::decoder::StreamingSource, u64, bool)>();
+        let (source_tx, source_rx) = std::sync::mpsc::channel::<(
+            super::decoder::StreamingSource,
+            u64,
+            bool,
+            Option<super::http_source::DownloadProgress>,
+        )>();
+        // Buffer fill of the track the UI is showing, reported alongside the play position.
+        let mut dl_progress: Option<super::http_source::DownloadProgress> = None;
 
         // ── Crossfade: a second sink for the incoming track + a linear volume ramp ──
         let mut sink2: Option<rodio::Sink> = None;
@@ -149,8 +164,14 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         let mut prog_url2: Option<String> = None;
         let mut xfade_start: Option<std::time::Instant> = None;
         let mut xfade_dur: f64 = 0.0;
-        let (xsource_tx, xsource_rx) =
-            std::sync::mpsc::channel::<(super::decoder::StreamingSource, String, f64, u64)>();
+        let (xsource_tx, xsource_rx) = std::sync::mpsc::channel::<(
+            super::decoder::StreamingSource,
+            String,
+            f64,
+            u64,
+            Option<super::http_source::DownloadProgress>,
+        )>();
+        let mut dl_progress2: Option<super::http_source::DownloadProgress> = None;
 
         let mut play_gen: u64 = 0;
 
@@ -201,11 +222,12 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             }
 
             // Progressive (HTTP-streamed) sources, already probed off-thread.
-            while let Ok((mut source, gen, start_paused)) = source_rx.try_recv() {
+            while let Ok((mut source, gen, start_paused, prog)) = source_rx.try_recv() {
                 if gen != play_gen {
                     eprintln!("[Audio] Ignoring stale stream source (gen {gen} != {play_gen})");
                     continue;
                 }
+                dl_progress = prog;
                 if let Some(s) = sink.take() {
                     s.stop();
                 }
@@ -228,7 +250,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             }
 
             // Incoming crossfade source: start it on sink2 at volume 0 and begin the ramp.
-            while let Ok((mut source, url, dur, gen)) = xsource_rx.try_recv() {
+            while let Ok((mut source, url, dur, gen, prog)) = xsource_rx.try_recv() {
                 if gen != play_gen || sink.is_none() {
                     // Superseded (track changed) or the outgoing track already ended
                     // during the build — abort so the frontend can resume normally.
@@ -240,6 +262,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 }
                 duration2 = source.total_duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
                 prog_url2 = if url.contains("/audio-stream/") { Some(url) } else { None };
+                dl_progress2 = prog;
                 match rodio::Sink::try_new(&handle) {
                     Ok(s2) => {
                         s2.set_volume(0.0);
@@ -271,10 +294,12 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                         xfade_start = None;
                         prog_url2 = None;
+                        dl_progress2 = None;
                         duration = 0.0;
                         seek_offset = 0.0;
                         audio_data = None;
                         progressive_url = None;
+                        dl_progress = None;
                         play_gen += 1;
                         let gen = play_gen;
 
@@ -290,10 +315,14 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                 let built = super::http_source::HttpStream::new(url)
                                     .map_err(|e| e.to_string())
                                     .and_then(|hs| {
+                                        // Take the progress handle before the box hands the
+                                        // stream over — afterwards it is out of reach.
+                                        let prog = hs.progress();
                                         super::decoder::StreamingSource::new_streaming(Box::new(hs), seek_to)
+                                            .map(|s| (s, prog))
                                     });
                                 match built {
-                                    Ok(source) => { let _ = stx.send((source, gen, false)); }
+                                    Ok((source, prog)) => { let _ = stx.send((source, gen, false, Some(prog))); }
                                     Err(e) => {
                                         eprintln!("[Audio] Progressive load error (gen {gen}): {e}");
                                         let _ = dl_app.emit("audio-error", format!("Stream failed: {e}"));
@@ -368,9 +397,11 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                         xfade_start = None;
                         prog_url2 = None;
+                        dl_progress2 = None;
                         duration = 0.0;
                         audio_data = None;
                         progressive_url = None;
+                        dl_progress = None;
                     }
                     AudioCmd::Seek(t) => {
                         let was_paused = sink.as_ref().map(|s| s.is_paused()).unwrap_or(false);
@@ -387,10 +418,14 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                 let built = super::http_source::HttpStream::new(url)
                                     .map_err(|e| e.to_string())
                                     .and_then(|hs| {
+                                        let prog = hs.progress();
                                         super::decoder::StreamingSource::new_streaming(Box::new(hs), t)
+                                            .map(|s| (s, prog))
                                     });
-                                if let Ok(source) = built {
-                                    let _ = stx.send((source, gen, was_paused));
+                                // A seek re-opens the stream, so the buffer starts filling from
+                                // the new position — the handle has to be replaced with it.
+                                if let Ok((source, prog)) = built {
+                                    let _ = stx.send((source, gen, was_paused, Some(prog)));
                                 }
                             });
                         } else if let Some(ref data) = audio_data {
@@ -432,7 +467,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                             let dl_app = app.clone();
                             std::thread::spawn(move || {
                                 match build_streaming_source(&url, seek_to) {
-                                    Ok(source) => { let _ = xtx.send((source, url, duration, gen)); }
+                                    Ok((source, prog)) => { let _ = xtx.send((source, url, duration, gen, prog)); }
                                     Err(e) => {
                                         eprintln!("[Audio] Crossfade build error: {e}");
                                         let _ = dl_app.emit("audio-crossfade-failed", ());
@@ -459,6 +494,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     seek_offset = 0.0;
                     audio_data = None;
                     progressive_url = prog_url2.take();
+                    dl_progress = dl_progress2.take();
                     xfade_start = None;
                     let _ = app.emit("audio-crossfade-done", ());
                     eprintln!("[Audio] Crossfade promoted incoming track");
@@ -470,7 +506,9 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             if let Some(s) = sink2.as_ref().filter(|_| xfade_start.is_some()) {
                 let _ = app.emit(
                     "audio-progress",
-                    serde_json::json!({ "position": s.get_pos().as_secs_f64(), "duration": duration2, "paused": s.is_paused() }),
+                    // `buffered` stays null unless this really is a network stream, so the UI can
+                    // hide the indicator rather than draw a permanently-full bar for local files.
+                    serde_json::json!({ "position": s.get_pos().as_secs_f64(), "duration": duration2, "paused": s.is_paused(), "buffered": dl_progress2.as_ref().and_then(|p| p.fraction()) }),
                 );
             } else if let Some(s) = &sink {
                 let pos = s.get_pos().as_secs_f64() + seek_offset;
@@ -478,7 +516,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 let ended = s.empty();
                 let _ = app.emit(
                     "audio-progress",
-                    serde_json::json!({ "position": pos, "duration": duration, "paused": paused }),
+                    serde_json::json!({ "position": pos, "duration": duration, "paused": paused, "buffered": dl_progress.as_ref().and_then(|p| p.fraction()) }),
                 );
                 if ended {
                     sink = None;

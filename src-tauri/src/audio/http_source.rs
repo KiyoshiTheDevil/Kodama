@@ -94,6 +94,33 @@ impl HttpStream {
 
         Ok(HttpStream { shared, pos: 0 })
     }
+
+    /// A read-only view of how much has arrived, cloned out before the decoder takes ownership
+    /// of the stream itself. Cheap to hold and safe to read from the audio thread.
+    pub fn progress(&self) -> DownloadProgress {
+        DownloadProgress(Arc::clone(&self.shared))
+    }
+}
+
+#[derive(Clone)]
+pub struct DownloadProgress(Arc<(Mutex<Shared>, Condvar)>);
+
+impl DownloadProgress {
+    /// How much of the stream is buffered, 0.0..=1.0. `None` while the total length is unknown
+    /// (the server sent neither Content-Range nor Content-Length), so callers can hide the
+    /// indicator rather than draw a bar that means nothing.
+    pub fn fraction(&self) -> Option<f64> {
+        let (m, _) = &*self.0;
+        let g = m.lock().unwrap();
+        if g.complete {
+            return Some(1.0);
+        }
+        let total = g.total?;
+        if total == 0 {
+            return None;
+        }
+        Some((g.data.len() as f64 / total as f64).clamp(0.0, 1.0))
+    }
 }
 
 impl Read for HttpStream {
