@@ -7,6 +7,13 @@
   "playlists": "Listas de Reprodução",
   "links": "Ligações",
   "openYouTubeMusic": "Abrir YouTube Music",
+  "manageGoogleAccount": "Gerenciar Conta do Google",
+  "dataManagement": "Gerenciamento de Dados",
+  "clearPlaybackHistory": "Limpar Histórico de Reprodução",
+  "clearPlaybackHistoryDesc": "Remove o histórico inteiro de reprodução deste perfil. Isto não pode ser desfeito.",
+  "clearPlaybackHistoryConfirm": "Limpar",
+  "historyCleared": "Histórico de reprodução limpo",
+  "changeAvatar": "Mudar de foto de perfil",
   "avatarUpdated": "Foto de perfil atualizada",
   "avatarTooLarge": "Imagem grande demais (max 2 MB)",
   "history": "Histórico",
@@ -40,5 +47,6 @@
   "noPlaylists": "Nenhuma lista de reprodução encontrada.",
   "colTitle": "Título",
   "colArtist": "Artista",
-  "colAlbum": "Álbum"
+  "colAlbum": "Álbum",
+  "selectLanguage": "Selecionar Idioma"
 }
