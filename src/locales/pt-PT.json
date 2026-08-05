@@ -1,4 +1,12 @@
 {
+  "library": "Biblioteca",
+  "likedSongs": "Músicas Favoritas",
+  "statistics": "Estatísticas",
+  "totalUsageTime": "Uso de Tempo da Aplicação",
+  "totalPlaytime": "Tempo Total de Uso",
+  "playlists": "Listas de Reprodução",
+  "links": "Ligações",
+  "openYouTubeMusic": "Abrir YouTube Music",
   "avatarUpdated": "Foto de perfil atualizada",
   "avatarTooLarge": "Imagem grande demais (max 2 MB)",
   "history": "Histórico",
