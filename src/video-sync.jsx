@@ -120,12 +120,14 @@ export function VideoSyncVideo({ src, offsetSeconds, audioRef, isPlaying, style 
 // endTime (e.g. one voice answering another) — mirrored here the same way the main lyrics view
 // handles it: a "trailing" line stays visible (still finishing its own wipe) alongside the new
 // "main" one, instead of just snapping to the newest line the instant it starts.
-function useCaptionLine(track, audioRef, enabled, showTranslation, translationLang, showRomaji) {
+function useCaptionLine(track, audioRef, enabled, showTranslation, translationLang, showRomaji, offsetRef) {
   const [mainLine, setMainLine] = useState(null);
   const [trailingLine, setTrailingLine] = useState(null);
   const [currentTranslation, setCurrentTranslation] = useState("");
   const [currentRomaji, setCurrentRomaji] = useState("");
   const [lines, setLines] = useState([]);
+  const [source, setSource] = useState("");
+  const [submitterName, setSubmitterName] = useState(null);
   const linesRef = useRef([]);
   const translationsRef = useRef(null);
   const romajisRef = useRef(null);
@@ -145,6 +147,8 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
     setCurrentTranslation("");
     setCurrentRomaji("");
     setLines([]);
+    setSource("");
+    setSubmitterName(null);
     if (!enabled || !track) return;
     let cancelled = false;
     fetchLyrics(track.title, track.artists, track.album, parseDurationToSeconds(track.duration), DEFAULT_LYRICS_PROVIDERS, track.videoId)
@@ -159,6 +163,8 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
           .map(l => ({ ...l, text: l.wordSync ? (l.words || []).map(w => w.text).join("") : (l.text || "") }));
         linesRef.current = lrc;
         setLines(lrc);
+        setSource(res?.source || "");
+        setSubmitterName(res?.submitterName || null);
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -234,7 +240,10 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
     let raf = 0;
     const loop = () => {
       const { ct, pt, playing } = snapRef.current;
-      const t = playing ? ct + (performance.now() - pt) / 1000 : ct;
+      // Same single point as the lyrics view: subtracting looks at an earlier moment in the
+      // song, which makes every line and every word appear that much later. Applied here so
+      // line selection and the word wipe shift together.
+      const t = (playing ? ct + (performance.now() - pt) / 1000 : ct) - (offsetRef?.current || 0);
       timeRef.current = t;
       const lns = linesRef.current;
       let idx = -1;
@@ -274,7 +283,21 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
     return () => cancelAnimationFrame(raf);
   }, [enabled]);
 
-  return { mainLine, trailingLine, translation: currentTranslation, romaji: currentRomaji, timeRef };
+  // Lets the lyrics browser swap the shown version without refetching. Normalised the
+  // same way as the fetch above, or word-synced lines would arrive without .text.
+  const applyLyrics = useCallback((res) => {
+    const lrc = (res?.lrc || [])
+      .filter(l => l.time >= 0)
+      .map(l => ({ ...l, text: l.wordSync ? (l.words || []).map(w => w.text).join("") : (l.text || "") }));
+    linesRef.current = lrc;
+    curIdxRef.current = -1;
+    trailingIdxRef.current = -1;
+    setLines(lrc);
+    setSource(res?.source || "");
+    setSubmitterName(res?.submitterName || null);
+  }, []);
+
+  return { mainLine, trailingLine, translation: currentTranslation, romaji: currentRomaji, timeRef, lines, source, submitterName, applyLyrics };
 }
 
 // Renders one line — word-synced main text (if available) plus a smaller background-vocal row
@@ -348,8 +371,17 @@ function KaraokeLine({ line, timeRef, fluid, syllableZoom, mainFontSize, bgFontS
 // Bottom-third caption strip — an alternative to the split-with-lyrics view for users who'd
 // rather keep the video full-size. fluid=true (mirrors the app's own "fluid lyrics" setting)
 // swaps the plain crossfade for a softer blur/glow entrance on each line change.
-function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false }) {
-  const { mainLine, trailingLine, translation, romaji, timeRef } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji);
+function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef }) {
+  const { mainLine, trailingLine, translation, romaji, timeRef, lines, source, submitterName, applyLyrics } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji, offsetRef);
+  // Reported upward rather than decided per visible line: a button that appears and
+  // disappears as the song moves through Latin passages would be worse than none.
+  useEffect(() => {
+    onRomanizableChange?.(lines.some(l => hasJapaneseText(
+      l.wordSync ? (l.words || []).map(w => w.text).join("") : (l.text || "")
+    )));
+  }, [lines]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onSourceChange?.(source, submitterName); }, [source, submitterName]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (applyRef) applyRef.current = applyLyrics; }, [applyRef, applyLyrics]);
   const [shownMain, setShownMain] = useState(null);
   const [shownTranslation, setShownTranslation] = useState("");
   const [shownRomaji, setShownRomaji] = useState("");
@@ -441,9 +473,28 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, language = "en" }) {
+  // The caption toggles live here too: this view renders lyrics through its own path, so
+  // without them the settings the lyrics view offers would be unreachable while a video
+  // is on screen. Revealed on cursor activity — a permanent bar over a video is intrusive.
+  const [toolsVisible, setToolsVisible] = useState(false);
+  const toolsIdle = useRef(null);
+  const wakeTools = () => {
+    setToolsVisible(true);
+    clearTimeout(toolsIdle.current);
+    toolsIdle.current = setTimeout(() => setToolsVisible(false), 2600);
+  };
+  useEffect(() => () => clearTimeout(toolsIdle.current), []);
+  const [romanizable, setRomanizable] = useState(false);
+  // Owned here so the chips and the caption clock share one value — and it is the same
+  // stored correction the lyrics view uses, so adjusting it in either place carries over.
+  const { offset, offsetRef, adjustOffset } = useLyricOffset(track?.videoId);
+  const [capSource, setCapSource] = useState({ name: "", submitter: null });
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const applyRef = useRef(null);
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : 16 }}>
+    <div onMouseMove={wakeTools} onMouseLeave={() => setToolsVisible(false)}
+      style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : 16 }}>
       {videoSync.ready && (
         // offsetSeconds is 0 here, not videoSync.offsetSeconds — App.jsx's audio-switching effect
         // already applies that offset ONCE, as the seek target when swapping the Rust audio source
@@ -452,7 +503,34 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
         // ordinary clock drift between the two independent decoders, not a content offset.
         <VideoSyncVideo src={videoSync.videoUrl} offsetSeconds={0} audioRef={audioRef} isPlaying={isPlaying} style={{ objectFit: "contain" }} />
       )}
-      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} />}
+      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef}
+        onSourceChange={(name, submitter) => setCapSource({ name, submitter })} />}
+      {showCaptions && (
+        <div style={{
+          position: "absolute", bottom: 16, right: 16, zIndex: 3, display: "flex", alignItems: "center", gap: 6,
+          opacity: toolsVisible ? 1 : 0,
+          transform: toolsVisible ? "none" : "translateY(6px)",
+          transition: "opacity 0.28s ease, transform 0.28s ease",
+          pointerEvents: toolsVisible ? "auto" : "none",
+        }}>
+          <OffsetChips language={language} offset={offset} adjustOffset={adjustOffset} neighbourRight />
+          <LyricsToolChips language={language} romanizable={romanizable}
+            neighbourLeft neighbourRight={!!capSource.name} />
+          <SourceChip language={language} source={capSource.name} submitterName={capSource.submitter}
+            onPress={() => setBrowserOpen(true)} neighbourLeft />
+        </div>
+      )}
+      {browserOpen && (
+        <LyricsBrowserModal
+          track={track}
+          providers={BROWSER_PROVIDERS}
+          currentSource={capSource.name}
+          currentSubmitter={capSource.submitter}
+          currentVersionId={null}
+          onApply={(r) => applyRef.current?.(r)}
+          onClose={() => setBrowserOpen(false)}
+        />
+      )}
     </div>
   );
 }

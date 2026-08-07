@@ -1437,7 +1437,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
-    showTranslation: showLyricsTranslation, setShowTranslation,
+    showTranslation: showLyricsTranslation,
     translationLang: lyricsTranslationLang, setTranslationLang,
   } = useLyricsPrefs();
   // Read-only here: crossfade/crossfadeOverrides are mirrored into refs below, and the
@@ -2450,14 +2450,6 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             const fetched = fetchedBrowseIds[track?.videoId] || {};
             const albumId = track.albumBrowseId || fetched.albumBrowseId;
             const artistId = track.artistBrowseId || fetched.artistBrowseId;
-            const LANGS = [
-              { code: "DE", name: "Deutsch" }, { code: "EN", name: "English" },
-              { code: "FR", name: "Français" }, { code: "ES", name: "Español" },
-              { code: "IT", name: "Italiano" }, { code: "PT", name: "Português" },
-              { code: "NL", name: "Nederlands" }, { code: "PL", name: "Polski" },
-              { code: "RU", name: "Русский" }, { code: "JA", name: "日本語" },
-              { code: "KO", name: "한국어" }, { code: "ZH", name: "中文" },
-            ];
             const downloaded = cachedSongIds?.has(track.videoId);
             const downloading = downloadingIds?.has(track.videoId);
             return (
@@ -5287,6 +5279,7 @@ export default function App() {
     setTranslationLang: setLyricsTranslationLang,
     translationFontSize: lyricsTranslationFontSize,
     showRomaji,
+    setShowRomaji,
     romajiFontSize: lyricsRomajiFontSize,
     showAgentTags,
     syllableZoom,
@@ -5294,7 +5287,7 @@ export default function App() {
     ambientVisualizer,
     ambientBackground,
   }), [showLyricsTranslation, setShowLyricsTranslation, lyricsTranslationLang, setLyricsTranslationLang,
-       lyricsTranslationFontSize, showRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
+       lyricsTranslationFontSize, showRomaji, setShowRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
        fluidLyrics, ambientVisualizer, ambientBackground]);
 
   const playbackPrefs = useMemo(() => ({
@@ -5678,7 +5671,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} language={language} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (

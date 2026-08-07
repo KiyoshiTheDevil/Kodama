@@ -21,6 +21,7 @@ export const LYRICS_PREFS_DEFAULTS = {
   setTranslationLang:  () => {},
   translationFontSize: 20,
   showRomaji:          false,
+  setShowRomaji:       () => {},
   romajiFontSize:      18,
   showAgentTags:       true,
   syllableZoom:        false,

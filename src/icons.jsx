@@ -208,6 +208,10 @@ export const SortUp             = fa("sort-up", true);
 export const SortDown           = fa("sort-down", true);
 
 // ── Project-drawn icons (public/*.svg) ────────────────────────────────────────
+// Lyrics actions. Deliberately separate from `Translate` (fa-language), which stands for the
+// interface language in the settings and the sidebar — same word, different meaning.
+export const TranslateLyrics    = maskIcon("/translate.svg");
+export const Romanization       = maskIcon("/romanization.svg");
 export const MiniPlayerEnter    = maskIcon("/mini-player-enable.svg");  // collapse into the mini player
 export const MiniPlayerExit     = maskIcon("/mini-player-disable.svg"); // back to the main window
 
