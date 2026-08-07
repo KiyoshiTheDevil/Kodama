@@ -4560,6 +4560,14 @@ export default function App() {
     });
   }, []);
 
+  // The settings panel had been calling setCustomShortcuts directly, which it never received —
+  // "reset all" threw instead of resetting. Kept here beside resetShortcut so the persisted
+  // copy is written in one place rather than two.
+  const resetAllShortcuts = useCallback(() => {
+    setCustomShortcuts({ ...DEFAULT_SHORTCUTS });
+    localStorage.setItem("kiyoshi-shortcuts", "{}");
+  }, []);
+
   const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
   const [appFontScale, setAppFontScale] = useState(() => {
     const saved = parseFloat(localStorage.getItem("kiyoshi-font-scale"));
@@ -5958,6 +5966,7 @@ export default function App() {
             setRecordingShortcut={setRecordingShortcut}
             getShortcutLabel={getShortcutLabel}
             resetShortcut={resetShortcut}
+            resetAllShortcuts={resetAllShortcuts}
           />
         </div>
         )}
