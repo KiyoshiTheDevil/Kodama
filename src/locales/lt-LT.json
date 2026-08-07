@@ -342,6 +342,7 @@
   "loginWaiting": "Laukiama prisijungimo…",
   "loginWaitingDesc": "Atidarytame lange prisijunkite prie „YouTube Music“, tada spustelėkite „Naudoti šią paskyrą“, kad užbaigtumėte.",
   "loginUseThisAccount": "Naudoti šią paskyrą",
+  "loginSwitchAccountHint": "Naudojatės organizacijos/verslo paskyra? Pirmiausia perjunkite į ją per savo avatarą, tada patvirtinkite.",
   "oauthStepTitle": "Prisijungti naudojant „Google“",
   "oauthInstruction": "Atidarykite „Google“ įrenginių puslapį ir įveskite šį kodą, norėdami leisti „Kodama“ prieigą prie jūsų „YouTube Music“ paskyros:",
   "openGoogleBtn": "Atidaryti „Google“ puslapį",
