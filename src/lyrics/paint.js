@@ -1,3 +1,5 @@
+import { isRtlText } from "../i18n.js";
+
 // Word-level karaoke painting — direct DOM manipulation (no per-word React state/re-render), so
 // the highlight/wipe/zoom/glow can update at 60fps without fighting whatever re-rendered the
 // surrounding line. Extracted from App.jsx's LyricsOverlay so the video-sync caption overlay can
@@ -19,7 +21,9 @@ export function wordGroupIndices(allWords) {
 // Paints a single karaoke word sequence (its own active-word index, stored under
 // idxKey on idxRef). Main vocals and background vocals are painted as INDEPENDENT
 // sequences so a bg line starting does not mark the main line as fully sung.
-export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, groups) {
+export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, groups, rtl = false) {
+  // The wipe has to run with the reading direction, so the gradient axis flips for RTL.
+  const AXIS = rtl ? "to left" : "to right";
   if (!words.length || !els.length) return;
   let curWordIdx = -1;
   for (let wi = 0; wi < words.length; wi++) {
@@ -79,8 +83,8 @@ export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, gr
         // Future: instant reset
         el.style.transition = "text-shadow 0.4s ease-out";
         el.style.opacity = "0";
-        el.style.WebkitMaskImage = "linear-gradient(to right, black -6px, transparent 6px)";
-        el.style.maskImage = "linear-gradient(to right, black -6px, transparent 6px)";
+        el.style.WebkitMaskImage = `linear-gradient(${AXIS}, black -6px, transparent 6px)`;
+        el.style.maskImage = `linear-gradient(${AXIS}, black -6px, transparent 6px)`;
         if (dimEl) dimEl.style.color = "rgba(255,255,255,0.25)";
       }
       // Word-level glow (fluid): glow the segments of the active word that have ALREADY been
@@ -98,8 +102,8 @@ export function paintWordSeq(words, els, idxRef, idxKey, t, zoomMaxRef, glow, gr
     const word = words[curWordIdx];
     if (el && word) {
       const pct = Math.min(100, (t - word.time) / Math.max(word.end - word.time, 0.001) * 100);
-      el.style.WebkitMaskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
-      el.style.maskImage = `linear-gradient(to right, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
+      el.style.WebkitMaskImage = `linear-gradient(${AXIS}, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
+      el.style.maskImage = `linear-gradient(${AXIS}, black calc(${pct.toFixed(1)}% - 6px), transparent calc(${pct.toFixed(1)}% + 6px))`;
     }
   }
 }
@@ -112,6 +116,9 @@ export function paintLineWords(line, els, wordIdxRef, t, zoomMaxRef = null, glow
   const bgWords   = (line.bgWords || []).filter(w => !w.isSpace);
   const mainEls = mainWords.length ? els.slice(0, mainWords.length) : [];
   const bgEls   = bgWords.length   ? els.slice(mainWords.length)     : [];
-  paintWordSeq(mainWords, mainEls, wordIdxRef, "current",   t, zoomMaxRef, glow, wordGroupIndices(line.words));
-  paintWordSeq(bgWords,   bgEls,   wordIdxRef, "bgCurrent", t, null, glow, wordGroupIndices(line.bgWords));
+  // Cached on the line: these objects are stable for the song, so the detection runs
+  // once instead of rebuilding the string on every frame.
+  if (line._rtl === undefined) line._rtl = isRtlText(mainWords.map(w => w.text).join(""));
+  paintWordSeq(mainWords, mainEls, wordIdxRef, "current",   t, zoomMaxRef, glow, wordGroupIndices(line.words), line._rtl);
+  paintWordSeq(bgWords,   bgEls,   wordIdxRef, "bgCurrent", t, null, glow, wordGroupIndices(line.bgWords), line._rtl);
 }

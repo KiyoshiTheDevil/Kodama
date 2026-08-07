@@ -7,11 +7,16 @@
 // seek target for the swap, so playback lands on the corresponding moment in the other version.
 // This module just fetches that data once per track and keeps the <video> element's own position
 // corrected against ordinary clock drift against whatever audio is currently loaded.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { API } from "./context.jsx";
 import { fetchLyrics } from "./lyrics/fetch.js";
 import { DEFAULT_LYRICS_PROVIDERS } from "./lyrics/providers.js";
 import { parseDurationToSeconds } from "./lyrics/parse.js";
+import { isRtlLang, hasJapaneseText } from "./i18n.js";
+import { LyricsToolChips, OffsetChips, SourceChip } from "./lyrics/tool-chips.jsx";
+import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
+import { DEFAULT_LYRICS_PROVIDERS as BROWSER_PROVIDERS } from "./lyrics/providers.js";
+import { useLyricOffset } from "./lyrics/offset.js";
 import { paintLineWords } from "./lyrics/paint.js";
 
 // Real-world calibration (2026-07-18): a confirmed correct match ("Nachos") scored 10.5, a
@@ -453,6 +458,9 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
       {shownTranslation && (
         <div
           key={`${animKey}-tr`}
+          // Centred, so only the direction matters here — but it still does: without it
+          // punctuation and embedded Latin words land on the wrong side of the line.
+          dir={isRtlLang(translationLang) ? "rtl" : "ltr"}
           style={{
             color: "rgba(255,255,255,0.72)", fontWeight: 500, fontSize: 19, textAlign: "center", lineHeight: 1.35,
             maxWidth: 900, overflowWrap: "anywhere",

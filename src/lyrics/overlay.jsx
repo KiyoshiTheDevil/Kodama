@@ -2,43 +2,21 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { Button, ChipRoot, ChipLabel } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, openComposer } from "../context.jsx";
-import { translate } from "../i18n.js";
+import { translate, isRtlLang, isRtlText, hasJapaneseText } from "../i18n.js";
 import { CaretDown, Minus, Plus, UploadSimple } from "../icons.jsx";
 import { fetchLyrics } from "./fetch.js";
 import { paintLineWords } from "./paint.js";
 import { parseLrc, parseTtml, parseDurationToSeconds } from "./parse.js";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
 import { LyricsBrowserModal } from "../modals/lyrics-browser-modal.jsx";
+import { Tooltip } from "../ui/tooltip.jsx";
+import { LyricsToolChips, OffsetChips, SourceChip } from "./tool-chips.jsx";
+import { useLyricOffset } from "./offset.js";
 import { useLyricsPrefs } from "../preferences.jsx";
 
-// Per-song lyric offsets, all in one entry so a large library doesn't scatter hundreds of
-// localStorage keys. Bounded: the oldest corrections are dropped once it grows past the cap,
-// since an offset for a song you no longer play costs nothing to lose.
-// 0.25s: fine enough to land on a natural feel, coarse enough that a full second is four
-// clicks rather than ten.
-const OFFSET_STEP = 0.25;
-const OFFSETS_KEY = "kodama-lyrics-offsets";
-const OFFSETS_MAX = 400;
-
-function readOffsets() {
-  try {
-    const o = JSON.parse(localStorage.getItem(OFFSETS_KEY) || "{}");
-    return (o && typeof o === "object") ? o : {};
-  } catch { return {}; }
-}
-
-function writeOffset(videoId, seconds) {
-  if (!videoId) return;
-  try {
-    const all = readOffsets();
-    // Re-inserting keeps the key at the end, so the cap evicts genuinely stale entries.
-    delete all[videoId];
-    if (seconds) all[videoId] = seconds;
-    const keys = Object.keys(all);
-    for (const k of keys.slice(0, Math.max(0, keys.length - OFFSETS_MAX))) delete all[k];
-    localStorage.setItem(OFFSETS_KEY, JSON.stringify(all));
-  } catch {}
-}
+// How much the active line grows in fluid mode. Needed as a constant because a translation
+// aligned to the growing edge has to be pulled back by exactly this amount.
+const LYRIC_ZOOM = 1.06;
 
 export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
@@ -1002,7 +980,23 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
 
           const seekable = line.time >= 0;
           const agentRole = line.agentRole; // "lead", "featured", "group", or null
-          const textAlign = agentRole === "featured" ? "right" : agentRole === "group" ? "center" : "left";
+          // Splitting a line into one inline-block per word takes it out of the bidi algorithm,
+          // which only orders within a single text run — the boxes then sit in DOM order, left to
+          // right, and Hebrew or Arabic comes out reversed the moment a line goes active.
+          // Reported by a tester: correct unsynced, reversed once highlighted. dir on the wrapper
+          // puts the boxes back into reading order.
+          const lineRtl = isRtlText(lineText);
+          // Line and translation each follow the direction of their own script: an RTL text reads
+          // from the right, so its alignment mirrors. The agent role still decides the baseline
+          // (featured right, group centred) — direction only flips it.
+          const baseAlign = agentRole === "featured" ? "right" : agentRole === "group" ? "center" : "left";
+          const mirrorAlign = a => a === "left" ? "right" : a === "right" ? "left" : a;
+          // Also feeds transformOrigin below, so the zoom grows away from the edge the text is
+          // anchored to instead of pushing it out of the column.
+          const textAlign = lineRtl ? mirrorAlign(baseAlign) : baseAlign;
+          const trAlign = isRtlLang(translationLang) ? mirrorAlign(baseAlign) : baseAlign;
+          const zoomPull = (fluidLyrics && (isActive || isTrailing))
+            ? `${((1 - 1 / LYRIC_ZOOM) * 100).toFixed(2)}%` : undefined;
           // Trailing spaces in the word list would sit at the right edge and push a
           // right-aligned active line visually left. Drop them so it stays flush-right.
           let renderWords = line.words || [];
@@ -1023,7 +1017,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                 cursor: "default",
                 filter: `blur(${blur}px)`,
                 opacity,
-                transform: fluidLyrics ? `scale(${isActive || isTrailing ? 1.06 : 1})` : undefined,
+                transform: fluidLyrics ? `scale(${isActive || isTrailing ? LYRIC_ZOOM : 1})` : undefined,
                 transformOrigin: textAlign === "right" ? "right center" : textAlign === "center" ? "center center" : "left center",
                 transition: fluidLyrics
                   ? "transform 0.25s ease-out, opacity 0.4s ease-out, filter 0.4s ease-out"
@@ -1036,7 +1030,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               }}
             >
               {(isActive || isTrailing) && line.wordSync ? (
-                <span style={{ whiteSpace: "pre-wrap" }}>
+                <span dir={lineRtl ? "rtl" : "ltr"} style={{ whiteSpace: "pre-wrap" }}>
                   {renderWords.map((word, wi) =>
                     word.isSpace
                       ? <span key={wi}>{word.text}</span>
@@ -1057,7 +1051,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   )}
                 </span>
               ) : (
-                <span style={{ color: "#fff" }}>{lineText}</span>
+                <span dir={lineRtl ? "rtl" : "ltr"} style={{ color: "#fff" }}>{lineText}</span>
               )}
               {/* Background vocals — rendered in smaller text below the main line.
                   Initial opacity when isActive: 0.35 (dim). RAF loop sets it to 1
@@ -1072,7 +1066,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   }}
                 >
                   {(isActive || isTrailing) ? (
-                    <span style={{ whiteSpace: "pre-wrap" }}>
+                    <span dir={lineRtl ? "rtl" : "ltr"} style={{ whiteSpace: "pre-wrap" }}>
                       {line.bgWords.map((word, wi) =>
                         word.isSpace
                           ? <span key={wi}>{word.text}</span>
@@ -1114,14 +1108,20 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                 }}>{romajiLines[i]}</div>
               )}
               {showTranslation && translations?.[i] && translations[i] !== lineText && (
-                <div style={{
+                <div dir={isRtlLang(translationLang) ? "rtl" : "ltr"} style={{
                   fontSize: translationFontSize,
                   fontWeight: 600,
                   color: "var(--accent)",
                   opacity: isActive ? 0.9 : 0.45,
                   marginTop: 6,
                   lineHeight: 1.4,
-                  textAlign,
+                  textAlign: trAlign,
+                  // Percentage padding resolves against the same width the scale acts on,
+                  // so the two cancel exactly, at any window size or zoom level.
+                  paddingRight: (trAlign === "right" && textAlign !== "right") ? zoomPull : undefined,
+                  paddingLeft:  (trAlign === "left"  && textAlign !== "left")  ? zoomPull : undefined,
+                  // Follows the zoom rather than snapping while the line is still growing.
+                  transition: "padding 0.25s ease-out",
                 }}>{translations[i]}</div>
               )}
             </div>

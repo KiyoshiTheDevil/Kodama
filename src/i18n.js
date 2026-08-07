@@ -63,3 +63,32 @@ export function translate(lang, key, vars = {}) {
 }
 
 export default translations;
+
+// Translation targets written right-to-left. Used for the direction of translated lyric lines,
+// not for the app's own interface. Without dir="rtl" the browser still lays these scripts out
+// left-to-right, which misplaces punctuation and any Latin words or numbers inside the line.
+const RTL_LANGS = new Set(["AR", "HE", "IW", "FA", "UR", "PS", "SD", "YI"]);
+
+export function isRtlLang(code) {
+  return RTL_LANGS.has(String(code || "").toUpperCase());
+}
+
+// Whether a piece of text reads right-to-left, decided by its first strong directional
+// character — the rule the Unicode bidi algorithm itself uses. Lyrics carry no language tag,
+// so the text is the only thing we can go on.
+const STRONG = /[A-Za-zÀ-ʯͰ-ԯ]|[֐-׿؀-ۿ܀-ݏހ-޿יִ-﷿ﹰ-﻿]/;
+const STRONG_RTL = /[֐-׿؀-ۿ܀-ݏހ-޿יִ-﷿ﹰ-﻿]/;
+
+export function isRtlText(text) {
+  const m = String(text || "").match(STRONG);
+  return !!m && STRONG_RTL.test(m[0]);
+}
+
+// Whether a text is worth offering romaji for. Kana are the unambiguous signal; kanji alone
+// also counts, since Japanese lines are often written without any kana. Chinese shares the
+// ideograph range, so it matches too — the conversion still runs, it just reads as Japanese.
+const JAPANESE = /[぀-ゟ゠-ヿㇰ-ㇿ一-鿿ｦ-ﾝ]/;
+
+export function hasJapaneseText(text) {
+  return JAPANESE.test(String(text || ""));
+}
