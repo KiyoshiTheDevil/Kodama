@@ -5321,10 +5321,15 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [isPlaying, audioRef, overlayOpen, currentTrack, setUiZoom, splitView, openFeedback, playByVideoId]);
 
-  // Animated view wrapper
+  // Animated view wrapper.
+  // "backwards" rather than "both": filling forwards keeps the animation applied for good, and
+  // an element with an applied transform animation stays promoted to its own compositing layer
+  // even at the identity matrix — on a wrapper that spans a whole playlist view that is a very
+  // large layer. Measured against the memory problem it made no difference, so this is hygiene
+  // rather than a fix; the end state is the natural one anyway, so nothing needs holding.
   const AnimatedView = useCallback(({ children }) => (
     <div key={view} style={{
-      animation: animations ? "fadeSlideIn 0.28s cubic-bezier(0.22,1,0.36,1) both" : "none",
+      animation: animations ? "fadeSlideIn 0.28s cubic-bezier(0.22,1,0.36,1) backwards" : "none",
     }}>
       {children}
     </div>
