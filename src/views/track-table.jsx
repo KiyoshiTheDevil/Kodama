@@ -118,6 +118,10 @@ function RowIconButton({ title, onClick, className = "", children }) {
     <Tooltip text={title}>
       <button
         type="button"
+        // The tooltip is a portal, not an accessible name — an icon-only button without this
+        // reaches a screen reader as nothing at all. HeroUI's Button warned about exactly that;
+        // dropping it for a plain element means carrying the label ourselves.
+        aria-label={title}
         onClick={onClick}
         // Pressed state. Deliberately stronger than HeroUI's scale(.97): at 32px that amount is
         // barely perceptible, and these buttons are small targets. A CSS rule suffices here —

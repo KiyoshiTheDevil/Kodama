@@ -1,6 +1,6 @@
 // Queue side panel: the up-next list, its rows, and the per-transition fade editor.
 // QueueRow is only ever rendered by QueuePanel, so the two live together here.
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Button, CardRoot, ChipRoot, ChipLabel, ScrollShadowRoot, ToggleButton, ToggleButtonGroupRoot } from "@heroui/react";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
@@ -11,7 +11,25 @@ import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 
-function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs }) {
+// Plain button rather than HeroUI's, for the same reason the track rows use one: a queued
+// playlist can be thousands of entries, and each react-aria button brings its own hooks,
+// generated id and attribute set. aria-label carries the accessible name that isIconOnly
+// would otherwise have demanded.
+function QueueIconButton({ label, onClick, className = "", children }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`h-7 min-w-7 px-1 rounded-[var(--r-sm)] border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs, labels }) {
   const isDragOver = dragOver === globalIdx;
   const anim = useAnimations();
   const rowRef = useRef(null);
@@ -66,19 +84,19 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
 
       {/* Like button */}
       <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-        <Button variant="ghost" size="sm" isIconOnly onPress={() => onToggleLike?.(track)}
-          className={`h-7 min-w-7 rounded-[var(--r-sm)] ${isLiked ? "text-accent" : "text-muted hover:text-secondary"}`}>
+        <QueueIconButton label={isLiked ? labels.unlike : labels.like} onClick={() => onToggleLike?.(track)}
+          className={isLiked ? "text-accent" : "text-muted hover:text-secondary"}>
           <Heart size={14} weight={isLiked ? "fill" : "regular"} />
-        </Button>
+        </QueueIconButton>
       </span>
 
       {/* Remove button */}
       {isDraggable && (
         <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" isIconOnly onPress={() => { if (anim) dissolve(rowRef.current, () => onRemove(track.videoId)); else onRemove(track.videoId); }}
-            className="h-7 min-w-7 rounded-[var(--r-sm)] text-muted hover:text-[var(--status-danger)]!">
+          <QueueIconButton label={labels.remove} onClick={() => { if (anim) dissolve(rowRef.current, () => onRemove(track.videoId)); else onRemove(track.videoId); }}
+            className="text-muted hover:text-[var(--status-danger)]">
             <Trash size={13} />
-          </Button>
+          </QueueIconButton>
         </span>
       )}
     </div>
@@ -100,6 +118,9 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // Per-transition fade editing reads and writes the global crossfade preferences.
   const { crossfade, crossfadeOverrides, setCrossfadeOverride, removeCrossfadeOverride } = usePlaybackPrefs();
   const t = useLang();
+  // Built once here rather than a translation hook per row — a queued playlist can be
+  // thousands of them.
+  const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
   const fadeKey = (a, b) => `${a?.videoId}__${b?.videoId}`;
@@ -319,7 +340,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
               </Tooltip>
             </div>
             {played.map((qt, i) => (
-              <QueueRow key={qt.videoId || i} track={qt} globalIdx={i} isDraggable={true} dimmed={true}
+              <QueueRow labels={rowLabels} key={qt.videoId || i} track={qt} globalIdx={i} isDraggable={true} dimmed={true}
                 isActive={false} dragOver={dragOver}
                 onPointerDown={handlePointerDown}
                 onPlay={() => { if (suppressClickRef.current) return; setTrack(qt); }} onRemove={removeTrack}
@@ -352,7 +373,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
             {upNext.map((qt, i) => {
               const gIdx = currentIdx + 1 + i;
               return (
-              <QueueRow key={qt.videoId || i} track={qt} globalIdx={gIdx} isDraggable={true}
+              <QueueRow labels={rowLabels} key={qt.videoId || i} track={qt} globalIdx={gIdx} isDraggable={true}
                 isActive={false} dragOver={dragOver}
                 onPointerDown={handlePointerDown}
                 onPlay={() => { if (suppressClickRef.current) return; setTrack(qt); }} onRemove={removeTrack}

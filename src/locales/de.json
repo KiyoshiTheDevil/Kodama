@@ -21,6 +21,7 @@
   "historyEmpty": "Noch keine Songs gespielt.",
   "clearHistory": "Verlauf leeren",
   "removeFromHistory": "Aus Verlauf entfernen",
+  "removeFromQueue": "Aus der Warteschlange entfernen",
   "justNow": "Gerade eben",
   "search": "Suchen...",
   "pinned": "Angepinnt",
