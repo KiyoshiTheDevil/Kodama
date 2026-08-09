@@ -18,7 +18,7 @@ import { useLyricsPrefs } from "../preferences.jsx";
 // aligned to the growing edge has to be pulled back by exactly this amount.
 const LYRIC_ZOOM = 1.06;
 
-export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange }) {
+export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
   // them are per-instance, they were just settings threaded down from App(). Rendered outside
   // the provider (Big Picture) these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
@@ -195,8 +195,14 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     };
   }, [audioRef]);
 
-  // rAF loop: line changes trigger React re-render; word highlighting is direct DOM manipulation
+  // rAF loop: line changes trigger React re-render; word highlighting is direct DOM manipulation.
+  // Gated on `active`: this component stays mounted while the overlay is closed (the pane is
+  // slid off screen, not unmounted), so without the gate the loop ran sixty times a second
+  // for the whole length of every song with nobody looking — line detection, scroll maths and
+  // a freshly built mask gradient per frame. Measured: playback alone drove the renderer from
+  // 270 MB to over 3 GB across three songs.
   useEffect(() => {
+    if (!active) return;
     const loop = () => {
       const { ct, pt, playing } = audioSnapRef.current;
       // Subtracting looks at an earlier point in the song, which makes every line and every
@@ -315,7 +321,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [audioRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [audioRef, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // After React renders, cache word span elements and bg-vocals container for the active line
   useLayoutEffect(() => {
@@ -641,7 +647,8 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   }, [activeIdx, fluidLyrics, userScrolling]);
 
   useEffect(() => {
-    if (!fluidLyrics) return;
+    // Same reason as the paint loop: no point running the spring for an off-screen pane.
+    if (!fluidLyrics || !active) return;
     const container = containerRef.current;
     if (!container) return;
     scrollPosRef.current = container.scrollTop;
@@ -722,7 +729,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       container.removeEventListener("touchmove", onUserScroll);
       wraps.forEach(w => { w.style.transform = ""; });
     };
-  }, [fluidLyrics, lyrics]);
+  }, [fluidLyrics, lyrics, active]);
 
   // Manual-scroll detection for non-fluid mode (fluid mode's own rAF loop above already
   // covers this, plus its physics bookkeeping). Only wheel/touchmove count as "the user

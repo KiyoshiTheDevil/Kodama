@@ -11,7 +11,7 @@ function vizToRGB(c) {
 }
 function vizLerp(a, b, t) { const A = vizToRGB(a), B = vizToRGB(b); return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`; }
 
-export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false }) {
+export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false }) {
   const hq = hiResThumb(track.thumbnail, 800);
   const specRef = useRef(null);
   const coverRef = useRef(null);
@@ -52,7 +52,10 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
   // Audio-reactive spectrum (ring or cover-hugging frame) + cover pulse, driven by the live
   // `audioLevels` (Rust FFT). Config read via a ref so changes apply without restarting rAF.
   useEffect(() => {
-    if (!ambientVisualizer) return;
+    // `active` as well as the setting: this component stays mounted while the expanded view is
+    // closed (the pane is slid off screen), and without the check it kept asking Rust for the
+    // FFT and drawing the spectrum for the whole of every song, onto a surface nobody sees.
+    if (!ambientVisualizer || !active) return;
     const cv = specRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d");
@@ -192,7 +195,7 @@ export function CoverView({ track, isPlaying, onClose, ambientVisualizer = true,
     };
     raf = requestAnimationFrame(draw);
     return () => { cancelAnimationFrame(raf); releaseLevels(); if (coverRef.current) coverRef.current.style.transform = ""; };
-  }, [ambientVisualizer, narrow]);
+  }, [ambientVisualizer, narrow, active]);
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>

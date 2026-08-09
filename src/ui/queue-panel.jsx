@@ -86,6 +86,17 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
 }
 
 export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+  // The panel stays mounted while closed — it slides rather than unmounts — but its list
+  // was rendered all the same. With a large playlist queued that is thousands of rows,
+  // rebuilt on every track change because currentTrack comes in as a prop: pressing next
+  // blocked the main thread for nearly two seconds. Kept alive briefly past the close so
+  // the slide-out animation still has something to show.
+  const [mountList, setMountList] = useState(visible);
+  useEffect(() => {
+    if (visible) { setMountList(true); return; }
+    const id = setTimeout(() => setMountList(false), 450);
+    return () => clearTimeout(id);
+  }, [visible]);
   // Per-transition fade editing reads and writes the global crossfade preferences.
   const { crossfade, crossfadeOverrides, setCrossfadeOverride, removeCrossfadeOverride } = usePlaybackPrefs();
   const t = useLang();
@@ -295,7 +306,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
         </div>
       )}
 
-      {panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
+      {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
         {/* Previously played */}
         {played.length > 0 && (
           <>

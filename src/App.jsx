@@ -5707,6 +5707,13 @@ export default function App() {
             // No width animation while dragging (snappy), otherwise the smooth mode transition.
             const widthTransition = splitResizing ? "none" : "width 0.4s cubic-bezier(0.4,0,0.2,1)";
             const paneTransition = `opacity 0.35s ease, ${widthTransition}`;
+            // Whether the lyrics are actually on screen. The pane stays mounted when the
+            // overlay is closed — it is only slid out of view — so without this its rAF
+            // loop keeps running for a listener who cannot see it.
+            const lyricsOnScreen = overlayOpen && (showVideoView ? videoSplitActive : (coverSplitActive || showLyrics));
+            // Same for the cover pane: it holds the spectrum visualizer, which asks Rust to run
+            // an FFT and stream 30 payloads a second. Mounted is not the same as visible.
+            const coverOnScreen = overlayOpen && !showVideoView && (coverSplitActive || !showLyrics);
             return (<>
               <div style={{
                 position: "absolute", top: 0, bottom: 0, right: 0,
@@ -5715,7 +5722,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
               }}>
-                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} />
+                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} />
               </div>
               <div style={{
                 position: "absolute", top: 0, bottom: 0, left: 0,
@@ -5725,7 +5732,7 @@ export default function App() {
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
                 borderRight: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
-                <CoverView track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} narrow={coverSplitActive} />
+                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} narrow={coverSplitActive} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
