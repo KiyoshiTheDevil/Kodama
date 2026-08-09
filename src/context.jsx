@@ -19,6 +19,13 @@ export function hiResThumb(url, size = 512) {
     if (/=[ws]\d+/.test(url)) return url.replace(/=[ws]\d+[^/]*$/, `=w${size}-h${size}-l90-rj`);
     return url + `=w${size}-h${size}-l90-rj`;
   }
+  // i.ytimg.com serves fixed variants instead of an arbitrary size, and used to fall through
+  // here untouched — a 48px row cell then decoded whatever the backend picked, which is
+  // anything from 226px upwards. Snap to the smallest variant that still covers the request.
+  if (url.includes("i.ytimg.com")) {
+    const variant = size <= 120 ? "default" : size <= 320 ? "mqdefault" : size <= 480 ? "hqdefault" : "maxresdefault";
+    return url.replace(/\/(maxres|sd|hq|mq)?default\.jpg/, `/${variant}.jpg`);
+  }
   return url;
 }
 export const thumbHi = (url, size) => thumb(hiResThumb(url, size));
