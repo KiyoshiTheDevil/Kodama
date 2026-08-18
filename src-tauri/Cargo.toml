@@ -29,6 +29,9 @@ tokio             = { version = "1", features = ["time"] }
 discord-rich-presence = "1.1"
 rodio      = { version = "0.20", features = ["symphonia-all"] }
 symphonia  = { version = "0.5",  features = ["all"] }
+# Opus decoder. symphonia demuxes WebM/Ogg but ships no Opus codec (still true in 0.6.1), and
+# rodio pins symphonia to 0.5 anyway, so upgrading would not have helped. See audio/decoder.rs.
+audiopus   = "0.2"
 rustfft    = "6"
 base64     = "0.22"
 # OS media controls (Windows SMTC, macOS Now Playing, Linux MPRIS) + media keys.
