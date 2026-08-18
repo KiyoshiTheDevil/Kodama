@@ -2577,6 +2577,15 @@ _IOS_MUSIC_OPTS  = {"extractor_args": {"youtube": {"player_client": ["ios_music"
 _TV_OPTS         = {"extractor_args": {"youtube": {"player_client": ["tv_embedded"],   "player_skip": ["js"]}}}
 _M4A_FMT = "bestaudio[ext=m4a]/bestaudio[acodec=aac]"
 
+# NOT USED: android_vr. It extracts in ~1.2s where web_music+PO needs ~3-7s, which makes it
+# look like the obvious fast path. Measured 2026-08-16 — it is a trap on two counts:
+#   1. Its media URL carries no solved `n` parameter, so googlevideo throttles it to ~31 KB/s
+#      (vs ~2100 KB/s for the PO-token URL). A 128 kbit/s track needs ~16 KB/s for realtime,
+#      so the growing buffer fills barely faster than playback — the extraction time saved
+#      comes straight back as buffering. Dropping player_skip=js to get nsig gives HTTP 403.
+#   2. It is anonymous and only ever offers itag 140. Tracks that have itag 141 (256 kbit/s,
+#      Premium) would silently drop to 128 kbit/s.
+
 _MWEB_OPTS = {"extractor_args": {"youtube": {"player_client": ["mweb"]}}}
 
 # Strategy (2026): Web cookies ONLY work correctly with web clients.
