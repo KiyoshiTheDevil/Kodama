@@ -414,16 +414,32 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                             play_gen += 1;
                             let gen = play_gen;
                             let stx = source_tx.clone();
+                            // Seeking rebuilds the decoder, but it must not restart the
+                            // download: read the already-buffered bytes through a second
+                            // reader over the same stream. A backwards seek then costs
+                            // nothing, and the buffer indicator keeps what it had reached
+                            // instead of dropping back to zero.
+                            let existing = dl_progress.clone();
                             std::thread::spawn(move || {
-                                let built = super::http_source::HttpStream::new(url)
-                                    .map_err(|e| e.to_string())
-                                    .and_then(|hs| {
-                                        let prog = hs.progress();
-                                        super::decoder::StreamingSource::new_streaming(Box::new(hs), t)
+                                let built = match existing {
+                                    Some(prog) => super::decoder::StreamingSource::new_streaming(
+                                        Box::new(prog.reader()),
+                                        t,
+                                    )
+                                    .map(|s| (s, prog)),
+                                    // No live download to attach to (first seek after an
+                                    // error, say) — fall back to opening the stream anew.
+                                    None => super::http_source::HttpStream::new(url)
+                                        .map_err(|e| e.to_string())
+                                        .and_then(|hs| {
+                                            let prog = hs.progress();
+                                            super::decoder::StreamingSource::new_streaming(
+                                                Box::new(hs),
+                                                t,
+                                            )
                                             .map(|s| (s, prog))
-                                    });
-                                // A seek re-opens the stream, so the buffer starts filling from
-                                // the new position — the handle has to be replaced with it.
+                                        }),
+                                };
                                 if let Ok((source, prog)) = built {
                                     let _ = stx.send((source, gen, was_paused, Some(prog)));
                                 }

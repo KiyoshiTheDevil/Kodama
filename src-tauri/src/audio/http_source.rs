@@ -106,6 +106,19 @@ impl HttpStream {
 pub struct DownloadProgress(Arc<(Mutex<Shared>, Condvar)>);
 
 impl DownloadProgress {
+    /// Open another reader over the same in-memory download, positioned at the start.
+    ///
+    /// Seeking re-opens the decoder, and rebuilding the HTTP stream with it would fetch the
+    /// track again from byte 0 — even when seeking backwards into bytes already held here.
+    /// The downloader thread is not tied to any one reader, so it keeps filling this buffer
+    /// no matter how often the decoder is rebuilt around it.
+    pub fn reader(&self) -> HttpStream {
+        HttpStream {
+            shared: Arc::clone(&self.0),
+            pos: 0,
+        }
+    }
+
     /// How much of the stream is buffered, 0.0..=1.0. `None` while the total length is unknown
     /// (the server sent neither Content-Range nor Content-Length), so callers can hide the
     /// indicator rather than draw a bar that means nothing.
