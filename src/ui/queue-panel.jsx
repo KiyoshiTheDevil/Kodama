@@ -29,7 +29,9 @@ function QueueIconButton({ label, onClick, className = "", children }) {
   );
 }
 
-function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs, labels }) {
+// labels defaults to {} so a call site that forgets to pass it loses the button's accessible
+// name — which the console already warns about — instead of taking the whole app down.
+function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs, labels = {} }) {
   const isDragOver = dragOver === globalIdx;
   const anim = useAnimations();
   const rowRef = useRef(null);
@@ -353,7 +355,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
         {currentTrack && (
           <>
             <div ref={nowPlayingRef} className="px-1.5 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("nowPlaying")}</div>
-            <QueueRow track={currentTrack} globalIdx={currentIdx} isDraggable={false} dimmed={true}
+            <QueueRow labels={rowLabels} track={currentTrack} globalIdx={currentIdx} isDraggable={false} dimmed={true}
               isActive={true} dragOver={dragOver}
               onPointerDown={handlePointerDown}
               onPlay={() => setTrack(currentTrack)} onRemove={removeTrack}
