@@ -2575,7 +2575,14 @@ _ANDROID_OPTS    = {"extractor_args": {"youtube": {"player_client": ["android_mu
 _IOS_OPTS        = {"extractor_args": {"youtube": {"player_client": ["ios"],           "player_skip": ["js"]}}}
 _IOS_MUSIC_OPTS  = {"extractor_args": {"youtube": {"player_client": ["ios_music"],     "player_skip": ["js"]}}}
 _TV_OPTS         = {"extractor_args": {"youtube": {"player_client": ["tv_embedded"],   "player_skip": ["js"]}}}
-_M4A_FMT = "bestaudio[ext=m4a]/bestaudio[acodec=aac]"
+# Opus first, because at equal bitrate it is the better codec and YouTube prices both the same.
+# Measured 2026-08-19 over six tracks with a Premium account: wherever the high AAC tier (141,
+# ~257k) exists so does the high Opus tier (774, ~247-257k), and where only the medium tier
+# exists Opus (251) came in at or above AAC (140). File size differences ran -4% to +3%.
+# The Rust core decodes it since audio/decoder.rs brought its own Opus decoder.
+# The abr>100 guard is for the case we did NOT observe: a track offering Opus only in a low
+# tier (249/250 are 47-62k) while AAC has a high one. There we would rather keep AAC.
+_AUDIO_FMT = "bestaudio[acodec=opus][abr>100]/bestaudio[ext=m4a]/bestaudio[acodec=aac]"
 
 # NOT USED: android_vr. It extracts in ~1.2s where web_music+PO needs ~3-7s, which makes it
 # look like the obvious fast path. Measured 2026-08-16 — it is a trap on two counts:
@@ -2596,17 +2603,17 @@ _MWEB_OPTS = {"extractor_args": {"youtube": {"player_client": ["mweb"]}}}
 # → Anonymous fallbacks try youtube.com (use_ytm=False) for wider format availability.
 _STREAM_ATTEMPTS = [
     # ── 1. Authenticated web clients (web cookies + web client = consistent) ─────
-    (_M4A_FMT, _WEB_MUSIC_OPTS, False),   # web_music + cookies
-    (_M4A_FMT, None,            False),    # default web + cookies
+    (_AUDIO_FMT, _WEB_MUSIC_OPTS, False),   # web_music + cookies
+    (_AUDIO_FMT, None,            False),    # default web + cookies
     # ── 2. Anonymous mobile/TV (no cookies → no mismatch, no PO-token demand) ───
-    (_M4A_FMT, _TV_OPTS,        True),
-    (_M4A_FMT, _ANDROID_OPTS,   True),
-    (_M4A_FMT, _IOS_OPTS,       True),
-    (_M4A_FMT, _IOS_MUSIC_OPTS, True),
-    (_M4A_FMT, _MWEB_OPTS,      True),    # mobile-web often bypasses bot checks
+    (_AUDIO_FMT, _TV_OPTS,        True),
+    (_AUDIO_FMT, _ANDROID_OPTS,   True),
+    (_AUDIO_FMT, _IOS_OPTS,       True),
+    (_AUDIO_FMT, _IOS_MUSIC_OPTS, True),
+    (_AUDIO_FMT, _MWEB_OPTS,      True),    # mobile-web often bypasses bot checks
     # ── 3. Anonymous web ─────────────────────────────────────────────────────────
-    (_M4A_FMT, _WEB_MUSIC_OPTS, True),
-    (_M4A_FMT, None,            True),
+    (_AUDIO_FMT, _WEB_MUSIC_OPTS, True),
+    (_AUDIO_FMT, None,            True),
 ]
 
 def _browser_cookie_opts():
@@ -2758,7 +2765,7 @@ def stream_url(video_id):
     if _POT_AVAILABLE:
         _t = time.time()
         try:
-            info = _ydl_extract_url(video_id, _M4A_FMT, extra_opts=_pot_opts(), skip_auth=False)
+            info = _ydl_extract_url(video_id, _AUDIO_FMT, extra_opts=_pot_opts(), skip_auth=False)
             url = _stream_url_from_info(info)
             if url:
                 _logging.info(f"[stream] {video_id} OK via web_music+PO token in {time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)")
@@ -2791,7 +2798,7 @@ def stream_url(video_id):
         browser = browser_opts["cookiesfrombrowser"][0]
         _t = time.time()
         try:
-            info = _ydl_extract_url(video_id, _M4A_FMT, extra_opts=browser_opts, skip_auth=True)
+            info = _ydl_extract_url(video_id, _AUDIO_FMT, extra_opts=browser_opts, skip_auth=True)
             url = _stream_url_from_info(info)
             if url:
                 _logging.info(f"[stream] {video_id} OK via {browser} browser cookies in {time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)")
@@ -2841,8 +2848,9 @@ def stream_prepare(video_id):
     cache_dir = os.path.join(tempfile.gettempdir(), "kiyoshi-audio")
     os.makedirs(cache_dir, exist_ok=True)
 
-    # Check if already downloaded (skip WebM — symphonia has no Opus decoder)
-    _PLAYABLE_EXTS = {".m4a", ".mp4", ".mp3", ".ogg", ".flac", ".wav"}
+    # Check if already downloaded. WebM/Opus is playable now that the Rust core carries its
+    # own Opus decoder (see src-tauri/src/audio/decoder.rs).
+    _PLAYABLE_EXTS = {".m4a", ".mp4", ".mp3", ".ogg", ".opus", ".webm", ".flac", ".wav"}
     existing = _glob.glob(os.path.join(cache_dir, f"{video_id}.*"))
     for ex in existing:
         ext = os.path.splitext(ex)[1].lower()
@@ -2862,7 +2870,7 @@ def stream_prepare(video_id):
     # Tier 0: authenticated web_music + GVS PO token first (bypasses the PO-token
     # wall / bot-check that otherwise 403s the media URL at download time), then
     # fall through to the legacy client tiers. Only prepended when available.
-    attempts = ([(_M4A_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
+    attempts = ([(_AUDIO_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
     for fmt, extra, no_auth in attempts:
         try:
             ydl_opts = {
