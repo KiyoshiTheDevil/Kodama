@@ -10,6 +10,19 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.35] - 2026-08-19
+
+Changes:
+- Playback now uses Opus, which sounds better than AAC at the same bitrate and file size
+- Tracks start noticeably sooner when progressive loading is on
+- Seeking no longer restarts the download, so jumping back is instant
+- Translations updated (Spanish (Mexico), Italian, Lithuanian), French on the way
+
+Fixes:
+- Video Sync reported "no video available" for every track
+- An expired session was never announced, it only showed up as things quietly not loading
+- The library showed a blank page instead of saying it was empty or not signed in
+
 ## [1.0.0-alpha.34] - 2026-08-16
 
 Changes:
