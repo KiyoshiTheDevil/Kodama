@@ -16,7 +16,7 @@ Changes:
 - Playback now uses Opus, which sounds better than AAC at the same bitrate and file size
 - Tracks start noticeably sooner when progressive loading is on
 - Seeking no longer restarts the download, so jumping back is instant
-- Translations updated (Spanish (Mexico), Italian, Lithuanian)
+- French is now selectable, and translations updated (Spanish (Mexico), French, Italian, Lithuanian)
 
 Fixes:
 - Video Sync reported "no video available" for every track
