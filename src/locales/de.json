@@ -940,5 +940,7 @@
   "libraryEmptySessionTitle": "Nichts zu sehen, vermutlich abgemeldet",
   "libraryEmptySessionBody": "Deine YouTube-Sitzung wird gerade nicht mehr akzeptiert, deshalb kommt deine Bibliothek leer zurück. Eine erneute Anmeldung stellt sie wieder her.",
   "libraryEmpty": "Hier ist noch nichts.",
-  "libraryNoMatches": "Nichts gefunden."
+  "libraryNoMatches": "Nichts gefunden.",
+  "rtlLayout": "Layout von rechts nach links",
+  "rtlLayoutDesc": "Dreht die Oberfläche für Sprachen wie Hebräisch oder Arabisch. Kodama ist dafür noch nicht ausgelegt, vieles wird verrutschen. Zum Ausprobieren und Melden gedacht."
 }

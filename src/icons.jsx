@@ -149,6 +149,7 @@ export const Copy               = fa("copy");
 export const ArrowSquareOut     = fa("arrow-up-right-from-square");
 export const ArrowClockwise     = fa("arrow-rotate-right");
 export const ArrowsClockwise    = fa("arrows-rotate");
+export const ArrowsLeftRight    = fa("right-left");
 export const Link               = fa("link");
 export const PushPin            = fa("thumbtack");
 export const ClockCounterClockwise = fa("clock-rotate-left");

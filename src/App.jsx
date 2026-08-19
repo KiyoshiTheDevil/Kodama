@@ -697,6 +697,11 @@ const SIDEBAR_EXPANDED = 288;   // default expanded width
 // to be eaten whole by the (already-slimmed, 8px) scrollbar the moment one appears, clipping the
 // icon against the sidebar's own overflow:hidden. 64 leaves real breathing room.
 const SIDEBAR_COLLAPSED = 64;
+// Drag handles work in raw pointer coordinates, which do not know about layout direction.
+// Read it off the document rather than the RTL preference, so the answer stays right no matter
+// who set the direction (the experimental toggle today, a locale-driven default later).
+const isRtl = () => document.documentElement.getAttribute("dir") === "rtl";
+
 const SIDEBAR_MIN = 230;        // min when dragging
 const SIDEBAR_MAX = 440;        // max when dragging
 const SPLIT_MIN = 0.22;         // min/max cover-pane fraction in the fullscreen split view
@@ -3338,8 +3343,11 @@ export default function App() {
     document.body.style.cursor = "ew-resize";
     document.body.style.userSelect = "none";
     const onMove = (ev) => {
-      // Sidebar starts at the window's left edge; width ≈ cursor X (account for 8px left padding)
-      const w = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX - 4));
+      // Sidebar hugs the inline start, which is the window's left edge in LTR and its right
+      // edge in RTL. Measure from that edge rather than from x=0, or the drag runs backwards
+      // once the layout is flipped.
+      const x = isRtl() ? window.innerWidth - ev.clientX : ev.clientX;
+      const w = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, x - 4));
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -3366,8 +3374,10 @@ export default function App() {
     document.body.style.cursor = "ew-resize";
     document.body.style.userSelect = "none";
     const onMove = (ev) => {
-      // Panel's right edge sits 8px from the window's right; width ≈ (rightEdge - cursorX).
-      const w = Math.min(QUEUE_MAX, Math.max(QUEUE_MIN, (window.innerWidth - 8) - ev.clientX));
+      // Panel is docked at the inline end, 8px in from that edge; width is the distance from
+      // the edge to the cursor. Which edge that is depends on the layout direction.
+      const fromEnd = isRtl() ? ev.clientX : window.innerWidth - ev.clientX;
+      const w = Math.min(QUEUE_MAX, Math.max(QUEUE_MIN, fromEnd - 8));
       setQueueWidth(w);
     };
     const onUp = () => {
@@ -3636,6 +3646,24 @@ export default function App() {
     if (hc) document.documentElement.setAttribute("data-highcontrast", "true");
     return hc;
   });
+  // Right-to-left layout, experimental. Kodama has never been laid out for it: roughly 190
+  // places in src/ fix a side outright (81 absolutely positioned left/right, 75 Tailwind
+  // ml-/mr-/pl-/pr-, the rest inline styles). Setting dir on the root is what makes those
+  // show themselves, so this switch is the measuring instrument for the work, not the work.
+  const [rtlLayout, setRtlLayout] = useState(() => {
+    const on = localStorage.getItem("kiyoshi-rtl-layout") === "true";
+    if (on) document.documentElement.setAttribute("dir", "rtl");
+    return on;
+  });
+  const handleRtlLayoutChange = useCallback((on) => {
+    setRtlLayout(on);
+    localStorage.setItem("kiyoshi-rtl-layout", String(on));
+    // Explicit ltr rather than removing the attribute: some of the app sets dir on subtrees
+    // (lyrics lines pick their own direction), and an inherited value is easier to reason
+    // about than an absent one.
+    document.documentElement.setAttribute("dir", on ? "rtl" : "ltr");
+  }, []);
+
   const [appFont, setAppFont] = useState(() => {
     const saved = localStorage.getItem("kiyoshi-app-font") || "default";
     if (saved === "dyslexic") document.documentElement.style.setProperty("--font", "'OpenDyslexic', system-ui, sans-serif");
@@ -3940,8 +3968,10 @@ export default function App() {
     document.body.style.cursor = "ew-resize";
     document.body.style.userSelect = "none";
     const onMove = (ev) => {
-      // Split spans the full window in fullscreen, so the ratio ≈ cursorX / window width.
-      const r = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, ev.clientX / window.innerWidth));
+      // Split spans the full window in fullscreen, so the ratio is the cursor's distance from
+      // the inline start over the window width -- measured from the right edge in RTL.
+      const x = isRtl() ? window.innerWidth - ev.clientX : ev.clientX;
+      const r = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, x / window.innerWidth));
       setSplitRatio(r);
     };
     const onUp = () => {
@@ -5951,6 +5981,8 @@ export default function App() {
               document.documentElement.setAttribute("data-highcontrast", String(next));
               localStorage.setItem("kiyoshi-high-contrast", String(next));
             }}
+            rtlLayout={rtlLayout}
+            onToggleRtlLayout={() => handleRtlLayoutChange(!rtlLayout)}
             appFont={appFont}
             onAppFontChange={handleAppFontChange}
             ambientVisualizer={ambientVisualizer}

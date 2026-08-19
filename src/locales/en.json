@@ -940,5 +940,7 @@
   "libraryEmptySessionTitle": "Nothing here, probably signed out",
   "libraryEmptySessionBody": "Your YouTube session is no longer being accepted, which is why your library comes back empty. Signing in again restores it.",
   "libraryEmpty": "Nothing here yet.",
-  "libraryNoMatches": "No matches."
+  "libraryNoMatches": "No matches.",
+  "rtlLayout": "Right-to-left layout",
+  "rtlLayoutDesc": "Flips the interface for languages such as Hebrew or Arabic. Kodama is not built for this yet, so plenty will sit in the wrong place. Here to be tried out and reported on."
 }

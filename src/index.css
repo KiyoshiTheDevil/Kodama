@@ -812,3 +812,24 @@ button:not([class]) {
 
 /* Big Picture search — blinking caret. */
 @keyframes bpCaret { 50% { opacity: 0; } }
+
+/* ── Right-to-left layout (experimental) ────────────────────────────────────
+   Icons that carry a reading direction have to be mirrored when the layout is;
+   an arrow labelled "back" must point at where back now is. Done centrally on
+   the Font Awesome classes from icons.jsx, so no call site has to know about it.
+
+   Media transport is deliberately NOT in this list. Skip-back and skip-forward
+   refer to the timeline, not to the reading direction, and mirroring them is a
+   known way to confuse people who are used to their player. Same for the
+   rotation icons (repeat, refresh), which describe a turning motion. */
+[dir="rtl"] .fa-arrow-left,
+[dir="rtl"] .fa-arrow-right,
+[dir="rtl"] .fa-caret-left,
+[dir="rtl"] .fa-caret-right,
+[dir="rtl"] .fa-angles-left,
+[dir="rtl"] .fa-angles-right,
+[dir="rtl"] .fa-right-from-bracket,
+[dir="rtl"] .fa-arrow-up-right-from-square,
+[dir="rtl"] .fa-share-nodes {
+  transform: scaleX(-1);
+}
