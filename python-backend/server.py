@@ -5020,7 +5020,14 @@ def _video_sync_download_clip(vid, out_wav, ffmpeg_dir):
     # PATH must already contain ffmpeg_dir by the time this runs — see the caller
     # (_compute_video_sync_offset), which sets it once for both parallel clip downloads rather
     # than each call fighting over the same process-wide mutation.
-    for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+    # The PO-token tier has to come first here for the same reason it does in /stream: without
+    # it the authenticated web clients hand out no audio formats at all, and the anonymous
+    # mobile fallbacks (player_skip=js, so no solved n parameter) return throttled or blocked
+    # URLs that ffmpeg cannot fetch. It then aborts with a nonsense exit code and video sync
+    # reported "no video available" for every track. This path was added after the PO-token
+    # work and never got the tier; measured, it succeeds with it and fails without.
+    attempts = ([(_AUDIO_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
+    for fmt, extra, no_auth in attempts:
         try:
             ydl_opts = {
                 "format": fmt,
