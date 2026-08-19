@@ -136,6 +136,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # audiopus_sys compiles libopus from source and drives it through autogen.sh, which the
+      # macOS runner has no autotools for ("Failed to autogen Opus"). Installing them is the
+      # whole fix: `brew install opus` would be wrong, because linking against a Homebrew dylib
+      # would break on machines without Homebrew. It has to stay a static build.
+      - name: Install autotools for the Opus decoder
+        run: brew install autoconf automake libtool
       - name: Build vendored Composer
         working-directory: composer
         run: |
