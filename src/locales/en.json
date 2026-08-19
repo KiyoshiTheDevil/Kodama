@@ -936,5 +936,9 @@
   "miniPlayerPrev": "Previous track",
   "miniPlayerPlayPause": "Play / Pause",
   "miniPlayerNext": "Next track",
-  "rowMoreActions": "More actions"
+  "rowMoreActions": "More actions",
+  "libraryEmptySessionTitle": "Nothing here, probably signed out",
+  "libraryEmptySessionBody": "Your YouTube session is no longer being accepted, which is why your library comes back empty. Signing in again restores it.",
+  "libraryEmpty": "Nothing here yet.",
+  "libraryNoMatches": "No matches."
 }

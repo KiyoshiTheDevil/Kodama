@@ -4731,6 +4731,8 @@ export default function App() {
   const [hasProfile, setHasProfile] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const sessionWarnedRef = useRef(null); // profile name we've already shown the "session expired" toast for
+  // Views that come up empty because of it can say so instead of showing a blank page.
+  const [sessionExpired, setSessionExpired] = useState(false);
   const sessionExpiredToastKeyRef = useRef(null); // key of the currently-shown toast, so it can be closed once the session recovers on its own
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem("kiyoshi-lang"));
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
@@ -4756,7 +4758,11 @@ export default function App() {
       // Notify once when the active (real) account's session has expired, so the user knows to
       // refresh it. Reset when it's valid again so a later expiry warns anew.
       const active = (d.profiles || []).find(p => p.name === d.current);
-      if (active && active.type !== "local" && active.loggedOut) {
+      // loggedOut covers a deliberate sign-out; sessionExpired covers cookies Google has
+      // stopped accepting, which is the case this warning was built for and the only one it
+      // used to miss entirely. Both need the same thing from the user: sign in again.
+      setSessionExpired(!!(active && active.type !== "local" && active.sessionExpired));
+      if (active && active.type !== "local" && (active.loggedOut || active.sessionExpired)) {
         if (sessionWarnedRef.current !== active.name) {
           sessionWarnedRef.current = active.name;
           setReauthName(active.name); // target the settings re-auth / login at this account
@@ -4772,7 +4778,9 @@ export default function App() {
             },
           });
         }
-      } else if (active && !active.loggedOut) {
+        // Both conditions have to clear, or the next poll would close the toast again right
+        // after showing it: sessionExpired leaves loggedOut false.
+      } else if (active && !active.loggedOut && !active.sessionExpired) {
         sessionWarnedRef.current = null;
         if (sessionExpiredToastKeyRef.current) {
           toast.close(sessionExpiredToastKeyRef.current);
@@ -5499,7 +5507,7 @@ export default function App() {
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={goBack} /></AnimatedView>}
-            {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} /></AnimatedView>}
+            {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
             {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={goBack} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
             {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={goBack} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}

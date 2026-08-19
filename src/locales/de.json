@@ -936,5 +936,9 @@
   "miniPlayerPrev": "Vorheriger Titel",
   "miniPlayerPlayPause": "Wiedergabe / Pause",
   "miniPlayerNext": "Nächster Titel",
-  "rowMoreActions": "Weitere Aktionen"
+  "rowMoreActions": "Weitere Aktionen",
+  "libraryEmptySessionTitle": "Nichts zu sehen, vermutlich abgemeldet",
+  "libraryEmptySessionBody": "Deine YouTube-Sitzung wird gerade nicht mehr akzeptiert, deshalb kommt deine Bibliothek leer zurück. Eine erneute Anmeldung stellt sie wieder her.",
+  "libraryEmpty": "Hier ist noch nichts.",
+  "libraryNoMatches": "Nichts gefunden."
 }

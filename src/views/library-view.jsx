@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { SearchFieldRoot, SearchFieldGroup, SearchFieldInput, SearchFieldClearButton, TabsRoot, TabListContainer, TabList, Tab, TabIndicator, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
+import { Button, SearchFieldRoot, SearchFieldGroup, SearchFieldInput, SearchFieldClearButton, TabsRoot, TabListContainer, TabList, Tab, TabIndicator, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
 import { SharedElementTransition } from "react-aria-components";
 import { API, useLang } from "../context.jsx";
-import { MagnifyingGlass, Microphone, Playlist, Sliders, VinylRecord } from "../icons.jsx";
+import { MagnifyingGlass, Microphone, Playlist, Sliders, VinylRecord, WarningCircle } from "../icons.jsx";
 import { GridCard } from "../ui/rows.jsx";
 
-export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu }) {
+export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, sessionExpired, onReauth }) {
   const [tab, setTab] = useState("playlists");
   const [playlists, setPlaylists] = useState([]);
   const [albums, setAlbums] = useState([]);
@@ -170,7 +170,31 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
 
       {loading && <div style={{ color: "var(--text-secondary)" }}>{t("loadingDots")}</div>}
       {error && <div style={{ color: "var(--status-danger)" }}>{error}</div>}
-      {!loading && !error && (
+      {/* An empty library used to render an empty grid and nothing else. That was fine when it
+          really was empty, but it was also what an expired session looked like: the requests
+          come back with nothing, and the user is left guessing. Say which of the two it is. */}
+      {!loading && !error && items.length === 0 && (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+          padding: "48px 24px", textAlign: "center", color: "var(--text-secondary)",
+        }}>
+          {sessionExpired ? (
+            <>
+              <WarningCircle size={26} weight="fill" style={{ color: "var(--status-warning)" }} />
+              <div style={{ color: "var(--text-primary)", fontWeight: 600 }}>{t("libraryEmptySessionTitle")}</div>
+              <div style={{ maxWidth: 420 }}>{t("libraryEmptySessionBody")}</div>
+              {onReauth && (
+                <Button size="sm" variant="flat" onPress={onReauth} style={{ marginTop: 6 }}>
+                  {t("reauthSession")}
+                </Button>
+              )}
+            </>
+          ) : (
+            <div>{t(searchQuery ? "libraryNoMatches" : "libraryEmpty")}</div>
+          )}
+        </div>
+      )}
+      {!loading && !error && items.length > 0 && (
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",

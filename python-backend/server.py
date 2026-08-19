@@ -1088,6 +1088,15 @@ def get_profiles():
         if meta.get("type") == "local":
             continue  # handled in second pass
         seen.add(name)
+        # sessionExpired is not the same thing as loggedOut. loggedOut is written only by
+        # /logout, i.e. when the user signs out deliberately — a session that simply stops
+        # being accepted by Google leaves the headers file in place and looked perfectly
+        # healthy here. The cookie refresh already knows better, so pass its verdict on:
+        # without it the "session expired" prompt could only ever appear for people who had
+        # signed out themselves, and the ones actually locked out were told nothing at all.
+        # Only False counts. It is None until the first refresh runs (~25 s after start),
+        # and warning on that would fire on every launch.
+        expired = _LAST_AUTHED is False and name == _current_profile
         profiles.append({
             "name": name,
             "displayName": meta.get("displayName", name),
@@ -1095,6 +1104,7 @@ def get_profiles():
             "avatar": meta.get("avatar", ""),
             "type": "google",
             "active": name == _current_profile,
+            "sessionExpired": expired,
         })
     # Local profiles — only have a .meta.json with type==local
     for mp in glob.glob(os.path.join(PROFILES_DIR, "*.meta.json")):
