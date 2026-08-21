@@ -236,7 +236,11 @@ export function BigPicture() {
 
   return (
     <FocusContext.Provider value={focusKey}>
-      <div ref={ref} data-bigpicture style={{ position: "fixed", inset: 0, zIndex: 2147483000, overflow: "auto", scrollPadding: "16vh 0 10vh" }}>
+      {/* Pinned to left-to-right for now. Big Picture is mounted inside the main document, so
+          the experimental RTL switch would flip it too, and it has no support for that at all:
+          spatial navigation maps the left and right keys to physical directions, so a mirrored
+          layout would send focus the wrong way. Its own RTL pass can come later. */}
+      <div ref={ref} dir="ltr" data-bigpicture style={{ position: "fixed", inset: 0, zIndex: 2147483000, overflow: "auto", scrollPadding: "16vh 0 10vh" }}>
         {content}
       </div>
       <Keybar hints={hints} />

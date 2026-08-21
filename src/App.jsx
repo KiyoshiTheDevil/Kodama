@@ -7,6 +7,7 @@ const appWindow = getCurrentWebviewWindow();
 import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
+import { I18nProvider } from "@react-aria/i18n";
 import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
@@ -2277,7 +2278,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   return (
     <div style={{ background: fullscreen ? "rgba(13,13,13,0.6)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
       {/* Seek slider — HeroUI Slider, sits between the content view and the player controls */}
-      <div className={cn("seek-band", fullscreen && "seek-fullscreen")} style={{ height: 10, display: "flex", alignItems: "center", padding: fullscreen ? "0" : "0 16px" }}>
+      {/* Left-to-right regardless of layout direction: this is a time axis, and time runs the
+          same way for everyone. Elapsed belongs on the left, remaining on the right. */}
+      <div dir="ltr" className={cn("seek-band", fullscreen && "seek-fullscreen")} style={{ height: 10, display: "flex", alignItems: "center", padding: fullscreen ? "0" : "0 16px" }}>
         <SliderRoot
           aria-label="Seek"
           value={track ? (seekDrag !== null ? seekDrag : progress) : 0}
@@ -2356,7 +2359,12 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           </Tooltip>
         </div>
 
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+        {/* Transport stays left-to-right even when the app is flipped. These controls refer to
+            the timeline, not to the reading order: "previous" is earlier in the song, and every
+            player the user knows puts earlier on the left. Mirroring them is a known way to
+            make people press the wrong button. Same reasoning as the icon exclusions in
+            index.css -- this covers the arrangement, which flexbox would otherwise reverse. */}
+        <div dir="ltr" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
           {ctrlBtn(() => setShuffle(s => !s), shuffle,
             <Shuffle size={16} />,
             t("shuffle")
@@ -2418,8 +2426,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             and mind that left (340) + this + transport (224) must stay under the window's
             minWidth in tauri.conf.json. */}
         <div style={{ display: "flex", alignItems: "center", gap: 2, width: 460, justifyContent: "flex-end", lineHeight: 0 }}>
-          {/* Volume icon + slider */}
-          <div data-volume-area style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Volume icon + slider. Left-to-right as a unit: quiet on the left and loud on the
+              right is a physical convention, and the speaker belongs beside the quiet end.
+              The cluster around it still mirrors, so the whole group moves to the other side
+              of the bar -- which is exactly what Spotify does in its Arabic layout. */}
+          <div data-volume-area dir="ltr" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Tooltip text={volume === 0 ? t("unmute") : t("mute")}>
             <Button variant="ghost" isIconOnly
               onPress={() => {
@@ -5405,6 +5416,13 @@ export default function App() {
        remoteEnabled, playbackProgressive]);
 
   return (
+    // HeroUI's overlays sit on react-aria, which takes the writing direction from the
+    // LOCALE, not from the dir attribute -- so tooltips, dropdowns and popovers stayed
+    // left-to-right while everything else flipped. There was no provider at all, so it
+    // fell back to the browser language. Handing it an RTL locale while the experiment
+    // is on lines the two up; otherwise we pass the browser language, which is what it
+    // was using anyway, so nothing changes for anyone not testing this.
+    <I18nProvider locale={rtlLayout ? "he-IL" : (navigator.language || "en-US")}>
     <IconContext.Provider value={{ weight: "bold" }}>
     <LangContext.Provider value={language}>
     <TrackNumberContext.Provider value={showTrackNumbers}>
@@ -5507,12 +5525,12 @@ export default function App() {
           {!fullscreen && !sidebarCollapsed && (
             <div
               onMouseDown={startSidebarResize}
-              style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 8, cursor: "ew-resize", zIndex: 50 }}
+              style={{ position: "absolute", top: 0, insetInlineEnd: 0, bottom: 0, width: 8, cursor: "ew-resize", zIndex: 50 }}
               onMouseEnter={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = "1"; }}
               onMouseLeave={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = sidebarResizing ? "1" : "0"; }}
             >
               <div style={{
-                position: "absolute", top: "50%", right: 1, transform: "translateY(-50%)",
+                position: "absolute", top: "50%", insetInlineEnd: 1, transform: "translateY(-50%)",
                 width: 3, height: 44, borderRadius: "var(--r-full)", background: "var(--accent)",
                 opacity: sidebarResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
               }} />
@@ -5708,8 +5726,12 @@ export default function App() {
         <div style={{
           position: "absolute",
           top: overlayOpen ? (fullscreen ? 0 : 8) : "100%",
-          left: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
-          right: fullscreen ? 0 : (queueOpen ? queueWidth + 16 : 8),
+          // Logical, not physical: this reserves the sidebar's space, and the sidebar sits at
+          // the inline start -- which is the right-hand side once the layout is flipped. With
+          // plain left/right the overlay left an empty band on one side and ran underneath the
+          // sidebar on the other. Same for the queue panel, which is docked at the inline end.
+          insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
+          insetInlineEnd: fullscreen ? 0 : (queueOpen ? queueWidth + 16 : 8),
           bottom: fullscreen ? 0 : 112,
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
@@ -5763,19 +5785,22 @@ export default function App() {
                 <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} />
               </div>
               <div style={{
-                position: "absolute", top: 0, bottom: 0, left: 0,
+                // insetInlineStart so the pane starts at the same edge the split ratio is
+                // measured from, and borderInlineEnd so the divider lands between the panes
+                // rather than jumping to the far side when the layout flips.
+                position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
                 width: coverSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
-                borderRight: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
+                borderInlineEnd: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
                 <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} narrow={coverSplitActive} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
               <div style={{
-                position: "absolute", top: 0, bottom: 0, left: 0,
+                position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
                 width: videoSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
                 transition: paneTransition,
@@ -5787,7 +5812,7 @@ export default function App() {
               {anySplitActive && (
                 <div
                   onMouseDown={startSplitResize}
-                  style={{ position: "absolute", top: 0, bottom: 0, left: coverPct, width: 12, marginLeft: -6, cursor: "ew-resize", zIndex: 6 }}
+                  style={{ position: "absolute", top: 0, bottom: 0, insetInlineStart: coverPct, width: 12, marginInlineStart: -6, cursor: "ew-resize", zIndex: 6 }}
                   onMouseEnter={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = "1"; }}
                   onMouseLeave={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = splitResizing ? "1" : "0"; }}
                 >
@@ -5829,12 +5854,12 @@ export default function App() {
           {!fullscreen && queueOpen && (
             <div
               onMouseDown={startQueueResize}
-              style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 8, cursor: "ew-resize", zIndex: 50 }}
+              style={{ position: "absolute", top: 0, insetInlineStart: 0, bottom: 0, width: 8, cursor: "ew-resize", zIndex: 50 }}
               onMouseEnter={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = "1"; }}
               onMouseLeave={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = queueResizing ? "1" : "0"; }}
             >
               <div style={{
-                position: "absolute", top: "50%", left: 1, transform: "translateY(-50%)",
+                position: "absolute", top: "50%", insetInlineStart: 1, transform: "translateY(-50%)",
                 width: 3, height: 44, borderRadius: "var(--r-full)", background: "var(--accent)",
                 opacity: queueResizing ? 1 : 0, transition: "opacity 0.15s", pointerEvents: "none",
               }} />
@@ -5876,8 +5901,10 @@ export default function App() {
         <div style={{
           position: "absolute",
           top: fullscreen ? 0 : 8,
-          left: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
-          right: fullscreen ? 0 : 8,
+          // Logical for the same reason as the lyrics overlay above: the reserved sidebar
+          // space has to follow the sidebar to the other side when the layout flips.
+          insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
+          insetInlineEnd: fullscreen ? 0 : 8,
           bottom: fullscreen ? 0 : 8,
           zIndex: 150,
           borderRadius: fullscreen ? 0 : "var(--r-xl)",
@@ -6471,5 +6498,6 @@ export default function App() {
     </TrackNumberContext.Provider>
     </LangContext.Provider>
     </IconContext.Provider>
+    </I18nProvider>
   );
 }
