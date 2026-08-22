@@ -942,5 +942,21 @@
   "libraryEmpty": "Hier ist noch nichts.",
   "libraryNoMatches": "Nichts gefunden.",
   "rtlLayout": "Layout von rechts nach links",
-  "rtlLayoutDesc": "Dreht die Oberfläche für Sprachen wie Hebräisch oder Arabisch. Kodama ist dafür noch nicht ausgelegt, vieles wird verrutschen. Zum Ausprobieren und Melden gedacht."
+  "rtlLayoutDesc": "Dreht die Oberfläche für Sprachen wie Hebräisch oder Arabisch. Kodama ist dafür noch nicht ausgelegt, vieles wird verrutschen. Zum Ausprobieren und Melden gedacht.",
+  "ovlEditorTitle": "Overlay Editor",
+  "ovlMenuPrefs": "Einstellungen",
+  "ovlPlaceImage": "Bild platzieren",
+  "ovlSelectAll": "Alles auswählen",
+  "ovlSelectNone": "Auswahl aufheben",
+  "ovlZoomIn": "Vergrößern",
+  "ovlZoomOut": "Verkleinern",
+  "ovlZoom100": "100 %",
+  "ovlZoomFit": "Einpassen",
+  "ovlPanelLeft": "Ebenen anzeigen",
+  "ovlPanelRight": "Eigenschaften anzeigen",
+  "ovlPrefSnap": "Am Objekt einrasten",
+  "ovlPrefSnapRotate": "Drehung einrasten",
+  "ovlPrefKeepTool": "Werkzeug nach Gebrauch behalten",
+  "ovlPrefShowDims": "Maße auf der Leinwand zeigen",
+  "ovlPrefInvertZoom": "Zoomrichtung umkehren"
 }

@@ -23,7 +23,7 @@ import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise,
   ArrowsOut, ArrowClockwise, CaretDown, DotsSixVertical, CursorArrow,
-  X, Minus, UploadSimple, DownloadSimple, FloppyDisk, Swatches, MagnifyingGlass,
+  X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 const editorWindow = getCurrentWebviewWindow();
@@ -136,6 +136,51 @@ function useElementSize() {
     return () => ro.disconnect();
   }, []);
   return [ref, size];
+}
+
+// Header controls sit on a filled, rounded chip rather than being transparent until hovered:
+// on a 52px bar the bare icons read as floating specks, and the design gives every one of them
+// a surface. --surface-2/-3 are exactly the "control" and "control hovered" tokens.
+const HDR_ICON_BTN = "w-[46px]! h-[30px]! bg-[var(--surface-2)]! hover:bg-[var(--surface-3)]! text-primary!";
+
+// Grouped controls follow the same rule as the lyrics chips (see lyrics/tool-chips.jsx): the
+// free ends of a group keep the pill radius, the touching ends get a small notch.
+//
+// And the same trap applies. The design calls for a 24px outer radius, but on a 30px-tall
+// control the two radii along one side would add up to 48; the browser then scales ALL FOUR
+// corners by 30/48, so the 24 becomes 15 AND the 6px notch quietly becomes 3.75. At this
+// height the pill value IS 15, which is the look the 24 was after, and keeping it there is
+// what lets the notch stay exactly 6.
+const HDR_H = 30;
+const HDR_R = HDR_H / 2;
+const HDR_NOTCH = 6;
+const hdrCorners = (left, right) => {
+  const l = left ? HDR_NOTCH : HDR_R;
+  const r = right ? HDR_NOTCH : HDR_R;
+  return `${l}px ${r}px ${r}px ${l}px`;
+};
+
+// Menu bar entry. The design puts the bar at 52px with 30px controls, so the trigger height
+// lives here rather than being repeated at each of the four menus.
+function MenuBtn({ label, children, width = 230, corners }) {
+  return (
+    <Dropdown>
+      <DropdownTrigger
+        style={{ borderRadius: corners }}
+        className="h-[30px] px-4 border-0 bg-[var(--surface-2)] text-t14 text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer">
+        {label}
+      </DropdownTrigger>
+      <DropdownPopover placement="bottom start" style={{ minWidth: width }}>
+        {children}
+      </DropdownPopover>
+    </Dropdown>
+  );
+}
+
+// A Preferences row: the tick column is always reserved so the labels line up whether or not
+// the option is on, the way every menu of this kind behaves.
+function PrefTick({ on }) {
+  return <span className="inline-flex w-[13px] justify-center shrink-0">{on ? <Check size={12} weight="bold" /> : null}</span>;
 }
 
 // ── Inspector controls ────────────────────────────────────────────────────────
@@ -590,7 +635,7 @@ function WindowControls() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function OverlayEditor({
-  t, apiBase, obsPort, obsEnabled, toggleObs, obsPortInput, setObsPortInput, onPortSave,
+  t, apiBase,
   standalone = false,
 }) {
   const [doc, setDoc] = useState(loadInitialDoc);
@@ -599,7 +644,29 @@ export default function OverlayEditor({
   // selected, so the detailed inspector + resize/rotate handles show for single selection.
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const setSelectedId = (id) => setSelectedIds(id == null ? [] : [id]);
-  const [copied, setCopied] = useState(false);
+  // Editor preferences. Every one of these switches behaviour that used to be wired shut:
+  // snapping could not be turned off at all, which fights you when placing something by eye,
+  // and the tool always fell back to select after one use. Persisted per key so the menu and
+  // the behaviour cannot drift apart.
+  const [prefs, setPrefs] = useState(() => {
+    const read = (k, d) => { const v = localStorage.getItem("kiyoshi-ovl-" + k); return v == null ? d : v === "true"; };
+    return {
+      snap:       read("snap", true),
+      snapRotate: read("snapRotate", true),
+      keepTool:   read("keepTool", false),
+      showDims:   read("showDims", true),
+      invertZoom: read("invertZoom", false),
+      showLeft:   read("showLeft", true),
+      showRight:  read("showRight", true),
+      nudge:      parseInt(localStorage.getItem("kiyoshi-ovl-nudge") || "1", 10) || 1,
+      nudgeBig:   parseInt(localStorage.getItem("kiyoshi-ovl-nudgeBig") || "10", 10) || 10,
+    };
+  });
+  const setPref = useCallback((key, value) => {
+    setPrefs((p) => ({ ...p, [key]: value }));
+    localStorage.setItem("kiyoshi-ovl-" + key, String(value));
+  }, []);
+
   const [iframeKey, setIframeKey] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -663,7 +730,6 @@ export default function OverlayEditor({
   const nudgeActive = useRef(false);
   const liveDocRef = useRef(null); // accumulates the doc across a keyboard-nudge burst
 
-  const overlayUrl = `http://localhost:${obsPort}/overlay`;
   const previewSrc = `${apiBase}/overlay?bg=checkered&editor=1`;
 
   const pushDoc = useCallback((next) => {
@@ -809,6 +875,7 @@ export default function OverlayEditor({
     }
     commit({ ...doc, layers: [...doc.layers, nl] }, doc);
     setSelectedId(nl.id); setAddOpen(false);
+    return nl.id;
   };
   const deleteLayer = (id) => { commit({ ...doc, layers: doc.layers.filter((l) => l.id !== id) }, doc); setSelectedId(null); };
   const deleteSelected = () => {
@@ -913,7 +980,7 @@ export default function OverlayEditor({
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
         e.preventDefault(); deleteSelected();
       } else if (selectedIds.length && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-        const step = e.shiftKey ? 10 : 1;
+        const step = e.shiftKey ? prefs.nudgeBig : prefs.nudge;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         e.preventDefault(); nudge(dx, dy);
@@ -932,7 +999,7 @@ export default function OverlayEditor({
       const d = e.deltaY !== 0 ? e.deltaY : e.deltaX;
       const rect = viewportRef.current.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      const factor = Math.exp(-d * 0.0015);
+      const factor = Math.exp((prefs.invertZoom ? d : -d) * 0.0015);
       const nz = clamp(zoom * factor, 0.1, 5);
       const cx = (mx - pan.x) / zoom, cy = (my - pan.y) / zoom;
       setPan({ x: mx - cx * nz, y: my - cy * nz }); setZoom(nz);
@@ -1028,7 +1095,9 @@ export default function OverlayEditor({
       } : null;
       addLayerAt(tl.type, tl.shape, bounds, p0);
       setDrawRect(null);
-      setTool(null);
+      // Falling back to select after every shape is right for the occasional draw and
+      // maddening when placing ten of them in a row.
+      if (!prefs.keepTool) setTool(null);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -1052,7 +1121,7 @@ export default function OverlayEditor({
 
     // Snap targets: canvas edges + center, and every other visible layer's
     // edges + centers. Threshold is ~6 screen px (converted to canvas px).
-    const SNAP = 6 / z;
+    const SNAP = prefs.snap ? 6 / z : 0;
     const gxs = [0, doc.canvas.width / 2, doc.canvas.width];
     const gys = [0, doc.canvas.height / 2, doc.canvas.height];
     for (const l of doc.layers) {
@@ -1106,7 +1175,9 @@ export default function OverlayEditor({
         // Normalize to 0–360
         ang = ((ang % 360) + 360) % 360;
         let snapped = false;
-        if (ev.shiftKey) {
+        if (!prefs.snapRotate) {
+          // Preference off: free rotation, not even the Shift grid.
+        } else if (ev.shiftKey) {
           // Shift → 15° grid
           ang = Math.round(ang / 15) * 15 % 360;
           snapped = true;
@@ -1153,7 +1224,6 @@ export default function OverlayEditor({
     window.addEventListener("pointerup", up, { once: true });
   };
 
-  const copyUrl = () => { navigator.clipboard.writeText(overlayUrl); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
@@ -1219,49 +1289,146 @@ export default function OverlayEditor({
       className={`flex flex-col w-full overflow-hidden select-none${standalone ? "" : " rounded-xl"}`}
       style={{ height: standalone ? "100vh" : "78vh", minHeight: standalone ? undefined : 480 }}
     >
-      {/* ── Top bar (doubles as the custom title bar in standalone) ──────────────── */}
-      <div className="shrink-0 flex items-center gap-2 h-12 px-3 border-b border-border" {...(standalone ? { "data-tauri-drag-region": true } : {})}>
-        <Dropdown>
-          <DropdownTrigger className="flex items-center gap-1.5 h-8 pl-1.5 pr-2 rounded-lg border-0 bg-transparent hover:bg-hover transition-colors cursor-pointer">
-            <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
-            <span className="text-t13 font-semibold text-primary">Overlay</span>
-            <CaretDown size={10} className="text-muted" />
-          </DropdownTrigger>
-          <DropdownPopover placement="bottom start" className="min-w-[210px]">
-            <DropdownMenu aria-label="Overlay menu" onAction={(key) => {
-              if (key === "new") { commit(defaultOverlayDoc()); setSelectedId(null); }
-              else if (key === "save") { setSaveOpen(true); setBrowserOpen(false); }
-              else if (key === "browse") { setBrowserOpen(true); setSaveOpen(false); }
-              else if (key === "import") { importFileRef.current?.click(); }
-              else if (key === "export") { exportProfile({ id: "current", name: t("ovlMenuExportCurrent"), doc, savedAt: new Date().toISOString() }); }
-              else if (key === "reload") { setIframeKey((k) => k + 1); }
-            }}>
-              <DropdownSection>
-                <DropdownItem id="new" textValue={t("ovlMenuNew")}><Plus size={13} />{t("ovlMenuNew")}</DropdownItem>
-              </DropdownSection>
-              <DropdownSection className="border-t border-border mt-1 pt-1">
-                <DropdownItem id="save" textValue={t("ovlProfileSave")}><FloppyDisk size={13} />{t("ovlProfileSave")}</DropdownItem>
-                <DropdownItem id="browse" textValue={t("ovlProfileBrowse")}><Swatches size={13} />{t("ovlProfileBrowse")}</DropdownItem>
-              </DropdownSection>
-              <DropdownSection className="border-t border-border mt-1 pt-1">
-                <DropdownItem id="import" textValue={t("ovlProfileImport")}><UploadSimple size={13} />{t("ovlProfileImport")}</DropdownItem>
-                <DropdownItem id="export" textValue={t("ovlMenuExportCurrent")}><DownloadSimple size={13} />{t("ovlMenuExportCurrent")}</DropdownItem>
-              </DropdownSection>
-              <DropdownSection className="border-t border-border mt-1 pt-1">
-                <DropdownItem id="reload" textValue={t("ovlReloadPreview")}><ArrowsClockwise size={13} />{t("ovlReloadPreview")}</DropdownItem>
-              </DropdownSection>
-            </DropdownMenu>
-          </DropdownPopover>
-        </Dropdown>
-        <TextFieldRoot value={doc.canvas.name ?? ""} onChange={(v) => updateCanvas({ name: v })} aria-label={t("ovlProfileName")} className="w-[184px]">
-          <InputRoot className="text-t12! h-8! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlProfileDefaultName")} />
-        </TextFieldRoot>
+      {/* ── Top bar (doubles as the custom title bar in standalone) ────────────────
+          52px tall with 30px controls, per the design. The document name moved out of here
+          and sits above the layer list now: it belongs to the document, not to the toolbar. */}
+      <div className="shrink-0 flex items-center gap-1 h-[52px] pl-[22px] pr-3 border-b border-border" {...(standalone ? { "data-tauri-drag-region": true } : {})}>
+        <div className="flex items-center gap-2 pr-2 shrink-0">
+          <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
+          <span className="text-t13 font-semibold text-primary">{t("ovlEditorTitle")}</span>
+          {/* Set like a superscript beside the wordmark: raised against the cap height rather
+              than centred on it, so it reads as a qualifier on the name instead of a second
+              word in the row. */}
+          <span className="text-[9px] font-bold tracking-wider text-white leading-none relative -top-[5px] -ml-1">BETA</span>
+        </div>
+
+        {/* The four menus read as one segmented control, like the icon groups opposite. */}
+        <div className="flex items-center gap-[6px]">
+        <MenuBtn label={t("ovlMenuFile")} corners={hdrCorners(false, true)}>
+          <DropdownMenu aria-label={t("ovlMenuFile")} onAction={(key) => {
+            if (key === "new") { commit(defaultOverlayDoc()); setSelectedId(null); }
+            else if (key === "place") { const id = addLayer("image"); if (id) pickImage(id); }
+            else if (key === "save") { setSaveOpen(true); setBrowserOpen(false); }
+            else if (key === "browse") { setBrowserOpen(true); setSaveOpen(false); }
+            else if (key === "import") { importFileRef.current?.click(); }
+            else if (key === "export") { exportProfile({ id: "current", name: t("ovlMenuExportCurrent"), doc, savedAt: new Date().toISOString() }); }
+          }}>
+            <DropdownSection>
+              <DropdownItem id="new" textValue={t("ovlMenuNew")}><Plus size={13} />{t("ovlMenuNew")}</DropdownItem>
+              <DropdownItem id="place" textValue={t("ovlPlaceImage")}><ImageSquare size={13} />{t("ovlPlaceImage")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="save" textValue={t("ovlProfileSave")}><FloppyDisk size={13} />{t("ovlProfileSave")}</DropdownItem>
+              <DropdownItem id="browse" textValue={t("ovlProfileBrowse")}><Swatches size={13} />{t("ovlProfileBrowse")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="import" textValue={t("ovlProfileImport")}><UploadSimple size={13} />{t("ovlProfileImport")}</DropdownItem>
+              <DropdownItem id="export" textValue={t("ovlMenuExportCurrent")}><DownloadSimple size={13} />{t("ovlMenuExportCurrent")}</DropdownItem>
+            </DropdownSection>
+          </DropdownMenu>
+        </MenuBtn>
+
+        <MenuBtn label={t("ovlMenuEdit")} corners={hdrCorners(true, true)}>
+          <DropdownMenu aria-label={t("ovlMenuEdit")} disabledKeys={[
+            ...(past.length ? [] : ["undo"]),
+            ...(future.length ? [] : ["redo"]),
+            ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone"]),
+          ]} onAction={(key) => {
+            if (key === "undo") undo();
+            else if (key === "redo") redo();
+            else if (key === "duplicate") duplicateSelected();
+            else if (key === "delete") deleteSelected();
+            else if (key === "selectAll") setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id));
+            else if (key === "selectNone") setSelectedIds([]);
+          }}>
+            <DropdownSection>
+              <DropdownItem id="undo" textValue={t("ovlMenuUndo")}><span style={{ transform: "scaleX(-1)", display: "inline-flex" }}><ArrowClockwise size={13} /></span>{t("ovlMenuUndo")}</DropdownItem>
+              <DropdownItem id="redo" textValue={t("ovlMenuRedo")}><ArrowClockwise size={13} />{t("ovlMenuRedo")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="duplicate" textValue={t("ovlMenuDuplicate")}><Copy size={13} />{t("ovlMenuDuplicate")}</DropdownItem>
+              <DropdownItem id="delete" textValue={t("ovlMenuDelete")}><Trash size={13} />{t("ovlMenuDelete")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="selectAll" textValue={t("ovlSelectAll")}><CursorArrow size={13} />{t("ovlSelectAll")}</DropdownItem>
+              <DropdownItem id="selectNone" textValue={t("ovlSelectNone")}><X size={13} />{t("ovlSelectNone")}</DropdownItem>
+            </DropdownSection>
+          </DropdownMenu>
+        </MenuBtn>
+
+        <MenuBtn label={t("ovlMenuView")} corners={hdrCorners(true, true)}>
+          <DropdownMenu aria-label={t("ovlMenuView")} onAction={(key) => {
+            if (key === "zoomIn") setZoom((z) => clamp(z * 1.25, 0.1, 5));
+            else if (key === "zoomOut") setZoom((z) => clamp(z * 0.8, 0.1, 5));
+            else if (key === "zoom100") setZoom(1);
+            else if (key === "fit") fit();
+            else if (key === "reload") setIframeKey((k) => k + 1);
+            else if (key === "left") setPref("showLeft", !prefs.showLeft);
+            else if (key === "right") setPref("showRight", !prefs.showRight);
+          }}>
+            <DropdownSection>
+              <DropdownItem id="zoomIn" textValue={t("ovlZoomIn")}><Plus size={13} />{t("ovlZoomIn")}</DropdownItem>
+              <DropdownItem id="zoomOut" textValue={t("ovlZoomOut")}><Minus size={13} />{t("ovlZoomOut")}</DropdownItem>
+              <DropdownItem id="zoom100" textValue={t("ovlZoom100")}><MagnifyingGlass size={13} />{t("ovlZoom100")}</DropdownItem>
+              <DropdownItem id="fit" textValue={t("ovlZoomFit")}><ArrowsOut size={13} />{t("ovlZoomFit")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="left" textValue={t("ovlPanelLeft")}><PrefTick on={prefs.showLeft} />{t("ovlPanelLeft")}</DropdownItem>
+              <DropdownItem id="right" textValue={t("ovlPanelRight")}><PrefTick on={prefs.showRight} />{t("ovlPanelRight")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="reload" textValue={t("ovlReloadPreview")}><ArrowsClockwise size={13} />{t("ovlReloadPreview")}</DropdownItem>
+            </DropdownSection>
+          </DropdownMenu>
+        </MenuBtn>
+
+        <MenuBtn label={t("ovlMenuPrefs")} width={270} corners={hdrCorners(true, false)}>
+          <DropdownMenu aria-label={t("ovlMenuPrefs")} onAction={(key) => setPref(key, !prefs[key])}>
+            <DropdownSection>
+              <DropdownItem id="snap" textValue={t("ovlPrefSnap")}><PrefTick on={prefs.snap} />{t("ovlPrefSnap")}</DropdownItem>
+              <DropdownItem id="snapRotate" textValue={t("ovlPrefSnapRotate")}><PrefTick on={prefs.snapRotate} />{t("ovlPrefSnapRotate")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="keepTool" textValue={t("ovlPrefKeepTool")}><PrefTick on={prefs.keepTool} />{t("ovlPrefKeepTool")}</DropdownItem>
+              <DropdownItem id="showDims" textValue={t("ovlPrefShowDims")}><PrefTick on={prefs.showDims} />{t("ovlPrefShowDims")}</DropdownItem>
+              <DropdownItem id="invertZoom" textValue={t("ovlPrefInvertZoom")}><PrefTick on={prefs.invertZoom} />{t("ovlPrefInvertZoom")}</DropdownItem>
+            </DropdownSection>
+          </DropdownMenu>
+        </MenuBtn>
+        </div>
+
         <div className="flex-1" {...(standalone ? { "data-tauri-drag-region": true } : {})} />
-        <Button color="accent" variant="solid" size="sm" className="gap-1.5" onPress={() => { setSaveOpen((o) => !o); setBrowserOpen(false); }}><FloppyDisk size={14} />{t("save")}</Button>
-        <Button variant="ghost" size="sm" isIconOnly onPress={() => setIframeKey((k) => k + 1)} aria-label={t("ovlReloadPreview")}><ArrowsClockwise size={15} /></Button>
-        <Button variant="ghost" size="sm" isIconOnly onPress={undo} isDisabled={!past.length} aria-label={t("ovlMenuUndo")}><span style={{ transform: "scaleX(-1)", display: "inline-flex" }}><ArrowClockwise size={15} /></span></Button>
-        <Button variant="ghost" size="sm" isIconOnly onPress={redo} isDisabled={!future.length} aria-label={t("ovlMenuRedo")}><ArrowClockwise size={15} /></Button>
-        <Button variant="secondary" size="sm" className="gap-1.5" onPress={() => { setBrowserOpen(true); setSaveOpen(false); }}><Swatches size={14} />{t("ovlProfileBrowse")}</Button>
+
+        {/* Grouped like the design: a lone reload, then the file actions, then history.
+            Members of a group sit 2px apart so they read as one control. */}
+        <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(false, false) }}
+          onPress={() => setIframeKey((k) => k + 1)} aria-label={t("ovlReloadPreview")}><ArrowsClockwise size={15} weight="fill" /></Button>
+
+        <div className="w-px h-[18px] bg-border mx-1.5 shrink-0" />
+
+        <div className="flex items-center gap-[6px]">
+          <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(false, true) }}
+            onPress={() => importFileRef.current?.click()} aria-label={t("ovlProfileImport")}><FileImport size={15} weight="fill" /></Button>
+          <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, true) }}
+            onPress={() => exportProfile({ id: "current", name: t("ovlMenuExportCurrent"), doc, savedAt: new Date().toISOString() })} aria-label={t("ovlMenuExportCurrent")}><FileExport size={15} weight="fill" /></Button>
+          <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, false) }}
+            onPress={() => { setSaveOpen((o) => !o); setBrowserOpen(false); }} aria-label={t("ovlProfileSave")}><FloppyDisk size={15} weight="fill" /></Button>
+        </div>
+
+        <div className="w-px h-[18px] bg-border mx-1.5 shrink-0" />
+
+        <div className="flex items-center gap-[6px]">
+          <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(false, true) }}
+            onPress={undo} isDisabled={!past.length} aria-label={t("ovlMenuUndo")}><span style={{ transform: "scaleX(-1)", display: "inline-flex" }}><ArrowClockwise size={15} /></span></Button>
+          <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, false) }}
+            onPress={redo} isDisabled={!future.length} aria-label={t("ovlMenuRedo")}><ArrowClockwise size={15} /></Button>
+        </div>
+
+        {/* bg-accent! rather than color="accent": the solid variant does not paint the fill in
+            this HeroUI version, which left the primary action looking like every other chip.
+            The rest of the editor already reaches for the utility class for the same reason. */}
+        <Button variant="ghost" size="sm" className="gap-1.5 h-[30px]! px-4! ml-1.5 bg-accent! hover:bg-accent! text-white! text-t14! font-medium" style={{ borderRadius: hdrCorners(false, false) }}
+          onPress={() => { setBrowserOpen(true); setSaveOpen(false); }}><Swatches size={15} weight="fill" />{t("ovlProfileBrowse")}</Button>
         {standalone && <div className="w-px h-5 bg-border mx-1" />}
         {standalone && <WindowControls />}
       </div>
@@ -1270,9 +1437,15 @@ export default function OverlayEditor({
       <div className="flex-1 flex min-h-0 relative">
 
         {/* ── Left: layers ──────────────────────────────────────────────────────── */}
-        <div className="shrink-0 flex flex-col border-r border-border relative" style={{ width: leftW }}>
+        {prefs.showLeft && <div className="shrink-0 flex flex-col border-r border-border relative" style={{ width: leftW }}>
           <div onPointerDown={(e) => startPanelResize("left", e)}
             className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
+          {/* The document name lives with the document, not in the toolbar. */}
+          <div className="flex items-center px-2 h-[52px] shrink-0 border-b border-border">
+            <TextFieldRoot value={doc.canvas.name ?? ""} onChange={(v) => updateCanvas({ name: v })} aria-label={t("ovlProfileName")} className="w-full">
+              <InputRoot className="text-t13! font-semibold h-[30px]! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!" placeholder={t("ovlProfileDefaultName")} />
+            </TextFieldRoot>
+          </div>
           <div className="flex items-center justify-between pl-3 pr-1.5 h-10 shrink-0 border-b border-border relative">
             <span className="text-t12 font-medium text-secondary">{t("ovlLayers")}</span>
           </div>
@@ -1314,7 +1487,7 @@ export default function OverlayEditor({
               );
             })}
           </div>
-        </div>
+        </div>}
 
       {/* ── Canvas viewport ────────────────────────────────────────────────────── */}
       <div
@@ -1411,7 +1584,7 @@ export default function OverlayEditor({
                       />
                     ))}
                     {/* size badge (W × H) below the element, Figma-style */}
-                    <div style={{
+                    {prefs.showDims && <div style={{
                       position: "absolute", left: "50%", top: "100%",
                       transform: `translate(-50%, ${8 / zoom}px)`,
                       background: "var(--accent)", color: "#fff",
@@ -1421,7 +1594,7 @@ export default function OverlayEditor({
                       pointerEvents: "none", userSelect: "none", fontVariantNumeric: "tabular-nums",
                     }}>
                       {Math.round(l.w)} × {Math.round(l.h)}
-                    </div>
+                    </div>}
                   </>
                 )}
               </div>
@@ -1501,7 +1674,7 @@ export default function OverlayEditor({
       </div>
 
       {/* ── Right: inspector (docked) ──────────────────────────────────────────── */}
-      <div className="shrink-0 flex flex-col border-l border-border relative" style={{ width: rightW }}>
+      {prefs.showRight && <div className="shrink-0 flex flex-col border-l border-border relative" style={{ width: rightW }}>
         <div onPointerDown={(e) => startPanelResize("right", e)}
           className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
         <div className="overflow-y-auto flex-1 min-h-0 p-3">
@@ -1675,27 +1848,8 @@ export default function OverlayEditor({
             );
           })()}
 
-          {/* Output (always visible) */}
-          <div className="mt-3 pt-3 border-t border-border">
-            <div className="text-t11 font-semibold text-muted uppercase tracking-wide mb-1.5 px-0.5">OBS</div>
-            <div className="flex flex-col gap-1.5">
-              <SwitchField label={t("overlayEnable")} checked={obsEnabled} onChange={toggleObs} />
-              <label className="flex items-center justify-between gap-2">
-                <span className="text-t12 text-muted shrink-0">{t("overlayPort")}</span>
-                <div className="flex items-center gap-1.5">
-                  <input type="text" value={obsPortInput} onChange={(e) => setObsPortInput(e.target.value.replace(/[^0-9]/g, ""))}
-                    className="w-[64px] rounded-md px-2 py-1 text-t12 text-primary outline-none border border-border focus:border-accent" style={{ background: "var(--surface-2)" }} />
-                  <Button variant="secondary" size="sm" onPress={() => onPortSave?.()}>{t("save")}</Button>
-                </div>
-              </label>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <code className="flex-1 min-w-0 text-t11 text-muted truncate" style={{ fontFamily: "var(--font)" }}>{overlayUrl}</code>
-                <Button variant="ghost" size="sm" isIconOnly onPress={copyUrl} aria-label={t("overlayUrl")}>{copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}</Button>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Save-as popover ──────────────────────────────────────────────────── */}
       {saveOpen && (
