@@ -10,6 +10,11 @@ import OverlayEditor from "./overlay/OverlayEditor.jsx";
 
 const API = "http://localhost:9847";
 
+// Figma's selection blue. Chosen deliberately: the editor is a design tool, and design tools
+// keep a fixed, neutral accent so the chrome never competes with the artwork.
+const EDITOR_ACCENT = "#0D99FF";
+const EDITOR_ACCENT_DIM = "rgba(13,153,255,0.10)";
+
 export default function OverlayEditorApp() {
   // Strip the Windows 11 accent border from this borderless (decorations:false) window.
   useEffect(() => {
@@ -18,43 +23,21 @@ export default function OverlayEditorApp() {
       .catch(() => {});
   }, []);
 
+  // The editor keeps its own accent instead of following the app's. It is a tool, not part of
+  // the player's skin: selection outlines, handles and active tools have to stay legible while
+  // the user designs an overlay in arbitrary colours, and the app accent can be set to anything
+  // -- including whatever is on the canvas right now, which would hide the selection in the
+  // artwork. Set on the document root rather than on a wrapper element, because dropdowns and
+  // tooltips render into a portal on document.body and would otherwise keep the app's accent.
+  // This window has its own document, so nothing else is affected.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--accent", EDITOR_ACCENT);
+    root.style.setProperty("--accent-dim", EDITOR_ACCENT_DIM);
+  }, []);
+
   const [language] = useState(() => localStorage.getItem("kiyoshi-lang") || "de");
-  const [obsPort, setObsPort] = useState(() => parseInt(localStorage.getItem("kiyoshi-obs-port") || "9848", 10));
-  const [obsEnabled, setObsEnabled] = useState(() => localStorage.getItem("kiyoshi-obs-enabled") === "true");
-  const [obsPortInput, setObsPortInput] = useState(() => localStorage.getItem("kiyoshi-obs-port") || "9848");
-
   const t = (key, vars) => translate(language, key, vars);
-
-  const toggleObs = async (enabled) => {
-    setObsEnabled(enabled);
-    localStorage.setItem("kiyoshi-obs-enabled", String(enabled));
-    if (enabled) {
-      await fetch(`${API}/overlay/server/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ port: obsPort }),
-      }).catch(() => {});
-    } else {
-      await fetch(`${API}/overlay/server/stop`, { method: "POST" }).catch(() => {});
-    }
-  };
-
-  const onPortSave = (val) => {
-    const p = parseInt(val, 10);
-    if (p > 1024 && p < 65535) {
-      setObsPort(p);
-      localStorage.setItem("kiyoshi-obs-port", p);
-      if (obsEnabled) {
-        fetch(`${API}/overlay/server/stop`, { method: "POST" })
-          .then(() => fetch(`${API}/overlay/server/start`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ port: p }),
-          }))
-          .catch(() => {});
-      }
-    }
-  };
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
@@ -62,12 +45,6 @@ export default function OverlayEditorApp() {
         <OverlayEditor
           t={t}
           apiBase={API}
-          obsPort={obsPort}
-          obsEnabled={obsEnabled}
-          toggleObs={toggleObs}
-          obsPortInput={obsPortInput}
-          setObsPortInput={setObsPortInput}
-          onPortSave={onPortSave}
           standalone
         />
       </div>

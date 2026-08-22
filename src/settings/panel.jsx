@@ -4,7 +4,7 @@ import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleB
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
-import { ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X } from "../icons.jsx";
+import { ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X } from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
@@ -1482,21 +1482,40 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             )}
 
             {tab === "overlay" && (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <CardRoot variant="secondary" className="w-full max-w-sm px-[22px] py-5 flex flex-col gap-3 items-center text-center">
-                  <span className="text-t15 font-semibold text-primary">{t("ovlOpenEditorBtn")}</span>
-                  <span className="text-t12 text-muted leading-relaxed">{t("ovlOpenEditorDesc")}</span>
-                  <Button
-                    size="sm"
-                    variant="solid"
-                    color="accent"
-                    className="mt-1 flex items-center gap-1.5"
-                    onPress={() => openOverlayEditor()}
-                  >
+              <div className="flex flex-col gap-4">
+                <SettingRow label={t("ovlOpenEditorBtn")} description={t("ovlOpenEditorDesc")} icon={<ScreencastSimple />}>
+                  <Button size="sm" variant="solid" color="accent" className="flex items-center gap-1.5" onPress={() => openOverlayEditor()}>
                     <ArrowSquareOut size={14} />
                     {t("ovlOpenEditorBtn")}
                   </Button>
-                </CardRoot>
+                </SettingRow>
+
+                {/* The overlay server used to be configured from inside the editor window, at the
+                    bottom of the inspector, where it sat under the properties of whatever layer
+                    happened to be selected. It is not a property of a design though, it is a
+                    setting of the app, and the strings for it were written for a settings page
+                    all along. */}
+                <SettingsSectionLabel>OBS</SettingsSectionLabel>
+                <SettingRow label={t("overlayEnable")} description={t("overlayEnableDesc")} icon={<Globe />}>
+                  <Toggle value={obsEnabled} onChange={toggleObs} />
+                </SettingRow>
+                <SettingRow label={t("overlayPort")} description={t("overlayPortDesc")} icon={<Link />}>
+                  <div className="flex items-center gap-1.5">
+                    <TextFieldRoot value={obsPortInput} onChange={(v) => setObsPortInput(String(v).replace(/[^0-9]/g, ""))} aria-label={t("overlayPort")} className="w-[76px]">
+                      <InputRoot className="text-t12! h-8!" />
+                    </TextFieldRoot>
+                    <Button size="sm" variant="secondary" onPress={() => onObsPortSave?.(obsPortInput)}>{t("save")}</Button>
+                  </div>
+                </SettingRow>
+                <SettingRow label={t("overlayUrl")} description={`http://localhost:${obsPort}/overlay`} icon={<Copy />}>
+                  <Button size="sm" variant="secondary" className="flex items-center gap-1.5"
+                    onPress={() => {
+                      navigator.clipboard?.writeText(`http://localhost:${obsPort}/overlay`).catch(() => {});
+                      toast.success(t("copied") || "Copied");
+                    }}>
+                    <Copy size={14} />{t("copy") || "Copy"}
+                  </Button>
+                </SettingRow>
               </div>
             )}
 
