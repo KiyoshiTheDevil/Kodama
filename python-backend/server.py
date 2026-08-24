@@ -2357,6 +2357,11 @@ _GOOGLE_LANG = {
     "JA": "ja", "KO": "ko", "ZH": "zh-CN",
 }
 
+_TRANSLATE_ENDPOINTS = [
+    ("https://clients5.google.com/translate_a/single", "dict-chrome-ex"),
+    ("https://translate.googleapis.com/translate_a/single", "gtx"),
+]
+
 def _google_translate_batch(lines, target_lang):
     """Übersetzt eine Liste von Strings via inoffizielle Google Translate API.
     Nutzt \n als Trennzeichen um mit einem Request auszukommen."""
@@ -2364,21 +2369,29 @@ def _google_translate_batch(lines, target_lang):
     # Zeilen mit seltener Zeichenfolge verbinden damit Google sie nicht zusammenzieht
     separator = "\n"
     text = separator.join(lines)
-    params = {
-        "client": "gtx",
-        "sl": "auto",
-        "tl": gl,
-        "dt": "t",
-        "q": text,
-    }
-    resp = requests.get(
-        "https://translate.googleapis.com/translate_a/single",
-        params=params,
-        timeout=30,
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    # Two routes to the same unofficial API. `gtx` was the only one for a long time and now
+    # answers 429 with Google's "Sorry" page (seen 2026-08-24), which is what took translation
+    # down; clients5/dict-chrome-ex still answers normally and returns the same shape, newlines
+    # and blank lines included. Both are tried, so a block on one endpoint is no longer the end
+    # of the feature -- and if Google flips it round again, this keeps working.
+    last_err = None
+    data = None
+    for url, client in _TRANSLATE_ENDPOINTS:
+        try:
+            resp = requests.get(
+                url,
+                params={"client": client, "sl": "auto", "tl": gl, "dt": "t", "q": text},
+                timeout=30,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except Exception as e:
+            last_err = e
+            _logging.warning(f"[translate] {client} failed: {e}")
+    if data is None:
+        raise last_err or Exception("translation failed")
     # data[0] enthält [[übersetzt, original, ...], ...] Chunks
     translated = "".join(chunk[0] for chunk in data[0] if chunk and chunk[0])
     translated_lines = translated.split("\n")
