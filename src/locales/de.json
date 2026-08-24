@@ -958,5 +958,10 @@
   "ovlPrefSnapRotate": "Drehung einrasten",
   "ovlPrefKeepTool": "Werkzeug nach Gebrauch behalten",
   "ovlPrefShowDims": "Maße auf der Leinwand zeigen",
-  "ovlPrefInvertZoom": "Zoomrichtung umkehren"
+  "ovlPrefInvertZoom": "Zoomrichtung umkehren",
+  "ovlPrefNudge": "Schrittweite beim Verschieben …",
+  "ovlPrefNudgeStep": "Pfeiltasten",
+  "ovlPrefNudgeBig": "Mit Umschalt",
+  "ovlDone": "Fertig",
+  "ovlReset": "Zurücksetzen"
 }

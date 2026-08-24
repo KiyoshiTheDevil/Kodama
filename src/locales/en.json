@@ -958,5 +958,10 @@
   "ovlPrefSnapRotate": "Snap rotation",
   "ovlPrefKeepTool": "Keep tool selected after use",
   "ovlPrefShowDims": "Show dimensions on canvas",
-  "ovlPrefInvertZoom": "Invert zoom direction"
+  "ovlPrefInvertZoom": "Invert zoom direction",
+  "ovlPrefNudge": "Nudge amount…",
+  "ovlPrefNudgeStep": "Arrow keys",
+  "ovlPrefNudgeBig": "With Shift",
+  "ovlDone": "Done",
+  "ovlReset": "Reset"
 }

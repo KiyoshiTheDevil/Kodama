@@ -667,6 +667,7 @@ export default function OverlayEditor({
     localStorage.setItem("kiyoshi-ovl-" + key, String(value));
   }, []);
 
+  const [nudgeOpen, setNudgeOpen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -1383,12 +1384,16 @@ export default function OverlayEditor({
         </MenuBtn>
 
         <MenuBtn label={t("ovlMenuPrefs")} width={270} corners={hdrCorners(true, false)}>
-          <DropdownMenu aria-label={t("ovlMenuPrefs")} onAction={(key) => setPref(key, !prefs[key])}>
+          <DropdownMenu aria-label={t("ovlMenuPrefs")} onAction={(key) => {
+            if (key === "nudge") setNudgeOpen(true);
+            else setPref(key, !prefs[key]);
+          }}>
             <DropdownSection>
               <DropdownItem id="snap" textValue={t("ovlPrefSnap")}><PrefTick on={prefs.snap} />{t("ovlPrefSnap")}</DropdownItem>
               <DropdownItem id="snapRotate" textValue={t("ovlPrefSnapRotate")}><PrefTick on={prefs.snapRotate} />{t("ovlPrefSnapRotate")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="nudge" textValue={t("ovlPrefNudge")}><span className="inline-flex w-[13px] justify-center shrink-0"><ArrowsOut size={11} /></span>{t("ovlPrefNudge")}</DropdownItem>
               <DropdownItem id="keepTool" textValue={t("ovlPrefKeepTool")}><PrefTick on={prefs.keepTool} />{t("ovlPrefKeepTool")}</DropdownItem>
               <DropdownItem id="showDims" textValue={t("ovlPrefShowDims")}><PrefTick on={prefs.showDims} />{t("ovlPrefShowDims")}</DropdownItem>
               <DropdownItem id="invertZoom" textValue={t("ovlPrefInvertZoom")}><PrefTick on={prefs.invertZoom} />{t("ovlPrefInvertZoom")}</DropdownItem>
@@ -1443,7 +1448,9 @@ export default function OverlayEditor({
           {/* The document name lives with the document, not in the toolbar. */}
           <div className="flex items-center px-2 h-[52px] shrink-0 border-b border-border">
             <TextFieldRoot value={doc.canvas.name ?? ""} onChange={(v) => updateCanvas({ name: v })} aria-label={t("ovlProfileName")} className="w-full">
-              <InputRoot className="text-t13! font-semibold h-[30px]! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!" placeholder={t("ovlProfileDefaultName")} />
+              <InputRoot style={{ fontSize: "var(--t18)" }}
+                className="font-semibold h-[36px]! px-2! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!"
+                placeholder={t("ovlProfileDefaultName")} />
             </TextFieldRoot>
           </div>
           <div className="flex items-center justify-between pl-3 pr-1.5 h-10 shrink-0 border-b border-border relative">
@@ -1866,6 +1873,40 @@ export default function OverlayEditor({
             </Button>
             <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={() => { setSaveOpen(false); setSaveName(""); }}>
               <X size={13} />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Nudge amount ─────────────────────────────────────────────────────────
+          Two numbers rather than one: the arrow keys move by the first, Shift by the second.
+          Both were hardcoded at 1 and 10, which is fine until a design works on a grid that
+          is not a multiple of either. */}
+      {nudgeOpen && (
+        <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-50 w-72 rounded-xl shadow-xl border border-border p-3 flex flex-col gap-2.5"
+          style={{ background: "var(--bg-elevated)" }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setNudgeOpen(false); }}>
+          <span className="text-t12 font-semibold text-primary">{t("ovlPrefNudge")}</span>
+          <label className="flex items-center justify-between gap-2">
+            <span className="text-t12 text-muted">{t("ovlPrefNudgeStep")}</span>
+            <input type="text" inputMode="numeric" autoFocus value={prefs.nudge}
+              onChange={(e) => setPref("nudge", Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 1))}
+              className="w-[70px] rounded-md px-2 py-1 text-t12 text-primary text-right outline-none border border-border focus:border-accent"
+              style={{ background: "var(--surface-2)" }} />
+          </label>
+          <label className="flex items-center justify-between gap-2">
+            <span className="text-t12 text-muted">{t("ovlPrefNudgeBig")}</span>
+            <input type="text" inputMode="numeric" value={prefs.nudgeBig}
+              onChange={(e) => setPref("nudgeBig", Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 1))}
+              className="w-[70px] rounded-md px-2 py-1 text-t12 text-primary text-right outline-none border border-border focus:border-accent"
+              style={{ background: "var(--surface-2)" }} />
+          </label>
+          <div className="flex gap-1.5 mt-0.5">
+            <Button variant="flat" color="primary" size="sm" className="flex-1 text-t12!" onPress={() => setNudgeOpen(false)}>
+              <Check size={13} /> {t("ovlDone")}
+            </Button>
+            <Button variant="ghost" size="sm" className="text-t12!" onPress={() => { setPref("nudge", 1); setPref("nudgeBig", 10); }}>
+              {t("ovlReset")}
             </Button>
           </div>
         </div>
