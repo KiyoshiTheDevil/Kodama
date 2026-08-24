@@ -29,7 +29,7 @@ import { DebugFloatingWindow } from "./settings/debug-tab.jsx";
 import { SettingsSidebarContent } from "./settings/sidebar-nav.jsx";
 import { lockSettingsSection, setSettingsSectionStore } from "./settings/section-store.js";
 import { SettingsPanel } from "./settings/panel.jsx";
-import { ZOOM_STEPS, FONT_STEPS } from "./settings/scale.js";
+import { ZOOM_STEPS, FONT_STEPS, applyFontScale, readFontScale } from "./settings/scale.js";
 import { DEFAULT_SHORTCUTS } from "./settings/shortcuts.js";
 import { APP_ICON_DEFAULT } from "./settings/app-icons.js";
 import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
@@ -4609,22 +4609,9 @@ export default function App() {
     localStorage.setItem("kiyoshi-shortcuts", "{}");
   }, []);
 
-  const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
-  const [appFontScale, setAppFontScale] = useState(() => {
-    const saved = parseFloat(localStorage.getItem("kiyoshi-font-scale"));
-    const scale = FONT_STEPS.includes(saved) ? saved : 1.0;
-    // Set CSS vars synchronously to avoid flash of unstyled text
-    CSS_FONT_SIZES.forEach(s => {
-      document.documentElement.style.setProperty(`--t${s}`, `${Math.round(s * scale)}px`);
-    });
-    return scale;
-  });
-
-  useEffect(() => {
-    CSS_FONT_SIZES.forEach(s => {
-      document.documentElement.style.setProperty(`--t${s}`, `${Math.round(s * appFontScale)}px`);
-    });
-  }, [appFontScale]);
+  // Applied synchronously here as well as in the effect, so there is no flash of unstyled text.
+  const [appFontScale, setAppFontScale] = useState(() => applyFontScale(readFontScale()));
+  useEffect(() => { applyFontScale(appFontScale); }, [appFontScale]);
 
   // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),
   // damit position:fixed / 100vh-Werte korrekt bleiben.

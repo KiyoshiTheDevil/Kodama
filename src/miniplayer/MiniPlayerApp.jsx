@@ -12,6 +12,7 @@ import { Play, Pause, SkipBack, SkipForward, MiniPlayerExit, X } from "../icons.
 import { translate } from "../i18n.js";
 import { thumbHi } from "../context.jsx";
 import { EV_NOW_PLAYING, MINI_SIZE_KEY, sayHello, sendToMain, requestShowMain } from "./bridge.js";
+import { applyFontScale, readFontScale } from "../settings/scale.js";
 
 const fmt = (s) => {
   if (!isFinite(s) || s < 0) s = 0;
@@ -21,6 +22,10 @@ const fmt = (s) => {
 const EMPTY = { title: "", artists: "", thumbnail: "", isPlaying: false, position: 0, duration: 0, at: 0, hasTrack: false };
 
 export default function MiniPlayerApp() {
+  // Separate window, same reason as the overlay editor: without this the text-t* classes here
+  // resolve to nothing and fall back to the inherited size.
+  applyFontScale(readFontScale());
+
   const [np, setNp] = useState(EMPTY);
   const [, setTick] = useState(0);
   const [hover, setHover] = useState(false);
