@@ -113,6 +113,7 @@ export const HardDrives         = fa("hard-drive");
 export const Translate          = fa("language");
 export const Robot              = fa("robot");
 export const Eyedropper         = fa("eye-dropper");
+export const Droplet            = fa("droplet");
 
 // ── Content ──────────────────────────────────────────────────────────────────
 export const VinylRecord        = fa("record-vinyl");

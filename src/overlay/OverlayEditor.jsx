@@ -21,7 +21,7 @@ import {
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
-  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise,
+  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
 } from "../icons.jsx";
@@ -186,16 +186,82 @@ function PrefTick({ on }) {
 
 // ── Inspector controls ────────────────────────────────────────────────────────
 // Section header with an optional right-aligned action node (e.g. a small toggle).
+// Round/bevel corners: parked, not removed. The control was a full-width segmented toggle in
+// Appearance, which made a rarely-used choice the loudest thing in the section, and the design
+// has no place for it yet. Covers both offers of the choice, on a layer and on the canvas, so
+// bevel is simply not reachable for now rather than half gone. The property itself is untouched
+// -- documents keep whatever corner type they were saved with, it just cannot be changed here.
+const SHOW_CORNER_TYPE = false;
+
+// Corner glyphs for the per-corner radius fields: one drawn corner, rotated for the other three.
+// A letter pair (TL, TR ...) needs reading; the shape is recognised at a glance.
+const _cornerArc = (transform) => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+    <path d="M3 13 V7 A4 4 0 0 1 7 3 H13" transform={transform} />
+  </svg>
+);
+const CORNER_GLYPH = {
+  TL: _cornerArc(undefined),
+  TR: _cornerArc("rotate(90 8 8)"),
+  BR: _cornerArc("rotate(180 8 8)"),
+  BL: _cornerArc("rotate(270 8 8)"),
+};
+// Uniform radius: a rounded square. Opacity: a square half filled on the diagonal.
+const RADIUS_GLYPH = (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="3.5" /></svg>
+);
+const OPACITY_GLYPH = (
+  <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+    <rect x="3" y="3" width="10" height="10" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M3 13 L13 3 V13 Z" fill="currentColor" opacity="0.75" />
+  </svg>
+);
+
+// Section heading, per the design: a real heading in the panel's own voice rather than a small
+// grey caption, with a rule separating it from what came before.
+//
+// Sizes go through inline var(--tNN) instead of the text-tNN utilities: those classes generate
+// nothing (the theme declares the scale under Tailwind 3's --font-size-* while the project is on
+// Tailwind 4), so anything set with them silently keeps the inherited size.
 function Section({ title, right, children }) {
   return (
-    <div className="border-t border-border pt-2.5 mt-2.5 first:border-t-0 first:pt-0 first:mt-0">
+    <div className="border-t border-border pt-4 mt-4 first:border-t-0 first:pt-0 first:mt-0">
       {(title || right) && (
-        <div className="flex items-center justify-between mb-1.5 px-0.5 min-h-[16px]">
-          {title && <span className="text-t12 font-medium text-secondary">{title}</span>}
+        <div className="flex items-center justify-between mb-2 min-h-[20px]">
+          {title && <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{title}</span>}
           {right}
         </div>
       )}
-      <div className="flex flex-col gap-1.5">{children}</div>
+      <div className="flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+// Secondary action with no surface: the design leaves these bare so they sit beside a field
+// without reading as a control in their own right.
+function BareIconBtn({ onPress, active, label, children }) {
+  return (
+    <button type="button" onClick={onPress} aria-label={label} title={label} aria-pressed={active}
+      className={`shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors ${active ? "text-accent" : "text-muted hover:text-primary"}`}>
+      {children}
+    </button>
+  );
+}
+
+// Caption above a block of fields. The design names a block from above instead of putting a
+// label to the left of every control, which lets the fields use the full width of the panel.
+function SubLabel({ children }) {
+  return <span style={{ fontSize: "var(--t12)" }} className="block text-muted mb-1">{children}</span>;
+}
+
+// A block: caption, then its fields. Saves repeating the wrapper at every group.
+function Field({ label, children }) {
+  return (
+    <div>
+      {label && <SubLabel>{label}</SubLabel>}
+      {children}
     </div>
   );
 }
@@ -223,7 +289,7 @@ function NumField({ label, value, onChange, min, max, step = 1 }) {
 // Compact pill with a short prefix (X/Y/W/H …) — a plain controlled <input> (HeroUI's
 // NumberField input sizing was unreliable). Prefix overlaid absolutely; live edits flow
 // through on every valid keystroke; external value updates sync only while not focused.
-function PillNum({ prefix, value, onChange, min, max, step = 1 }) {
+function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
   const fmtNum = (v) => (v == null || Number.isNaN(v)) ? "0" : String(step < 1 ? Math.round(v * 100) / 100 : Math.round(v));
   const [text, setText] = useState(() => fmtNum(value));
   const focused = useRef(false);
@@ -260,18 +326,20 @@ function PillNum({ prefix, value, onChange, min, max, step = 1 }) {
     window.addEventListener("pointerup", up);
   };
   return (
-    <div className="flex items-center h-8 w-full min-w-0 rounded-md bg-[var(--surface-2)] border border-border focus-within:border-accent">
-      <span onPointerDown={onScrub} className="shrink-0 px-2 text-t11 text-muted select-none whitespace-nowrap" style={{ cursor: "ew-resize" }}>{prefix}</span>
-      <div className="w-px h-4 bg-border shrink-0" />
+    <div className="flex items-center gap-1.5 h-[30px] w-full min-w-0 pl-3 pr-2 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
+      <span onPointerDown={onScrub} aria-hidden="true"
+        className="shrink-0 flex items-center text-muted select-none whitespace-nowrap"
+        style={{ cursor: "ew-resize", fontSize: "var(--t12)" }}>{prefix}</span>
       <input
         value={text}
         inputMode="numeric"
-        aria-label={prefix}
+        aria-label={ariaLabel || (typeof prefix === "string" ? prefix : undefined)}
         onFocus={() => { focused.current = true; }}
         onChange={onInput}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") { commit(); e.currentTarget.blur(); } }}
-        className="flex-1 min-w-0 bg-transparent outline-none text-t12 text-primary tabular-nums px-2"
+        className="flex-1 min-w-0 bg-transparent outline-none text-primary tabular-nums"
+        style={{ fontSize: "var(--t13)" }}
       />
     </div>
   );
@@ -1744,7 +1812,7 @@ export default function OverlayEditor({
       {prefs.showRight && <div className="shrink-0 flex flex-col border-l border-border relative" style={{ width: rightW }}>
         <div onPointerDown={(e) => startPanelResize("right", e)}
           className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
-        <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3">
           {selectedIds.length > 1 ? (
             <>
               <div className="text-t12 font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
@@ -1794,8 +1862,10 @@ export default function OverlayEditor({
                       onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BR: v } })} />
                   </div>
                 )}
-                <SelectField value={doc.canvas.corners?.typeTL || "r"} options={CORNER_OPTS(t)}
-                  onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), typeTL: v, typeTR: v, typeBR: v, typeBL: v } })} />
+                {SHOW_CORNER_TYPE && (
+                  <SelectField value={doc.canvas.corners?.typeTL || "r"} options={CORNER_OPTS(t)}
+                    onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), typeTL: v, typeTR: v, typeBR: v, typeBL: v } })} />
+                )}
               </Section>
               <Section title={t("ovlBorder")} right={
                 <Switch isSelected={!!doc.canvas.border?.on} onChange={(v) => updateCanvasSub("border", { on: v })} aria-label={t("ovlBorder")}>
@@ -1845,6 +1915,7 @@ export default function OverlayEditor({
               <Section title={t("ovlPosition")}>
                 {/* Aligning to the canvas is positioning, so it lives in this section rather
                     than floating above it as its own unlabelled row. */}
+                <SubLabel>{t("ovlAlignment") || "Alignment"}</SubLabel>
                 <div className="grid grid-cols-2 gap-2">
                   <Segmented value={null} onChange={(w) => alignSelected("x", w)} options={[
                     { value: "start", icon: ALIGN_GLYPH.hL, aria: t("ovlLeft") }, { value: "center", icon: ALIGN_GLYPH.hC, aria: t("ovlCenter") }, { value: "end", icon: ALIGN_GLYPH.hR, aria: t("ovlRight") },
@@ -1853,10 +1924,13 @@ export default function OverlayEditor({
                     { value: "start", icon: ALIGN_GLYPH.vT, aria: t("ovlTop") }, { value: "center", icon: ALIGN_GLYPH.vM, aria: t("ovlMiddle") }, { value: "end", icon: ALIGN_GLYPH.vB, aria: t("ovlBottom") },
                   ]} />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <PillNum prefix="X" value={selected.x} onChange={(v) => setLayer(selected.id, { x: v })} />
-                  <PillNum prefix="Y" value={selected.y} onChange={(v) => setLayer(selected.id, { y: v })} />
-                </div>
+                <Field label={t("ovlPosition")}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <PillNum prefix="X" value={selected.x} onChange={(v) => setLayer(selected.id, { x: v })} />
+                    <PillNum prefix="Y" value={selected.y} onChange={(v) => setLayer(selected.id, { y: v })} />
+                  </div>
+                </Field>
+                <Field label={t("ovlRotation")}>
                 <div className="grid grid-cols-[1fr_auto] gap-2">
                   <PillNum prefix="∠" value={selected.rotation} min={-360} max={360} onChange={(v) => setLayer(selected.id, { rotation: v })} />
                   <IconBtnRow actions={[
@@ -1865,51 +1939,78 @@ export default function OverlayEditor({
                     { icon: FLIP_V, onAction: () => setLayer(selected.id, { flipV: !selected.flipV }), aria: t("ovlFlipV") || "Flip vertical", active: !!selected.flipV },
                   ]} />
                 </div>
+                </Field>
               </Section>
 
               <Section title={t("ovlLayout")}>
                 {/* The lock sits beside the two fields it ties together, rather than as a
                     full-width button underneath them: it belongs to W and H, and a row of its
                     own read like a third property. Its label moves to the tooltip. */}
+                <SubLabel>{t("ovlDimensions") || "Dimensions"}</SubLabel>
                 <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <PillNum prefix="W" value={selected.w} min={1} onChange={(v) => setLayer(selected.id, aspectLock ? { w: v, h: Math.max(1, Math.round(v / ratio)) } : { w: v })} />
                   <PillNum prefix="H" value={selected.h} min={1} onChange={(v) => setLayer(selected.id, aspectLock ? { h: v, w: Math.max(1, Math.round(v * ratio)) } : { h: v })} />
-                  <button type="button" onClick={() => setAspectLock((a) => !a)}
-                    title={t("ovlLockAspect") || "Lock aspect ratio"}
-                    aria-label={t("ovlLockAspect") || "Lock aspect ratio"}
-                    aria-pressed={aspectLock}
-                    className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-md border transition-colors ${aspectLock ? "text-white border-transparent bg-accent" : "border-border text-secondary bg-[var(--surface-2)] hover:bg-[var(--bg-hover)]"}`}>
-                    {aspectLock ? <Lock size={12} /> : <LockOpen size={12} />}
-                  </button>
+                  <BareIconBtn onPress={() => setAspectLock((a) => !a)} active={aspectLock}
+                    label={t("ovlLockAspect") || "Lock aspect ratio"}>
+                    {aspectLock ? <Lock size={13} /> : <LockOpen size={13} />}
+                  </BareIconBtn>
                 </div>
               </Section>
 
-              <Section title={t("ovlAppearance") || "Appearance"}>
-                <PillNum prefix="O" value={selected.opacity} min={0} max={100} onChange={(v) => setLayer(selected.id, { opacity: v })} />
-                <SelectField label={t("ovlBlend") || "Blend"} value={selected.blend || "normal"} options={BLEND_OPTS()} onChange={(v) => setLayer(selected.id, { blend: v })} />
-              </Section>
-              {hasCorners && (
-              <Section title={t("ovlCorners")} right={
-                <Button variant="ghost" size="sm" isIconOnly
-                  aria-label={t("ovlCornersIndividual") || "Individual corners"}
-                  onPress={() => setLayerCornersInd((v) => !v)}
-                  className={layerCornersInd ? "text-accent!" : ""}>
-                  <ArrowsOut size={13} />
-                </Button>}>
-                {!layerCornersInd ? (
-                  <PillNum prefix={t("ovlRadius")} value={sc?.TL ?? 0} min={0} max={400}
-                    onChange={(v) => setStyle(selected.id, { corners: uniformCorners(v, cornerType) })} />
-                ) : (
+              <Section title={t("ovlAppearance") || "Appearance"} right={
+                <Dropdown>
+                  <DropdownTrigger
+                    aria-label={t("ovlBlend") || "Blend"}
+                    title={`${t("ovlBlend") || "Blend"}: ${(BLEND_OPTS().find((o) => o.value === (selected.blend || "normal")) || {}).label}`}
+                    className={`w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors ${(selected.blend && selected.blend !== "normal") ? "text-accent" : "text-muted hover:text-primary"}`}>
+                    <Droplet size={14} />
+                  </DropdownTrigger>
+                  <DropdownPopover placement="bottom end" className="min-w-[180px] max-h-[320px] overflow-y-auto">
+                    <DropdownMenu aria-label={t("ovlBlend") || "Blend"}
+                      onAction={(key) => setLayer(selected.id, { blend: String(key) })}>
+                      {BLEND_OPTS().map((o) => (
+                        <DropdownItem key={o.value} id={o.value} textValue={o.label}>
+                          <span className="inline-flex w-[13px] justify-center shrink-0">
+                            {(selected.blend || "normal") === o.value ? <Check size={12} weight="bold" /> : null}
+                          </span>
+                          {o.label}
+                        </DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </DropdownPopover>
+                </Dropdown>}>
+                {/* Opacity and radius share a row, as two named blocks side by side. The radius
+                    used to be a section of its own, which gave a single number the same weight
+                    as Position or Layout. */}
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <Field label={t("ovlOpacity")}>
+                    <PillNum prefix={OPACITY_GLYPH} ariaLabel={t("ovlOpacity")} value={selected.opacity} min={0} max={100} onChange={(v) => setLayer(selected.id, { opacity: v })} />
+                  </Field>
+                  {hasCorners && (
+                    <Field label={t("ovlRadius")}>
+                      <div className="grid grid-cols-[1fr_auto] gap-1 items-center">
+                        <PillNum prefix={RADIUS_GLYPH} ariaLabel={t("ovlRadius")} value={sc?.TL ?? 0} min={0} max={400}
+                          onChange={(v) => setStyle(selected.id, { corners: uniformCorners(v, cornerType) })} />
+                        <BareIconBtn onPress={() => setLayerCornersInd((v) => !v)} active={layerCornersInd}
+                          label={t("ovlCornersIndividual") || "Individual corners"}>
+                          <ArrowsOut size={13} />
+                        </BareIconBtn>
+                      </div>
+                    </Field>
+                  )}
+                </div>
+                {hasCorners && layerCornersInd && (
                   <div className="grid grid-cols-2 gap-2">
-                    <PillNum prefix="TL" value={sc?.TL ?? 0} min={0} max={400} onChange={(v) => setCorner("TL", v)} />
-                    <PillNum prefix="TR" value={sc?.TR ?? 0} min={0} max={400} onChange={(v) => setCorner("TR", v)} />
-                    <PillNum prefix="BL" value={sc?.BL ?? 0} min={0} max={400} onChange={(v) => setCorner("BL", v)} />
-                    <PillNum prefix="BR" value={sc?.BR ?? 0} min={0} max={400} onChange={(v) => setCorner("BR", v)} />
+                    <PillNum prefix={CORNER_GLYPH.TL} ariaLabel="Top left" value={sc?.TL ?? 0} min={0} max={400} onChange={(v) => setCorner("TL", v)} />
+                    <PillNum prefix={CORNER_GLYPH.TR} ariaLabel="Top right" value={sc?.TR ?? 0} min={0} max={400} onChange={(v) => setCorner("TR", v)} />
+                    <PillNum prefix={CORNER_GLYPH.BL} ariaLabel="Bottom left" value={sc?.BL ?? 0} min={0} max={400} onChange={(v) => setCorner("BL", v)} />
+                    <PillNum prefix={CORNER_GLYPH.BR} ariaLabel="Bottom right" value={sc?.BR ?? 0} min={0} max={400} onChange={(v) => setCorner("BR", v)} />
                   </div>
                 )}
-                <Segmented value={cornerType} onChange={setCornersType} options={[{ value: "r", label: t("ovlRound") }, { value: "b", label: t("ovlBevel") }]} />
+                {hasCorners && SHOW_CORNER_TYPE && (
+                  <Segmented value={cornerType} onChange={setCornersType} options={[{ value: "r", label: t("ovlRound") }, { value: "b", label: t("ovlBevel") }]} />
+                )}
               </Section>
-              )}
 
               <Section>
                 <SwitchField label={t("ovlVisible")} checked={selected.visible !== false} onChange={(v) => toggleLayer(selected.id, { visible: v })} />

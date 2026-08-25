@@ -963,5 +963,7 @@
   "ovlPrefNudgeStep": "Pfeiltasten",
   "ovlPrefNudgeBig": "Mit Umschalt",
   "ovlDone": "Fertig",
-  "ovlReset": "Zurücksetzen"
+  "ovlReset": "Zurücksetzen",
+  "ovlAlignment": "Ausrichtung",
+  "ovlDimensions": "Maße"
 }
