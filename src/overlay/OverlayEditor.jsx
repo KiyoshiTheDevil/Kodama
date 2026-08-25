@@ -1478,7 +1478,7 @@ export default function OverlayEditor({
           <div className="flex items-center justify-between pl-4 pr-1.5 pt-3 pb-1 shrink-0 relative">
             <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
-          <div className="flex flex-col gap-0.5 p-1.5 overflow-y-auto min-h-0">
+          <div className="flex flex-col gap-0.5 px-[10px] py-1.5 overflow-y-auto min-h-0">
             {orderedDesc.length === 0 && <div className="text-t11 text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
             {orderedDesc.map((l, rowIdx) => {
               const M = TYPE_META[l.type] || TYPE_META.shape; const Icon = M.icon; const active = selectedIds.includes(l.id);
