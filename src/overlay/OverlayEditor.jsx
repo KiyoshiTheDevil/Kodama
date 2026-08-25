@@ -22,7 +22,7 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise,
-  ArrowsOut, ArrowClockwise, CaretDown, GripLines, CursorArrow,
+  ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -706,9 +706,10 @@ export default function OverlayEditor({
   const [layerCornersInd, setLayerCornersInd] = useState(false); // uniform ↔ per-corner radius (layer)
   aspectLockRef.current = aspectLock;
   const [dragId, setDragId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+  const [dropIndex, setDropIndex] = useState(null);   // gap the drop line sits in
+  const suppressLayerClickRef = useRef(false);
   const dragIdRef = useRef(null);       // stable refs for pointer event closures
-  const dragOverIdRef = useRef(null);
+  const dropIndexRef = useRef(null);
   const [profiles, setProfiles] = useState(() => {
     try { return JSON.parse(localStorage.getItem("kiyoshi-overlay-profiles") || "[]"); } catch { return []; }
   });
@@ -797,57 +798,74 @@ export default function OverlayEditor({
   const orderedAsc = [...doc.layers].sort((a, b) => (a.z || 0) - (b.z || 0)); // paint order (hit-test top = last)
   const orderedDesc = [...doc.layers].sort((a, b) => (b.z || 0) - (a.z || 0)); // list (top first)
 
-  // Drag-and-drop layer reorder: reassigns z values to reflect new visual order.
-  const reorderLayers = useCallback((fromId, toId) => {
-    if (fromId === toId) return;
+  // Drag-and-drop layer reorder. Takes the position to insert AT, counted in gaps between rows
+  // (0 = above the first row, length = below the last), rather than "the row I happen to be
+  // over": dropping onto a row cannot say whether you meant above or below it.
+  const moveLayerTo = useCallback((fromId, insertIndex) => {
     const ordered = [...doc.layers].sort((a, b) => (b.z || 0) - (a.z || 0));
     const fromIdx = ordered.findIndex((l) => l.id === fromId);
-    const toIdx   = ordered.findIndex((l) => l.id === toId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const reordered = [...ordered];
-    const [moved] = reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, moved);
-    const n = reordered.length;
+    if (fromIdx === -1) return;
+    // Pulling the row out shifts every gap below it up by one.
+    let target = insertIndex > fromIdx ? insertIndex - 1 : insertIndex;
+    if (target === fromIdx) return;
+    const next = [...ordered];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(target, 0, moved);
+    const n = next.length;
     const updatedLayers = doc.layers.map((l) => ({
       ...l,
-      z: n - 1 - reordered.findIndex((r) => r.id === l.id),
+      z: n - 1 - next.findIndex((r) => r.id === l.id),
     }));
     commit({ ...doc, layers: updatedLayers });
   }, [doc, commit]);
 
-  // Stable ref so pointer-event closures always call the latest reorderLayers.
-  const reorderLayersRef = useRef(null);
-  reorderLayersRef.current = reorderLayers;
+  // Stable ref so pointer-event closures always call the latest moveLayerTo.
+  const moveLayerToRef = useRef(null);
+  moveLayerToRef.current = moveLayerTo;
 
   // Pointer-based drag sort (HTML5 drag-and-drop is unreliable in WebView2/WebKit).
-  const onGripDown = useCallback((e, id) => {
-    e.stopPropagation();
-    e.preventDefault();
-    dragIdRef.current = id;
-    dragOverIdRef.current = null;
-    setDragId(id);
-    setDragOverId(null);
+  const onRowPointerDown = useCallback((e, id) => {
+    if (e.button !== 0) return;
+    const startY = e.clientY, startX = e.clientX;
+    let dragging = false;
+    dragIdRef.current = null;
+    dropIndexRef.current = null;
 
     const onMove = (ev) => {
-      const els = document.elementsFromPoint(ev.clientX, ev.clientY);
-      const rowEl = els.find((el) => el.dataset?.layerId);
-      if (rowEl) {
-        const overId = rowEl.dataset.layerId;
-        if (overId !== dragIdRef.current) {
-          dragOverIdRef.current = overId;
-          setDragOverId(overId);
-        }
+      // Only become a drag once the pointer has actually travelled: without this every click
+      // that selects a layer would also start one.
+      if (!dragging) {
+        if (Math.abs(ev.clientY - startY) < 4 && Math.abs(ev.clientX - startX) < 4) return;
+        dragging = true;
+        dragIdRef.current = id;
+        setDragId(id);
+      }
+      // Which gap is the pointer nearest? Upper half of a row means above it, lower half below.
+      const rows = Array.from(document.querySelectorAll("[data-layer-index]"));
+      let idx = rows.length;
+      for (const el of rows) {
+        const r = el.getBoundingClientRect();
+        if (ev.clientY < r.top + r.height / 2) { idx = Number(el.dataset.layerIndex); break; }
+      }
+      if (idx !== dropIndexRef.current) {
+        dropIndexRef.current = idx;
+        setDropIndex(idx);
       }
     };
 
     const onUp = () => {
       const fromId = dragIdRef.current;
-      const toId = dragOverIdRef.current;
-      if (fromId && toId && fromId !== toId) reorderLayersRef.current?.(fromId, toId);
+      const at = dropIndexRef.current;
+      if (fromId && at != null) {
+        moveLayerToRef.current?.(fromId, at);
+        // The click event still follows a pointerup; swallow it so the drop does not also
+        // count as a selection of whatever ended up under the cursor.
+        suppressLayerClickRef.current = true;
+      }
       dragIdRef.current = null;
-      dragOverIdRef.current = null;
+      dropIndexRef.current = null;
       setDragId(null);
-      setDragOverId(null);
+      setDropIndex(null);
       window.removeEventListener("pointermove", onMove);
     };
 
@@ -1447,29 +1465,47 @@ export default function OverlayEditor({
           <div onPointerDown={(e) => startPanelResize("left", e)}
             className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
           {/* The document name lives with the document, not in the toolbar. */}
-          <div className="flex items-center px-2 h-[52px] shrink-0 border-b border-border">
+          <div className="flex items-center px-2 h-[52px] shrink-0">
             <TextFieldRoot value={doc.canvas.name ?? ""} onChange={(v) => updateCanvas({ name: v })} aria-label={t("ovlProfileName")} className="w-full">
               <InputRoot style={{ fontSize: "var(--t18)" }}
                 className="font-semibold h-[36px]! px-2! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!"
                 placeholder={t("ovlProfileDefaultName")} />
             </TextFieldRoot>
           </div>
-          <div className="flex items-center justify-between pl-3 pr-1.5 pt-3 pb-1 shrink-0 relative">
+          {/* Inset rather than edge to edge: it separates the two headings, and running it into
+              the panel borders made it read as a structural divider of the whole column. */}
+          <div className="mx-4 h-px bg-border shrink-0" />
+          <div className="flex items-center justify-between pl-4 pr-1.5 pt-3 pb-1 shrink-0 relative">
             <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
           <div className="flex flex-col gap-0.5 p-1.5 overflow-y-auto min-h-0">
             {orderedDesc.length === 0 && <div className="text-t11 text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
-            {orderedDesc.map((l) => {
+            {orderedDesc.map((l, rowIdx) => {
               const M = TYPE_META[l.type] || TYPE_META.shape; const Icon = M.icon; const active = selectedIds.includes(l.id);
               const isDragging = dragId === l.id;
-              const isDropTarget = dragOverId === l.id && dragId !== l.id;
-              // Locked and hidden have to stay legible without hovering the row.
-              const chipsShown = l.locked || l.visible === false;
+              // A chip stays out on its own account: locked shows the lock, hidden shows the
+              // eye. The pill needs its notch as soon as either of them is beside it.
+              const lockShown = !!l.locked;
+              const eyeShown = l.visible === false;
+              const chipsShown = lockShown || eyeShown;
               return (
-                <div key={l.id} className={`group flex items-center ${isDragging ? "opacity-40" : ""}`}>
+                <div key={l.id} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}>
+                  {/* The drop line sits IN the gap, so it says where the row lands instead of
+                      which row you are over -- an outline leaves you guessing above or below.
+                      Zero height and absolutely placed, so showing it never nudges the list. */}
+                  {dropIndex === rowIdx && (
+                    <div className="absolute -top-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
+                  )}
+                  {dropIndex === rowIdx + 1 && rowIdx === orderedDesc.length - 1 && (
+                    <div className="absolute -bottom-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
+                  )}
                   <div
                     data-layer-id={l.id}
-                    onClick={() => setSelectedId(l.id)}
+                    onPointerDown={(e) => onRowPointerDown(e, l.id)}
+                    onClick={() => {
+                      if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }
+                      setSelectedId(l.id);
+                    }}
                     className={[
                       "flex-1 min-w-0 flex items-center gap-2 px-2.5 cursor-default select-none",
                       "transition-[background-color,border-radius] duration-150",
@@ -1480,42 +1516,40 @@ export default function OverlayEditor({
                       // whenever it stands alone -- including on the selected row.
                       chipsShown ? "rounded-e-[6px]" : "rounded-e-[17px] group-hover:rounded-e-[6px]",
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
-                      isDropTarget ? "ring-1 ring-inset ring-accent" : "",
                     ].filter(Boolean).join(" ")}
                     style={{ height: LAYER_ROW_H }}>
-                    <GripLines size={12}
-                      data-layer-id={l.id}
-                      onPointerDown={(e) => onGripDown(e, l.id)}
-                      className="shrink-0 text-muted opacity-0 group-hover:opacity-60 cursor-grab" />
                     <Icon size={15} className="shrink-0" />
                     <span style={{ fontSize: "var(--t13)" }} className="flex-1 truncate">{l.name || M.label}</span>
                   </div>
-                  {/* One group of three: name, lock, eye. That only works because the pill
-                      takes its notch when the chips appear -- as a fixed choice it looked wrong
-                      in whichever state it was not made for, leaving the lock a lone square
-                      between two pills.
-                      The two chips live in a holder that collapses to nothing when they are
-                      not shown, its leading gap included. Reserving the space instead left a
-                      visible notch beside the selected row, and letting the name pill resize
-                      on hover made the list twitch; collapsing the holder with a transition
-                      avoids both. Always shown while the layer is locked or hidden, because a
-                      row has to be able to say so without being hovered. */}
-                  <div className={`shrink-0 flex items-center gap-1.5 overflow-hidden transition-[width] duration-150 ${chipsShown ? "w-[80px]" : "w-0 group-hover:w-[80px]"}`}>
+                  {/* One group of three: name, lock, eye. That only works because each part
+                      takes its notch when a neighbour is actually there -- as a fixed choice it
+                      looked wrong in whichever state it was not made for.
+
+                      Each chip collapses on its own, leading gap included, so a locked layer
+                      shows the lock alone rather than dragging the eye out with it. Reserving
+                      the space instead left a gap beside the selected row, and resizing the
+                      name pill on hover made the list twitch. A chip stays out permanently when
+                      it has something to report: a row must be able to say it is locked or
+                      hidden without being hovered. 17px is half the row height, as a literal
+                      because Tailwind only sees class names it can read. */}
+                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${lockShown ? "w-[40px]" : "w-0 group-hover:w-[40px]"}`}>
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { locked: !l.locked }); }}
                       aria-label={t("ovlLocked")} aria-pressed={!!l.locked}
-                      className={`shrink-0 ml-1.5 flex items-center justify-center border-0 transition-colors bg-[var(--surface-2)] hover:bg-[var(--surface-3)] ${l.locked ? "text-primary" : "text-secondary"}`}
-                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H, borderRadius: hdrCorners(true, true, LAYER_ROW_H) }}>
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[6px] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[6px]" : "rounded-e-[17px] group-hover:rounded-e-[6px]"}`}
+                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
                     </button>
+                  </span>
+                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${eyeShown ? "w-[40px]" : "w-0 group-hover:w-[40px]"}`}>
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { visible: l.visible === false }); }}
                       aria-label={t("ovlVisible")} aria-pressed={l.visible !== false}
-                      className={`shrink-0 flex items-center justify-center border-0 transition-colors bg-[var(--surface-2)] hover:bg-[var(--surface-3)] ${l.visible === false ? "text-primary" : "text-secondary"}`}
-                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H, borderRadius: hdrCorners(true, false, LAYER_ROW_H) }}>
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[6px] rounded-e-[17px] ${l.visible === false ? "text-primary" : "text-secondary"}`}
+                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
                     </button>
-                  </div>
+                  </span>
                 </div>
               );
             })}
