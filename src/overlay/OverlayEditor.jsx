@@ -151,7 +151,7 @@ const HDR_ICON_BTN = "w-[46px]! h-[30px]! bg-[var(--surface-2)]! hover:bg-[var(-
 // corners by 30/48, so the 24 becomes 15 AND the 6px notch quietly becomes 3.75. At this
 // height the pill value IS 15, which is the look the 24 was after, and keeping it there is
 // what lets the notch stay exactly 6.
-const LAYER_ROW_H = 34;
+const LAYER_ROW_H = 30;
 const HDR_H = 30;
 const HDR_NOTCH = 6;
 const hdrCorners = (left, right, height = HDR_H) => {
@@ -1465,17 +1465,17 @@ export default function OverlayEditor({
           <div onPointerDown={(e) => startPanelResize("left", e)}
             className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
           {/* The document name lives with the document, not in the toolbar. */}
-          <div className="flex items-center px-2 h-[52px] shrink-0">
+          <div className="flex items-center px-[10px] h-[52px] shrink-0">
             <TextFieldRoot value={doc.canvas.name ?? ""} onChange={(v) => updateCanvas({ name: v })} aria-label={t("ovlProfileName")} className="w-full">
               <InputRoot style={{ fontSize: "var(--t18)" }}
-                className="font-semibold h-[36px]! px-2! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!"
+                className="font-semibold h-[36px]! px-4! bg-transparent! border-transparent! hover:bg-[var(--surface-2)]! focus:bg-[var(--surface-2)]! focus:border-border!"
                 placeholder={t("ovlProfileDefaultName")} />
             </TextFieldRoot>
           </div>
           {/* Inset rather than edge to edge: it separates the two headings, and running it into
               the panel borders made it read as a structural divider of the whole column. */}
-          <div className="mx-4 h-px bg-border shrink-0" />
-          <div className="flex items-center justify-between pl-4 pr-1.5 pt-3 pb-1 shrink-0 relative">
+          <div className="mx-[26px] h-px bg-border shrink-0" />
+          <div className="flex items-center justify-between pl-[26px] pr-1.5 pt-3 pb-1 shrink-0 relative">
             <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
           <div className="flex flex-col gap-0.5 px-[10px] py-1.5 overflow-y-auto min-h-0">
@@ -1507,14 +1507,14 @@ export default function OverlayEditor({
                       setSelectedId(l.id);
                     }}
                     className={[
-                      "flex-1 min-w-0 flex items-center gap-2 px-2.5 cursor-default select-none",
+                      "flex-1 min-w-0 flex items-center gap-2 px-4 cursor-default select-none",
                       "transition-[background-color,border-radius] duration-150",
-                      // 17px is half of LAYER_ROW_H, i.e. the pill value. It has to be a literal:
+                      // 15px is half of LAYER_ROW_H, i.e. the pill value. It has to be a literal:
                       // Tailwind only sees class names it can read in the source.
-                      "rounded-s-[17px]",
+                      "rounded-s-[15px]",
                       // The notch appears exactly when a neighbour does, so the pill is whole
                       // whenever it stands alone -- including on the selected row.
-                      chipsShown ? "rounded-e-[6px]" : "rounded-e-[17px] group-hover:rounded-e-[6px]",
+                      chipsShown ? "rounded-e-[6px]" : "rounded-e-[15px] group-hover:rounded-e-[6px]",
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
                     ].filter(Boolean).join(" ")}
                     style={{ height: LAYER_ROW_H }}>
@@ -1530,22 +1530,22 @@ export default function OverlayEditor({
                       the space instead left a gap beside the selected row, and resizing the
                       name pill on hover made the list twitch. A chip stays out permanently when
                       it has something to report: a row must be able to say it is locked or
-                      hidden without being hovered. 17px is half the row height, as a literal
+                      hidden without being hovered. 15px is half the row height, as a literal
                       because Tailwind only sees class names it can read. */}
-                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${lockShown ? "w-[40px]" : "w-0 group-hover:w-[40px]"}`}>
+                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${lockShown ? "w-[36px]" : "w-0 group-hover:w-[36px]"}`}>
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { locked: !l.locked }); }}
                       aria-label={t("ovlLocked")} aria-pressed={!!l.locked}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[6px] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[6px]" : "rounded-e-[17px] group-hover:rounded-e-[6px]"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[6px] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[6px]" : "rounded-e-[15px] group-hover:rounded-e-[6px]"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
                     </button>
                   </span>
-                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${eyeShown ? "w-[40px]" : "w-0 group-hover:w-[40px]"}`}>
+                  <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${eyeShown ? "w-[36px]" : "w-0 group-hover:w-[36px]"}`}>
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { visible: l.visible === false }); }}
                       aria-label={t("ovlVisible")} aria-pressed={l.visible !== false}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[6px] rounded-e-[17px] ${l.visible === false ? "text-primary" : "text-secondary"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[6px] rounded-e-[15px] ${l.visible === false ? "text-primary" : "text-secondary"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
                     </button>
