@@ -22,7 +22,7 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise,
-  ArrowsOut, ArrowClockwise, CaretDown, DotsSixVertical, CursorArrow,
+  ArrowsOut, ArrowClockwise, CaretDown, GripLines, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -151,12 +151,13 @@ const HDR_ICON_BTN = "w-[46px]! h-[30px]! bg-[var(--surface-2)]! hover:bg-[var(-
 // corners by 30/48, so the 24 becomes 15 AND the 6px notch quietly becomes 3.75. At this
 // height the pill value IS 15, which is the look the 24 was after, and keeping it there is
 // what lets the notch stay exactly 6.
+const LAYER_ROW_H = 34;
 const HDR_H = 30;
-const HDR_R = HDR_H / 2;
 const HDR_NOTCH = 6;
-const hdrCorners = (left, right) => {
-  const l = left ? HDR_NOTCH : HDR_R;
-  const r = right ? HDR_NOTCH : HDR_R;
+const hdrCorners = (left, right, height = HDR_H) => {
+  const pill = height / 2;
+  const l = left ? HDR_NOTCH : pill;
+  const r = right ? HDR_NOTCH : pill;
   return `${l}px ${r}px ${r}px ${l}px`;
 };
 
@@ -1453,8 +1454,8 @@ export default function OverlayEditor({
                 placeholder={t("ovlProfileDefaultName")} />
             </TextFieldRoot>
           </div>
-          <div className="flex items-center justify-between pl-3 pr-1.5 h-10 shrink-0 border-b border-border relative">
-            <span className="text-t12 font-medium text-secondary">{t("ovlLayers")}</span>
+          <div className="flex items-center justify-between pl-3 pr-1.5 pt-3 pb-1 shrink-0 relative">
+            <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
           <div className="flex flex-col gap-0.5 p-1.5 overflow-y-auto min-h-0">
             {orderedDesc.length === 0 && <div className="text-t11 text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
@@ -1462,34 +1463,59 @@ export default function OverlayEditor({
               const M = TYPE_META[l.type] || TYPE_META.shape; const Icon = M.icon; const active = selectedIds.includes(l.id);
               const isDragging = dragId === l.id;
               const isDropTarget = dragOverId === l.id && dragId !== l.id;
+              // Locked and hidden have to stay legible without hovering the row.
+              const chipsShown = l.locked || l.visible === false;
               return (
-                <div key={l.id}
-                  data-layer-id={l.id}
-                  onClick={() => setSelectedId(l.id)}
-                  className={[
-                    "group flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-default select-none transition-opacity",
-                    active ? "bg-accent-dim text-accent" : "text-primary hover:bg-[var(--bg-hover)]",
-                    isDragging ? "opacity-40" : "",
-                    isDropTarget ? "ring-1 ring-inset ring-accent" : "",
-                  ].filter(Boolean).join(" ")}>
-                  <DotsSixVertical size={12}
+                <div key={l.id} className={`group flex items-center ${isDragging ? "opacity-40" : ""}`}>
+                  <div
                     data-layer-id={l.id}
-                    onPointerDown={(e) => onGripDown(e, l.id)}
-                    className="shrink-0 text-muted opacity-0 group-hover:opacity-60 cursor-grab" />
-                  <Icon size={15} className="shrink-0" />
-                  <span className="flex-1 truncate text-t12">{l.name || M.label}</span>
-                  <Button variant="ghost" size="sm" isIconOnly
-                    onPress={() => toggleLayer(l.id, { visible: l.visible === false })}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={t("ovlVisible")} className="shrink-0 opacity-0 group-hover:opacity-60 hover:opacity-100! h-6! w-6! min-w-0!">
-                    {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
-                  </Button>
-                  <Button variant="ghost" size="sm" isIconOnly
-                    onPress={() => toggleLayer(l.id, { locked: !l.locked })}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={t("ovlLocked")} className={`shrink-0 hover:opacity-100! h-6! w-6! min-w-0! ${l.locked ? "opacity-80" : "opacity-0 group-hover:opacity-60"}`}>
-                    {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
-                  </Button>
+                    onClick={() => setSelectedId(l.id)}
+                    className={[
+                      "flex-1 min-w-0 flex items-center gap-2 px-2.5 cursor-default select-none",
+                      "transition-[background-color,border-radius] duration-150",
+                      // 17px is half of LAYER_ROW_H, i.e. the pill value. It has to be a literal:
+                      // Tailwind only sees class names it can read in the source.
+                      "rounded-s-[17px]",
+                      // The notch appears exactly when a neighbour does, so the pill is whole
+                      // whenever it stands alone -- including on the selected row.
+                      chipsShown ? "rounded-e-[6px]" : "rounded-e-[17px] group-hover:rounded-e-[6px]",
+                      active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
+                      isDropTarget ? "ring-1 ring-inset ring-accent" : "",
+                    ].filter(Boolean).join(" ")}
+                    style={{ height: LAYER_ROW_H }}>
+                    <GripLines size={12}
+                      data-layer-id={l.id}
+                      onPointerDown={(e) => onGripDown(e, l.id)}
+                      className="shrink-0 text-muted opacity-0 group-hover:opacity-60 cursor-grab" />
+                    <Icon size={15} className="shrink-0" />
+                    <span style={{ fontSize: "var(--t13)" }} className="flex-1 truncate">{l.name || M.label}</span>
+                  </div>
+                  {/* One group of three: name, lock, eye. That only works because the pill
+                      takes its notch when the chips appear -- as a fixed choice it looked wrong
+                      in whichever state it was not made for, leaving the lock a lone square
+                      between two pills.
+                      The two chips live in a holder that collapses to nothing when they are
+                      not shown, its leading gap included. Reserving the space instead left a
+                      visible notch beside the selected row, and letting the name pill resize
+                      on hover made the list twitch; collapsing the holder with a transition
+                      avoids both. Always shown while the layer is locked or hidden, because a
+                      row has to be able to say so without being hovered. */}
+                  <div className={`shrink-0 flex items-center gap-1.5 overflow-hidden transition-[width] duration-150 ${chipsShown ? "w-[80px]" : "w-0 group-hover:w-[80px]"}`}>
+                    <button type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { locked: !l.locked }); }}
+                      aria-label={t("ovlLocked")} aria-pressed={!!l.locked}
+                      className={`shrink-0 ml-1.5 flex items-center justify-center border-0 transition-colors bg-[var(--surface-2)] hover:bg-[var(--surface-3)] ${l.locked ? "text-primary" : "text-secondary"}`}
+                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H, borderRadius: hdrCorners(true, true, LAYER_ROW_H) }}>
+                      {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
+                    </button>
+                    <button type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { visible: l.visible === false }); }}
+                      aria-label={t("ovlVisible")} aria-pressed={l.visible !== false}
+                      className={`shrink-0 flex items-center justify-center border-0 transition-colors bg-[var(--surface-2)] hover:bg-[var(--surface-3)] ${l.visible === false ? "text-primary" : "text-secondary"}`}
+                      style={{ width: LAYER_ROW_H, height: LAYER_ROW_H, borderRadius: hdrCorners(true, false, LAYER_ROW_H) }}>
+                      {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -1780,6 +1806,11 @@ export default function OverlayEditor({
                   <Button variant="ghost" size="sm" isIconOnly onPress={duplicateSelected} aria-label={t("ovlMenuDuplicate")} className="shrink-0"><Copy size={14} /></Button>
                   <Button variant="ghost" size="sm" isIconOnly onPress={() => deleteLayer(selected.id)} aria-label={t("ovlMenuDelete")} className="shrink-0 text-[var(--status-danger)]!"><Trash size={14} /></Button>
                 </div>
+              </div>
+
+              <Section title={t("ovlPosition")}>
+                {/* Aligning to the canvas is positioning, so it lives in this section rather
+                    than floating above it as its own unlabelled row. */}
                 <div className="grid grid-cols-2 gap-2">
                   <Segmented value={null} onChange={(w) => alignSelected("x", w)} options={[
                     { value: "start", icon: ALIGN_GLYPH.hL, aria: t("ovlLeft") }, { value: "center", icon: ALIGN_GLYPH.hC, aria: t("ovlCenter") }, { value: "end", icon: ALIGN_GLYPH.hR, aria: t("ovlRight") },
@@ -1788,9 +1819,6 @@ export default function OverlayEditor({
                     { value: "start", icon: ALIGN_GLYPH.vT, aria: t("ovlTop") }, { value: "center", icon: ALIGN_GLYPH.vM, aria: t("ovlMiddle") }, { value: "end", icon: ALIGN_GLYPH.vB, aria: t("ovlBottom") },
                   ]} />
                 </div>
-              </div>
-
-              <Section title={t("ovlPosition")}>
                 <div className="grid grid-cols-2 gap-2">
                   <PillNum prefix="X" value={selected.x} onChange={(v) => setLayer(selected.id, { x: v })} />
                   <PillNum prefix="Y" value={selected.y} onChange={(v) => setLayer(selected.id, { y: v })} />
@@ -1806,14 +1834,20 @@ export default function OverlayEditor({
               </Section>
 
               <Section title={t("ovlLayout")}>
-                <div className="grid grid-cols-2 gap-2">
+                {/* The lock sits beside the two fields it ties together, rather than as a
+                    full-width button underneath them: it belongs to W and H, and a row of its
+                    own read like a third property. Its label moves to the tooltip. */}
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <PillNum prefix="W" value={selected.w} min={1} onChange={(v) => setLayer(selected.id, aspectLock ? { w: v, h: Math.max(1, Math.round(v / ratio)) } : { w: v })} />
                   <PillNum prefix="H" value={selected.h} min={1} onChange={(v) => setLayer(selected.id, aspectLock ? { h: v, w: Math.max(1, Math.round(v * ratio)) } : { h: v })} />
+                  <button type="button" onClick={() => setAspectLock((a) => !a)}
+                    title={t("ovlLockAspect") || "Lock aspect ratio"}
+                    aria-label={t("ovlLockAspect") || "Lock aspect ratio"}
+                    aria-pressed={aspectLock}
+                    className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-md border transition-colors ${aspectLock ? "text-white border-transparent bg-accent" : "border-border text-secondary bg-[var(--surface-2)] hover:bg-[var(--bg-hover)]"}`}>
+                    {aspectLock ? <Lock size={12} /> : <LockOpen size={12} />}
+                  </button>
                 </div>
-                <button type="button" onClick={() => setAspectLock((a) => !a)}
-                  className={`flex items-center justify-center gap-1.5 h-8 rounded-md border text-t12 transition-colors ${aspectLock ? "text-white border-transparent bg-accent" : "border-border text-secondary bg-[var(--surface-2)] hover:bg-[var(--bg-hover)]"}`}>
-                  {aspectLock ? <Lock size={12} /> : <LockOpen size={12} />}{t("ovlLockAspect") || "Lock aspect ratio"}
-                </button>
               </Section>
 
               <Section title={t("ovlAppearance") || "Appearance"}>
