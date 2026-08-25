@@ -1,15 +1,15 @@
 {
-  "version": "v1.0.0-alpha.34",
-  "pub_date": "2026-08-18T01:45:56Z",
-  "notes": "Changes:\n- Playback is far smoother, because panes that are off screen no longer keep working in the background\n- Long track lists use much less memory, and pressing next no longer freezes the app\n- Per-song lyric timing offset, so lyrics that run early or late can be nudged into place\n- Lyrics tools moved into chips beside the source badge, with a romaji toggle\n- Lyrics translation now offers 44 target languages instead of 12\n- The seek bar shows how much of a streamed track has buffered, and marks the wait before it starts\nFixes:\n- Right-to-left lyrics were reversed once a line went active\n- Resetting all keyboard shortcuts did nothing\n- Cached stream URLs survived a playback mode change and played the wrong source\n- Cover art was requested far larger than it is shown\n- Backend log records never reached the debug ring, so bug reports arrived without diagnostics",
+  "version": "v1.0.0-alpha.35",
+  "pub_date": "2026-08-19T01:35:40Z",
+  "notes": "Changes:\n- Playback now uses Opus, which sounds better than AAC at the same bitrate and file size\n- Tracks start noticeably sooner when progressive loading is on\n- Seeking no longer restarts the download, so jumping back is instant\n- French is now selectable, and translations updated (Spanish (Mexico), French, Italian, Lithuanian)\nFixes:\n- Video Sync reported \"no video available\" for every track\n- An expired session was never announced, it only showed up as things quietly not loading\n- The library showed a blank page instead of saying it was empty or not signed in",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.34/Kodama_1.0.0-alpha.34_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnNxL3RmdllLWG5uUWtGd0RRTzI1S3lDT0RhZDlncHBHN244VzhBYnc2Z1FiRFlvRHVycmhUNmRFMkFOVGh4elBWSlo1MHloUUswdjBoMHNINXduZndrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDE0MTgyCWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjM0X3g2NC1zZXR1cC5leGUKQS9LSXlnSERzdFB6aFdBNzlLMjdyeHhOT3R5dXRCSUoxMld0VVNpak52VXY2S0R3cWpCVGpqVzlhVzJRZTZzUUhhanJoN1RZdkJlUmpwSFhpSWk2RHc9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.35/Kodama_1.0.0-alpha.35_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmtxVFdHZ2s1STJnMHBJaUxNSzUvVE16T1hsZk9TdDhFTXJPREpRMy9OdXBuYlgreEJ3Mi9vM1NtL3RZMTZ5R2hBcXZXSjBJaW52TFJMeFo5aUFETWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTAzMjczCWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjM1X3g2NC1zZXR1cC5leGUKZUZzL3pjbjhabXhwUEhqODh6bGxONW1rYW1Jckx2aUFTak4yUWlzR3hUQ3VoK2ptSFVYRkp1ME5BNFJqbmZiSnlZVVRPNS9FNU5BUTdiSy9JM2hkRGc9PQo="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.34/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdm5xYmt0R3N1NVFYaDREaFpyc3RQU0piU3dRQWZSMUQ4dW5SZlZLWnZrb2pMcTV3V2NqdmZnTXRMTDVjTnpHWGFYaU01eU9BMHJWZ1FlWEpoZml6YUFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDEzNzEwCWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKYVFpekw3d1loV1pvMS9LSFBXQWF0UE5UU1hhcjk2U3JGVWsrU2grNG9pc0xmT3pnOGl6MVZMRUtoNDhhbzZtbEFDcThsQnlHV043SGJlSWRsa04wQ3c9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.35/Kodama.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmc1aWUwNU4rS3ljZkdpOWN1QUR1SlUzQVl6WmQ3WnNyM0p4RUZMdjVlcEsvNFBWOWIzQkxHenpBdW55UmJiNGVGaHBmblZ2aytBdGlGcnFnTnVSN0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTAzMDk3CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKOXM4NkFQWDdwZHBudG05cTJKVUR2NGx4V01KOU1uOEd4eWY0WlJSaDM4elpNR3dyRFhBUGpIcDExMzlwb3JCSDVnY2c2QWl6QjNVQ0orVDM1VHhXRFE9PQo="
     }
   }
 }
