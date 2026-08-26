@@ -965,5 +965,6 @@
   "ovlDone": "Done",
   "ovlReset": "Reset",
   "ovlAlignment": "Alignment",
-  "ovlDimensions": "Dimensions"
+  "ovlDimensions": "Dimensions",
+  "ovlStrokeWeight": "Weight"
 }

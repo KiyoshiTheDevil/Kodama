@@ -221,6 +221,14 @@ export const Romanization       = maskIcon("/romanization.svg");
 export const MiniPlayerEnter    = maskIcon("/mini-player-enable.svg");  // collapse into the mini player
 export const MiniPlayerExit     = maskIcon("/mini-player-disable.svg"); // back to the main window
 
+// ── Overlay editor ───────────────────────────────────────────────────────────
+// Drawn for the editor's inspector. Masked like the others, so they take the current text
+// colour instead of the fill they were exported with.
+export const OvlOpacity         = maskIcon("/overlay-editor/opacity-icon.svg");
+export const OvlCornerRadius    = maskIcon("/overlay-editor/corner-radius-icon.svg");        // all four corners
+export const OvlCornerSingle    = maskIcon("/overlay-editor/corner-radius-single-icon.svg"); // one corner, rotated for the rest
+export const OvlStrokeWeight    = maskIcon("/overlay-editor/stroke-weight-icon.svg");
+
 // ── Brand icons ───────────────────────────────────────────────────────────────
 export const BrandTwitch        = fab("twitch");
 export const BrandYoutube       = fab("youtube");

@@ -24,6 +24,7 @@ import {
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
+  OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 const editorWindow = getCurrentWebviewWindow();
@@ -193,31 +194,15 @@ function PrefTick({ on }) {
 // -- documents keep whatever corner type they were saved with, it just cannot be changed here.
 const SHOW_CORNER_TYPE = false;
 
-// Corner glyphs for the per-corner radius fields: one drawn corner, rotated for the other three.
-// A letter pair (TL, TR ...) needs reading; the shape is recognised at a glance.
-const _cornerArc = (transform) => (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-    strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-    <path d="M3 13 V7 A4 4 0 0 1 7 3 H13" transform={transform} />
-  </svg>
-);
+// Corner glyphs for the per-corner radius fields: the drawn single corner, rotated for the
+// other three. A letter pair (TL, TR ...) has to be read; the shape is recognised at a glance.
+const _corner = (deg) => <OvlCornerSingle size={12} style={deg ? { transform: `rotate(${deg}deg)` } : undefined} />;
 const CORNER_GLYPH = {
-  TL: _cornerArc(undefined),
-  TR: _cornerArc("rotate(90 8 8)"),
-  BR: _cornerArc("rotate(180 8 8)"),
-  BL: _cornerArc("rotate(270 8 8)"),
+  TL: _corner(0),
+  TR: _corner(90),
+  BR: _corner(180),
+  BL: _corner(270),
 };
-// Uniform radius: a rounded square. Opacity: a square half filled on the diagonal.
-const RADIUS_GLYPH = (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-    strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="3.5" /></svg>
-);
-const OPACITY_GLYPH = (
-  <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
-    <rect x="3" y="3" width="10" height="10" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    <path d="M3 13 L13 3 V13 Z" fill="currentColor" opacity="0.75" />
-  </svg>
-);
 
 // Section heading, per the design: a real heading in the panel's own voice rather than a small
 // grey caption, with a rule separating it from what came before.
@@ -244,7 +229,7 @@ function Section({ title, right, children }) {
 function BareIconBtn({ onPress, active, label, children }) {
   return (
     <button type="button" onClick={onPress} aria-label={label} title={label} aria-pressed={active}
-      className={`shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors ${active ? "text-accent" : "text-muted hover:text-primary"}`}>
+      className={`shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors ${active ? "text-accent" : "text-secondary hover:text-primary"}`}>
       {children}
     </button>
   );
@@ -271,7 +256,7 @@ function NumField({ label, value, onChange, min, max, step = 1 }) {
     : { useGrouping: false, maximumFractionDigits: 0 };
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-t12 text-muted shrink-0">{label}</span>
+      <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>
       <NumberFieldRoot
         value={value == null || Number.isNaN(value) ? 0 : value}
         minValue={min} maxValue={max} step={step}
@@ -328,7 +313,7 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
   return (
     <div className="flex items-center gap-1.5 h-[30px] w-full min-w-0 pl-3 pr-2 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
       <span onPointerDown={onScrub} aria-hidden="true"
-        className="shrink-0 flex items-center text-muted select-none whitespace-nowrap"
+        className="shrink-0 flex items-center text-secondary select-none whitespace-nowrap"
         style={{ cursor: "ew-resize", fontSize: "var(--t12)" }}>{prefix}</span>
       <input
         value={text}
@@ -347,30 +332,46 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
 function OvlTextField({ label, value, onChange, placeholder }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      {label && <span className="text-t12 text-muted shrink-0">{label}</span>}
+      {label && <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>}
       <TextFieldRoot value={value ?? ""} onChange={onChange} aria-label={label || placeholder} className="flex-1 min-w-0">
         <InputRoot className="text-t12! h-8! bg-[var(--surface-2)]! border-border!" placeholder={placeholder} />
       </TextFieldRoot>
     </div>
   );
 }
-function ColorField({ label, value, onChange, opacity, onOpacity }) {
+function ColorField({ label, value, onChange, opacity, onOpacity, corners }) {
   const hex = typeof value === "string" && value[0] === "#" ? value.slice(0, 7) : "#000000";
   return (
-    <div className="flex items-center gap-2 h-8 px-1.5 rounded-md bg-[var(--surface-2)] border border-border transition-colors hover:border-[#555] focus-within:border-accent">
-      <ColorPicker value={hex} onChange={onChange} swatch={{ width: 16, height: 16, borderRadius: "var(--r-sm)", border: "1px solid var(--border)" }} />
+    <div style={{ borderRadius: corners || "var(--r-full)" }}
+      className="flex items-center gap-2 h-[30px] pl-2 pr-3 bg-[var(--surface-2)] border border-transparent transition-colors focus-within:border-accent">
+      <ColorPicker value={hex} onChange={onChange} swatch={{ width: 18, height: 18, borderRadius: "var(--r-full)", border: "1px solid var(--border)" }} />
       <input value={(value ?? "").replace(/^#/, "")} onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
-        className="flex-1 min-w-0 bg-transparent outline-none text-t12 font-mono text-primary uppercase" aria-label={(label || "") + " hex"} />
+        className="flex-1 min-w-0 bg-transparent outline-none font-mono text-primary uppercase"
+        style={{ fontSize: "var(--t13)" }} aria-label={(label || "") + " hex"} />
       {onOpacity ? (
-        <div className="flex items-center shrink-0 pl-1.5 border-l border-border">
+        <div className="flex items-center shrink-0">
           <input value={opacity ?? 100} onChange={(e) => onOpacity(clamp(parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10), 0, 100))}
-            className="w-7 bg-transparent outline-none text-t11 text-muted text-right tabular-nums" aria-label={(label || "") + " opacity"} />
-          <span className="text-t11 text-muted">%</span>
+            className="w-7 bg-transparent outline-none text-muted text-right tabular-nums"
+            style={{ fontSize: "var(--t12)" }} aria-label={(label || "") + " opacity"} />
+          <span className="text-muted" style={{ fontSize: "var(--t12)" }}>%</span>
         </div>
-      ) : opacity != null && <span className="text-t11 text-muted shrink-0 tabular-nums">{opacity}%</span>}
+      ) : opacity != null && <span className="text-muted shrink-0 tabular-nums" style={{ fontSize: "var(--t12)" }}>{opacity}%</span>}
     </div>
   );
 }
+function PercentField({ label, value, onChange, corners }) {
+  return (
+    <div style={{ borderRadius: corners || "var(--r-full)" }}
+      className="flex items-center shrink-0 w-[68px] h-[30px] px-3 bg-[var(--surface-2)] border border-transparent transition-colors focus-within:border-accent">
+      <input value={value ?? 100}
+        onChange={(e) => onChange(clamp(parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10), 0, 100))}
+        className="w-full min-w-0 bg-transparent outline-none text-primary tabular-nums"
+        style={{ fontSize: "var(--t13)" }} aria-label={label} />
+      <span className="text-muted shrink-0" style={{ fontSize: "var(--t13)" }}>%</span>
+    </div>
+  );
+}
+
 function SwitchField({ label, checked, onChange }) {
   return (
     <div className="flex items-center justify-between gap-2">
@@ -384,19 +385,22 @@ function SwitchField({ label, checked, onChange }) {
 function SelectField({ label, value, onChange, options }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      {label && <span className="text-t12 text-muted shrink-0">{label}</span>}
+      {label && <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>}
       <SelectRoot
         selectedKey={value} onSelectionChange={(k) => onChange(String(k))}
         aria-label={label} className={label ? "w-[132px]" : "flex-1 min-w-0"}
       >
-        <SelectTrigger className="text-t12! h-8! bg-[var(--surface-2)]! border-border!">
-          <SelectValue className="text-t12!" />
+        {/* Pill, 30px, borderless until focus -- the same field shape as PillNum and
+            ColorField, so a dropdown does not read as a different kind of control. */}
+        <SelectTrigger style={{ fontSize: "var(--t13)" }}
+          className="h-[30px]! px-3! rounded-[var(--r-full)]! bg-[var(--surface-2)]! border-transparent! data-[focused]:border-accent!">
+          <SelectValue style={{ fontSize: "var(--t13)" }} />
           <SelectIndicator />
         </SelectTrigger>
         <SelectPopover>
           <ListBox>
             {options.map((o) => (
-              <ListBoxItem key={o.value} id={o.value} className="text-t12!">{o.label}</ListBoxItem>
+              <ListBoxItem key={o.value} id={o.value} style={{ fontSize: "var(--t13)" }}>{o.label}</ListBoxItem>
             ))}
           </ListBox>
         </SelectPopover>
@@ -406,16 +410,26 @@ function SelectField({ label, value, onChange, options }) {
 }
 // Icon/label segmented control (e.g. align L/C/R) — a pill matching the input fields,
 // with rounded inner segments (no hard per-segment dividers).
+// A group of buttons, following the same rule as everywhere else in the editor: each is its own
+// 30px chip, the free ends of the group keep the pill radius and the touching ends get a notch.
+// It used to be a bordered track with small segments inside, which read as a different kind of
+// control from the fields beside it.
 function Segmented({ value, onChange, options }) {
+  const last = options.length - 1;
   return (
-    <div className="flex h-8 gap-0.5 p-0.5 rounded-md border border-border bg-[var(--surface-2)]">
-      {options.map((o) => (
+    <div className="flex gap-1.5">
+      {options.map((o, i) => (
         <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-label={o.aria || o.value}
+          aria-pressed={value === o.value}
           className={[
-            "flex-1 flex items-center justify-center rounded-[5px] text-t12 transition-colors",
-            value === o.value ? "text-white" : "text-muted hover:text-primary hover:bg-[var(--bg-hover)]",
+            "flex-1 h-[30px] flex items-center justify-center border-0 cursor-pointer transition-colors",
+            value === o.value ? "text-white" : "text-muted hover:text-primary hover:bg-[var(--surface-3)]",
           ].join(" ")}
-          style={{ background: value === o.value ? "var(--accent)" : undefined }}
+          style={{
+            borderRadius: hdrCorners(i > 0, i < last, 30),
+            fontSize: "var(--t12)",
+            background: value === o.value ? "var(--accent)" : "var(--surface-2)",
+          }}
         >{o.icon || o.label}</button>
       ))}
     </div>
@@ -423,15 +437,20 @@ function Segmented({ value, onChange, options }) {
 }
 // Row of compact icon buttons (rotate / flip) — same pill look as Segmented.
 function IconBtnRow({ actions }) {
+  const last = actions.length - 1;
   return (
-    <div className="flex h-8 gap-0.5 p-0.5 rounded-md border border-border bg-[var(--surface-2)]">
+    <div className="flex gap-1.5">
       {actions.map((a, i) => (
-        <button key={i} type="button" onClick={a.onAction} aria-label={a.aria}
+        <button key={i} type="button" onClick={a.onAction} aria-label={a.aria} title={a.aria}
+          aria-pressed={a.active}
           className={[
-            "flex-1 min-w-7 flex items-center justify-center rounded-[5px] transition-colors",
-            a.active ? "text-white" : "text-secondary hover:text-primary hover:bg-[var(--bg-hover)]",
+            "w-[34px] h-[30px] shrink-0 flex items-center justify-center border-0 cursor-pointer transition-colors",
+            a.active ? "text-white" : "text-secondary hover:text-primary hover:bg-[var(--surface-3)]",
           ].join(" ")}
-          style={{ background: a.active ? "var(--accent)" : undefined }}
+          style={{
+            borderRadius: hdrCorners(i > 0, i < last, 30),
+            background: a.active ? "var(--accent)" : "var(--surface-2)",
+          }}
         >{a.icon}</button>
       ))}
     </div>
@@ -449,16 +468,15 @@ function FillList({ t, fills, onChange }) {
     <Section title={t("ovlFill")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddFill") || "Add fill"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
-      {list.length === 0 && <div className="text-t11 text-muted px-0.5">—</div>}
       {list.map((f, i) => (
-        <div key={f.id || i} className="group/frow flex items-center gap-1">
-          <div className="flex-1 min-w-0"><ColorField value={f.color} onChange={(c) => set(i, { color: c })} opacity={f.opacity ?? 100} onOpacity={(o) => set(i, { opacity: o })} /></div>
-          <button type="button" onClick={() => set(i, { visible: f.visible === false })} aria-label={t("ovlVisible")}
-            className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-[color,opacity] hover:text-primary ${f.visible === false ? "opacity-100 text-muted" : "opacity-0 group-hover/frow:opacity-100 text-secondary"}`}>
+        <div key={f.id || i} className="group/frow flex items-center gap-1.5">
+          <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={f.color} onChange={(c) => set(i, { color: c })} /></div>
+          <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={f.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
+          <BareIconBtn onPress={() => set(i, { visible: f.visible === false })} label={t("ovlVisible")}>
             {f.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
-          </button>
-          <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/frow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
+          </BareIconBtn>
+          <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
+            className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
         </div>
       ))}
     </Section>
@@ -476,22 +494,25 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
     <Section title={t("ovlStroke") || t("ovlBorder")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
-      {list.length === 0 && <div className="text-t11 text-muted px-0.5">—</div>}
       {list.map((s, i) => (
-        <div key={s.id || i} className="group/srow flex items-center gap-1">
-          <div className="flex-1 min-w-0"><ColorField value={s.color} onChange={(c) => set(i, { color: c })} opacity={s.opacity ?? 100} onOpacity={(o) => set(i, { opacity: o })} /></div>
-          <button type="button" onClick={() => set(i, { visible: s.visible === false })} aria-label={t("ovlVisible")}
-            className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-[color,opacity] hover:text-primary ${s.visible === false ? "opacity-100 text-muted" : "opacity-0 group-hover/srow:opacity-100 text-secondary"}`}>
+        <div key={s.id || i} className="group/srow flex items-center gap-1.5">
+          <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={s.color} onChange={(c) => set(i, { color: c })} /></div>
+          <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={s.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
+          <BareIconBtn onPress={() => set(i, { visible: s.visible === false })} label={t("ovlVisible")}>
             {s.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
-          </button>
-          <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/srow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
+          </BareIconBtn>
+          <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
+            className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
         </div>
       ))}
       {list.length > 0 && (
-        <div className="grid grid-cols-[78px_1fr] gap-2">
-          <PillNum prefix="W" value={weight} min={0} max={40} step={0.5} onChange={onWeight} />
-          <SelectField value={position} options={STROKE_POS_OPTS(t)} onChange={onPosition} />
+        <div className="grid grid-cols-2 gap-2 items-end">
+          <Field label={t("ovlStrokePosition") || "Position"}>
+            <SelectField value={position} options={STROKE_POS_OPTS(t)} onChange={onPosition} />
+          </Field>
+          <Field label={t("ovlStrokeWeight") || "Weight"}>
+            <PillNum prefix={<OvlStrokeWeight size={12} />} ariaLabel={t("ovlStrokeWeight") || "Weight"} value={weight} min={0} max={40} step={0.5} onChange={onWeight} />
+          </Field>
         </div>
       )}
     </Section>
@@ -511,7 +532,6 @@ function EffectList({ t, effects, onChange }) {
     <Section title={t("ovlEffects")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddEffect") || "Add effect"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
-      {list.length === 0 && <div className="text-t11 text-muted px-0.5">—</div>}
       {list.map((e, i) => (
         <div key={e.id || i} className="group/erow rounded-md border border-border bg-[var(--surface-1)] p-2 flex flex-col gap-1.5">
           <div className="flex items-center gap-1">
@@ -553,7 +573,7 @@ function FontPicker({ t, value, onOpen }) {
     : value.replace(/'/g, "").split(",")[0].trim() || "System";
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-t12 text-muted shrink-0">{t("ovlFont")}</span>
+      <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{t("ovlFont")}</span>
       <button
         type="button"
         onClick={onOpen}
@@ -1845,7 +1865,7 @@ export default function OverlayEditor({
                   aria-label={t("ovlCornersIndividual") || "Individual corners"}
                   onPress={() => setCanvasCornersInd((v) => !v)}
                   className={canvasCornersInd ? "text-accent!" : ""}>
-                  <ArrowsOut size={13} />
+                  <OvlCornerRadius size={13} />
                 </Button>}>
                 {!canvasCornersInd ? (
                   <PillNum prefix={t("ovlRadius")} value={doc.canvas.corners?.TL} min={0} max={400}
@@ -1984,16 +2004,16 @@ export default function OverlayEditor({
                     as Position or Layout. */}
                 <div className="grid grid-cols-2 gap-2 items-end">
                   <Field label={t("ovlOpacity")}>
-                    <PillNum prefix={OPACITY_GLYPH} ariaLabel={t("ovlOpacity")} value={selected.opacity} min={0} max={100} onChange={(v) => setLayer(selected.id, { opacity: v })} />
+                    <PillNum prefix={<OvlOpacity size={12} />} ariaLabel={t("ovlOpacity")} value={selected.opacity} min={0} max={100} onChange={(v) => setLayer(selected.id, { opacity: v })} />
                   </Field>
                   {hasCorners && (
                     <Field label={t("ovlRadius")}>
                       <div className="grid grid-cols-[1fr_auto] gap-1 items-center">
-                        <PillNum prefix={RADIUS_GLYPH} ariaLabel={t("ovlRadius")} value={sc?.TL ?? 0} min={0} max={400}
+                        <PillNum prefix={<OvlCornerRadius size={12} />} ariaLabel={t("ovlRadius")} value={sc?.TL ?? 0} min={0} max={400}
                           onChange={(v) => setStyle(selected.id, { corners: uniformCorners(v, cornerType) })} />
                         <BareIconBtn onPress={() => setLayerCornersInd((v) => !v)} active={layerCornersInd}
                           label={t("ovlCornersIndividual") || "Individual corners"}>
-                          <ArrowsOut size={13} />
+                          <OvlCornerRadius size={13} />
                         </BareIconBtn>
                       </div>
                     </Field>

@@ -965,5 +965,6 @@
   "ovlDone": "Fertig",
   "ovlReset": "Zurücksetzen",
   "ovlAlignment": "Ausrichtung",
-  "ovlDimensions": "Maße"
+  "ovlDimensions": "Maße",
+  "ovlStrokeWeight": "Stärke"
 }
