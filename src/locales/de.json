@@ -743,9 +743,9 @@
   "ovlCapRound": "Rund",
   "ovlCapButt": "Flach",
   "ovlEffects": "Effekte",
-  "ovlFxShadow": "Schatten",
+  "ovlFxShadow": "Schlagschatten",
   "ovlFxGlow": "Leuchten",
-  "ovlFxBlur": "Unschärfe",
+  "ovlFxBlur": "Ebene weichzeichnen",
   "ovlAmount": "Stärke",
   "ovlEntrance": "Einblendung",
   "ovlDuration": "Dauer",
@@ -966,5 +966,8 @@
   "ovlReset": "Zurücksetzen",
   "ovlAlignment": "Ausrichtung",
   "ovlDimensions": "Maße",
-  "ovlStrokeWeight": "Stärke"
+  "ovlStrokeWeight": "Stärke",
+  "ovlOffset": "Versatz",
+  "ovlFxInnerShadow": "Innerer Schatten",
+  "ovlFxBackgroundBlur": "Hintergrund weichzeichnen"
 }

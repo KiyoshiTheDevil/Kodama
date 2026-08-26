@@ -6015,9 +6015,9 @@ function buildShape(el,L,rec){
       el.style.clipPath='';
       el.style.borderRadius=(c.TL||0)+'px '+(c.TR||0)+'px '+(c.BR||0)+'px '+(c.BL||0)+'px';
       if(st){el.style.backgroundImage=st;el.style.backgroundColor='';}else{el.style.background='transparent';}
-      el.style.boxShadow=strokeBox(s);
+      el.dataset.sbox=strokeBox(s);el.style.boxShadow=el.dataset.sbox;
     }else{
-      el.style.borderRadius='';el.style.boxShadow='';
+      el.style.borderRadius='';el.dataset.sbox='';el.style.boxShadow='';
       el.style.clipPath=`path('${cornerPath(W,H,s.corners,0,0)}')`;
       if(st){el.style.backgroundImage=st;el.style.backgroundColor='';}else{el.style.background='transparent';}
       donutStrokes(el,s,W,H);
@@ -6059,7 +6059,7 @@ const BUILDERS={albumArt:buildAlbumArt,text:buildText,progress:buildProgress,ima
 function applyFx(el,entr,loopw,L){
   const st=(L.style||{});
   const fx=st.fx||{};
-  const f=[];
+  const f=[];const ins=[];
   const eff=Array.isArray(st.effects)?st.effects:null;
   if(eff){
     eff.forEach(function(e){
@@ -6067,6 +6067,9 @@ function applyFx(el,entr,loopw,L){
       if(e.type==='shadow')f.push('drop-shadow('+(e.x||0)+'px '+(e.y==null?2:e.y)+'px '+(e.blur==null?8:e.blur)+'px '+rgba(e.color||'#000000',(e.opacity==null?50:e.opacity)/100)+')');
       else if(e.type==='glow')f.push('drop-shadow(0 0 '+(e.blur==null?10:e.blur)+'px '+(e.color||'#ffffff')+')');
       else if(e.type==='blur')f.push('blur('+(e.amount==null?4:e.amount)+'px)');
+      // Not a filter: an inner shadow only exists as box-shadow: inset, and that property
+      // already carries the strokes -- hence the stashed base below.
+      else if(e.type==='innerShadow')ins.push('inset '+(e.x||0)+'px '+(e.y==null?2:e.y)+'px '+(e.blur==null?8:e.blur)+'px '+rgba(e.color||'#000000',(e.opacity==null?50:e.opacity)/100));
     });
   }else{
     if(fx.shadow&&fx.shadow.on)f.push(`drop-shadow(${fx.shadow.x||0}px ${fx.shadow.y==null?2:fx.shadow.y}px ${fx.shadow.blur==null?8:fx.shadow.blur}px ${rgba(fx.shadow.color||'#000000',fx.shadow.opacity==null?0.5:fx.shadow.opacity)})`);
@@ -6074,6 +6077,15 @@ function applyFx(el,entr,loopw,L){
     if(fx.blur&&fx.blur.on)f.push(`blur(${fx.blur.amount==null?4:fx.blur.amount}px)`);
   }
   el.style.filter=f.join(' ')||'';
+  // Strokes own box-shadow; inset shadows join that list rather than replace it. Bevelled and
+  // mixed corners fall back to clip-path, which swallows box-shadow entirely -- strokes are
+  // drawn as an overlay there for the same reason, and an inner shadow simply will not show.
+  // On loopw, not el: the builders style that element, so it is the one carrying the fill and
+  // the corner radius. An inset shadow on the outer root would sit behind the child's fill and
+  // square off at the corners.
+  const tgt=loopw||el;
+  const sbox=tgt.dataset.sbox||'';
+  tgt.style.boxShadow=[sbox,ins.join(', ')].filter(Boolean).join(', ');
   const en=fx.entrance;
   if(en&&en.type&&en.type!=='none'&&!EDITOR)entr.style.animation=`ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) both`;
   else entr.style.animation='';

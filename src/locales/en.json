@@ -743,9 +743,9 @@
   "ovlCapRound": "Round",
   "ovlCapButt": "Flat",
   "ovlEffects": "Effects",
-  "ovlFxShadow": "Shadow",
+  "ovlFxShadow": "Drop shadow",
   "ovlFxGlow": "Glow",
-  "ovlFxBlur": "Blur",
+  "ovlFxBlur": "Layer blur",
   "ovlAmount": "Amount",
   "ovlEntrance": "Entrance",
   "ovlDuration": "Duration",
@@ -966,5 +966,8 @@
   "ovlReset": "Reset",
   "ovlAlignment": "Alignment",
   "ovlDimensions": "Dimensions",
-  "ovlStrokeWeight": "Weight"
+  "ovlStrokeWeight": "Weight",
+  "ovlOffset": "Offset",
+  "ovlFxInnerShadow": "Inner shadow",
+  "ovlFxBackgroundBlur": "Background blur"
 }

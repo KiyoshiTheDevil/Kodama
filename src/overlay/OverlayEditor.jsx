@@ -24,7 +24,7 @@ import {
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
-  OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight,
+  OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 const editorWindow = getCurrentWebviewWindow();
@@ -103,15 +103,25 @@ const STROKE_POS_OPTS = (t) => [
   { value: "center", label: t("ovlStrokeCenter") || "Center" },
   { value: "outside", label: t("ovlStrokeOutside") || "Outside" },
 ];
+// Glyphs for the three effects the engine renders.
+const EFFECT_GLYPH = {
+  shadow: <OvlDropShadow size={13} />,
+  innerShadow: <OvlInnerShadow size={13} />,
+  glow: <OvlGlow size={13} />,
+  blur: <OvlLayerBlur size={13} />,
+};
+
 const EFFECT_DEFAULTS = {
   shadow: { color: "#000000", x: 0, y: 2, blur: 8, opacity: 50 },
+  innerShadow: { color: "#000000", x: 0, y: 2, blur: 8, opacity: 50 },
   glow: { color: "#ffffff", blur: 10 },
   blur: { amount: 4 },
 };
 const EFFECT_TYPE_OPTS = (t) => [
-  { value: "shadow", label: t("ovlFxShadow") },
-  { value: "glow", label: t("ovlFxGlow") },
-  { value: "blur", label: t("ovlFxBlur") },
+  { value: "shadow", label: t("ovlFxShadow"), icon: EFFECT_GLYPH.shadow },
+  { value: "innerShadow", label: t("ovlFxInnerShadow") || "Inner shadow", icon: EFFECT_GLYPH.innerShadow },
+  { value: "glow", label: t("ovlFxGlow"), icon: EFFECT_GLYPH.glow },
+  { value: "blur", label: t("ovlFxBlur"), icon: EFFECT_GLYPH.blur },
 ];
 const makeEffect = (type) => ({ id: Math.random().toString(36).slice(2), type, visible: true, ...EFFECT_DEFAULTS[type] });
 
@@ -312,9 +322,11 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
   };
   return (
     <div className="flex items-center gap-1.5 h-[30px] w-full min-w-0 pl-3 pr-2 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
-      <span onPointerDown={onScrub} aria-hidden="true"
-        className="shrink-0 flex items-center text-secondary select-none whitespace-nowrap"
-        style={{ cursor: "ew-resize", fontSize: "var(--t12)" }}>{prefix}</span>
+      {prefix != null && (
+        <span onPointerDown={onScrub} aria-hidden="true"
+          className="shrink-0 flex items-center text-secondary select-none whitespace-nowrap"
+          style={{ cursor: "ew-resize", fontSize: "var(--t12)" }}>{prefix}</span>
+      )}
       <input
         value={text}
         inputMode="numeric"
@@ -393,14 +405,17 @@ function SelectField({ label, value, onChange, options }) {
         {/* Pill, 30px, borderless until focus -- the same field shape as PillNum and
             ColorField, so a dropdown does not read as a different kind of control. */}
         <SelectTrigger style={{ fontSize: "var(--t13)" }}
-          className="h-[30px]! px-3! rounded-[var(--r-full)]! bg-[var(--surface-2)]! border-transparent! data-[focused]:border-accent!">
+          className="h-[30px]! px-3! gap-2! rounded-[var(--r-full)]! bg-[var(--surface-2)]! border-transparent! data-[focused]:border-accent!">
           <SelectValue style={{ fontSize: "var(--t13)" }} />
           <SelectIndicator />
         </SelectTrigger>
         <SelectPopover>
           <ListBox>
             {options.map((o) => (
-              <ListBoxItem key={o.value} id={o.value} style={{ fontSize: "var(--t13)" }}>{o.label}</ListBoxItem>
+              <ListBoxItem key={o.value} id={o.value} style={{ fontSize: "var(--t13)" }}>
+                {o.icon && <span className="shrink-0 inline-flex items-center mr-2 text-secondary">{o.icon}</span>}
+                {o.label}
+              </ListBoxItem>
             ))}
           </ListBox>
         </SelectPopover>
@@ -466,7 +481,7 @@ function FillList({ t, fills, onChange }) {
   const remove = (i) => onChange(list.filter((_, j) => j !== i));
   return (
     <Section title={t("ovlFill")} right={
-      <button type="button" onClick={add} aria-label={t("ovlAddFill") || "Add fill"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
+      <button type="button" onClick={add} aria-label={t("ovlAddFill") || "Add fill"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((f, i) => (
         <div key={f.id || i} className="group/frow flex items-center gap-1.5">
@@ -492,7 +507,7 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
   const remove = (i) => onChange(list.filter((_, j) => j !== i));
   return (
     <Section title={t("ovlStroke") || t("ovlBorder")} right={
-      <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
+      <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((s, i) => (
         <div key={s.id || i} className="group/srow flex items-center gap-1.5">
@@ -530,34 +545,48 @@ function EffectList({ t, effects, onChange }) {
   const remove = (i) => onChange(list.filter((_, j) => j !== i));
   return (
     <Section title={t("ovlEffects")} right={
-      <button type="button" onClick={add} aria-label={t("ovlAddEffect") || "Add effect"} className="text-muted hover:text-primary transition-colors"><Plus size={13} /></button>
+      <button type="button" onClick={add} aria-label={t("ovlAddEffect") || "Add effect"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((e, i) => (
-        <div key={e.id || i} className="group/erow rounded-md border border-border bg-[var(--surface-1)] p-2 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1">
-            <div className="flex-1 min-w-0"><SelectField value={e.type} options={EFFECT_TYPE_OPTS(t)} onChange={(ty) => setType(i, ty)} /></div>
-            <button type="button" onClick={() => set(i, { visible: e.visible === false })} aria-label={t("ovlVisible")}
-              className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-[color,opacity] hover:text-primary ${e.visible === false ? "opacity-100 text-muted" : "opacity-0 group-hover/erow:opacity-100 text-secondary"}`}>
-              {e.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
-            </button>
-            <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted opacity-0 group-hover/erow:opacity-100 hover:text-[var(--status-danger)] transition-[color,opacity]"><Minus size={13} /></button>
-          </div>
-          {e.type === "shadow" && (<>
-            <ColorField value={e.color} onChange={(c) => set(i, { color: c })} opacity={e.opacity ?? 50} onOpacity={(o) => set(i, { opacity: o })} />
-            <div className="grid grid-cols-2 gap-2">
-              <PillNum prefix="X" value={e.x ?? 0} onChange={(v) => set(i, { x: v })} />
-              <PillNum prefix="Y" value={e.y ?? 2} onChange={(v) => set(i, { y: v })} />
+        <div key={e.id || i} className="flex items-start gap-1.5">
+          {/* The two actions sit beside the whole effect, not just its first row, so every
+              field below lines up with the pill above it. Indenting the parameters instead
+              left them offset from the control they belong to, and running them full width
+              put them under the eye and the minus. */}
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <SelectField value={e.type} options={EFFECT_TYPE_OPTS(t)} onChange={(ty) => setType(i, ty)} />
+          {(e.type === "shadow" || e.type === "innerShadow") && (<>
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={e.color} onChange={(c) => set(i, { color: c })} /></div>
+              <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={e.opacity ?? 50} onChange={(o) => set(i, { opacity: o })} />
             </div>
-            <NumField label={t("ovlBlur")} value={e.blur ?? 8} min={0} max={60} onChange={(v) => set(i, { blur: v })} />
+            <Field label={t("ovlOffset") || "Offset"}>
+              <div className="grid grid-cols-2 gap-2">
+                <PillNum prefix="X" value={e.x ?? 0} onChange={(v) => set(i, { x: v })} />
+                <PillNum prefix="Y" value={e.y ?? 2} onChange={(v) => set(i, { y: v })} />
+              </div>
+            </Field>
+            <Field label={t("ovlBlur")}>
+              <PillNum ariaLabel={t("ovlBlur")} value={e.blur ?? 8} min={0} max={60} onChange={(v) => set(i, { blur: v })} />
+            </Field>
           </>)}
           {e.type === "glow" && (<>
             <ColorField value={e.color} onChange={(c) => set(i, { color: c })} />
-            <NumField label={t("ovlBlur")} value={e.blur ?? 10} min={0} max={60} onChange={(v) => set(i, { blur: v })} />
+            <Field label={t("ovlBlur")}>
+              <PillNum ariaLabel={t("ovlBlur")} value={e.blur ?? 10} min={0} max={60} onChange={(v) => set(i, { blur: v })} />
+            </Field>
           </>)}
           {e.type === "blur" && (
-            <NumField label={t("ovlAmount")} value={e.amount ?? 4} min={0} max={40} onChange={(v) => set(i, { amount: v })} />
+            <Field label={t("ovlAmount")}>
+              <PillNum ariaLabel={t("ovlAmount")} value={e.amount ?? 4} min={0} max={40} onChange={(v) => set(i, { amount: v })} />
+            </Field>
           )}
+          </div>
+          <BareIconBtn onPress={() => set(i, { visible: e.visible === false })} label={t("ovlVisible")}>
+            {e.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
+          </BareIconBtn>
+          <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
+            className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
         </div>
       ))}
     </Section>
@@ -690,10 +719,24 @@ function LayerEffectsSection({ t, layer, setStyle }) {
   return (<>
     <EffectList t={t} effects={s.effects} onChange={(effects) => setStyle(id, { effects })} />
     <Section title={t("ovlAnimation") || "Animation"}>
-      <SelectField label={t("ovlEntrance")} value={fx.entrance?.type || "none"} options={ENTRANCE_OPTS(t)} onChange={(v) => setFx("entrance", { type: v })} />
-      {fx.entrance?.type && fx.entrance.type !== "none" && <NumField label={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />}
-      <SelectField label={t("ovlLoop")} value={fx.loop?.type || "none"} options={LOOP_OPTS(t)} onChange={(v) => setFx("loop", { type: v })} />
-      {fx.loop?.type && fx.loop.type !== "none" && <NumField label={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />}
+      {/* Named blocks, like the rest of the panel. The duration and speed appear only once
+          their animation is set to something, so an unused section stays two fields. */}
+      <Field label={t("ovlEntrance")}>
+        <SelectField value={fx.entrance?.type || "none"} options={ENTRANCE_OPTS(t)} onChange={(v) => setFx("entrance", { type: v })} />
+      </Field>
+      {fx.entrance?.type && fx.entrance.type !== "none" && (
+        <Field label={t("ovlDuration")}>
+          <PillNum ariaLabel={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />
+        </Field>
+      )}
+      <Field label={t("ovlLoop")}>
+        <SelectField value={fx.loop?.type || "none"} options={LOOP_OPTS(t)} onChange={(v) => setFx("loop", { type: v })} />
+      </Field>
+      {fx.loop?.type && fx.loop.type !== "none" && (
+        <Field label={t("ovlSpeed")}>
+          <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
+        </Field>
+      )}
     </Section>
   </>);
 }

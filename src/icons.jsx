@@ -228,6 +228,11 @@ export const OvlOpacity         = maskIcon("/overlay-editor/opacity-icon.svg");
 export const OvlCornerRadius    = maskIcon("/overlay-editor/corner-radius-icon.svg");        // all four corners
 export const OvlCornerSingle    = maskIcon("/overlay-editor/corner-radius-single-icon.svg"); // one corner, rotated for the rest
 export const OvlStrokeWeight    = maskIcon("/overlay-editor/stroke-weight-icon.svg");
+export const OvlDropShadow      = maskIcon("/overlay-editor/drop-shadow-icon.svg");
+export const OvlInnerShadow     = maskIcon("/overlay-editor/inner-shadow-icon.svg");
+export const OvlGlow            = maskIcon("/overlay-editor/glow-icon.svg");
+export const OvlLayerBlur       = maskIcon("/overlay-editor/layer-blur-icon.svg");
+export const OvlBackgroundBlur  = maskIcon("/overlay-editor/background-blur-icon.svg");
 
 // ── Brand icons ───────────────────────────────────────────────────────────────
 export const BrandTwitch        = fab("twitch");
