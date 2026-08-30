@@ -5830,6 +5830,11 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 <script>
 const API=location.origin;
 const EDITOR=new URLSearchParams(location.search).get('editor')==='1'; // suppress entrance anims in the editor preview
+// Still mode: a thumbnail of one saved design. It takes its document only from postMessage,
+// so it must NOT subscribe to the live stream or pull the active config — a dozen thumbnails
+// would otherwise open a dozen SSE clients and then overwrite themselves with the doc that is
+// currently on air. Sample track data stands in so text layers are not blank.
+const STILL=new URLSearchParams(location.search).get('still')==='1';
 let doc=null;
 const state={title:"",artist:"",album:"",cover:"",progress:0,duration:0,isPlaying:false};
 const layerEls={}; // id -> record
@@ -6215,7 +6220,8 @@ function connect(){
   es.onmessage=e=>{try{updateState(JSON.parse(e.data));}catch(_){}};
   es.onerror=()=>{es.close();setTimeout(connect,3000);};
 }
-fetch(API+'/overlay/config').then(r=>r.json()).then(c=>{applyDoc(c);connect();}).catch(()=>connect());
+if(STILL){Object.assign(state,{title:'Higher Ground',artist:'ODESZA',album:'A Moment Apart',progress:78,duration:214,isPlaying:true});}
+else{fetch(API+'/overlay/config').then(r=>r.json()).then(c=>{applyDoc(c);connect();}).catch(()=>connect());}
 </script></body></html>"""
 
 def _ov_push(payload: dict):

@@ -21,7 +21,7 @@ import {
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
-  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet,
+  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet, PencilSimple,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
@@ -742,6 +742,44 @@ function LayerEffectsSection({ t, layer, setStyle }) {
 }
 
 // Custom window controls (minimize / maximize / close) for the standalone editor window.
+// A real thumbnail of a saved design: the same engine that drives OBS, loaded in still mode
+// (no live stream, no active config) and fed the saved document by postMessage, then scaled to
+// fit the card. Nothing here is a second implementation of the renderer, so what the card shows
+// is exactly what the design produces.
+function DesignPreview({ apiBase, doc, box }) {
+  const ref = useRef(null);
+  const [ready, setReady] = useState(false);
+  const cw = doc?.canvas?.width || 480;
+  const ch = doc?.canvas?.height || 120;
+  // 16px of breathing room inside the card, and never blown up past 1:1.
+  const scale = Math.min((box.w - 32) / cw, (box.h - 32) / ch, 1);
+
+  useEffect(() => {
+    if (!ready) return;
+    ref.current?.contentWindow?.postMessage({ __overlayDoc: doc }, "*");
+  }, [ready, doc]);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <div style={{ width: cw * scale, height: ch * scale }}>
+        <iframe
+          ref={ref}
+          onLoad={() => setReady(true)}
+          src={`${apiBase}/overlay?editor=1&still=1`}
+          title=""
+          tabIndex={-1}
+          scrolling="no"
+          style={{
+            width: cw, height: ch, border: 0, display: "block",
+            transform: `scale(${scale})`, transformOrigin: "top left",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function WindowControls() {
   const [max, setMax] = useState(false);
   useEffect(() => {
@@ -1378,6 +1416,11 @@ export default function OverlayEditor({
 
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
+  const [browserQuery, setBrowserQuery] = useState("");
+  const [browserSort, setBrowserSort] = useState("recent"); // recent | name | size
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const persistProfiles = useCallback((next) => {
     setProfiles(next);
@@ -1399,6 +1442,22 @@ export default function OverlayEditor({
   const deleteProfile = useCallback((id) => {
     persistProfiles(profiles.filter((p) => p.id !== id));
   }, [profiles, persistProfiles]);
+
+  const renameProfile = useCallback((id, name) => {
+    const clean = name.trim();
+    if (!clean) return;
+    persistProfiles(profiles.map((p) => (p.id === id ? { ...p, name: clean } : p)));
+  }, [profiles, persistProfiles]);
+
+  // The copy lands directly after its original rather than at the top: it is a variant of that
+  // design, and dropping it into the newest slot would separate the two.
+  const duplicateProfile = useCallback((prof) => {
+    const copy = { ...prof, id: crypto.randomUUID(), name: `${prof.name} (${t("ovlProfileCopySuffix")})`, savedAt: new Date().toISOString() };
+    const at = profiles.findIndex((p) => p.id === prof.id);
+    const next = [...profiles];
+    next.splice(at < 0 ? 0 : at + 1, 0, copy);
+    persistProfiles(next);
+  }, [profiles, persistProfiles, t]);
 
   const exportProfile = useCallback((prof) => {
     const blob = new Blob([JSON.stringify(prof, null, 2)], { type: "application/json" });
@@ -2241,18 +2300,33 @@ export default function OverlayEditor({
         );
       })()}
 
-      {/* ── Widget Browser modal ──────────────────────────────────────────────── */}
-      {browserOpen && (
+      {/* ── Widget Browser modal ─────────────────────── */}
+      {browserOpen && (() => {
+        const q = browserQuery.trim().toLowerCase();
+        const shown = profiles
+          .filter((p) => !q || p.name.toLowerCase().includes(q))
+          .sort((x, y) => {
+            if (browserSort === "name") return x.name.localeCompare(y.name);
+            if (browserSort === "size") return ((y.doc?.canvas?.width || 0) * (y.doc?.canvas?.height || 0)) - ((x.doc?.canvas?.width || 0) * (x.doc?.canvas?.height || 0));
+            return String(y.savedAt || "").localeCompare(String(x.savedAt || ""));
+          });
+        const closeBrowser = () => { setBrowserOpen(false); setRenamingId(null); setConfirmDeleteId(null); };
+        const sortOpts = [
+          ["recent", t("ovlProfileSortRecent")],
+          ["name", t("ovlProfileSortName")],
+          ["size", t("ovlProfileSortSize")],
+        ];
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
-          onKeyDown={(e) => { if (e.key === "Escape") setBrowserOpen(false); }}
-          onClick={(e) => { if (e.target === e.currentTarget) setBrowserOpen(false); }}>
-          <div className="w-[720px] max-h-[82vh] flex flex-col rounded-2xl shadow-2xl border border-border overflow-hidden"
+          onKeyDown={(e) => { if (e.key === "Escape") closeBrowser(); }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeBrowser(); }}>
+          <div className="w-[860px] max-w-[92vw] h-[76vh] flex flex-col rounded-2xl shadow-2xl border border-border overflow-hidden"
             style={{ background: "var(--bg-elevated)" }}>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-              <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border shrink-0">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <Swatches size={16} className="text-accent" />
                 <span className="text-t14 font-semibold text-primary">{t("ovlProfileBrowse")}</span>
                 {profiles.length > 0 && (
@@ -2260,11 +2334,38 @@ export default function OverlayEditor({
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {profiles.length > 1 && (
+                  <>
+                    {/* Search */}
+                    <div className="relative">
+                      <MagnifyingGlass size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                      <input
+                        value={browserQuery}
+                        onChange={(e) => setBrowserQuery(e.target.value)}
+                        placeholder={t("ovlProfileSearch")}
+                        className="h-7 w-[180px] rounded-lg pl-7 pr-2 text-t12 text-primary border border-border outline-none focus:border-accent transition-colors"
+                        style={{ background: "var(--bg-base)" }}
+                      />
+                    </div>
+                    {/* Sort. A plain segmented row rather than a dropdown: three options do not
+                        need a menu, and this keeps the header a single line of controls. */}
+                    <div className="flex items-center gap-[3px] rounded-lg p-[3px]" style={{ background: "var(--bg-base)" }}>
+                      {sortOpts.map(([id, label]) => (
+                        <button key={id} type="button" onClick={() => setBrowserSort(id)}
+                          className={[
+                            "h-[22px] px-2.5 rounded-md text-t11 font-medium border-0 cursor-default transition-colors",
+                            browserSort === id ? "bg-accent text-[var(--accent-foreground)]" : "bg-transparent text-secondary hover:text-primary",
+                          ].join(" ")}
+                        >{label}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <input ref={importFileRef} type="file" accept=".json" multiple className="hidden" onChange={handleImportFiles} />
                 <Button variant="flat" size="sm" className="gap-1.5 text-t12!" onPress={() => importFileRef.current?.click()}>
                   <UploadSimple size={13} /> {t("ovlProfileImport")}
                 </Button>
-                <Button variant="ghost" size="sm" isIconOnly onPress={() => setBrowserOpen(false)} aria-label="Close">
+                <Button variant="ghost" size="sm" isIconOnly onPress={closeBrowser} aria-label="Close">
                   <X size={14} />
                 </Button>
               </div>
@@ -2278,40 +2379,99 @@ export default function OverlayEditor({
                   <div className="text-t13 text-muted">{t("ovlProfileEmpty")}</div>
                   <div className="text-t11 text-muted opacity-70">{t("ovlProfileEmptyHint")}</div>
                 </div>
+              ) : shown.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                  <MagnifyingGlass size={30} className="text-muted opacity-40" />
+                  <div className="text-t13 text-muted">{t("ovlProfileNoResults")}</div>
+                </div>
               ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  {profiles.map((prof) => {
+                <div className="grid grid-cols-2 gap-4">
+                  {shown.map((prof) => {
                     const layerCount = prof.doc?.layers?.length ?? 0;
                     const cw = prof.doc?.canvas?.width ?? "?";
                     const ch = prof.doc?.canvas?.height ?? "?";
                     const date = prof.savedAt ? new Date(prof.savedAt).toLocaleDateString() : "";
+                    const renaming = renamingId === prof.id;
+                    const confirming = confirmDeleteId === prof.id;
                     return (
-                      <div key={prof.id} className="flex flex-col rounded-xl border border-border overflow-hidden hover:border-accent/60 transition-colors"
+                      <div key={prof.id}
+                        className="group/design relative flex flex-col rounded-xl border border-border overflow-hidden hover:border-accent/60 transition-colors"
                         style={{ background: "color-mix(in srgb, var(--bg-elevated) 85%, var(--bg-base))" }}>
-                        {/* Preview placeholder */}
-                        <div className="h-24 flex flex-col items-center justify-center gap-1.5 border-b border-border"
-                          style={{ background: "color-mix(in srgb, var(--bg-base) 80%, transparent)" }}>
-                          <Swatches size={24} className="text-accent opacity-50" />
-                          <span className="text-t10 text-muted tabular-nums">{cw} × {ch}</span>
-                        </div>
-                        {/* Info */}
-                        <div className="px-2.5 pt-2 pb-1">
-                          <div className="text-t12 font-medium text-primary truncate">{prof.name}</div>
-                          <div className="text-t10 text-muted mt-0.5">
-                            {layerCount} {t("ovlLayers").toLowerCase()} · {date}
+
+                        {/* Live preview on a checkerboard, so translucent designs read correctly */}
+                        <div className="relative h-[168px] border-b border-border"
+                          style={{ background: "repeating-conic-gradient(rgba(255,255,255,0.05) 0% 25%, rgba(255,255,255,0.02) 0% 50%) 0 0/16px 16px" }}>
+                          <DesignPreview apiBase={apiBase} doc={prof.doc} box={{ w: 414, h: 168 }} />
+
+                          {/* Actions ride over the preview and only appear on hover, so the card
+                              itself stays quiet. */}
+                          <div className="absolute inset-x-0 bottom-0 p-2 flex items-center gap-1.5 opacity-0 group-hover/design:opacity-100 focus-within:opacity-100 transition-opacity"
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0))" }}>
+                            <Button variant="flat" color="primary" size="sm" className="flex-1 text-t11!" onPress={() => applyProfile(prof)}>
+                              {t("ovlProfileApply")}
+                            </Button>
+                            <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
+                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                                onPress={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }} aria-label={t("ovlProfileRename")}>
+                                <PencilSimple size={12} />
+                              </Button>
+                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                                onPress={() => duplicateProfile(prof)} aria-label={t("ovlProfileDuplicate")}>
+                                <Copy size={12} />
+                              </Button>
+                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                                onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
+                                <DownloadSimple size={12} />
+                              </Button>
+                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-danger!"
+                                onPress={() => setConfirmDeleteId(prof.id)} aria-label={t("ovlProfileDelete")}>
+                                <Trash size={12} />
+                              </Button>
+                            </div>
                           </div>
+
+                          {/* The delete confirmation covers the preview it belongs to, rather than
+                              opening a second modal over the first. */}
+                          {confirming && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center"
+                              style={{ background: "rgba(0,0,0,0.74)", backdropFilter: "blur(4px)" }}>
+                              <div className="text-t12 text-white">{t("ovlProfileDeleteConfirm")}</div>
+                              <div className="flex items-center gap-2">
+                                <Button variant="flat" size="sm" className="text-t11!" onPress={() => setConfirmDeleteId(null)}>
+                                  {t("cancel")}
+                                </Button>
+                                <Button variant="flat" color="danger" size="sm" className="text-t11!"
+                                  onPress={() => { deleteProfile(prof.id); setConfirmDeleteId(null); }}>
+                                  {t("ovlProfileDelete")}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 px-2 pb-2 pt-1">
-                          <Button variant="flat" color="primary" size="sm" className="flex-1 text-t11!" onPress={() => applyProfile(prof)}>
-                            {t("ovlProfileApply")}
-                          </Button>
-                          <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0!" onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
-                            <DownloadSimple size={13} />
-                          </Button>
-                          <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-danger!" onPress={() => deleteProfile(prof.id)} aria-label={t("ovlProfileDelete")}>
-                            <Trash size={13} />
-                          </Button>
+
+                        {/* Info */}
+                        <div className="px-3 py-2.5">
+                          {renaming ? (
+                            <input
+                              autoFocus
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onBlur={() => { renameProfile(prof.id, renameDraft); setRenamingId(null); }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") { renameProfile(prof.id, renameDraft); setRenamingId(null); }
+                                if (e.key === "Escape") setRenamingId(null);
+                              }}
+                              className="w-full h-6 rounded-md px-1.5 text-t12 font-medium text-primary border border-accent outline-none"
+                              style={{ background: "var(--bg-base)" }}
+                            />
+                          ) : (
+                            <div className="text-t12 font-medium text-primary truncate cursor-default"
+                              onDoubleClick={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }}
+                              title={prof.name}>{prof.name}</div>
+                          )}
+                          <div className="text-t10 text-muted mt-0.5 tabular-nums">
+                            {cw} × {ch} · {layerCount} {t("ovlLayers").toLowerCase()} · {date}
+                          </div>
                         </div>
                       </div>
                     );
@@ -2321,7 +2481,8 @@ export default function OverlayEditor({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       </div>{/* end canvas viewport */}
     </div>
