@@ -1,15 +1,34 @@
 // Queue side panel: the up-next list, its rows, and the per-transition fade editor.
 // QueueRow is only ever rendered by QueuePanel, so the two live together here.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
-import { Button, CardRoot, ChipRoot, ChipLabel, ScrollShadowRoot, ToggleButton, ToggleButtonGroupRoot } from "@heroui/react";
-import { API, thumb, useLang, useAnimations } from "../context.jsx";
-import { ArrowClockwise, CaretLineUp, GripLines, Heart, Sliders, Trash } from "../icons.jsx";
+import { Button, CardRoot, ChipRoot, ChipLabel, ScrollShadowRoot } from "@heroui/react";
+import { API, thumb, useLang, useAnimations, useZoom } from "../context.jsx";
+import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash } from "../icons.jsx";
 import { ExplicitBadge } from "./rows.jsx";
 import { Tooltip } from "./tooltip.jsx";
+import { ContextMenu, CtxItem } from "./context-menu.jsx";
 import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
+
+// Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
+// and rendering them all made scrolling and every interaction stutter well before that. The row
+// is a 36px thumbnail with 6px of padding either side and a 2px top border.
+const TAB_H = 32;
+const TAB_GAP = 6;
+// Round on the free ends, notched where a neighbour sits — the shape the lyrics chips and the
+// overlay editor's header groups use. The pill radius is exactly half the height: any more and
+// the browser scales all four corners down together, flattening the notch.
+function tabCorners(left, right) {
+  const l = left ? 6 : TAB_H / 2;
+  const r = right ? 6 : TAB_H / 2;
+  return `${l}px ${r}px ${r}px ${l}px`;
+}
+
+const QUEUE_ROW_H = 50;
+const QUEUE_HEADER_H = 32;
 
 // Plain button rather than HeroUI's, for the same reason the track rows use one: a queued
 // playlist can be thousands of entries, and each react-aria button brings its own hooks,
@@ -22,7 +41,7 @@ function QueueIconButton({ label, onClick, className = "", children }) {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`h-7 min-w-7 px-1 rounded-[var(--r-sm)] border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
+      className={`w-8 h-8 rounded-full border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
     >
       {children}
     </button>
@@ -31,24 +50,19 @@ function QueueIconButton({ label, onClick, className = "", children }) {
 
 // labels defaults to {} so a call site that forgets to pass it loses the button's accessible
 // name — which the console already warns about — instead of taking the whole app down.
-function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, onPointerDown, onPlay, onRemove, isLiked, onToggleLike, onEditFade, fadeSecs, labels = {} }) {
-  const isDragOver = dragOver === globalIdx;
-  const anim = useAnimations();
+function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDragged, onPointerDown, onPlay, isLiked, onToggleLike, onOpenMenu, menuOpen, fadeSecs, labels = {} }) {
   const rowRef = useRef(null);
   return (
     <div
       ref={rowRef}
       data-queue-idx={globalIdx}
       onClick={onPlay}
-      onContextMenu={onEditFade ? (e) => { e.preventDefault(); onEditFade(); } : undefined}
+      onContextMenu={isDraggable ? (e) => { e.preventDefault(); onOpenMenu({ x: e.clientX, y: e.clientY, globalIdx }); } : undefined}
       onPointerDown={isDraggable ? e => onPointerDown(e, globalIdx) : undefined}
-      className={`group/qrow flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-[var(--r-md)] cursor-default select-none border-t-2 transition-[background-color,border-color,opacity] ${
-        isDragOver
-          ? "bg-[rgba(224,64,251,0.12)] border-t-accent"
-          : isActive
-            ? "bg-accent-dim border-t-transparent"
-            : "bg-transparent border-t-transparent hover:bg-[var(--fill-subtle)]"
-      } ${dimmed ? "opacity-45 hover:opacity-100" : ""}`}
+      style={{ height: QUEUE_ROW_H }}
+      className={`group/qrow flex items-center gap-2 pl-2.5 pr-3 rounded-[var(--r-md)] cursor-default select-none transition-[background-color,opacity] ${
+        isActive ? "bg-accent-dim" : "bg-transparent hover:bg-[var(--fill-subtle)]"
+      } ${isBeingDragged ? "opacity-30" : dimmed ? "opacity-45 hover:opacity-100" : ""}`}
     >
       {/* Drag handle (the whole row is draggable; this is just the affordance) */}
       <div className={`shrink-0 px-px py-0.5 touch-none transition-opacity ${isDraggable ? "cursor-grab opacity-40 group-hover/qrow:opacity-100" : "opacity-0"}`}>
@@ -92,12 +106,13 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, dragOver, o
         </QueueIconButton>
       </span>
 
-      {/* Remove button */}
+      {/* Row menu — remove and crossfade live here, so right-clicking the row opens the same
+          list instead of jumping straight into the crossfade editor. */}
       {isDraggable && (
         <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-          <QueueIconButton label={labels.remove} onClick={() => { if (anim) dissolve(rowRef.current, () => onRemove(track.videoId)); else onRemove(track.videoId); }}
-            className="text-muted hover:text-[var(--status-danger)]">
-            <Trash size={13} />
+          <QueueIconButton label={labels.more} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onOpenMenu({ x: r.left, y: r.bottom + 4, globalIdx }); }}
+            className={`text-muted hover:text-secondary ${menuOpen ? "bg-hover text-primary" : ""}`}>
+            <DotsThreeVertical size={15} weight="bold" />
           </QueueIconButton>
         </span>
       )}
@@ -120,23 +135,25 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // Per-transition fade editing reads and writes the global crossfade preferences.
   const { crossfade, crossfadeOverrides, setCrossfadeOverride, removeCrossfadeOverride } = usePlaybackPrefs();
   const t = useLang();
+  const zoom = useZoom();
   // Built once here rather than a translation hook per row — a queued playlist can be
   // thousands of them.
-  const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue") }), [t]);
+  const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue"), more: t("rowMoreActions") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
+  const [rowMenu, setRowMenu] = useState(null); // { x, y, globalIdx } — the per-track menu
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
   const fadeKey = (a, b) => `${a?.videoId}__${b?.videoId}`;
   const [songDesc, setSongDesc] = useState(null);    // null=loading, ""=none, str=text
   const [songDescId, setSongDescId] = useState(null);
   const [songDescError, setSongDescError] = useState(null);
   const [dragIdx, setDragIdx] = useState(null);
-  const [dragOver, setDragOver] = useState(null);
+  const [dropOffset, setDropOffset] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [fabPos, setFabPos] = useState(null); // {left,width,bottom} for the portaled scroll-top pill
   const isDragging = useRef(false);
   const suppressClickRef = useRef(false);
   const listRef = useRef(null);
-  const nowPlayingRef = useRef(null);
+  const nowPlayingOffsetRef = useRef(0);
 
   // Fetch song description when switching to About tab or track changes
   const fetchSongDesc = useCallback((videoId, force = false) => {
@@ -169,15 +186,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       setFabPos({ left: r.left, width: r.width, bottom: window.innerHeight - r.bottom });
     };
     const onScroll = () => {
-      const target = nowPlayingRef.current;
-      if (target) {
-        const containerRect = el.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const targetScrollPos = el.scrollTop + targetRect.top - containerRect.top;
-        setShowScrollTop(el.scrollTop > targetScrollPos + target.clientHeight);
-      } else {
-        setShowScrollTop(el.scrollTop > 180);
-      }
+      setShowScrollTop(el.scrollTop > nowPlayingOffsetRef.current + QUEUE_HEADER_H + QUEUE_ROW_H);
       updatePos();
     };
     el.addEventListener("scroll", onScroll);
@@ -186,8 +195,48 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   }, []);
 
   const currentIdx = queue.findIndex(t => t.videoId === currentTrack?.videoId);
-  const upNext = queue.slice(currentIdx + 1);
-  const played = queue.slice(0, currentIdx);
+
+  // One flat list of section headings and rows, so the whole panel is a single virtualised
+  // scroller instead of three mapped groups. Heights are fixed, so the offsets are exact and
+  // can also be used for hit-testing the drag without touching the DOM.
+  const { items, offsets, totalHeight, nowPlayingOffset } = useMemo(() => {
+    const list = [];
+    const push = (it) => list.push(it);
+    if (currentIdx > 0) {
+      push({ kind: "header", key: "h-played", section: "played", label: t("previouslyPlayed") });
+      for (let i = 0; i < currentIdx; i++) push({ kind: "row", key: `p-${queue[i].videoId || i}`, section: "played", track: queue[i], globalIdx: i });
+    }
+    let nowOff = 0;
+    if (currentTrack && currentIdx >= 0) {
+      nowOff = -1; // resolved below, once the offsets exist
+      push({ kind: "header", key: "h-now", section: "now", label: t("nowPlaying"), marksNowPlaying: true });
+      push({ kind: "row", key: `n-${currentTrack.videoId}`, section: "now", track: currentTrack, globalIdx: currentIdx });
+    }
+    const upNextCount = queue.length - currentIdx - 1;
+    if (upNextCount > 0) {
+      push({ kind: "header", key: "h-next", section: "next", label: t("upNext"), count: upNextCount });
+      for (let i = currentIdx + 1; i < queue.length; i++) push({ kind: "row", key: `u-${queue[i].videoId || i}`, section: "next", track: queue[i], globalIdx: i });
+    }
+    const offs = new Array(list.length + 1);
+    let y = 0;
+    for (let i = 0; i < list.length; i++) {
+      offs[i] = y;
+      if (list[i].marksNowPlaying) nowOff = y;
+      y += list[i].kind === "header" ? QUEUE_HEADER_H : QUEUE_ROW_H;
+    }
+    offs[list.length] = y;
+    return { items: list, offsets: offs, totalHeight: y, nowPlayingOffset: nowOff < 0 ? 0 : nowOff };
+  }, [queue, currentIdx, currentTrack, t]);
+
+  nowPlayingOffsetRef.current = nowPlayingOffset;
+
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: (i) => (items[i]?.kind === "header" ? QUEUE_HEADER_H : QUEUE_ROW_H),
+    overscan: 8,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   // Open the per-transition fade editor for globalIdx → globalIdx+1.
   const openFadeEdit = (globalIdx) => {
@@ -199,90 +248,106 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
     setQueue(q => q.filter(t => t.videoId !== videoId));
   }, [setQueue]);
 
-  const dragOverRef = useRef(null);
+  const anim = useAnimations();
+  // The row may be scrolled out of the virtualiser by the time this runs, so the element is
+  // looked up rather than held in a ref by the row itself.
+  const removeWithEffect = useCallback((globalIdx, videoId) => {
+    const el = listRef.current?.querySelector(`[data-queue-idx="${globalIdx}"]`);
+    if (anim && el) dissolve(el, () => removeTrack(videoId));
+    else removeTrack(videoId);
+  }, [anim, removeTrack]);
+
+  // The drop position is an index *between* tracks, not a track to swap with. Derived from the
+  // pointer against the known item offsets, so it works for rows the virtualiser has not
+  // mounted and can be drawn as a single line rather than an outline on a neighbour.
+  const dropIdxRef = useRef(null);
+
+  const insertionAt = useCallback((clientY) => {
+    const el = listRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const localY = clientY - rect.top + el.scrollTop - 4; // 4px = the list's pt-1
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind !== "row") continue;
+      const top = offsets[i];
+      if (localY < top + QUEUE_ROW_H / 2) return { index: items[i].globalIdx, offset: top };
+    }
+    return { index: queue.length, offset: totalHeight };
+  }, [items, offsets, totalHeight, queue.length]);
 
   const handlePointerDown = useCallback((e, globalIdx) => {
     if (e.button !== 0) return; // ignore right/middle click so the context menu (fade editor) fires
     e.preventDefault();
     isDragging.current = false;
-    dragOverRef.current = null;
+    dropIdxRef.current = null;
 
     const startY = e.clientY;
 
     const onMove = (me) => {
-      if (Math.abs(me.clientY - startY) > 4) isDragging.current = true;
-      if (!isDragging.current || !listRef.current) return;
-      const rows = listRef.current.querySelectorAll("[data-queue-idx]");
-      let closest = null;
-      let closestDist = Infinity;
-      rows.forEach(row => {
-        const rect = row.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        const dist = Math.abs(me.clientY - mid);
-        if (dist < closestDist) { closestDist = dist; closest = row; }
-      });
-      if (closest) {
-        const idx = parseInt(closest.dataset.queueIdx);
-        dragOverRef.current = idx;
-        setDragOver(idx);
+      if (!isDragging.current) {
+        if (Math.abs(me.clientY - startY) <= 4) return;
+        isDragging.current = true;
+        setDragIdx(globalIdx);
       }
+      const hit = insertionAt(me.clientY);
+      if (!hit) return;
+      // Dropping either side of where it already sits changes nothing, so show no line.
+      const isNoop = hit.index === globalIdx || hit.index === globalIdx + 1;
+      dropIdxRef.current = isNoop ? null : hit.index;
+      setDropOffset(isNoop ? null : hit.offset);
     };
 
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      const target = dragOverRef.current;
+      const target = dropIdxRef.current;
       const didDrag = isDragging.current;
-      if (didDrag && target !== null && target !== globalIdx) {
+      if (didDrag && target != null) {
         setQueue(q => {
           const next = [...q];
           const [moved] = next.splice(globalIdx, 1);
           // Compensate for the removed item: when dropping below the origin, every
-          // index at/after `globalIdx` shifted up by one, so the visual slot is target-1.
-          const targetIdx = target > globalIdx ? target - 1 : target;
-          next.splice(targetIdx, 0, moved);
+          // index after `globalIdx` shifted up by one.
+          next.splice(target > globalIdx ? target - 1 : target, 0, moved);
           return next;
         });
       }
       // Suppress the click that fires right after a drag so it doesn't also start playback.
       if (didDrag) { suppressClickRef.current = true; setTimeout(() => { suppressClickRef.current = false; }, 0); }
       isDragging.current = false;
-      dragOverRef.current = null;
+      dropIdxRef.current = null;
       setDragIdx(null);
-      setDragOver(null);
+      setDropOffset(null);
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [setQueue]);
+  }, [setQueue, insertionAt]);
 
-  const handleDragStart = useCallback((i) => {}, []);
-  const handleDragOver = useCallback((i) => {}, []);
-  const handleDrop = useCallback((i) => {}, []);
-  const handleDragEnd = useCallback(() => {}, []);
 
+  useEffect(() => { setRowMenu(null); }, [queue, panelTab, visible]);
   return (
     <div className="flex flex-col h-full relative">
       {/* Header */}
       <div className="px-3 pt-11 shrink-0">
         <div className="flex items-center gap-1.5 mb-2.5">
-          {/* HeroUI segmented tabs */}
-          <ToggleButtonGroupRoot
-            selectionMode="single"
-            disallowEmptySelection
-            selectedKeys={[panelTab]}
-            onSelectionChange={(keys) => { const v = [...keys][0]; if (v) setPanelTab(v); }}
-            size="sm"
-            fullWidth
-            className="flex-1"
-          >
-            <ToggleButton id="queue" className="flex-1">{t("queue")}</ToggleButton>
-            <ToggleButton id="about" className="flex-1">{t("aboutSong")}</ToggleButton>
-          </ToggleButtonGroupRoot>
+          <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
+            {[["queue", t("queue")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
+              <button key={id} type="button" onClick={() => setPanelTab(id)}
+                style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
+                className={`flex-1 border-0 cursor-default select-none text-t12 font-semibold transition-[background-color,color] duration-150 ${
+                  panelTab === id
+                    ? "bg-accent text-[var(--accent-foreground)]"
+                    : "bg-[var(--fill-subtle)] text-secondary hover:text-primary hover:bg-hover"
+                }`}
+              >{label}</button>
+            ))}
+          </div>
           {/* Clear queue icon button — always rendered to keep pill width stable */}
           <Tooltip text={t("clearQueue")}>
             <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue([])}
-              className={`shrink-0 rounded-[var(--r-md)] text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+              style={{ height: TAB_H, width: TAB_H }}
+              className={`shrink-0 rounded-full text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
             ><Trash size={13} /></Button>
           </Tooltip>
         </div>
@@ -330,65 +395,53 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       )}
 
       {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
-        {/* Previously played */}
-        {played.length > 0 && (
-          <>
-            <div className="group/qsec flex items-center justify-between px-1.5 pt-2.5 pb-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("previouslyPlayed")}</span>
-              <Tooltip text={t("clearPlayed")}>
-                <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue(q => q.slice(currentIdx))}
-                  className="shrink-0 h-6 min-w-6 rounded-[var(--r-sm)] text-muted opacity-0 group-hover/qsec:opacity-100 hover:text-[var(--status-danger)]!"
-                ><Trash size={11} /></Button>
-              </Tooltip>
-            </div>
-            {played.map((qt, i) => (
-              <QueueRow labels={rowLabels} key={qt.videoId || i} track={qt} globalIdx={i} isDraggable={true} dimmed={true}
-                isActive={false} dragOver={dragOver}
-                onPointerDown={handlePointerDown}
-                onPlay={() => { if (suppressClickRef.current) return; setTrack(qt); }} onRemove={removeTrack}
-                isLiked={likedIds?.has(qt.videoId)} onToggleLike={onToggleLike} />
-            ))}
-          </>
-        )}
-
-        {/* Now playing */}
-        {currentTrack && (
-          <>
-            <div ref={nowPlayingRef} className="px-1.5 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("nowPlaying")}</div>
-            <QueueRow labels={rowLabels} track={currentTrack} globalIdx={currentIdx} isDraggable={false} dimmed={true}
-              isActive={true} dragOver={dragOver}
-              onPointerDown={handlePointerDown}
-              onPlay={() => setTrack(currentTrack)} onRemove={removeTrack}
-              isLiked={likedIds?.has(currentTrack.videoId)} onToggleLike={onToggleLike}
-              onEditFade={queue[currentIdx + 1] ? () => openFadeEdit(currentIdx) : undefined}
-              fadeSecs={crossfadeOverrides[fadeKey(currentTrack, queue[currentIdx + 1])]?.secs ?? null} />
-          </>
-        )}
-
-        {/* Up next */}
-        {upNext.length > 0 && (
-          <>
-            <div className="flex items-center gap-1.5 px-1.5 pt-2.5 pb-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{t("upNext")}</span>
-              <ChipRoot size="sm" variant="soft"><ChipLabel>{upNext.length}</ChipLabel></ChipRoot>
-            </div>
-            {upNext.map((qt, i) => {
-              const gIdx = currentIdx + 1 + i;
+        {queue.length === 0 ? (
+          <div className="p-6 text-t13 text-muted text-center">{t("emptyQueue")}</div>
+        ) : (
+          <div className="relative w-full" style={{ height: totalHeight }}>
+            {virtualItems.map(v => {
+              const it = items[v.index];
+              const common = { position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${v.start}px)` };
+              if (it.kind === "header") {
+                return (
+                  <div key={it.key} style={{ ...common, height: QUEUE_HEADER_H }}
+                    className="group/qsec flex items-end justify-between gap-1.5 px-1.5 pb-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{it.label}</span>
+                      {it.count != null && <ChipRoot size="sm" variant="soft"><ChipLabel>{it.count}</ChipLabel></ChipRoot>}
+                    </span>
+                    {it.section === "played" && (
+                      <Tooltip text={t("clearPlayed")}>
+                        <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue(q => q.slice(currentIdx))}
+                          className="shrink-0 h-6 min-w-6 rounded-[var(--r-sm)] text-muted opacity-0 group-hover/qsec:opacity-100 hover:text-[var(--status-danger)]!"
+                        ><Trash size={11} /></Button>
+                      </Tooltip>
+                    )}
+                  </div>
+                );
+              }
+              const gIdx = it.globalIdx;
+              const isNow = it.section === "now";
               return (
-              <QueueRow labels={rowLabels} key={qt.videoId || i} track={qt} globalIdx={gIdx} isDraggable={true}
-                isActive={false} dragOver={dragOver}
-                onPointerDown={handlePointerDown}
-                onPlay={() => { if (suppressClickRef.current) return; setTrack(qt); }} onRemove={removeTrack}
-                isLiked={likedIds?.has(qt.videoId)} onToggleLike={onToggleLike}
-                onEditFade={queue[gIdx + 1] ? () => openFadeEdit(gIdx) : undefined}
-                fadeSecs={crossfadeOverrides[fadeKey(qt, queue[gIdx + 1])]?.secs ?? null} />
+                <div key={it.key} style={common}>
+                  <QueueRow labels={rowLabels} track={it.track} globalIdx={gIdx}
+                    isDraggable={!isNow} dimmed={it.section !== "next"} isActive={isNow}
+                    isBeingDragged={dragIdx === gIdx}
+                    onPointerDown={handlePointerDown}
+                    onPlay={() => { if (suppressClickRef.current) return; setTrack(it.track); }}
+                    isLiked={likedIds?.has(it.track.videoId)} onToggleLike={onToggleLike}
+                    onOpenMenu={setRowMenu} menuOpen={rowMenu?.globalIdx === gIdx}
+                    fadeSecs={crossfadeOverrides[fadeKey(it.track, queue[gIdx + 1])]?.secs ?? null} />
+                </div>
               );
             })}
-          </>
-        )}
-
-        {queue.length === 0 && (
-          <div className="p-6 text-t13 text-muted text-center">{t("emptyQueue")}</div>
+            {/* Drop indicator: a line in the gap the track would land in, rather than an
+                outline on a neighbouring row — that never said which side it meant. */}
+            {dropOffset != null && (
+              <div className="absolute left-1 right-1 h-0.5 -mt-px rounded-full bg-accent pointer-events-none z-10"
+                style={{ top: dropOffset }} />
+            )}
+          </div>
         )}
       </ScrollShadowRoot>}
 
@@ -403,23 +456,23 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
             <div className="absolute inset-0 rounded-full bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
             <Button
               variant="ghost" size="sm"
-              onPress={() => {
-                const target = nowPlayingRef.current;
-                const container = listRef.current;
-                if (target && container) {
-                  const containerRect = container.getBoundingClientRect();
-                  const targetRect = target.getBoundingClientRect();
-                  const scrollOffset = container.scrollTop + targetRect.top - containerRect.top - 8;
-                  container.scrollTo({ top: scrollOffset, behavior: "smooth" });
-                } else {
-                  listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
+              onPress={() => listRef.current?.scrollTo({ top: Math.max(0, nowPlayingOffsetRef.current - 4), behavior: "smooth" })}
               className="relative gap-2 h-9! px-4 rounded-full text-t13 font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
             ><CaretLineUp size={15} weight="bold" className="text-accent" /> {t("scrollToTop")}</Button>
           </div>
         </div>,
         document.body
+      )}
+
+      {rowMenu && (
+        <ContextMenu x={rowMenu.x} y={rowMenu.y} zoom={zoom} onClose={() => setRowMenu(null)}
+          ariaLabel={queue[rowMenu.globalIdx]?.title || "Track"} minWidth={210}>
+          {queue[rowMenu.globalIdx + 1]
+            ? <CtxItem icon={<Sliders size={15} />} label={t("crossfade")} onSelect={() => openFadeEdit(rowMenu.globalIdx)} />
+            : null}
+          <CtxItem icon={<Trash size={15} />} label={t("removeFromQueue")} danger
+            onSelect={() => { const i = rowMenu.globalIdx; removeWithEffect(i, queue[i]?.videoId); }} />
+        </ContextMenu>
       )}
 
       {fadeEdit && (

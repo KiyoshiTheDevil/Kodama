@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, SwitchRoot, SwitchControl, SwitchThumb, CardRoot, ScrollShadowRoot, Tab } from "@heroui/react";
 import { DropdownMenu } from "./ui/zoomed-heroui.jsx";
+import { ContextMenu, CtxItem, CTX_POPOVER_ANIM } from "./ui/context-menu.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 const appWindow = getCurrentWebviewWindow();
 import { LANGUAGES, translate } from "./i18n.js";
@@ -642,55 +643,6 @@ function clampMenu(x, y, w = 220, h = 320) {
     left: x + w > vw ? Math.max(4, x - w) : x,
     top:  y + h > vh ? Math.max(4, y - h) : y,
   };
-}
-
-// Shared enter/exit animation for HeroUI dropdown popovers (context menus, account menu).
-const CTX_POPOVER_ANIM =
-  "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-top-1 data-[entering]:duration-150 data-[entering]:ease-out " +
-  "data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:slide-out-to-top-1 data-[exiting]:duration-100 data-[exiting]:ease-in";
-
-// Reusable cursor-anchored HeroUI context menu. Renders a hidden, zero-size trigger
-// at the cursor position (in pre-zoom coordinates) and opens a real HeroUI Dropdown
-// popover anchored to it. react-aria handles viewport clamping, Esc / outside-click
-// (→ onClose), keyboard navigation and typeahead. Pass real HeroUI <DropdownItem>s
-// (and <DropdownSection>s / submenus) as children via a render function that receives
-// `close` for items that must dismiss the menu after an async action.
-function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200, children }) {
-  const anchorRef = useRef(null);
-  return (
-    <Dropdown isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DropdownTrigger
-        ref={anchorRef}
-        aria-hidden="true"
-        tabIndex={-1}
-        className="fixed w-0 h-0 min-w-0 p-0 m-0 opacity-0 pointer-events-none border-0"
-        style={{ left: x / zoom, top: y / zoom }}
-      />
-      <DropdownPopover triggerRef={anchorRef} placement="bottom start" className={CTX_POPOVER_ANIM}>
-        {/* DropdownMenu here is the zoom-aware wrapper (src/ui/zoomed-heroui.jsx) — it applies
-            the app zoom to itself automatically, so no zoom prop needed here. */}
-        <DropdownMenu aria-label={ariaLabel} style={{ minWidth }}>
-          {children}
-        </DropdownMenu>
-      </DropdownPopover>
-    </Dropdown>
-  );
-}
-
-// Convenience wrapper for a HeroUI dropdown item with a leading icon. `danger` tints
-// the row red (incl. focus state). `onSelect` runs on activation.
-function CtxItem({ icon: Icon, label, onSelect, danger, id, textValue }) {
-  return (
-    <DropdownItem
-      id={id}
-      textValue={textValue || (typeof label === "string" ? label : undefined)}
-      onAction={onSelect}
-      className={danger ? "text-[var(--status-danger)]! data-[focused]:text-[var(--status-danger)]! data-[hovered]:text-[var(--status-danger)]!" : undefined}
-    >
-      {Icon ? <span className="w-4 flex justify-center shrink-0">{Icon}</span> : null}
-      {label}
-    </DropdownItem>
-  );
 }
 
 const SIDEBAR_EXPANDED = 288;   // default expanded width
