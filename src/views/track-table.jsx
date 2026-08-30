@@ -264,7 +264,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
 }
 
 // ─── Shared playlist/collection layout ────────────────────────────────────
-export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel, contextMenuTrackId }) {
+export function PlaylistLayout({ title, description, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel, contextMenuTrackId }) {
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
   const [trackSearch, setTrackSearch] = useState("");
@@ -719,6 +719,16 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
               {title}
             </div>
           </div>
+
+          {/* The playlist's own description, clamped to two lines so a long one cannot push
+              the track list off the screen. */}
+          {description && (
+            <div style={{
+              maxWidth: 620, marginTop: 2, marginBottom: 10, fontSize: "var(--t13)", lineHeight: 1.5,
+              color: "rgba(255,255,255,0.68)", textShadow: "0 1px 6px rgba(0,0,0,0.5)",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+            }} title={description}>{description}</div>
+          )}
 
           {/* Metadata — albums additionally carry the artist chip and the year */}
           <div style={{ fontSize: "var(--t13)", color: "rgba(255,255,255,0.65)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", rowGap: 6 }}>

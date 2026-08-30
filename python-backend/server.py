@@ -3209,16 +3209,18 @@ def stream_playlist(playlist_id):
                         tracks = [{"videoId": r[0], "setVideoId": r[0], "title": r[1], "artists": r[2],
                                    "album": r[3], "thumbnail": r[4], "duration": r[5]} for r in rows]
                         pl_title = "Gelikte Songs"
+                        pl_desc = ""
                     else:
-                        pl_row = db.execute("SELECT title FROM playlists WHERE playlist_id=?", (playlist_id,)).fetchone()
+                        pl_row = db.execute("SELECT title, description FROM playlists WHERE playlist_id=?", (playlist_id,)).fetchone()
                         pl_title = pl_row[0] if pl_row else playlist_id
+                        pl_desc = (pl_row[1] if pl_row else "") or ""
                         rows = db.execute(
                             "SELECT video_id, set_video_id, title, artists, album, thumbnail, duration FROM playlist_tracks WHERE playlist_id=? ORDER BY position ASC",
                             (playlist_id,)
                         ).fetchall()
                         tracks = [{"videoId": r[0], "setVideoId": r[1], "title": r[2], "artists": r[3],
                                    "album": r[4], "thumbnail": r[5], "duration": r[6]} for r in rows]
-                yield f"data: {json.dumps({'type':'header','title':pl_title,'thumbnail':'','total':len(tracks),'cached':True})}\n\n"
+                yield f"data: {json.dumps({'type':'header','title':pl_title,'description':pl_desc,'thumbnail':'','total':len(tracks),'cached':True})}\n\n"
                 for i in range(0, len(tracks), CHUNK):
                     yield f"data: {json.dumps({'type':'tracks','tracks':tracks[i:i+CHUNK]})}\n\n"
                 yield f"data: {json.dumps({'type':'done'})}\n\n"
@@ -3266,7 +3268,7 @@ def stream_playlist(playlist_id):
 
             def serve_cached(data):
                 tracks = data["tracks"]
-                yield send({"type": "header", "title": data["title"], "thumbnail": data["thumbnail"], "total": len(tracks), "cached": True})
+                yield send({"type": "header", "title": data["title"], "description": data.get("description", ""), "thumbnail": data["thumbnail"], "total": len(tracks), "cached": True})
                 for i in range(0, len(tracks), CHUNK):
                     yield send({"type": "tracks", "tracks": tracks[i:i+CHUNK]})
                 yield send({"type": "done"})
@@ -3312,12 +3314,13 @@ def stream_playlist(playlist_id):
             all_tracks = [x for x in (safe_fmt(t) for t in playlist.get("tracks", []) if t.get("videoId")) if x]
             total = len(all_tracks)
 
-            yield send({"type": "header", "title": playlist.get("title", ""), "thumbnail": thumbnail, "total": total})
+            description = (playlist.get("description") or "").strip()
+            yield send({"type": "header", "title": playlist.get("title", ""), "description": description, "thumbnail": thumbnail, "total": total})
             for i in range(0, total, CHUNK):
                 pct = min(100, round((i + CHUNK) / total * 100)) if total else 100
                 yield send({"type": "progress", "progress": pct})
                 yield send({"type": "tracks", "tracks": all_tracks[i:i+CHUNK]})
-            data = {"title": playlist.get("title", ""), "thumbnail": thumbnail, "tracks": all_tracks}
+            data = {"title": playlist.get("title", ""), "description": description, "thumbnail": thumbnail, "tracks": all_tracks}
             if _cache_enabled["playlists"]:
                 _playlist_cache_put(playlist_id, data)
                 _save_playlist_disk(playlist_id, data)
