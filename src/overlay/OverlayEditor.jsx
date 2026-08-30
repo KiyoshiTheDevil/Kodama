@@ -2314,6 +2314,9 @@ export default function OverlayEditor({
             if (browserSort === "size") return ((y.doc?.canvas?.width || 0) * (y.doc?.canvas?.height || 0)) - ((x.doc?.canvas?.width || 0) * (x.doc?.canvas?.height || 0));
             return String(y.savedAt || "").localeCompare(String(x.savedAt || ""));
           });
+        // id -> position in the sorted, filtered result. Cards render in the stored order and
+        // take their place from this, so the DOM is never reordered.
+        const rankOf = new Map(shown.map((p, i) => [p.id, i]));
         const closeBrowser = () => { setBrowserOpen(false); setRenamingId(null); setConfirmDeleteId(null); };
         const sortOpts = [
           ["recent", t("ovlProfileSortRecent")],
@@ -2392,7 +2395,9 @@ export default function OverlayEditor({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  {shown.map((prof) => {
+                  {profiles.map((prof) => {
+                    const rank = rankOf.get(prof.id);
+                    const hidden = rank === undefined;
                     const layerCount = prof.doc?.layers?.length ?? 0;
                     const cw = prof.doc?.canvas?.width ?? "?";
                     const ch = prof.doc?.canvas?.height ?? "?";
@@ -2402,7 +2407,11 @@ export default function OverlayEditor({
                     return (
                       <div key={prof.id}
                         className="group/design relative flex flex-col rounded-xl border border-border overflow-hidden hover:border-accent/60 transition-colors"
-                        style={{ background: "color-mix(in srgb, var(--bg-elevated) 85%, var(--bg-base))" }}>
+                        style={{
+                          background: "color-mix(in srgb, var(--bg-elevated) 85%, var(--bg-base))",
+                          order: hidden ? 0 : rank,
+                          display: hidden ? "none" : undefined,
+                        }}>
 
                         {/* Live preview on a checkerboard, so translucent designs read correctly */}
                         <div className="relative h-[168px] border-b border-border"
