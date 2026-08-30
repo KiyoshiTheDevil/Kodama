@@ -1,5 +1,6 @@
 // Downloads view — offline/cached songs, rendered via PlaylistLayout. Extracted from App.jsx.
 import { useState, useEffect, useMemo } from "react";
+import { SharedElementTransition } from "react-aria-components";
 import { TabsRoot, TabListContainer, TabList, Tab, TabIndicator } from "@heroui/react";
 import { API, useLang } from "../context.jsx";
 import { PlaylistLayout } from "./track-table.jsx";
@@ -93,16 +94,18 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
       <div style={{ position: "relative", display: "flex", alignItems: "center", height: 36 }}>
       <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("downloads")}</div>
       <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
-        <TabsRoot selectedKey={tab} onSelectionChange={setTab}>
-          <TabListContainer>
-            <TabList aria-label={t("downloads")}>
-              {tabDefs.map(tb => (
-                <Tab key={tb.id} id={tb.id} className="gap-1.5">{tb.icon}{tb.label}</Tab>
-              ))}
-            </TabList>
-            <TabIndicator />
-          </TabListContainer>
-        </TabsRoot>
+        <SharedElementTransition>
+          <TabsRoot selectedKey={tab} onSelectionChange={setTab}>
+            <TabListContainer>
+              <TabList aria-label={t("downloads")}>
+                {tabDefs.map(tb => (
+                  <Tab key={tb.id} id={tb.id} className="gap-1.5">{tb.icon}{tb.label}</Tab>
+                ))}
+              </TabList>
+              <TabIndicator />
+            </TabListContainer>
+          </TabsRoot>
+        </SharedElementTransition>
       </div>
       </div>
     </div>
