@@ -736,6 +736,12 @@ button:not([class]) {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Search suggestions: the same short drop the dropdown popovers use, so the list arrives
+   the way every other menu in the app does. */
+@keyframes sugDropIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
 @keyframes fadeSlideOut {
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(-18px); }

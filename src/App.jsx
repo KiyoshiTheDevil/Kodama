@@ -667,6 +667,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
   const [query, setQuery] = useState("");
   // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
   const [suggestions, setSuggestions] = useState([]);
+  const [sugActive, setSugActive] = useState(-1); // keyboard-highlighted suggestion
   const [sugOpen, setSugOpen] = useState(false);
   const sugBlurRef = useRef(null);
   useEffect(() => {
@@ -785,33 +786,52 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     }
   };
 
-  const pickSuggestion = (s) => { setQuery(s); handleSubmit(s); };
+  const pickSuggestion = (s) => { setQuery(s); setSugActive(-1); handleSubmit(s); };
   // Dropdown of live suggestions, positioned under the (relatively-positioned) field wrapper.
-  const suggestionsBox = (sugOpen && query.trim().length >= 2 && suggestions.length > 0) ? (
+  // Styled like the app's other popovers — same surface, radius, elevation and entry motion —
+  // rather than the flat bordered box it used to be, and keyboard-navigable.
+  const suggestionsOpen = sugOpen && query.trim().length >= 2 && suggestions.length > 0;
+  const suggestionsBox = suggestionsOpen ? (
     <div
       onMouseDown={e => e.preventDefault()} /* keep field focus so onClick fires before blur */
+      className="animate-[sugDropIn_0.16s_cubic-bezier(0.22,1,0.36,1)]"
       style={{
-        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 4,
-        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)",
+        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 6,
+        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)",
         boxShadow: "var(--elevation-3)", overflow: "hidden", padding: 4,
       }}
     >
       {suggestions.map((s, i) => (
-        <div key={i} onClick={() => pickSuggestion(s)}
+        <div key={i} onClick={() => pickSuggestion(s)} onMouseEnter={() => setSugActive(i)}
           style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: "var(--r-md)",
-            cursor: "default", fontSize: "var(--t13)", color: "var(--text-secondary)",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 10px",
+            borderRadius: "var(--r-md)", cursor: "default", fontSize: "var(--t13)",
+            color: i === sugActive ? "var(--text-primary)" : "var(--text-secondary)",
+            background: i === sugActive ? "var(--bg-hover)" : "transparent",
+            transition: "background 0.12s, color 0.12s",
           }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--bg-hover)"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
         >
-          <MagnifyingGlass size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{s}</span>
+          <MagnifyingGlass size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s}</span>
         </div>
       ))}
     </div>
   ) : null;
+  const onSuggestionKey = (e) => {
+    if (!suggestionsOpen) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = suggestions.length;
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      setSugActive(i => (i + step + 1 + (n + 1)) % (n + 1) - 1);
+    } else if (e.key === "Enter" && sugActive >= 0) {
+      e.preventDefault();
+      pickSuggestion(suggestions[sugActive]);
+    } else if (e.key === "Escape") {
+      setSugOpen(false);
+      setSugActive(-1);
+    }
+  };
   const sugFocus = () => { clearTimeout(sugBlurRef.current); setSugOpen(true); };
   const sugBlur = () => { sugBlurRef.current = setTimeout(() => setSugOpen(false), 150); };
 
@@ -1085,10 +1105,10 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <>
             <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
               onFocus={sugFocus} onBlur={sugBlur}>
-              <SearchFieldRoot value={query} onChange={setQuery} onSubmit={handleSubmit} className="w-full">
+              <SearchFieldRoot value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
                 <SearchFieldGroup>
                   <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
-                  <SearchFieldInput placeholder={t("search")} />
+                  <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
                   <SearchFieldClearButton />
                 </SearchFieldGroup>
               </SearchFieldRoot>
@@ -1136,7 +1156,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               <SearchFieldSearchIcon>
                 <MagnifyingGlass size={16} />
               </SearchFieldSearchIcon>
-              <SearchFieldInput placeholder={t("search")} />
+              <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
               <SearchFieldClearButton />
             </SearchFieldGroup>
           </SearchFieldRoot>
