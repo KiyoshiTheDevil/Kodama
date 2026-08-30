@@ -25,7 +25,7 @@ export const LYRICS_PREFS_DEFAULTS = {
   romajiFontSize:      18,
   showAgentTags:       true,
   syllableZoom:        false,
-  fluidLyrics:         false,
+  fluidLyrics:         true,
   ambientVisualizer:   true,
   ambientBackground:   false,
 };

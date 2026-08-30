@@ -36,3 +36,22 @@ export const PROVIDER_SYNC = {
   kugou:      { label: "Line",     icon: "/sync-line.svg",     color: "#81c784", bg: "rgba(129,199,132,0.12)" },
   simp:       { label: "Line",     icon: "/sync-line.svg",     color: "#81c784", bg: "rgba(129,199,132,0.12)" },
 };
+
+// Coarsest to finest. A source that times syllables can express words and lines from the same
+// data -- syllable timings carry the word and line boundaries with them -- so a provider offers
+// everything up to its best level, not only that level. PROVIDER_SYNC above names the best one,
+// which is what a single result's badge needs; this is what the settings list needs.
+const SYNC_ORDER = ["syllable", "word", "line"];
+const SYNC_BY_LABEL = {
+  syllable: PROVIDER_SYNC.better,
+  word: PROVIDER_SYNC.musixmatch,
+  line: PROVIDER_SYNC.lrclib,
+};
+
+export function providerSyncLevels(id) {
+  const best = PROVIDER_SYNC[id];
+  if (!best) return [];
+  const from = SYNC_ORDER.indexOf(best.label.toLowerCase());
+  if (from === -1) return [best];
+  return SYNC_ORDER.slice(from).map((k) => SYNC_BY_LABEL[k]);
+}

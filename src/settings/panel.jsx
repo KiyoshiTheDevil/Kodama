@@ -1015,6 +1015,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
 
                 <div id="set-sec-ap-others" data-settings-section="ap-others" style={{ scrollMarginTop: 8 }}>
+                <SettingRow label={t("trackNumbers")} description={t("trackNumbersDesc")} icon={<i className="fa-solid fa-list-ol" style={{ fontSize: 15 }} aria-hidden="true" />}>
+                  <Toggle value={showTrackNumbers} onChange={onTrackNumbersChange} />
+                </SettingRow>
                 <SectionLabel>{t("apOthers")}</SectionLabel>
                 <SettingRow label={t("animations")} description={t("animationsDesc")} icon={<Sparkles />}>
                   <Toggle value={animations} onChange={onAnimationsChange} />
@@ -1083,11 +1086,28 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </div>
                   </div>
                 )}
+                <SettingRow label={t("videoSyncMode")} description={t("videoSyncModeDesc")} icon={<ClapperboardPlay />}>
+                  <Toggle value={videoSyncEnabled} onChange={onToggleVideoSync} />
+                </SettingRow>
+                {videoSyncEnabled && (
+                  <SettingRow label={t("videoSyncQuality")} description={t("videoSyncQualityDesc")} icon={<Sliders />}>
+                    <ToggleButtonGroupRoot
+                      selectionMode="single"
+                      disallowEmptySelection
+                      selectedKeys={[videoSyncQuality]}
+                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onVideoSyncQualityChange?.(v); }}
+                      size="sm"
+                    >
+                      <ToggleButton id="360">360p</ToggleButton>
+                      <ToggleButton id="480">480p</ToggleButton>
+                      <ToggleButton id="720">720p</ToggleButton>
+                      <ToggleButton id="1080">1080p</ToggleButton>
+                      <ToggleButton id="auto">{t("videoSyncQualityAuto")}</ToggleButton>
+                    </ToggleButtonGroupRoot>
+                  </SettingRow>
+                )}
                 <SettingRow label={t("hideExplicit")} description={t("hideExplicitDesc")} icon={<EyeSlash />}>
                   <Toggle value={hideExplicit} onChange={onHideExplicitChange} />
-                </SettingRow>
-                <SettingRow label={t("trackNumbers")} description={t("trackNumbersDesc")} icon={<i className="fa-solid fa-list-ol" style={{ fontSize: 15 }} aria-hidden="true" />}>
-                  <Toggle value={showTrackNumbers} onChange={onTrackNumbersChange} />
                 </SettingRow>
                 <SettingRow label={t("anonStats")} description={t("anonStatsDesc")} icon={<i className="fa-solid fa-chart-simple" style={{ fontSize: 15 }} aria-hidden="true" />}>
                   <Toggle value={anonStats} onChange={onAnonStatsChange} />
@@ -1159,6 +1179,20 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   </SettingRow>
                 </div>
 
+                {videoSyncEnabled && (
+                  <SettingRow label={t("videoLyricsStyle")} description={t("videoLyricsStyleDesc")} icon={<Columns />}>
+                    <ToggleButtonGroupRoot
+                      selectionMode="single"
+                      disallowEmptySelection
+                      selectedKeys={[videoLyricsStyle]}
+                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onVideoLyricsStyleChange?.(v); }}
+                      size="sm"
+                    >
+                      <ToggleButton id="split">{t("videoLyricsStyleSplit")}</ToggleButton>
+                      <ToggleButton id="captions">{t("videoLyricsStyleCaptions")}</ToggleButton>
+                    </ToggleButtonGroupRoot>
+                  </SettingRow>
+                )}
                 <div id="set-sec-lyrics-effects" data-settings-section="lyrics-effects" style={{ scrollMarginTop: 8 }}>
                   <SectionLabel>{t("lyrEffects")}</SectionLabel>
                   <SettingRow label={t("syllableZoom")} description={t("syllableZoomDesc")} icon={<Sparkles />}>
@@ -1482,7 +1516,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             )}
 
             {tab === "overlay" && (
-              <div className="flex flex-col gap-4">
+              <>
                 <SettingRow label={t("ovlOpenEditorBtn")} description={t("ovlOpenEditorDesc")} icon={<ScreencastSimple />}>
                   <Button size="sm" variant="solid" color="accent" className="flex items-center gap-1.5" onPress={() => openOverlayEditor()}>
                     <ArrowSquareOut size={14} />
@@ -1516,55 +1550,21 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     <Copy size={14} />{t("copy") || "Copy"}
                   </Button>
                 </SettingRow>
-              </div>
+              </>
             )}
 
             {tab === "experimental" && (
-              <div className="flex flex-col gap-4">
+              <>
                 <SettingsSectionDesc style={{ marginTop: 0 }}>{t("experimentalDesc")}</SettingsSectionDesc>
                 <SettingRow label={t("bigPictureMode")} description={t("bigPictureModeDesc")} icon={<Gamepad />}>
                   <Button variant="secondary" size="sm" onPress={() => window.dispatchEvent(new Event("kodama-open-bigpicture"))}>
                     {t("bigPictureLaunch")}
                   </Button>
                 </SettingRow>
-                <SettingRow label={t("videoSyncMode")} description={t("videoSyncModeDesc")} icon={<ClapperboardPlay />}>
-                  <Toggle value={videoSyncEnabled} onChange={onToggleVideoSync} />
-                </SettingRow>
                 <SettingRow label={t("rtlLayout")} description={t("rtlLayoutDesc")} icon={<ArrowsLeftRight />}>
                   <Toggle value={rtlLayout} onChange={onToggleRtlLayout} />
                 </SettingRow>
-                {videoSyncEnabled && (
-                  <SettingRow label={t("videoSyncQuality")} description={t("videoSyncQualityDesc")} icon={<Sliders />}>
-                    <ToggleButtonGroupRoot
-                      selectionMode="single"
-                      disallowEmptySelection
-                      selectedKeys={[videoSyncQuality]}
-                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onVideoSyncQualityChange?.(v); }}
-                      size="sm"
-                    >
-                      <ToggleButton id="360">360p</ToggleButton>
-                      <ToggleButton id="480">480p</ToggleButton>
-                      <ToggleButton id="720">720p</ToggleButton>
-                      <ToggleButton id="1080">1080p</ToggleButton>
-                      <ToggleButton id="auto">{t("videoSyncQualityAuto")}</ToggleButton>
-                    </ToggleButtonGroupRoot>
-                  </SettingRow>
-                )}
-                {videoSyncEnabled && (
-                  <SettingRow label={t("videoLyricsStyle")} description={t("videoLyricsStyleDesc")} icon={<Columns />}>
-                    <ToggleButtonGroupRoot
-                      selectionMode="single"
-                      disallowEmptySelection
-                      selectedKeys={[videoLyricsStyle]}
-                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onVideoLyricsStyleChange?.(v); }}
-                      size="sm"
-                    >
-                      <ToggleButton id="split">{t("videoLyricsStyleSplit")}</ToggleButton>
-                      <ToggleButton id="captions">{t("videoLyricsStyleCaptions")}</ToggleButton>
-                    </ToggleButtonGroupRoot>
-                  </SettingRow>
-                )}
-              </div>
+              </>
             )}
 
             {tab === "update" && (

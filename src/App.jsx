@@ -3933,7 +3933,7 @@ export default function App() {
   const [lyricsTranslationLang, setLyricsTranslationLang] = usePersistedState("kiyoshi-lyrics-translation-lang", "DE");
   const [showRomaji, setShowRomaji] = usePersistedState("kiyoshi-lyrics-romaji", false);
   const [syllableZoom, setSyllableZoom] = usePersistedState("kiyoshi-lyrics-syllable-zoom", false);
-  const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", false);
+  const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", true);
   const [videoSyncEnabled, setVideoSyncEnabled] = usePersistedState("kiyoshi-video-sync", false);
   // "auto" = best available; otherwise a max-height cap (string, matches <select>/ToggleButton
   // values) for users on a weaker/metered connection.

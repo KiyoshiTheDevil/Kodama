@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { cn, CardRoot } from "@heroui/react";
 import { GripLines } from "../icons.jsx";
-import { PROVIDER_SYNC } from "../lyrics/providers.js";
+import { PROVIDER_SYNC, providerSyncLevels } from "../lyrics/providers.js";
 import { Toggle } from "../ui/settings-controls.jsx";
 
 export function LyricsProviderList({ providers, onChange }) {
@@ -75,10 +75,11 @@ export function LyricsProviderList({ providers, onChange }) {
           {/* Label */}
           <span className={cn("text-t13", p.enabled ? "text-primary" : "text-muted")}>{p.label}</span>
           {/* Sync-type tag */}
-          {PROVIDER_SYNC[p.id] && (() => {
-            const sync = PROVIDER_SYNC[p.id];
+          {/* Every level the source can deliver, not just its finest: a syllable-timed source
+              can also give you words and lines, and only listing "Syllable" hid that. */}
+          {providerSyncLevels(p.id).map((sync) => {
             return (
-              <span style={{
+              <span key={sync.label} style={{
                 display: "flex", alignItems: "center", gap: 6,
                 fontSize: "var(--t10)", whiteSpace: "nowrap", flexShrink: 0,
                 padding: "2px 6px", borderRadius: "var(--r-sm)",
@@ -90,7 +91,7 @@ export function LyricsProviderList({ providers, onChange }) {
                 {sync.label}
               </span>
             );
-          })()}
+          })}
           <div className="flex-1" />
           {/* Enable toggle */}
           <Toggle value={p.enabled} onChange={v => onChange(providers.map((x, j) => j === i ? { ...x, enabled: v } : x))} />

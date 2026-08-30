@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { cn, Button, InputRoot, TextFieldRoot, toast, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
+import { cn, Button, CardRoot, InputRoot, TextFieldRoot, toast, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang } from "../context.jsx";
 import { ArrowClockwise, ArrowSquareOut, BrandYoutube, Clock, ClockCounterClockwise, EyeSlash, Heart, ImageSquare, MusicNote, Playlist, SignOut, Trash, UserCircle, UserPlus } from "../icons.jsx";
-import { SettingRow, Toggle } from "../ui/settings-controls.jsx";
+import { SettingRow, Toggle, SettingsSectionLabel } from "../ui/settings-controls.jsx";
 import { ModalDialog } from "../ui/zoomed-heroui.jsx";
 
 function fmtDuration(totalSec) {
@@ -91,21 +91,21 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
   };
 
   const StatTile = ({ icon, label, value }) => (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-elevated">
-      <div className="w-9 h-9 rounded-lg bg-accent-dim text-accent flex items-center justify-center shrink-0">{icon}</div>
+    <CardRoot variant="secondary" className="bg-surface-1 flex flex-col items-center text-center gap-3 px-[18px] py-4">
+      <div className="w-[30px] h-[30px] rounded-md bg-accent-dim text-accent flex items-center justify-center shrink-0">{icon}</div>
       <div className="min-w-0">
-        <div className="text-t16 font-semibold truncate tabular-nums">{value}</div>
-        <div className="text-t11 text-muted truncate">{label}</div>
+        <div className="font-semibold truncate tabular-nums" style={{ fontSize: "var(--t16)" }}>{value}</div>
+        <div className="text-muted truncate" style={{ fontSize: "var(--t11)" }}>{label}</div>
       </div>
-    </div>
+    </CardRoot>
   );
 
   return (
-    <div className="flex flex-col gap-6 text-primary max-w-[560px]">
+    <div className="flex flex-col gap-6 text-primary">
       <div id="set-sec-account-overview" data-settings-section="account-overview" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Active account card */}
       {active && (
-        <div className="flex items-center gap-4 p-4 rounded-2xl bg-elevated">
+        <CardRoot variant="secondary" className="bg-surface-1 flex flex-col items-center text-center gap-4 px-[18px] py-4">
           {active.type === "local" ? (
             <button onClick={pickAvatar} title={t("changeAvatar")} className="relative group shrink-0 rounded-full cursor-default">
               <Avatar a={active} size={56} />
@@ -117,17 +117,17 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
             <Avatar a={active} size={56} />
           )}
           <div className="flex-1 min-w-0">
-            <div className="text-t18 font-semibold truncate">{active.displayName || active.name}</div>
-            {active.handle && <div className="text-t13 text-muted truncate">{active.handle}</div>}
-            <div className="text-t11 text-muted mt-0.5">{active.type === "local" ? t("localAccount") : "Google"}</div>
+            <div className="font-semibold truncate" style={{ fontSize: "var(--t18)" }}>{active.displayName || active.name}</div>
+            {active.handle && <div className="text-muted truncate" style={{ fontSize: "var(--t13)" }}>{active.handle}</div>}
+            <div className="text-muted mt-0.5" style={{ fontSize: "var(--t11)" }}>{active.type === "local" ? t("localAccount") : "Google"}</div>
           </div>
-        </div>
+        </CardRoot>
       )}
 
       {/* Rename active account */}
       {active && (
         <div className="flex flex-col gap-2">
-          <label className="text-t12 text-muted">{t("displayName")}</label>
+          <label className="text-muted" style={{ fontSize: "var(--t12)" }}>{t("displayName")}</label>
           <div className="flex items-center gap-2">
             <TextFieldRoot
               aria-label={t("displayName")}
@@ -156,7 +156,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
       {/* Accounts list */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className="text-t12 font-semibold text-muted uppercase tracking-wider">{t("manageAccounts")}</span>
+          <SettingsSectionLabel style={{ margin: 0 }}>{t("manageAccounts")}</SettingsSectionLabel>
           <Button variant="ghost" size="sm" onPress={onAdd}>
             <UserPlus size={15} />
             {t("addAccount")}
@@ -165,12 +165,12 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
         <div className="flex flex-col gap-1">
           {list.map(a => (
             <div key={a.name}
-              className={cn("flex items-center gap-3 p-2 rounded-xl transition-colors duration-150", a.active ? "bg-accent-dim" : "hover:bg-hover")}
+              className={cn("flex items-center gap-3 p-2 rounded-[var(--r-lg)] transition-colors duration-150", a.active ? "bg-accent-dim" : "hover:bg-hover")}
             >
               <Avatar a={a} size={36} />
               <div className="flex-1 min-w-0" onClick={() => { if (!a.active) onSwitch(a.name); }}>
-                <div className={cn("text-t13 font-medium truncate", a.active && "text-accent")}>{a.displayName || a.name}</div>
-                <div className="text-t11 text-muted truncate">
+                <div style={{ fontSize: "var(--t13)" }} className={cn("font-medium truncate", a.active && "text-accent")}>{a.displayName || a.name}</div>
+                <div className="text-muted truncate" style={{ fontSize: "var(--t11)" }}>
                   {a.type === "local" ? t("localAccount") : a.loggedOut ? t("logOut") : a.handle}
                 </div>
               </div>
@@ -201,14 +201,14 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
       {/* External links — Google accounts only */}
       {active && active.type !== "local" && (
         <div className="flex flex-col gap-2">
-          <span className="text-t12 font-semibold text-muted uppercase tracking-wider">{t("links")}</span>
+          <SettingsSectionLabel style={{ margin: 0 }}>{t("links")}</SettingsSectionLabel>
           <div className="flex flex-col gap-1.5">
-            <Button variant="ghost" fullWidth className="justify-start gap-2.5 rounded-xl" onPress={() => openUrl("https://music.youtube.com/").catch(console.error)}>
+            <Button variant="ghost" fullWidth className="justify-start gap-2.5" onPress={() => openUrl("https://music.youtube.com/").catch(console.error)}>
               <BrandYoutube size={16} />
               {t("openYouTubeMusic")}
               <ArrowSquareOut size={13} className="ml-auto text-muted" />
             </Button>
-            <Button variant="ghost" fullWidth className="justify-start gap-2.5 rounded-xl" onPress={() => openUrl("https://myaccount.google.com/").catch(console.error)}>
+            <Button variant="ghost" fullWidth className="justify-start gap-2.5" onPress={() => openUrl("https://myaccount.google.com/").catch(console.error)}>
               <UserCircle size={16} />
               {t("manageGoogleAccount")}
               <ArrowSquareOut size={13} className="ml-auto text-muted" />
@@ -221,7 +221,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
       <div id="set-sec-account-statistics" data-settings-section="account-statistics" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Usage statistics */}
       <div className="flex flex-col gap-2">
-        <span className="text-t12 font-semibold text-muted uppercase tracking-wider">{t("statistics")}</span>
+        <SettingsSectionLabel style={{ margin: 0 }}>{t("statistics")}</SettingsSectionLabel>
         <div className="grid grid-cols-2 gap-2.5">
           <StatTile icon={<Clock size={16} />} label={t("totalUsageTime")} value={fmtDuration(stats.usage)} />
           <StatTile icon={<MusicNote size={16} />} label={t("totalPlaytime")} value={fmtDuration(stats.playtime)} />
@@ -233,7 +233,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
 
       {/* Data management */}
       <div className="flex flex-col gap-2">
-        <span className="text-t12 font-semibold text-muted uppercase tracking-wider">{t("dataManagement")}</span>
+        <SettingsSectionLabel style={{ margin: 0 }}>{t("dataManagement")}</SettingsSectionLabel>
         <div>
           <Button variant="danger-soft" isDisabled={!stats.history} onPress={() => setConfirmClearHistory(true)}>
             <Trash size={15} />
@@ -255,7 +255,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
                 <ModalHeading>{t("clearPlaybackHistory")}</ModalHeading>
               </ModalHeader>
               <ModalBody>
-                <div className="text-t12 text-muted leading-relaxed">{t("clearPlaybackHistoryDesc")}</div>
+                <div className="text-muted leading-relaxed" style={{ fontSize: "var(--t12)" }}>{t("clearPlaybackHistoryDesc")}</div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="ghost" onPress={() => setConfirmClearHistory(false)}>{t("cancel")}</Button>
@@ -277,7 +277,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
                 <ModalHeading>{t("removeAccountTitle")}</ModalHeading>
               </ModalHeader>
               <ModalBody>
-                <div className="text-t12 text-muted leading-relaxed">{t("removeAccountDesc")}</div>
+                <div className="text-muted leading-relaxed" style={{ fontSize: "var(--t12)" }}>{t("removeAccountDesc")}</div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="ghost" onPress={() => setConfirmRemove(null)}>{t("cancel")}</Button>
