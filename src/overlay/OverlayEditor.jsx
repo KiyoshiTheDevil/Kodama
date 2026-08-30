@@ -19,6 +19,7 @@ import {
   Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection,
 } from "@heroui/react";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
+import { Tooltip } from "../ui/tooltip.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet, PencilSimple,
@@ -2368,9 +2369,11 @@ export default function OverlayEditor({
                 <Button variant="flat" size="sm" className="h-8! gap-1.5 text-t12!" onPress={() => importFileRef.current?.click()}>
                   <UploadSimple size={14} /> {t("ovlProfileImport")}
                 </Button>
-                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={closeBrowser} aria-label="Close">
-                  <X size={15} />
-                </Button>
+                <Tooltip text={t("close")}>
+                  <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={closeBrowser} aria-label={t("close")}>
+                    <X size={15} />
+                  </Button>
+                </Tooltip>
               </div>
             </div>
 
@@ -2414,22 +2417,30 @@ export default function OverlayEditor({
                               {t("ovlProfileApply")}
                             </Button>
                             <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                onPress={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }} aria-label={t("ovlProfileRename")}>
-                                <PencilSimple size={14} />
-                              </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                onPress={() => duplicateProfile(prof)} aria-label={t("ovlProfileDuplicate")}>
-                                <Copy size={14} />
-                              </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
-                                <DownloadSimple size={14} />
-                              </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-danger!"
-                                onPress={() => setConfirmDeleteId(prof.id)} aria-label={t("ovlProfileDelete")}>
-                                <Trash size={14} />
-                              </Button>
+                              <Tooltip text={t("ovlProfileRename")}>
+                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
+                                  onPress={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }} aria-label={t("ovlProfileRename")}>
+                                  <PencilSimple size={14} />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip text={t("ovlProfileDuplicate")}>
+                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
+                                  onPress={() => duplicateProfile(prof)} aria-label={t("ovlProfileDuplicate")}>
+                                  <Copy size={14} />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip text={t("ovlProfileExport")}>
+                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
+                                  onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
+                                  <DownloadSimple size={14} />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip text={t("ovlProfileDelete")}>
+                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-danger!"
+                                  onPress={() => setConfirmDeleteId(prof.id)} aria-label={t("ovlProfileDelete")}>
+                                  <Trash size={14} />
+                                </Button>
+                              </Tooltip>
                             </div>
                           </div>
 
