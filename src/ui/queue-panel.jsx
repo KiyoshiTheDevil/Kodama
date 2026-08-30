@@ -110,7 +110,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
           list instead of jumping straight into the crossfade editor. */}
       {isDraggable && (
         <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-          <QueueIconButton label={labels.more} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onOpenMenu({ x: r.left, y: r.bottom + 4, globalIdx }); }}
+          <QueueIconButton label={labels.more} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onOpenMenu({ x: r.right, y: r.bottom + 4, globalIdx }); }}
             className={`text-muted hover:text-secondary ${menuOpen ? "bg-hover text-primary" : ""}`}>
             <DotsThreeVertical size={15} weight="bold" />
           </QueueIconButton>
@@ -465,7 +465,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       )}
 
       {rowMenu && (
-        <ContextMenu x={rowMenu.x} y={rowMenu.y} zoom={zoom} onClose={() => setRowMenu(null)}
+        <ContextMenu x={rowMenu.x} y={rowMenu.y} zoom={zoom} placement="bottom end" onClose={() => setRowMenu(null)}
           ariaLabel={queue[rowMenu.globalIdx]?.title || "Track"} minWidth={210}>
           {queue[rowMenu.globalIdx + 1]
             ? <CtxItem icon={<Sliders size={15} />} label={t("crossfade")} onSelect={() => openFadeEdit(rowMenu.globalIdx)} />

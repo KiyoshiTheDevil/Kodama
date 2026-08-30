@@ -14,7 +14,7 @@ export const CTX_POPOVER_ANIM =
 // opens a real HeroUI Dropdown popover anchored to it. react-aria handles viewport clamping,
 // Esc / outside-click (→ onClose), keyboard navigation and typeahead. Pass real HeroUI
 // <DropdownItem>s (and <DropdownSection>s / submenus) as children.
-export function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200, children }) {
+export function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200, placement = "bottom start", children }) {
   const anchorRef = useRef(null);
   return (
     <Dropdown isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -25,7 +25,7 @@ export function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200
         className="fixed w-0 h-0 min-w-0 p-0 m-0 opacity-0 pointer-events-none border-0"
         style={{ left: x / zoom, top: y / zoom }}
       />
-      <DropdownPopover triggerRef={anchorRef} placement="bottom start" className={CTX_POPOVER_ANIM}>
+      <DropdownPopover triggerRef={anchorRef} placement={placement} className={CTX_POPOVER_ANIM}>
         {/* DropdownMenu here is the zoom-aware wrapper (src/ui/zoomed-heroui.jsx) — it applies
             the app zoom to itself automatically, so no zoom prop needed here. */}
         <DropdownMenu aria-label={ariaLabel} style={{ minWidth }}>

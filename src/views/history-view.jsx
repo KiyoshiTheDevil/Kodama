@@ -31,21 +31,15 @@ export function HistoryView({ onPlay, currentTrack, isPlaying, onOpenArtist, onO
     setTracks(updated);
   };
 
-  const clearHistoryBtn = tracks.length > 0 ? (
-    <button onClick={clearHistory} style={{
-      borderRadius: "var(--r-full)", height: 42, display: "flex", alignItems: "center",
-      padding: "0 18px", gap: 8, fontSize: "var(--t13)", fontWeight: 600,
-      cursor: "default", transition: "background 0.15s, border-color 0.15s, color 0.15s",
-      fontFamily: "var(--font)", backdropFilter: "blur(6px)",
-      border: "0.5px solid rgba(255,255,255,0.15)",
-      background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.75)",
-    }}
-    onMouseEnter={e => { e.currentTarget.style.color = "var(--status-danger)"; e.currentTarget.style.borderColor = "var(--status-danger)"; e.currentTarget.style.background = "var(--status-danger-soft)"; }}
-    onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.75)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(0,0,0,0.3)"; }}
+  const clearHistoryBtn = tracks.length === 0 ? null : ({ compact, pill }) => (
+    <button onClick={clearHistory}
+      style={{ ...pill, padding: compact ? "0 14px" : "0 18px", background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", fontWeight: 600 }}
+      onMouseEnter={e => { e.currentTarget.style.color = "var(--status-danger)"; e.currentTarget.style.background = "var(--status-danger-soft)"; }}
+      onMouseLeave={e => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
     >
-      <Trash size={13} /> {t("clearHistory")}
+      <Trash size={compact ? 13 : 14} /> {t("clearHistory")}
     </button>
-  ) : null;
+  );
 
   return (
     <PlaylistLayout

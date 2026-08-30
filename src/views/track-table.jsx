@@ -455,12 +455,12 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
     onPointerLeave: e => { e.currentTarget.style.transform = ""; },
   };
 
-  const backButton = (px) => (
+  const backButton = (px) => !onBack ? null : (
     <button
       {...press}
-      onClick={onBack || undefined} disabled={!onBack}
-      style={{ ...roundBtn(px), background: "rgba(0,0,0,0.38)", color: onBack ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)" }}
-      onMouseEnter={e => { if (onBack) e.currentTarget.style.background = "rgba(0,0,0,0.58)"; }}
+      onClick={onBack}
+      style={{ ...roundBtn(px), background: "rgba(0,0,0,0.38)", color: "rgba(255,255,255,0.9)" }}
+      onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,0.58)"; }}
       onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.38)"; e.currentTarget.style.transform = ""; }}
     >
       <ArrowLeft size={Math.round(px * 0.45)} />
@@ -543,7 +543,7 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
 
         <div style={{ width: 1, height: compact ? 18 : 22, background: "rgba(255,255,255,0.12)", margin: "0 2px", flexShrink: 0 }} />
 
-        {extraActions}
+        {typeof extraActions === "function" ? extraActions({ compact, px, pill, roundBtn }) : extraActions}
 
         {/* Search: field and toggle share one group, so the collapsed (zero-width) field
             doesn't leave a second row gap behind and push the divider out of rhythm. */}
@@ -619,12 +619,11 @@ export function PlaylistLayout({ title, thumbnail, tracks, total, loading, progr
 
         {cached && onRefresh && (
           <Tooltip text={t("refresh")}><button
+            {...press}
             onClick={onRefresh}
-            onPointerDown={e => { e.currentTarget.style.transform = "rotate(30deg) scale(0.97)"; }}
-            onPointerUp={e => { e.currentTarget.style.transform = "rotate(30deg)"; }}
             style={roundBtn(px)}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "rotate(30deg)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = "rotate(0deg)"; }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.3)"; e.currentTarget.style.transform = ""; }}
           >
             <ArrowClockwise size={14} />
           </button></Tooltip>

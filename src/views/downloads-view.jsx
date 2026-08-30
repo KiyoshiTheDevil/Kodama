@@ -1,5 +1,6 @@
 // Downloads view — offline/cached songs, rendered via PlaylistLayout. Extracted from App.jsx.
 import { useState, useEffect, useMemo } from "react";
+import { TabsRoot, TabListContainer, TabList, Tab, TabIndicator } from "@heroui/react";
 import { API, useLang } from "../context.jsx";
 import { PlaylistLayout } from "./track-table.jsx";
 import { GridCard } from "../ui/rows.jsx";
@@ -91,19 +92,17 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
     <div style={{ position: "relative", zIndex: 5, flexShrink: 0, padding: "24px 24px 0" }}>
       <div style={{ position: "relative", display: "flex", alignItems: "center", height: 36 }}>
       <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("downloads")}</div>
-      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4 }}>
-        {tabDefs.map(tb => (
-          <button key={tb.id} onClick={() => setTab(tb.id)}
-            className={`view-tab-btn${tab === tb.id ? " active" : ""}`}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: tab === tb.id ? "color-mix(in srgb, var(--accent) 20%, transparent)" : "transparent",
-              color: tab === tb.id ? "var(--accent)" : "var(--text-secondary)",
-              border: "none", borderRadius: "var(--r-lg)", padding: "7px 14px",
-              fontSize: "var(--t13)", cursor: "default", fontFamily: "var(--font)",
-              transition: "all 0.15s", fontWeight: tab === tb.id ? 600 : 400,
-            }}>{tb.icon}{tb.label}</button>
-        ))}
+      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+        <TabsRoot selectedKey={tab} onSelectionChange={setTab}>
+          <TabListContainer>
+            <TabList aria-label={t("downloads")}>
+              {tabDefs.map(tb => (
+                <Tab key={tb.id} id={tb.id} className="gap-1.5">{tb.icon}{tb.label}</Tab>
+              ))}
+            </TabList>
+            <TabIndicator />
+          </TabListContainer>
+        </TabsRoot>
       </div>
       </div>
     </div>
@@ -116,8 +115,8 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
         {/* Negative margin pulls PlaylistLayout's gradient up behind the header */}
         <div style={{ marginTop: -HEADER_H, flex: 1 }}>
           <PlaylistLayout
-            title={t("allSongs")}
-            thumbnail={null}
+            title={t("downloads")}
+            thumbnail={songs[0]?.thumbnail || null}
             tracks={songs}
             total={songs.length}
             loading={loading}
