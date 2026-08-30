@@ -3312,6 +3312,8 @@ export default function App() {
   const [appKey, setAppKey] = useState(0); // increment to force full re-render
   const [switchingTo, setSwitchingTo] = useState(null); // profile being switched to → loading overlay
   const [viewRefreshKey, setViewRefreshKey] = useState(0); // increment to refresh current view
+  // Read inside the session-keeper effect, which must not re-run when the flag flips.
+  const sessionExpiredRef = useRef(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = parseInt(localStorage.getItem("kiyoshi-sidebar-width"), 10);
@@ -4783,7 +4785,9 @@ export default function App() {
       // loggedOut covers a deliberate sign-out; sessionExpired covers cookies Google has
       // stopped accepting, which is the case this warning was built for and the only one it
       // used to miss entirely. Both need the same thing from the user: sign in again.
-      setSessionExpired(!!(active && active.type !== "local" && active.sessionExpired));
+      const expired = !!(active && active.type !== "local" && active.sessionExpired);
+      sessionExpiredRef.current = expired;
+      setSessionExpired(expired);
       if (active && active.type !== "local" && (active.loggedOut || active.sessionExpired)) {
         if (sessionWarnedRef.current !== active.name) {
           sessionWarnedRef.current = active.name;
@@ -4826,11 +4830,20 @@ export default function App() {
       catch { return; }
       if (cancelled) return;
       const rotate = () => invoke("rotate_session_cookies", { profileName: currentProfile }).catch(() => {});
-      // If the account is already showing as logged-out right now, don't sit through the normal
-      // startup delay — fire the (heavier, real-browser) rotation immediately. Otherwise keep the
-      // usual 25s grace period, since most of the time nothing's wrong and there's no rush.
-      const alreadyLoggedOut = !!profilesRef.current.find(p => p.name === currentProfile)?.loggedOut;
-      firstTimer = setTimeout(() => { if (!cancelled) rotate(); }, alreadyLoggedOut ? 0 : 25000);
+      // Rotate right at startup rather than after a grace period. A session that has gone stale
+      // overnight cannot be told apart from a healthy one until something fails, and waiting
+      // meant the user either refreshed by hand or sat out the 20-minute interval. Two seconds
+      // of delay keeps the (real-browser) navigation out of the first paint's way.
+      firstTimer = setTimeout(() => {
+        if (cancelled) return;
+        const wasBroken = !!profilesRef.current.find(p => p.name === currentProfile)?.loggedOut || sessionExpiredRef.current;
+        rotate().then(() => {
+          // Views that loaded against the dead session are still showing their empty state,
+          // and nothing else would refetch them. Only when it was actually broken: otherwise
+          // this would remount whatever the user is already looking at, every start.
+          if (!cancelled && wasBroken) setViewRefreshKey(k => k + 1);
+        });
+      }, 2000);
       interval = setInterval(() => { if (!cancelled) rotate(); }, 20 * 60 * 1000);
     })();
     return () => {
