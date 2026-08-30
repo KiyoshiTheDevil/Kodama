@@ -7,7 +7,7 @@
 //  Floating panels: left = layers, right = inspector. Live drag preview goes to
 //  the iframe via postMessage; commits persist (localStorage + POST v2 → SSE/OBS).
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from "react";
 // createPortal removed — font picker is now lifted to OverlayEditor level
 import {
   Button, Switch,
@@ -746,9 +746,12 @@ function LayerEffectsSection({ t, layer, setStyle }) {
 // (no live stream, no active config) and fed the saved document by postMessage, then scaled to
 // fit the card. Nothing here is a second implementation of the renderer, so what the card shows
 // is exactly what the design produces.
-function DesignPreview({ apiBase, doc, box }) {
+function DesignPreview({ apiBase, doc: rawDoc, box }) {
   const ref = useRef(null);
   const [ready, setReady] = useState(false);
+  // Same normalisation applyProfile does. Without it a design saved in the older format is
+  // handed to the engine in a shape it does not understand and the card stays blank.
+  const doc = useMemo(() => normalizeOverlayDoc(rawDoc), [rawDoc]);
   const cw = doc?.canvas?.width || 480;
   const ch = doc?.canvas?.height || 120;
   // 16px of breathing room inside the card, and never blown up past 1:1.
@@ -2325,7 +2328,7 @@ export default function OverlayEditor({
             style={{ background: "var(--bg-elevated)" }}>
 
             {/* Header */}
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border shrink-0">
+            <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 shrink-0">
               <div className="flex items-center gap-2.5 shrink-0">
                 <Swatches size={16} className="text-accent" />
                 <span className="text-t14 font-semibold text-primary">{t("ovlProfileBrowse")}</span>
@@ -2338,22 +2341,22 @@ export default function OverlayEditor({
                   <>
                     {/* Search */}
                     <div className="relative">
-                      <MagnifyingGlass size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                      <MagnifyingGlass size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                       <input
                         value={browserQuery}
                         onChange={(e) => setBrowserQuery(e.target.value)}
                         placeholder={t("ovlProfileSearch")}
-                        className="h-7 w-[180px] rounded-lg pl-7 pr-2 text-t12 text-primary border border-border outline-none focus:border-accent transition-colors"
+                        className="h-8 w-[210px] rounded-lg pl-8 pr-2.5 text-t12 text-primary border border-border outline-none focus:border-accent transition-colors"
                         style={{ background: "var(--bg-base)" }}
                       />
                     </div>
                     {/* Sort. A plain segmented row rather than a dropdown: three options do not
                         need a menu, and this keeps the header a single line of controls. */}
-                    <div className="flex items-center gap-[3px] rounded-lg p-[3px]" style={{ background: "var(--bg-base)" }}>
+                    <div className="flex items-center gap-[3px] h-8 rounded-lg p-[3px]" style={{ background: "var(--bg-base)" }}>
                       {sortOpts.map(([id, label]) => (
                         <button key={id} type="button" onClick={() => setBrowserSort(id)}
                           className={[
-                            "h-[22px] px-2.5 rounded-md text-t11 font-medium border-0 cursor-default transition-colors",
+                            "h-full px-3 rounded-md text-t12 font-medium border-0 cursor-default transition-colors",
                             browserSort === id ? "bg-accent text-[var(--accent-foreground)]" : "bg-transparent text-secondary hover:text-primary",
                           ].join(" ")}
                         >{label}</button>
@@ -2362,11 +2365,11 @@ export default function OverlayEditor({
                   </>
                 )}
                 <input ref={importFileRef} type="file" accept=".json" multiple className="hidden" onChange={handleImportFiles} />
-                <Button variant="flat" size="sm" className="gap-1.5 text-t12!" onPress={() => importFileRef.current?.click()}>
-                  <UploadSimple size={13} /> {t("ovlProfileImport")}
+                <Button variant="flat" size="sm" className="h-8! gap-1.5 text-t12!" onPress={() => importFileRef.current?.click()}>
+                  <UploadSimple size={14} /> {t("ovlProfileImport")}
                 </Button>
-                <Button variant="ghost" size="sm" isIconOnly onPress={closeBrowser} aria-label="Close">
-                  <X size={14} />
+                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={closeBrowser} aria-label="Close">
+                  <X size={15} />
                 </Button>
               </div>
             </div>
@@ -2407,25 +2410,25 @@ export default function OverlayEditor({
                               itself stays quiet. */}
                           <div className="absolute inset-x-0 bottom-0 p-2 flex items-center gap-1.5 opacity-0 group-hover/design:opacity-100 focus-within:opacity-100 transition-opacity"
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0))" }}>
-                            <Button variant="flat" color="primary" size="sm" className="flex-1 text-t11!" onPress={() => applyProfile(prof)}>
+                            <Button variant="flat" color="primary" size="sm" className="flex-1 h-9! text-t12!" onPress={() => applyProfile(prof)}>
                               {t("ovlProfileApply")}
                             </Button>
-                            <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                            <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
+                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
                                 onPress={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }} aria-label={t("ovlProfileRename")}>
-                                <PencilSimple size={12} />
+                                <PencilSimple size={14} />
                               </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
                                 onPress={() => duplicateProfile(prof)} aria-label={t("ovlProfileDuplicate")}>
-                                <Copy size={12} />
+                                <Copy size={14} />
                               </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-white!"
+                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
                                 onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
-                                <DownloadSimple size={12} />
+                                <DownloadSimple size={14} />
                               </Button>
-                              <Button variant="ghost" size="sm" isIconOnly className="h-7! w-7! min-w-0! text-danger!"
+                              <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-danger!"
                                 onPress={() => setConfirmDeleteId(prof.id)} aria-label={t("ovlProfileDelete")}>
-                                <Trash size={12} />
+                                <Trash size={14} />
                               </Button>
                             </div>
                           </div>
@@ -2437,10 +2440,10 @@ export default function OverlayEditor({
                               style={{ background: "rgba(0,0,0,0.74)", backdropFilter: "blur(4px)" }}>
                               <div className="text-t12 text-white">{t("ovlProfileDeleteConfirm")}</div>
                               <div className="flex items-center gap-2">
-                                <Button variant="flat" size="sm" className="text-t11!" onPress={() => setConfirmDeleteId(null)}>
+                                <Button variant="flat" size="sm" className="h-8! text-t12!" onPress={() => setConfirmDeleteId(null)}>
                                   {t("cancel")}
                                 </Button>
-                                <Button variant="flat" color="danger" size="sm" className="text-t11!"
+                                <Button variant="flat" color="danger" size="sm" className="h-8! text-t12!"
                                   onPress={() => { deleteProfile(prof.id); setConfirmDeleteId(null); }}>
                                   {t("ovlProfileDelete")}
                                 </Button>
