@@ -10,6 +10,32 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.36] - 2026-08-31
+
+Changes:
+- The queue handles thousands of tracks without stuttering
+- Dragging a track in the queue shows a line where it will land
+- The queue's row menu holds remove and crossfade, and right-click opens it
+- Overlay Editor rebuilt throughout: header, layers panel, inspector, toolbar and canvas
+- My Designs shows a real preview of every design, and can rename, duplicate, search and sort
+- Overlay Editor: copy and paste layers, zoom to selection, a pixel grid, and zoom up to 3200%
+- Overlay Editor: the OBS output moved to Settings
+- Playlists show their description
+- Downloads and History headers rebuilt in the library style
+- Search suggestions match the rest of the app, and arrow keys walk them
+- Settings: video sync and quality moved to Playback, track numbering to Appearance
+- Fluid Lyrics is on by default and no longer experimental
+- Lyrics providers list every sync type they offer, not just the best one
+- Experimental right-to-left layout switch
+
+Fixes:
+- The session is refreshed at startup, instead of needing a manual refresh or a 15 minute wait
+- Lyrics translation stopped working
+- A playlist opened from a shared link had no name or image in the sidebar
+- The Downloads tab could not be opened
+- Every window follows the font size setting, not just the main one
+- Server output that was printed rather than logged never reached bug reports
+
 ## [1.0.0-alpha.35] - 2026-08-19
 
 Changes:
