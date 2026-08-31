@@ -91,16 +91,27 @@ async function incr(env, key) {
  * the stats page turns consecutive snapshots into per-month deltas.
  */
 async function snapshotDownloads(env) {
+  // Unauthenticated GitHub allows 60 requests/hour PER IP, and Workers egress from shared
+  // addresses — so a third of the daily crons were being refused with 403 and
+  // x-ratelimit-remaining: 0, at the exact cron minute, through no fault of ours.
+  // An authenticated call is counted per token instead: 5000/hour, and the token needs no
+  // scopes at all because the release list is public.
+  //   npx wrangler secret put GITHUB_TOKEN
+  const headers = { "User-Agent": "kodama-stats-worker", Accept: "application/vnd.github+json" };
+  if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
   const r = await fetch(
     "https://api.github.com/repos/KiyoshiTheDevil/Kodama/releases?per_page=100",
-    { headers: { "User-Agent": "kodama-stats-worker", Accept: "application/vnd.github+json" } },
+    { headers },
   );
   if (!r.ok) {
-    // Unauthenticated GitHub allows 60 requests/hour PER IP, and Workers egress from shared
-    // addresses — so this can fail through no fault of ours. Record why instead of returning
-    // in silence, otherwise a cron that never produces data looks identical to one that
-    // never ran.
-    const note = { at: new Date().toISOString(), status: r.status, remaining: r.headers.get("x-ratelimit-remaining") };
+    // Record why instead of returning in silence: a cron that never produces data looks
+    // identical to one that never ran, and that ambiguity cost a month of guessing.
+    const note = {
+      at: new Date().toISOString(),
+      status: r.status,
+      remaining: r.headers.get("x-ratelimit-remaining"),
+      authed: !!env.GITHUB_TOKEN,
+    };
     await env.STATS.put("dlerr:last", JSON.stringify(note), { expirationTtl: 60 * 60 * 24 * 7 });
     return note;
   }
