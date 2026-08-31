@@ -6220,7 +6220,7 @@ function connect(){
   es.onmessage=e=>{try{updateState(JSON.parse(e.data));}catch(_){}};
   es.onerror=()=>{es.close();setTimeout(connect,3000);};
 }
-if(STILL){Object.assign(state,{title:'Higher Ground',artist:'ODESZA',album:'A Moment Apart',progress:78,duration:214,isPlaying:true});}
+if(STILL){Object.assign(state,{title:'Song Title',artist:'Artist',album:'Album',progress:66,duration:180,isPlaying:true});}
 else{fetch(API+'/overlay/config').then(r=>r.json()).then(c=>{applyDoc(c);connect();}).catch(()=>connect());}
 </script></body></html>"""
 
