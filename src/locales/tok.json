@@ -241,7 +241,6 @@
   "security": "awen",
   "pinProtection": "awen ante",
   "pinProtectionLabel": "awen pi ante nasin",
-  "pinProtectionDesc": "ni la, sina wile ante e ante nasin la o pana e nanpa pi suli tu tu.",
   "pinEnterPrompt": "o pana e nanpa awen tawa open",
   "pinEnterCurrent": "o pana e nanpa lon",
   "pinEnterNew": "o pana e nanpa sin",
