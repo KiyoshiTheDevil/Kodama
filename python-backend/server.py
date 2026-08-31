@@ -524,6 +524,67 @@ _logging.getLogger().setLevel(_logging.INFO)
 _logging.getLogger("werkzeug").addHandler(_ring_handler)
 _logging.getLogger("werkzeug").setLevel(_logging.INFO)
 
+# ── print() has to reach the ring too ────────────────────────────────────────
+# The ring hangs off the logging module, but this file writes roughly as much through plain
+# print() as it does through _logging — and yt-dlp, ffmpeg wrappers and third-party libraries
+# print as well. All of that was visible in a terminal and nowhere else: the Debug tab and every
+# bug report showed only the half that happened to use a logger. stdout and stderr are teed into
+# the ring, so what the Debug tab shows is what the server actually said.
+#
+# Nothing here writes log records to a stream, so this cannot echo the handler above back into
+# the ring; the two sources stay disjoint.
+class _TeeStream:
+    def __init__(self, wrapped, level):
+        self._wrapped = wrapped
+        self._level = level
+        self._buf = ""
+
+    def write(self, text):
+        # Write through first: a failure while buffering must never cost the real output.
+        if self._wrapped is not None:
+            try:
+                self._wrapped.write(text)
+            except Exception:
+                pass
+        try:
+            self._buf += text
+            while "\n" in self._buf:
+                line, self._buf = self._buf.split("\n", 1)
+                line = line.rstrip("\r")
+                if not line.strip():
+                    continue
+                with _debug_log_lock:
+                    _debug_log.append({
+                        "ts": time.time(),
+                        "level": self._level,
+                        "msg": line[:2000],
+                        "source": "backend",
+                    })
+        except Exception:
+            self._buf = ""
+
+    def flush(self):
+        if self._wrapped is not None:
+            try:
+                self._wrapped.flush()
+            except Exception:
+                pass
+
+    def isatty(self):
+        try:
+            return self._wrapped is not None and self._wrapped.isatty()
+        except Exception:
+            return False
+
+    def __getattr__(self, name):
+        # Anything else (encoding, fileno, buffer …) belongs to the real stream. Raises
+        # AttributeError on its own when there is no stream, which is the honest answer.
+        return getattr(self._wrapped, name)
+
+# In a windowed PyInstaller build both are None, and the tee then only feeds the ring.
+sys.stdout = _TeeStream(sys.stdout, "INFO")
+sys.stderr = _TeeStream(sys.stderr, "ERROR")
+
 # ─── Musixmatch (inoffizielle API) ───────────────────────────────────────────
 _mx_token = None
 _mx_token_expires = 0
