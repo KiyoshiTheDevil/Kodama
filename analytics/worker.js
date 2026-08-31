@@ -23,7 +23,9 @@
  * Bindings (wrangler.toml): KV namespace STATS (required).
  *
  * Routes:
- *   POST /ping    body: { d, m, v? }   d = daily token, m = monthly token, v = app version
+ *   POST /ping    body: { d, m, v?, os?, l? }   d = daily token, m = monthly token,
+ *                 v = app version, os = platform, l = language. The country is taken from
+ *                 Cloudflare's own request metadata, not from the body.
  *   GET  /count                        -> { day, dau, month, mau }
  *   GET  /badge                        -> shields.io endpoint JSON (active users)
  *   GET  /badge?metric=mau             -> shields.io endpoint JSON (monthly)
@@ -62,6 +64,11 @@ function human(n) {
 // which keeps the daily totals across a dimension adding up to the DAU count.
 const DIM_OK = /^[A-Za-z0-9._-]{1,32}$/;
 const OS_OK = new Set(["windows", "macos", "linux"]);
+// Two-letter ISO code as Cloudflare reports it. Deliberately NOT read from the request body:
+// the client never sends a country, so this is the one dimension nobody can spoof by POSTing
+// to /ping. It is also why it works for every installation already out there, including the
+// ones too old to send os or lang at all.
+const CC_OK = /^[A-Z]{2}$/;
 function dim(value, allowed) {
   const v = typeof value === "string" ? value : "";
   if (allowed) return allowed.has(v) ? v : "other";
@@ -215,9 +222,15 @@ export default {
 
       // One counter per dimension per day. Costs one KV write each — see the budget note
       // above; the stats page shows how close the total is running to the daily ceiling.
+      // Five writes per ping now: dau, version, os, language, country.
       await incr(env, `ver:${day}:${dim(v)}`);
       await incr(env, `os:${day}:${dim(os, OS_OK)}`);
       await incr(env, `lang:${day}:${dim(l)}`);
+      // request.cf is absent in the dashboard preview and in local development, and Cloudflare
+      // uses non-ISO markers for some networks — all of that buckets as "other" rather than
+      // being dropped, so the per-country total still adds up to the DAU figure.
+      const cc = request.cf && request.cf.country;
+      await incr(env, `geo:${day}:${CC_OK.test(cc || "") ? cc : "other"}`);
 
       // MAU — dedup on the stable monthly token so repeat pings are free.
       const seenKey = `seen:m:${month}:${m}`;
@@ -274,10 +287,10 @@ export default {
     // ── GET /history ────────────────────────────────────────────────────────
     // The whole series at once, for the local stats page (tools/stats.html).
     if (url.pathname === "/history") {
-      const out = { dau: {}, mau: {}, dl: {}, ver: {}, os: {}, lang: {} };
+      const out = { dau: {}, mau: {}, dl: {}, ver: {}, os: {}, lang: {}, geo: {} };
 
       // Nested dimensions: key is `<prefix>:<day>:<value>`, grouped per day for the page.
-      for (const [prefix, bucket] of [["ver:", out.ver], ["os:", out.os], ["lang:", out.lang]]) {
+      for (const [prefix, bucket] of [["ver:", out.ver], ["os:", out.os], ["lang:", out.lang], ["geo:", out.geo]]) {
         let cursor;
         do {
           const r = await env.STATS.list({ prefix, cursor });
