@@ -97,12 +97,40 @@ async function snapshotDownloads(env) {
   // An authenticated call is counted per token instead: 5000/hour, and the token needs no
   // scopes at all because the release list is public.
   //   npx wrangler secret put GITHUB_TOKEN
-  const headers = { "User-Agent": "kodama-stats-worker", Accept: "application/vnd.github+json" };
-  if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
-  const r = await fetch(
-    "https://api.github.com/repos/KiyoshiTheDevil/Kodama/releases?per_page=100",
-    { headers },
-  );
+  const URL_RELEASES = "https://api.github.com/repos/KiyoshiTheDevil/Kodama/releases?per_page=100";
+  const call = (token) => fetch(URL_RELEASES, {
+    headers: {
+      "User-Agent": "kodama-stats-worker",
+      Accept: "application/vnd.github+json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  let r = await call(env.GITHUB_TOKEN);
+  let fellBack = false;
+
+  // A token that has expired or been revoked answers 401 (or 403) to every single call, which
+  // would be strictly worse than having none at all — unauthenticated, two runs in three still
+  // get through. So a rejected authenticated call is retried without the header, and the note
+  // below records that it happened, because the snapshot then succeeds and nothing else would
+  // ever mention that the token has stopped working.
+  if (!r.ok && env.GITHUB_TOKEN && (r.status === 401 || r.status === 403)) {
+    const retried = await call(null);
+    if (retried.ok) { r = retried; fellBack = true; }
+    else {
+      // Keep the authenticated response: with no token the answer is the ordinary rate limit
+      // and says nothing about why the token was refused.
+      await env.STATS.put("dlerr:last", JSON.stringify({
+        at: new Date().toISOString(),
+        status: r.status,
+        remaining: r.headers.get("x-ratelimit-remaining"),
+        authed: true,
+        retriedAnon: retried.status,
+      }), { expirationTtl: 60 * 60 * 24 * 7 });
+      return { at: new Date().toISOString(), status: r.status, authed: true, retriedAnon: retried.status };
+    }
+  }
+
   if (!r.ok) {
     // Record why instead of returning in silence: a cron that never produces data looks
     // identical to one that never ran, and that ambiguity cost a month of guessing.
@@ -115,6 +143,16 @@ async function snapshotDownloads(env) {
     await env.STATS.put("dlerr:last", JSON.stringify(note), { expirationTtl: 60 * 60 * 24 * 7 });
     return note;
   }
+
+  if (fellBack) {
+    // Not an error: the day's figure was written. It is a warning that the token is dead.
+    await env.STATS.put("dlerr:last", JSON.stringify({
+      at: new Date().toISOString(),
+      status: 200,
+      authed: true,
+      note: "token rejected, fell back to unauthenticated",
+    }), { expirationTtl: 60 * 60 * 24 * 7 });
+  }
   const releases = await r.json();
   const perTag = {};
   let total = 0;
@@ -124,7 +162,12 @@ async function snapshotDownloads(env) {
     total += n;
   }
   await env.STATS.put(`dl:${todayUTC()}`, JSON.stringify({ total, perTag }), { metadata: { n: total } });
-  return { at: new Date().toISOString(), status: 200, total, releases: Object.keys(perTag).length };
+  return {
+    at: new Date().toISOString(), status: 200, total,
+    releases: Object.keys(perTag).length,
+    authed: !!env.GITHUB_TOKEN && !fellBack,
+    ...(fellBack ? { warning: "GITHUB_TOKEN was rejected, used an unauthenticated call" } : {}),
+  };
 }
 
 /**
