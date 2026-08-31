@@ -960,6 +960,7 @@
   "ovlZoomIn": "Zoom in",
   "ovlZoomOut": "Zoom out",
   "ovlZoom100": "100%",
+  "ovlZoomReset": "Reset zoom to 100%",
   "ovlZoomFit": "Zoom to fit",
   "ovlPanelLeft": "Show layers",
   "ovlPanelRight": "Show properties",

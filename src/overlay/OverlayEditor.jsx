@@ -11,7 +11,6 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } fr
 // createPortal removed — font picker is now lifted to OverlayEditor level
 import {
   Button, Switch,
-  NumberFieldRoot, NumberFieldGroup, NumberFieldInput,
   TextFieldRoot, InputRoot,
   SelectRoot, SelectTrigger, SelectValue, SelectIndicator, SelectPopover,
   ListBox, ListBoxItem,
@@ -24,7 +23,7 @@ import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet, PencilSimple,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
-  X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass,
+  X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -261,25 +260,15 @@ function Field({ label, children }) {
     </div>
   );
 }
-function NumField({ label, value, onChange, min, max, step = 1 }) {
-  const fmt = step < 1
-    ? { useGrouping: false, maximumFractionDigits: 2 }
-    : { useGrouping: false, maximumFractionDigits: 0 };
+// The type-specific sections used to put a label to the left of a boxed NumberField, which is
+// the dialect the rest of the inspector was moved away from: caption above, field across the
+// full width. Built on PillNum so these also get the drag-to-scrub prefix behaviour.
+function NumField({ label, value, onChange, min, max, step = 1, prefix }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>
-      <NumberFieldRoot
-        value={value == null || Number.isNaN(value) ? 0 : value}
-        minValue={min} maxValue={max} step={step}
-        onChange={(v) => { if (!Number.isNaN(v)) onChange(v); }}
-        aria-label={label} formatOptions={fmt}
-        className="w-[96px]"
-      >
-        <NumberFieldGroup className="h-8! bg-[var(--surface-2)]! border-border!">
-          <NumberFieldInput className="text-right! pr-2!" />
-        </NumberFieldGroup>
-      </NumberFieldRoot>
-    </div>
+    <Field label={label}>
+      <PillNum prefix={prefix} ariaLabel={label} value={value} onChange={onChange}
+        min={min} max={max} step={step} />
+    </Field>
   );
 }
 // Compact pill with a short prefix (X/Y/W/H …) — a plain controlled <input> (HeroUI's
@@ -388,20 +377,24 @@ function PercentField({ label, value, onChange, corners }) {
 function SwitchField({ label, checked, onChange }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-t12 text-muted">{label}</span>
+      <span className="text-muted" style={{ fontSize: "var(--t12)" }}>{label}</span>
       <Switch isSelected={!!checked} onChange={onChange} aria-label={label}>
         <Switch.Control><Switch.Thumb /></Switch.Control>
       </Switch>
     </div>
   );
 }
+// Labelled selects follow the fields: caption above, control across the full width. Unlabelled
+// ones already sat inline inside a row (stroke position, effect type) and stay that way.
 function SelectField({ label, value, onChange, options }) {
+  const Wrap = label
+    ? ({ children }) => <Field label={label}>{children}</Field>
+    : ({ children }) => <div className="flex items-center justify-between gap-2">{children}</div>;
   return (
-    <div className="flex items-center justify-between gap-2">
-      {label && <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>}
+    <Wrap>
       <SelectRoot
         selectedKey={value} onSelectionChange={(k) => onChange(String(k))}
-        aria-label={label} className={label ? "w-[132px]" : "flex-1 min-w-0"}
+        aria-label={label} className={label ? "w-full" : "flex-1 min-w-0"}
       >
         {/* Pill, 30px, borderless until focus -- the same field shape as PillNum and
             ColorField, so a dropdown does not read as a different kind of control. */}
@@ -421,7 +414,7 @@ function SelectField({ label, value, onChange, options }) {
           </ListBox>
         </SelectPopover>
       </SelectRoot>
-    </div>
+    </Wrap>
   );
 }
 // Icon/label segmented control (e.g. align L/C/R) — a pill matching the input fields,
@@ -594,6 +587,45 @@ function EffectList({ t, effects, onChange }) {
   );
 }
 
+// The editor pins its own surfaces the same way it pins its own accent: it is a tool, and the
+// canvas has to read as a fixed, neutral ground whatever theme the app is in — otherwise the
+// colours someone designs an overlay in would be judged against a moving background.
+const CANVAS_BG = "#1e1e1e";
+
+// Toolbar chip height. hdrCorners turns this into the pill radius (half of it), so changing it
+// here keeps the group's outer curve correct on its own. At 30 the pill value is 15, the same
+// as the header groups.
+const TOOL_H = 30;
+
+// One tool in the bottom toolbar. 30px like every other control in the editor, and the active
+// state is a filled rounded square — an isIconOnly HeroUI button rounds to a circle, which read
+// as a different species of control from everything else here.
+function ToolBtn({ active, label, onPress, bare = false, corners, children }) {
+  return (
+    <Tooltip text={label}>
+      <button type="button" onClick={onPress} aria-label={label} aria-pressed={active}
+        style={{ height: TOOL_H, borderRadius: bare ? undefined : corners }}
+        className={`px-4 flex items-center justify-center border-0 cursor-pointer transition-colors ${
+          bare
+            ? "bg-transparent text-current hover:brightness-125"
+            : active ? "bg-accent text-white" : "bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)]"
+        }`}>
+        {children}
+      </button>
+    </Tooltip>
+  );
+}
+
+// Built once per render rather than written out six times: the row is the same control repeated.
+const TOOLBAR_ITEMS = (t) => [
+  { key: "select", label: t("ovlSelect") || "Select", icon: <CursorArrow size={16} />, tool: null, isActive: (tool) => !tool },
+  { key: "shape", label: TYPE_META.shape.label, icon: <PaintBrushBroad size={16} />, variants: ["rect", "ellipse", "line", "triangle", "polygon", "star"] },
+  { key: "text", label: TYPE_META.text.label, icon: <TextSize size={16} />, tool: { type: "text" }, isActive: (tool) => tool?.type === "text" },
+  { key: "albumArt", label: TYPE_META.albumArt.label, icon: <VinylRecord size={16} />, tool: { type: "albumArt" }, isActive: (tool) => tool?.type === "albumArt" },
+  { key: "progress", label: TYPE_META.progress.label, icon: <WaveformLines size={16} />, tool: { type: "progress" }, isActive: (tool) => tool?.type === "progress" },
+  { key: "image", label: TYPE_META.image.label, icon: <ImageSquare size={16} />, tool: { type: "image" }, isActive: (tool) => tool?.type === "image" },
+];
+
 // ── Font Picker trigger (panel is lifted to OverlayEditor level) ──────────────
 function FontPicker({ t, value, onOpen }) {
   // Resolve a human-readable label even for locally-installed fonts not in FONT_LIST
@@ -602,17 +634,20 @@ function FontPicker({ t, value, onOpen }) {
     ? knownFont.label
     : value.replace(/'/g, "").split(",")[0].trim() || "System";
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{t("ovlFont")}</span>
+    <Field label={t("ovlFont")}>
       <button
         type="button"
         onClick={onOpen}
-        className="flex-1 text-right text-t12 text-primary truncate cursor-pointer hover:text-accent transition-colors"
-        style={{ fontFamily: value, background: "none", border: "none", padding: 0 }}
+        aria-label={t("ovlFont")}
+        className="w-full h-[30px] flex items-center justify-between gap-2 px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent hover:border-[rgba(255,255,255,0.12)] focus:border-accent outline-none cursor-pointer transition-colors"
       >
-        {label}
+        {/* The name is still set in its own face — that is the one place where previewing the
+            choice inside the control genuinely helps. */}
+        <span className="min-w-0 truncate text-left text-primary"
+          style={{ fontFamily: value, fontSize: "var(--t13)" }}>{label}</span>
+        <CaretDown size={11} className="shrink-0 text-secondary" />
       </button>
-    </div>
+    </Field>
   );
 }
 
@@ -644,10 +679,14 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
       </Section>
       <FillList t={t} fills={s.fills} onChange={(fills) => setStyle(id, { fills })} />
       <Section title={t("ovlAlign")}>
-        <SelectField label={t("ovlAlign")} value={s.align || "left"} options={ALIGN_OPTS(t)} onChange={(v) => setStyle(id, { align: v })} />
-        <SelectField label={t("ovlVAlign")} value={s.valign || "top"} options={VALIGN_OPTS(t)} onChange={(v) => setStyle(id, { valign: v })} />
-        <NumField label={t("ovlLineHeight")} value={s.lineHeight ?? 1.3} min={0.5} max={3} step={0.1} onChange={(v) => setStyle(id, { lineHeight: v })} />
-        <NumField label={t("ovlLetterSpacing")} value={s.letterSpacing ?? 0} min={-5} max={20} step={0.5} onChange={(v) => setStyle(id, { letterSpacing: v })} />
+        <div className="grid grid-cols-2 gap-1.5">
+          <SelectField label={t("ovlAlign")} value={s.align || "left"} options={ALIGN_OPTS(t)} onChange={(v) => setStyle(id, { align: v })} />
+          <SelectField label={t("ovlVAlign")} value={s.valign || "top"} options={VALIGN_OPTS(t)} onChange={(v) => setStyle(id, { valign: v })} />
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <NumField label={t("ovlLineHeight")} value={s.lineHeight ?? 1.3} min={0.5} max={3} step={0.1} onChange={(v) => setStyle(id, { lineHeight: v })} />
+          <NumField label={t("ovlLetterSpacing")} value={s.letterSpacing ?? 0} min={-5} max={20} step={0.5} onChange={(v) => setStyle(id, { letterSpacing: v })} />
+        </div>
         <NumField label={t("ovlMaxLines")} value={s.maxLines ?? 1} min={1} max={10} onChange={(v) => setStyle(id, { maxLines: v })} />
       </Section>
       <Section title={t("ovlMarquee")}>
@@ -691,8 +730,10 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
         }} />
         {shp === "polygon" && <NumField label={t("ovlSides")} value={s.sides ?? 6} min={3} max={12} onChange={(v) => setStyle(id, { sides: v })} />}
         {shp === "star" && (<>
-          <NumField label={t("ovlPoints")} value={s.points ?? 5} min={3} max={12} onChange={(v) => setStyle(id, { points: v })} />
-          <NumField label={t("ovlInnerRatio")} value={Math.round((s.innerRatio ?? 0.5) * 100)} min={10} max={90} onChange={(v) => setStyle(id, { innerRatio: clamp(v / 100, 0.1, 0.9) })} />
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumField label={t("ovlPoints")} value={s.points ?? 5} min={3} max={12} onChange={(v) => setStyle(id, { points: v })} />
+            <NumField label={t("ovlInnerRatio")} value={Math.round((s.innerRatio ?? 0.5) * 100)} min={10} max={90} onChange={(v) => setStyle(id, { innerRatio: clamp(v / 100, 0.1, 0.9) })} />
+          </div>
         </>)}
         {isLine && (<>
           <NumField label={t("ovlThickness")} value={s.strokeWidth ?? 4} min={1} max={200} onChange={(v) => setStyle(id, { strokeWidth: v })} />
@@ -896,6 +937,22 @@ export default function OverlayEditor({
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const [fontPickerSearch, setFontPickerSearch] = useState("");
   const [fontPickerCategory, setFontPickerCategory] = useState("all");
+  // The font panel floats and can be dragged, like the colour picker. Its position survives
+  // closing and reopening, so once it is out of the way it stays out of the way.
+  const fontPanelRef = useRef(null);
+  const [fontPickerPos, setFontPickerPos] = useState({ top: 88, left: 0 });
+  const startFontPanelDrag = useCallback((e) => {
+    if (e.target.closest("[data-no-drag]")) return;
+    e.preventDefault();
+    const rect = fontPanelRef.current.getBoundingClientRect();
+    const ox = e.clientX - rect.left, oy = e.clientY - rect.top;
+    const move = (ev) => setFontPickerPos({
+      left: Math.max(8, Math.min(window.innerWidth - rect.width - 8, ev.clientX - ox)),
+      top: Math.max(8, Math.min(window.innerHeight - rect.height - 8, ev.clientY - oy)),
+    });
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", () => window.removeEventListener("pointermove", move), { once: true });
+  }, []);
   const [localFonts, setLocalFonts] = useState(null); // null = not yet fetched
 
   const [viewportRef, viewportSize] = useElementSize();
@@ -1152,6 +1209,16 @@ export default function OverlayEditor({
   }, [doc, pushDoc, flushLive]);
 
   // Lazy-load local system fonts the first time the font picker opens.
+  useEffect(() => {
+    if (!fontPickerOpen) return;
+    setFontPickerPos((pos) => (pos.left ? pos : { top: 88, left: Math.max(8, window.innerWidth - rightW - 264) }));
+    // A backdrop would lock the canvas while the panel is open; the panel is meant to sit
+    // beside the work, not in front of it.
+    const onDown = (e) => { if (!fontPanelRef.current?.contains(e.target)) { setFontPickerOpen(false); setFontPickerSearch(""); } };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [fontPickerOpen, rightW]);
+
   useEffect(() => {
     if (!fontPickerOpen || localFonts !== null) return;
     let cancelled = false;
@@ -1506,7 +1573,7 @@ export default function OverlayEditor({
       {/* ── Top bar (doubles as the custom title bar in standalone) ────────────────
           52px tall with 30px controls, per the design. The document name moved out of here
           and sits above the layer list now: it belongs to the document, not to the toolbar. */}
-      <div className="shrink-0 flex items-center gap-1 h-[52px] pl-[22px] pr-3 border-b border-border" {...(standalone ? { "data-tauri-drag-region": true } : {})}>
+      <div className="shrink-0 flex items-center gap-1 h-[52px] pl-[22px] pr-3" {...(standalone ? { "data-tauri-drag-region": true } : {})}>
         <div className="flex items-center gap-2 pr-2 shrink-0">
           <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
           <span className="text-t13 font-semibold text-primary">{t("ovlEditorTitle")}</span>
@@ -1655,7 +1722,7 @@ export default function OverlayEditor({
       <div className="flex-1 flex min-h-0 relative">
 
         {/* ── Left: layers ──────────────────────────────────────────────────────── */}
-        {prefs.showLeft && <div className="shrink-0 flex flex-col border-r border-border relative" style={{ width: leftW }}>
+        {prefs.showLeft && <div className="shrink-0 flex flex-col relative" style={{ width: leftW }}>
           <div onPointerDown={(e) => startPanelResize("left", e)}
             className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
           {/* The document name lives with the document, not in the toolbar. */}
@@ -1751,10 +1818,11 @@ export default function OverlayEditor({
         </div>}
 
       {/* ── Canvas viewport ────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 mx-2.5 mb-2.5">
       <div
         ref={viewportRef}
-        className="relative flex-1 overflow-hidden"
-        style={{ background: "color-mix(in srgb, var(--bg-base), #000 30%)" }}
+        className="relative flex-1 min-h-0 overflow-hidden rounded-[18px]"
+        style={{ background: CANVAS_BG }}
         onWheel={onWheel}
         onPointerDown={(e) => {
           // Handles the whole viewport (canvas + surrounding free space). Clicks on a layer
@@ -1892,50 +1960,72 @@ export default function OverlayEditor({
       </div>
 
       {/* ── Zoom / fit control (bottom-left) ─────────────────────────────── */}
-      <div className="absolute bottom-3 left-3 flex items-center gap-0.5 rounded-lg px-1 py-0.5 border border-border" style={{ background: "var(--bg-elevated)" }}>
-        <Button variant="ghost" size="sm" isIconOnly onPress={() => setZoom((z) => clamp(z * 0.8, 0.1, 5))} aria-label="Zoom out"><span className="text-t13">−</span></Button>
-        <Button variant="ghost" size="sm" onPress={() => fit()} className="text-t11! tabular-nums px-1.5! min-w-[42px]">{Math.round(zoom * 100)}%</Button>
-        <Button variant="ghost" size="sm" isIconOnly onPress={() => setZoom((z) => clamp(z * 1.25, 0.1, 5))} aria-label="Zoom in"><span className="text-t13">+</span></Button>
-        <div className="w-px h-4 bg-border mx-0.5" />
-        <Button variant="ghost" size="sm" isIconOnly onPress={() => fit()} aria-label="Fit"><ArrowsOut size={14} /></Button>
+      {/* A button group like the toolbar and the header: 30px chips, pill on the free ends and
+          a notch where they touch. It used to be a bordered tray with buttons loose inside,
+          which was the last control in the editor still speaking the old dialect. */}
+      <div className="absolute bottom-3 left-3 flex items-center" style={{ gap: HDR_NOTCH }}>
+        {[
+          { key: "out", label: t("ovlZoomOut"), onPress: () => setZoom((z) => clamp(z * 0.8, 0.1, 5)), content: <Minus size={12} /> },
+          { key: "level", label: t("ovlZoomReset"), onPress: () => setZoom(1), wide: true, content: `${Math.round(zoom * 100)}%` },
+          { key: "in", label: t("ovlZoomIn"), onPress: () => setZoom((z) => clamp(z * 1.25, 0.1, 5)), content: <Plus size={12} /> },
+          { key: "fit", label: t("ovlZoomFit"), onPress: () => fit(), content: <ArrowsOut size={13} /> },
+        ].map((b, i, all) => (
+          <Tooltip key={b.key} text={b.label}>
+            <button type="button" onClick={b.onPress} aria-label={b.label}
+              style={{ height: 30, borderRadius: hdrCorners(i > 0, i < all.length - 1, 30), fontSize: "var(--t12)" }}
+              className={`${b.wide ? "px-2 min-w-[52px] tabular-nums font-medium" : "w-[30px]"} flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer`}>
+              {b.content}
+            </button>
+          </Tooltip>
+        ))}
       </div>
 
       </div>{/* end canvas viewport */}
 
-      {/* ── Floating element toolbar (Figma-style, bottom-center) — anchored to the body
-             (constant width) so it stays put when the side panels are resized ────────── */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-2xl px-2.5 py-1.5 border border-border shadow-xl" style={{ background: "var(--bg-elevated)" }}>
-        {/* Select / cursor */}
-        <Button variant="ghost" size="md" isIconOnly onPress={() => setTool(null)} aria-label={t("ovlSelect") || "Select"} className={`w-10! h-10! ${!tool ? "bg-accent! text-white!" : ""}`}>
-          <CursorArrow size={15} />
-        </Button>
-        <div className="w-px h-6 bg-border mx-0.5" />
-        {/* Shape group with variant dropdown */}
-        <div className="relative flex items-center">
-          <Button variant="ghost" size="md" isIconOnly onPress={() => setTool({ type: "shape", shape: "rect" })} aria-label={TYPE_META.shape.label} className={`w-10! h-10! ${tool?.type === "shape" ? "bg-accent! text-white!" : ""}`}><PaintBrushBroad size={16} /></Button>
-          <Dropdown>
-            <DropdownTrigger aria-label={t("ovlShape")}
-              className="w-4 h-9 flex items-center justify-center text-muted hover:text-primary rounded transition-colors border-0 bg-transparent cursor-pointer">
-              <CaretDown size={11} />
-            </DropdownTrigger>
-            <DropdownPopover placement="top start" className="min-w-44">
-              <DropdownMenu aria-label={t("ovlShape")} onAction={(key) => setTool({ type: "shape", shape: String(key) })}>
-                {["rect", "ellipse", "line", "triangle", "polygon", "star"].map((v) => (
-                  <DropdownItem key={v} id={v} textValue={t("ovlShape_" + v)}>{t("ovlShape_" + v)}</DropdownItem>
-                ))}
-              </DropdownMenu>
-            </DropdownPopover>
-          </Dropdown>
-        </div>
-        <div className="w-px h-6 bg-border mx-0.5" />
-        <Button variant="ghost" size="md" isIconOnly onPress={() => setTool({ type: "text" })} aria-label={TYPE_META.text.label} className={`w-10! h-10! ${tool?.type === "text" ? "bg-accent! text-white!" : ""}`}><TextSize size={16} /></Button>
-        <Button variant="ghost" size="md" isIconOnly onPress={() => setTool({ type: "albumArt" })} aria-label={TYPE_META.albumArt.label} className={`w-10! h-10! ${tool?.type === "albumArt" ? "bg-accent! text-white!" : ""}`}><VinylRecord size={16} /></Button>
-        <Button variant="ghost" size="md" isIconOnly onPress={() => setTool({ type: "progress" })} aria-label={TYPE_META.progress.label} className={`w-10! h-10! ${tool?.type === "progress" ? "bg-accent! text-white!" : ""}`}><WaveformLines size={16} /></Button>
-        <Button variant="ghost" size="md" isIconOnly onPress={() => setTool({ type: "image" })} aria-label={TYPE_META.image.label} className={`w-10! h-10! ${tool?.type === "image" ? "bg-accent! text-white!" : ""}`}><ImageSquare size={16} /></Button>
+      {/* ── Element toolbar, in its own band under the canvas ─────────────────────────
+             Separate chips rather than one enclosing pill: the concept gives each tool its own
+             surface, so the row reads as six controls instead of one segmented widget. ────── */}
+      <div className="shrink-0 flex items-center justify-center pt-2.5" style={{ gap: HDR_NOTCH }}>
+        {TOOLBAR_ITEMS(t).map((it, i, all) => {
+          // The group rule the whole editor follows: the free ends of the row keep the pill
+          // radius, the touching ends get the notch. At 44px tall the pill value is 22, and
+          // hdrCorners derives it from the height so the two can never drift apart.
+          const corners = hdrCorners(i > 0, i < all.length - 1, TOOL_H);
+          return it.variants ? (
+            /* Shapes carry their variant menu inside the same chip: the caret belongs to the
+               tool, so the pair reads as one control with a divider, not two chips. */
+            <div key={it.key}
+              style={{ height: TOOL_H, borderRadius: corners }}
+              className={`flex items-center overflow-hidden transition-colors ${
+                tool?.type === "shape" ? "bg-accent text-white" : "bg-[var(--surface-2)] text-secondary"
+              }`}>
+              <ToolBtn active={tool?.type === "shape"} label={it.label} bare
+                onPress={() => setTool({ type: "shape", shape: "rect" })}>{it.icon}</ToolBtn>
+              <div className={`w-px h-4 ${tool?.type === "shape" ? "bg-white/30" : "bg-[var(--stroke)]"}`} />
+              <Dropdown>
+                <DropdownTrigger aria-label={t("ovlShape")} style={{ height: TOOL_H }}
+                  className="w-7 pr-1 flex items-center justify-center border-0 bg-transparent cursor-pointer text-current hover:brightness-125 transition-[filter]">
+                  <CaretDown size={11} />
+                </DropdownTrigger>
+                <DropdownPopover placement="top start" className="min-w-44">
+                  <DropdownMenu aria-label={t("ovlShape")} onAction={(key) => setTool({ type: "shape", shape: String(key) })}>
+                    {it.variants.map((v) => (
+                      <DropdownItem key={v} id={v} textValue={t("ovlShape_" + v)}>{t("ovlShape_" + v)}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </DropdownPopover>
+              </Dropdown>
+            </div>
+          ) : (
+            <ToolBtn key={it.key} active={it.isActive(tool)} label={it.label} corners={corners}
+              onPress={() => setTool(it.tool)}>{it.icon}</ToolBtn>
+          );
+        })}
       </div>
+      </div>{/* end canvas + toolbar column */}
 
       {/* ── Right: inspector (docked) ──────────────────────────────────────────── */}
-      {prefs.showRight && <div className="shrink-0 flex flex-col border-l border-border relative" style={{ width: rightW }}>
+      {prefs.showRight && <div className="shrink-0 flex flex-col relative" style={{ width: rightW }}>
         <div onPointerDown={(e) => startPanelResize("right", e)}
           className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
         <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3">
@@ -2222,83 +2312,80 @@ export default function OverlayEditor({
           return f.label.toLowerCase().includes(fontPickerSearch.toLowerCase());
         });
         const closePicker = () => { setFontPickerOpen(false); setFontPickerSearch(""); };
+        const CAT_OPTS = [
+          { value: "all", label: t("ovlFontAll") },
+          { value: "google", label: t("ovlFontGoogle") },
+          { value: "system", label: t("ovlFontSystem") },
+          { value: "local", label: t("ovlFontLocal") + (localFonts === null ? " …" : localFontItems.length > 0 ? ` (${localFontItems.length})` : "") },
+        ];
         return (
           <div
-            className="fixed inset-0 z-50"
-            onClick={closePicker}
+            ref={fontPanelRef}
+            className="fixed z-50 w-60 flex flex-col overflow-hidden select-none"
+            style={{
+              top: fontPickerPos.top, left: fontPickerPos.left, maxHeight: "68vh",
+              // The same shell the colour picker uses, so the two floating panels of the editor
+              // are recognisably the same kind of thing.
+              background: "#1c1c1c", border: "0.5px solid rgba(255,255,255,0.12)",
+              borderRadius: "var(--r-xl)", boxShadow: "var(--elevation-4)",
+            }}
+            onKeyDown={(e) => { if (e.key === "Escape") closePicker(); }}
           >
-            <div
-              className="absolute right-[264px] top-16 w-56 rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden"
-              style={{ background: "var(--bg-elevated)", maxHeight: "68vh" }}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => { if (e.key === "Escape") closePicker(); }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
-                <span className="text-t13 font-semibold text-primary">{t("ovlFont")}</span>
-                <button type="button" onClick={closePicker}
-                  className="w-6 h-6 flex items-center justify-center rounded-md border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer">
-                  <X size={13} />
-                </button>
-              </div>
+            {/* Drag header. The panel used to be pinned under the toolbar, which put it on top
+                of the inspector it belongs to and nowhere near the text being styled. */}
+            <div onPointerDown={startFontPanelDrag}
+              className="flex items-center gap-2 px-3 h-9 shrink-0 text-muted" style={{ cursor: "move" }}>
+              <DotsSixVertical size={13} />
+              <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t13)" }}>{t("ovlFont")}</span>
+              <button data-no-drag type="button" onClick={closePicker} aria-label={t("close")}
+                className="w-6 h-6 flex items-center justify-center rounded-[var(--r-md)] border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer">
+                <X size={13} />
+              </button>
+            </div>
 
-              {/* Search */}
-              <div className="px-2 pt-2 shrink-0">
-                <div className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 border border-border" style={{ background: "rgba(255,255,255,0.07)" }}>
-                  <MagnifyingGlass size={12} className="text-muted shrink-0" />
-                  <input
-                    autoFocus
-                    value={fontPickerSearch}
-                    onChange={(e) => setFontPickerSearch(e.target.value)}
-                    placeholder={t("ovlFontSearch")}
-                    className="flex-1 min-w-0 bg-transparent text-t12 text-primary outline-none placeholder:text-muted"
-                  />
-                  {fontPickerSearch && (
-                    <button type="button" onClick={() => setFontPickerSearch("")}
-                      className="w-5 h-5 flex items-center justify-center rounded border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer">
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
+            {/* Search + category, both in the editor's field shape */}
+            <div className="px-2.5 pb-2 flex flex-col gap-1.5 shrink-0">
+              <div className="flex items-center gap-2 h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
+                <MagnifyingGlass size={12} className="text-muted shrink-0" />
+                <input
+                  autoFocus
+                  value={fontPickerSearch}
+                  onChange={(e) => setFontPickerSearch(e.target.value)}
+                  placeholder={t("ovlFontSearch")}
+                  style={{ fontSize: "var(--t13)" }}
+                  className="flex-1 min-w-0 bg-transparent text-primary outline-none placeholder:text-muted"
+                />
+                {fontPickerSearch && (
+                  <button type="button" onClick={() => setFontPickerSearch("")} aria-label={t("close")}
+                    className="w-4 h-4 shrink-0 flex items-center justify-center rounded-full border-0 bg-transparent text-muted hover:text-primary transition-colors cursor-pointer">
+                    <X size={10} />
+                  </button>
+                )}
               </div>
+              <SelectField value={fontPickerCategory} options={CAT_OPTS} onChange={setFontPickerCategory} />
+            </div>
 
-              {/* Category */}
-              <div className="px-2 pt-1.5 pb-2 shrink-0">
-                <select
-                  value={fontPickerCategory}
-                  onChange={(e) => setFontPickerCategory(e.target.value)}
-                  className="w-full rounded-lg px-2 py-1.5 text-t12 text-primary border border-border outline-none cursor-pointer"
-                  style={{ background: "var(--bg-elevated)" }}
+            {/* Font list */}
+            <div className="overflow-y-auto flex-1 min-h-0 px-1.5 pb-2">
+              {fontPickerCategory === "local" && localFonts === null ? (
+                <div className="text-muted text-center py-4" style={{ fontSize: "var(--t12)" }}>{t("ovlFontLocalLoading")}</div>
+              ) : filtered.length === 0 ? (
+                <div className="text-muted text-center py-4" style={{ fontSize: "var(--t12)" }}>{t("ovlFontNoResults")}</div>
+              ) : filtered.map((f) => (
+                <div
+                  key={f.value}
+                  onClick={() => { setStyle(selected.id, { fontFamily: f.value }); closePicker(); }}
+                  className={[
+                    "flex items-center h-8 px-3 rounded-[var(--r-full)] cursor-pointer leading-none transition-colors",
+                    f.value === currentValue
+                      ? "text-accent bg-accent-dim"
+                      : "text-primary hover:bg-[var(--surface-2)]",
+                  ].join(" ")}
+                  style={{ fontFamily: f.value, fontSize: "var(--t14)" }}
                 >
-                  <option value="all">{t("ovlFontAll")}</option>
-                  <option value="google">{t("ovlFontGoogle")}</option>
-                  <option value="system">{t("ovlFontSystem")}</option>
-                  <option value="local">{t("ovlFontLocal")}{localFonts === null ? " …" : localFontItems.length > 0 ? ` (${localFontItems.length})` : ""}</option>
-                </select>
-              </div>
-
-              {/* Font list */}
-              <div className="overflow-y-auto flex-1 min-h-0 px-1 pb-2">
-                {fontPickerCategory === "local" && localFonts === null ? (
-                  <div className="text-t11 text-muted text-center py-4">{t("ovlFontLocalLoading")}</div>
-                ) : filtered.length === 0 ? (
-                  <div className="text-t11 text-muted text-center py-4">{t("ovlFontNoResults")}</div>
-                ) : filtered.map((f) => (
-                  <div
-                    key={f.value}
-                    onClick={() => { setStyle(selected.id, { fontFamily: f.value }); closePicker(); }}
-                    className={[
-                      "px-3 py-1.5 rounded-lg cursor-pointer leading-snug transition-colors",
-                      f.value === currentValue
-                        ? "text-accent bg-accent-dim"
-                        : "text-primary hover:bg-[var(--bg-hover)]",
-                    ].join(" ")}
-                    style={{ fontFamily: f.value, fontSize: "15px" }}
-                  >
-                    {f.label}
-                  </div>
-                ))}
-              </div>
+                  <span className="truncate">{f.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         );
