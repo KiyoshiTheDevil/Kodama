@@ -21,7 +21,7 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
-  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Check, ArrowsClockwise, Droplet, PencilSimple,
+  Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
   ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
@@ -590,6 +590,11 @@ function EffectList({ t, effects, onChange }) {
 // The editor pins its own surfaces the same way it pins its own accent: it is a tool, and the
 // canvas has to read as a fixed, neutral ground whatever theme the app is in — otherwise the
 // colours someone designs an overlay in would be judged against a moving background.
+// Zoom limits. The ceiling was 500%, which is exactly where the pixel grid starts — so the
+// grid could never actually be used. Single-pixel work wants considerably more room.
+const ZOOM_MIN = 0.1;
+const ZOOM_MAX = 32;
+
 const CANVAS_BG = "#1e1e1e";
 
 // Toolbar chip height. hdrCorners turns this into the pill radius (half of it), so changing it
@@ -873,6 +878,7 @@ export default function OverlayEditor({
       invertZoom: read("invertZoom", false),
       showLeft:   read("showLeft", true),
       showRight:  read("showRight", true),
+      showGrid:   read("showGrid", false),
       nudge:      parseInt(localStorage.getItem("kiyoshi-ovl-nudge") || "1", 10) || 1,
       nudgeBig:   parseInt(localStorage.getItem("kiyoshi-ovl-nudgeBig") || "10", 10) || 10,
     };
@@ -1017,7 +1023,7 @@ export default function OverlayEditor({
   const fit = useCallback((d = doc, vp = viewportSize) => {
     if (!vp.w || !vp.h) return;
     const W = d.canvas.width || 1, H = d.canvas.height || 1, padPx = 96;
-    const z = clamp(Math.min((vp.w - padPx) / W, (vp.h - padPx) / H), 0.1, 3);
+    const z = clamp(Math.min((vp.w - padPx) / W, (vp.h - padPx) / H), ZOOM_MIN, 3);
     setZoom(z); setPan({ x: (vp.w - W * z) / 2, y: (vp.h - H * z) / 2 });
   }, [doc, viewportSize]);
   useEffect(() => {
@@ -1143,6 +1149,64 @@ export default function OverlayEditor({
     setSelectedId(clone.id);
   }, [doc, selectedId, commit]);
 
+  // An editor-local clipboard rather than the system one: layers are a structure, not text,
+  // and serialising them through the OS clipboard would only buy pasting into a foreign app
+  // that could not read them anyway.
+  const clipboardRef = useRef([]);
+  const pasteCountRef = useRef(0);
+
+  const copySelected = useCallback(() => {
+    const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
+    if (!picked.length) return false;
+    // Deep-cloned on copy, not on paste: otherwise editing the original before pasting would
+    // quietly change what lands.
+    clipboardRef.current = picked.map((l) => JSON.parse(JSON.stringify(l)));
+    pasteCountRef.current = 0;
+    return true;
+  }, [doc.layers, selectedIds]);
+
+  const cutSelected = useCallback(() => {
+    if (copySelected()) deleteSelected();
+  }, [copySelected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pasteClipboard = useCallback(() => {
+    const items = clipboardRef.current;
+    if (!items.length) return;
+    // Each successive paste steps further, so repeated pastes fan out instead of stacking on
+    // one another where only the top one can be grabbed.
+    pasteCountRef.current += 1;
+    const off = 20 * pasteCountRef.current;
+    const topZ = doc.layers.reduce((m, l) => Math.max(m, l.z || 0), 0);
+    const clones = items.map((l, i) => ({
+      ...l,
+      id: crypto.randomUUID(),
+      x: (l.x || 0) + off,
+      y: (l.y || 0) + off,
+      z: topZ + 1 + i,
+    }));
+    commit({ ...doc, layers: [...doc.layers, ...clones] }, doc);
+    setSelectedIds(clones.map((c) => c.id));
+  }, [doc, commit]);
+
+  // Zoom so the selection fills the viewport. Falls back to the whole canvas with nothing
+  // selected, which is what someone pressing it with an empty selection means.
+  const zoomToSelection = useCallback(() => {
+    const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
+    if (!picked.length || !viewportSize.w) { fit(); return; }
+    const minX = Math.min(...picked.map((l) => l.x || 0));
+    const minY = Math.min(...picked.map((l) => l.y || 0));
+    const maxX = Math.max(...picked.map((l) => (l.x || 0) + (l.w || 0)));
+    const maxY = Math.max(...picked.map((l) => (l.y || 0) + (l.h || 0)));
+    const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+    const padPx = 120;
+    const z = clamp(Math.min((viewportSize.w - padPx) / w, (viewportSize.h - padPx) / h), ZOOM_MIN, ZOOM_MAX);
+    setZoom(z);
+    setPan({
+      x: (viewportSize.w - w * z) / 2 - minX * z,
+      y: (viewportSize.h - h * z) / 2 - minY * z,
+    });
+  }, [doc.layers, selectedIds, viewportSize, fit]);
+
   // Align the selected layer to a canvas edge / center (editor-only, no engine change).
   const alignSelected = (axis, where) => {
     if (!selected) return;
@@ -1235,8 +1299,19 @@ export default function OverlayEditor({
       const tag = (e.target?.tagName || "").toUpperCase();
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "Escape" && tool) { e.preventDefault(); setTool(null); setDrawRect(null); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault(); if (e.shiftKey) redo(); else undo();
+      } else if (mod && e.key.toLowerCase() === "c") {
+        e.preventDefault(); copySelected();
+      } else if (mod && e.key.toLowerCase() === "x") {
+        e.preventDefault(); cutSelected();
+      } else if (mod && e.key.toLowerCase() === "v") {
+        e.preventDefault(); pasteClipboard();
+      } else if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault(); duplicateSelected();
+      } else if (mod && e.shiftKey && e.key === "2") {
+        e.preventDefault(); zoomToSelection();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
         e.preventDefault(); deleteSelected();
       } else if (selectedIds.length && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")) {
@@ -1260,7 +1335,7 @@ export default function OverlayEditor({
       const rect = viewportRef.current.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const factor = Math.exp((prefs.invertZoom ? d : -d) * 0.0015);
-      const nz = clamp(zoom * factor, 0.1, 5);
+      const nz = clamp(zoom * factor, ZOOM_MIN, ZOOM_MAX);
       const cx = (mx - pan.x) / zoom, cy = (my - pan.y) / zoom;
       setPan({ x: mx - cx * nz, y: my - cy * nz }); setZoom(nz);
     } else if (e.shiftKey) {
@@ -1562,7 +1637,26 @@ export default function OverlayEditor({
     });
   }, [profiles, persistProfiles, t]);
 
-  const HS = 9 / zoom, BW = 1.5 / zoom; // handle size / border width in canvas px (visually constant)
+  // Selection chrome lives inside the stage, which is scaled by `zoom`. Dividing its sizes by
+  // the zoom keeps it visually constant — until the numbers go below a pixel: at 3200% a handle
+  // is 0.28px across with a 0.047px border, and a border narrower than 1px is treated as a
+  // hairline and drawn a whole CSS pixel wide. Multiplied back up by 32 that is a 32px slab.
+  //
+  // So nothing here is sized in fractions any more. The chrome is written at its natural pixel
+  // size and scaled back down as a whole with a transform, which is composited rather than laid
+  // out and therefore has no minimum. `unscale` does that; sizes it counters must NOT be
+  // divided by the zoom themselves. Positions still are — those are canvas coordinates.
+  const HANDLE_PX = 9;
+  const unscale = (extra = "") => ({
+    // Origin at the top-left corner so the translate below moves by half the *visual* size:
+    // with the default centre origin the offset would be computed before the scale.
+    transformOrigin: "0 0",
+    transform: `scale(${1 / zoom})${extra}`,
+  });
+  // The outline traces the layer box, so it cannot be counter-scaled. An inset box-shadow takes
+  // the place of the border: spread is a plain length with no hairline minimum, and unlike a
+  // border it never affects the box's own size.
+  const BW = 1.5 / zoom;
 
   return (
     <div
@@ -1613,10 +1707,14 @@ export default function OverlayEditor({
           <DropdownMenu aria-label={t("ovlMenuEdit")} disabledKeys={[
             ...(past.length ? [] : ["undo"]),
             ...(future.length ? [] : ["redo"]),
-            ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone"]),
+            ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone", "copy", "cut"]),
+            ...(clipboardRef.current.length ? [] : ["paste"]),
           ]} onAction={(key) => {
             if (key === "undo") undo();
             else if (key === "redo") redo();
+            else if (key === "copy") copySelected();
+            else if (key === "cut") cutSelected();
+            else if (key === "paste") pasteClipboard();
             else if (key === "duplicate") duplicateSelected();
             else if (key === "delete") deleteSelected();
             else if (key === "selectAll") setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id));
@@ -1625,6 +1723,11 @@ export default function OverlayEditor({
             <DropdownSection>
               <DropdownItem id="undo" textValue={t("ovlMenuUndo")}><span style={{ transform: "scaleX(-1)", display: "inline-flex" }}><ArrowClockwise size={13} /></span>{t("ovlMenuUndo")}</DropdownItem>
               <DropdownItem id="redo" textValue={t("ovlMenuRedo")}><ArrowClockwise size={13} />{t("ovlMenuRedo")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="copy" textValue={t("ovlMenuCopy")}><Copy size={13} />{t("ovlMenuCopy")}</DropdownItem>
+              <DropdownItem id="cut" textValue={t("ovlMenuCut")}><Scissors size={13} />{t("ovlMenuCut")}</DropdownItem>
+              <DropdownItem id="paste" textValue={t("ovlMenuPaste")}><Clipboard size={13} />{t("ovlMenuPaste")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="duplicate" textValue={t("ovlMenuDuplicate")}><Copy size={13} />{t("ovlMenuDuplicate")}</DropdownItem>
@@ -1638,11 +1741,13 @@ export default function OverlayEditor({
         </MenuBtn>
 
         <MenuBtn label={t("ovlMenuView")} corners={hdrCorners(true, true)}>
-          <DropdownMenu aria-label={t("ovlMenuView")} onAction={(key) => {
-            if (key === "zoomIn") setZoom((z) => clamp(z * 1.25, 0.1, 5));
-            else if (key === "zoomOut") setZoom((z) => clamp(z * 0.8, 0.1, 5));
+          <DropdownMenu aria-label={t("ovlMenuView")} disabledKeys={selectedIds.length ? [] : ["zoomSel"]} onAction={(key) => {
+            if (key === "zoomIn") setZoom((z) => clamp(z * 1.25, ZOOM_MIN, ZOOM_MAX));
+            else if (key === "zoomOut") setZoom((z) => clamp(z * 0.8, ZOOM_MIN, ZOOM_MAX));
             else if (key === "zoom100") setZoom(1);
             else if (key === "fit") fit();
+            else if (key === "zoomSel") zoomToSelection();
+            else if (key === "grid") setPref("showGrid", !prefs.showGrid);
             else if (key === "reload") setIframeKey((k) => k + 1);
             else if (key === "left") setPref("showLeft", !prefs.showLeft);
             else if (key === "right") setPref("showRight", !prefs.showRight);
@@ -1652,6 +1757,10 @@ export default function OverlayEditor({
               <DropdownItem id="zoomOut" textValue={t("ovlZoomOut")}><Minus size={13} />{t("ovlZoomOut")}</DropdownItem>
               <DropdownItem id="zoom100" textValue={t("ovlZoom100")}><MagnifyingGlass size={13} />{t("ovlZoom100")}</DropdownItem>
               <DropdownItem id="fit" textValue={t("ovlZoomFit")}><ArrowsOut size={13} />{t("ovlZoomFit")}</DropdownItem>
+              <DropdownItem id="zoomSel" textValue={t("ovlZoomSelection")}><ArrowsOut size={13} />{t("ovlZoomSelection")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="grid" textValue={t("ovlShowGrid")}><PrefTick on={prefs.showGrid} />{t("ovlShowGrid")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="left" textValue={t("ovlPanelLeft")}><PrefTick on={prefs.showLeft} />{t("ovlPanelLeft")}</DropdownItem>
@@ -1842,6 +1951,20 @@ export default function OverlayEditor({
             width={doc.canvas.width} height={doc.canvas.height}
             style={{ border: "none", display: "block", background: "transparent", pointerEvents: "none" }} />
         </div>
+        {prefs.showGrid && (() => {
+          const step = 1;                     // one line per document pixel
+          const px = step * zoom;             // ... on screen
+          if (px < 5) return null;            // below this it is a grey wash, not a grid
+          const strength = clamp((px - 5) / 10, 0, 1) * 0.14;
+          return (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage:
+                `linear-gradient(to right, rgba(255,255,255,${strength}) ${1 / zoom}px, transparent ${1 / zoom}px),` +
+                `linear-gradient(to bottom, rgba(255,255,255,${strength}) ${1 / zoom}px, transparent ${1 / zoom}px)`,
+              backgroundSize: `${step}px ${step}px`,
+            }} />
+          );
+        })()}
 
         {/* Interaction layer (over the iframe). Empty-area pointerdowns bubble up to the
             viewport handler, which covers both the canvas and the free space around it. */}
@@ -1864,9 +1987,9 @@ export default function OverlayEditor({
                   transform: `rotate(${l.rotation || 0}deg)`, transformOrigin: "center center",
                   cursor: "default",
                   pointerEvents: interactive ? "auto" : "none",
-                  outline: isSel
-                    ? `${BW}px solid var(--accent)`
-                    : (hoveredId === l.id ? `${BW}px solid rgba(255,255,255,0.4)` : "none"),
+                  boxShadow: isSel
+                    ? `0 0 0 ${BW}px var(--accent)`
+                    : (hoveredId === l.id ? `0 0 0 ${BW}px rgba(255,255,255,0.4)` : "none"),
                 }}
               >
                 {isPrimary && interactive && (
@@ -1875,21 +1998,22 @@ export default function OverlayEditor({
                     <div
                       onPointerDown={(e) => startGesture(e, "rotate", null, l)}
                       style={{
-                        position: "absolute", left: "50%", top: -22 / zoom, width: HS, height: HS,
-                        marginLeft: -HS / 2, marginTop: -HS / 2, borderRadius: "50%",
-                        background: "var(--accent)", border: `${BW}px solid #fff`, cursor: "grab",
+                        position: "absolute", left: "50%", top: -22 / zoom,
+                        width: HANDLE_PX, height: HANDLE_PX, borderRadius: "50%",
+                        background: "var(--accent)", border: "1.5px solid #fff", cursor: "grab",
+                        ...unscale(" translate(-50%, -50%)"),
                       }}
                     />
                     {/* angle badge — visible while rotating */}
                     {rotAngle && (
                       <div style={{
                         position: "absolute", left: "50%", top: -44 / zoom,
-                        transform: "translateX(-50%)",
                         background: rotAngle.snapped ? "var(--accent)" : "rgba(0,0,0,0.72)",
                         color: "#fff",
-                        padding: `${2 / zoom}px ${5 / zoom}px`,
-                        borderRadius: 4 / zoom,
-                        fontSize: 11 / zoom,
+                        padding: "2px 5px",
+                        borderRadius: 4,
+                        fontSize: 11,
+                        ...unscale(" translate(-50%, 0)"),
                         lineHeight: 1.4,
                         fontFamily: "monospace",
                         whiteSpace: "nowrap",
@@ -1906,19 +2030,20 @@ export default function OverlayEditor({
                         onPointerDown={(e) => startGesture(e, "resize", h.dir, l)}
                         style={{
                           position: "absolute", left: `${h.x * 100}%`, top: `${h.y * 100}%`,
-                          width: HS, height: HS, marginLeft: -HS / 2, marginTop: -HS / 2,
-                          background: "#fff", border: `${BW}px solid var(--accent)`, borderRadius: 2 / zoom,
+                          width: HANDLE_PX, height: HANDLE_PX,
+                          background: "#fff", border: "1.5px solid var(--accent)", borderRadius: 2,
                           cursor: `${h.cur}-resize`,
+                          ...unscale(" translate(-50%, -50%)"),
                         }}
                       />
                     ))}
                     {/* size badge (W × H) below the element, Figma-style */}
                     {prefs.showDims && <div style={{
                       position: "absolute", left: "50%", top: "100%",
-                      transform: `translate(-50%, ${8 / zoom}px)`,
+                      ...unscale(" translate(-50%, 8px)"),
                       background: "var(--accent)", color: "#fff",
-                      padding: `${2 / zoom}px ${7 / zoom}px`,
-                      borderRadius: 4 / zoom, fontSize: 11 / zoom, lineHeight: 1.4, fontWeight: 600,
+                      padding: "2px 7px",
+                      borderRadius: 4, fontSize: 11, lineHeight: 1.4, fontWeight: 600,
                       fontFamily: "var(--font)", whiteSpace: "nowrap",
                       pointerEvents: "none", userSelect: "none", fontVariantNumeric: "tabular-nums",
                     }}>
@@ -1940,7 +2065,7 @@ export default function OverlayEditor({
           {marquee && (
             <div style={{
               position: "absolute", left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h,
-              border: `${1 / zoom}px solid var(--accent)`, background: "color-mix(in srgb, var(--accent) 12%, transparent)",
+              boxShadow: `inset 0 0 0 ${1 / zoom}px var(--accent)`, background: "color-mix(in srgb, var(--accent) 12%, transparent)",
               pointerEvents: "none",
             }} />
           )}
@@ -1965,15 +2090,15 @@ export default function OverlayEditor({
           which was the last control in the editor still speaking the old dialect. */}
       <div className="absolute bottom-3 left-3 flex items-center" style={{ gap: HDR_NOTCH }}>
         {[
-          { key: "out", label: t("ovlZoomOut"), onPress: () => setZoom((z) => clamp(z * 0.8, 0.1, 5)), content: <Minus size={12} /> },
+          { key: "out", label: t("ovlZoomOut"), onPress: () => setZoom((z) => clamp(z * 0.8, ZOOM_MIN, ZOOM_MAX)), content: <Minus size={12} /> },
           { key: "level", label: t("ovlZoomReset"), onPress: () => setZoom(1), wide: true, content: `${Math.round(zoom * 100)}%` },
-          { key: "in", label: t("ovlZoomIn"), onPress: () => setZoom((z) => clamp(z * 1.25, 0.1, 5)), content: <Plus size={12} /> },
+          { key: "in", label: t("ovlZoomIn"), onPress: () => setZoom((z) => clamp(z * 1.25, ZOOM_MIN, ZOOM_MAX)), content: <Plus size={12} /> },
           { key: "fit", label: t("ovlZoomFit"), onPress: () => fit(), content: <ArrowsOut size={13} /> },
         ].map((b, i, all) => (
           <Tooltip key={b.key} text={b.label}>
             <button type="button" onClick={b.onPress} aria-label={b.label}
               style={{ height: 30, borderRadius: hdrCorners(i > 0, i < all.length - 1, 30), fontSize: "var(--t12)" }}
-              className={`${b.wide ? "px-2 min-w-[52px] tabular-nums font-medium" : "w-[30px]"} flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer`}>
+              className={`${b.wide ? "px-2 min-w-[58px] tabular-nums font-medium" : "w-[30px]"} flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer`}>
               {b.content}
             </button>
           </Tooltip>
