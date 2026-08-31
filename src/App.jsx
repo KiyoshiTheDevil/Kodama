@@ -796,25 +796,36 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       onMouseDown={e => e.preventDefault()} /* keep field focus so onClick fires before blur */
       className="animate-[sugDropIn_0.16s_cubic-bezier(0.22,1,0.36,1)]"
       style={{
-        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 6,
-        background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)",
-        boxShadow: "var(--elevation-3)", overflow: "hidden", padding: 4,
+        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 8,
+        // Exactly what a HeroUI popover renders as, so this list belongs to the same family
+        // as every menu in the app: the overlay surface, its shadow, no border at all, and
+        // min(32px, --radius-3xl) — which resolves to 24px here, not the 12 this used to have.
+        background: "var(--overlay)",
+        borderRadius: "min(32px, var(--radius-3xl))",
+        boxShadow: "var(--elevation-3)",
+        overflow: "hidden", padding: 6,
       }}
     >
-      {suggestions.map((s, i) => (
-        <div key={i} onClick={() => pickSuggestion(s)} onMouseEnter={() => setSugActive(i)}
-          style={{
-            display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 10px",
-            borderRadius: "var(--r-md)", cursor: "default", fontSize: "var(--t13)",
-            color: i === sugActive ? "var(--text-primary)" : "var(--text-secondary)",
-            background: i === sugActive ? "var(--bg-hover)" : "transparent",
-            transition: "background 0.12s, color 0.12s",
-          }}
-        >
-          <MagnifyingGlass size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s}</span>
-        </div>
-      ))}
+      {suggestions.map((s, i) => {
+        const active = i === sugActive;
+        // Rows are pills: with 6px of padding inside a 24px corner, anything squarer leaves a
+        // visible gap between the row and the shape holding it. The accent-dim/accent pair is
+        // how the rest of the app marks a chosen row (font picker, sidebar).
+        return (
+          <div key={i} onClick={() => pickSuggestion(s)} onMouseEnter={() => setSugActive(i)}
+            style={{
+              display: "flex", alignItems: "center", height: 34, padding: "0 14px",
+              borderRadius: "var(--r-full)", cursor: "default", fontSize: "var(--t13)",
+              fontWeight: active ? 600 : 400,
+              color: active ? "var(--accent)" : "var(--text-secondary)",
+              background: active ? "var(--accent-dim)" : "transparent",
+              transition: "background 0.12s, color 0.12s",
+            }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s}</span>
+          </div>
+        );
+      })}
     </div>
   ) : null;
   const onSuggestionKey = (e) => {
