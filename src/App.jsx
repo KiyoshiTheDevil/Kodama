@@ -4146,6 +4146,9 @@ export default function App() {
   // Debounced (800ms) to avoid flickering on rapid track changes.
   // Periodic refresh every 15s keeps elapsed time accurate after seeks.
   const discordUpdateRef = useRef(null);
+  // Which track the OS controls and Discord were last told about, so a change of track can skip
+  // the debounce without every other state change doing the same.
+  const lastPushedTrackRef = useRef(null);
   useEffect(() => {
     let cancelled = false;
 
@@ -4159,9 +4162,12 @@ export default function App() {
           return;
         }
         const a = audioRef.current;
-        const dur = a?.duration;
-        // Skip update if audio metadata hasn't loaded yet
-        if (!dur || isNaN(dur)) return;
+        const raw = a?.duration;
+        // Zero rather than nothing. This used to bail out entirely until the duration was
+        // known, which meant Windows kept showing the previous track's title and cover — for
+        // up to fifteen seconds, until the refresh below came round. The identity of a track
+        // does not depend on knowing how long it is, and a timeline can be filled in after.
+        const dur = (typeof raw === "number" && isFinite(raw) && raw > 0) ? raw : 0;
         const artistStr = Array.isArray(currentTrack.artists)
           ? currentTrack.artists.map(a => a?.name || a).join(", ")
           : (currentTrack.artists || "");
@@ -4203,6 +4209,13 @@ export default function App() {
       } catch {}
     };
 
+    // The debounce exists so that skipping through tracks does not fire a burst of updates.
+    // But it also delayed the one update that matters most — the new track's own — so a change
+    // of track goes out immediately and only the refinements wait.
+    if (currentTrack?.videoId && currentTrack.videoId !== lastPushedTrackRef.current) {
+      lastPushedTrackRef.current = currentTrack.videoId;
+      send();
+    }
     // Debounce: wait 800ms before sending to let rapid state changes settle
     const debounce = setTimeout(send, 800);
     // Periodic refresh for elapsed time accuracy
