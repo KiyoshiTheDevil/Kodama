@@ -286,7 +286,7 @@
   "discordRpc": "Discord Rich Presence",
   "discordRpcDesc": "Show current song in your Discord profile",
   "discordClearOnPause": "Hide while paused",
-  "discordClearOnPauseDesc": "Remove the Discord status when playback is paused, instead of leaving it up while the app runs in the background.",
+  "discordClearOnPauseDesc": "Remove the Discord status when playback is paused.",
   "discordStatusDisplay": "Show status text as",
   "discordStatusDisplayDesc": "What appears in the compact status line under your name (the detail card is unaffected).",
   "discordStatusDisplaySong": "Song title",
