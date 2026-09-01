@@ -3582,17 +3582,6 @@ export default function App() {
     const id = itemId(pl);
     const already = stored.find(p => itemId(p) === id);
     const next = already ? stored.filter(p => itemId(p) !== id) : [pl, ...stored];
-    // Temporary, while a report of "pinning from the sidebar does nothing" is being chased:
-    // says whether this ran at all, with which id, and what it decided. Remove once the cause
-    // is known.
-    publishDiag("Pin attempt", {
-      id: id || "MISSING",
-      action: already ? "unpin" : "pin",
-      before: stored.length,
-      after: next.length,
-      key: profileKey("kiyoshi-pinned"),
-      at: new Date().toLocaleTimeString(),
-    });
     try {
       localStorage.setItem(profileKey("kiyoshi-pinned"), JSON.stringify(next));
     } catch (err) {
@@ -4612,15 +4601,6 @@ export default function App() {
         return !seen.has(id);   // never seen in the library ⇒ not ours to judge
       });
       if (next.length !== stored.length) {
-        // Temporary, while "pinning does nothing" is being chased: names what was dropped and
-        // from which list, so a prune can be told apart from a write that never happened.
-        publishDiag("Sidebar prune", {
-          list: prefix,
-          removed: stored.length - next.length,
-          ids: stored.filter((p) => !next.includes(p)).map((p) => p.playlistId || p.browseId || "?").join(", ").slice(0, 60),
-          "live ids": live.size,
-          at: new Date().toLocaleTimeString(),
-        });
         localStorage.setItem(key, JSON.stringify(next));
         touched = true;
       }
