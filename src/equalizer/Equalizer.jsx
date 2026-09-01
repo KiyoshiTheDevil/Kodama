@@ -6,7 +6,7 @@ import { Button } from "@heroui/react";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { HDR_ICON_BTN, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
 import {
-  ArrowClockwise, Check, FileExport, FileImport, FloppyDisk, Plus, Power, Swatches, Trash, WaveformLines, X,
+  ArrowClockwise, Check, EqualizerIcon, FileExport, FileImport, FloppyDisk, Plus, Power, Swatches, Trash, X,
 } from "../icons.jsx";
 import {
   BANDS, BUILTIN, RANGE_DB, applyToCore, isBuiltin, loadState, normalizePreset, saveState,
@@ -302,7 +302,7 @@ export default function Equalizer({ t }) {
       <div className="shrink-0 flex items-center gap-1 pl-[22px] pr-3" style={{ height: HDR_H }}
         data-tauri-drag-region>
         <div className="flex items-baseline gap-1.5 shrink-0 pointer-events-none">
-          <WaveformLines size={17} className="text-primary self-center" />
+          <EqualizerIcon size={16} className="text-primary self-center" />
           <span className="font-semibold text-primary ml-1" style={{ fontSize: "var(--t15)" }}>{t("eqTitle")}</span>
           <span className="font-bold text-accent" style={{ fontSize: "var(--t10)" }}>BETA</span>
         </div>
@@ -409,7 +409,7 @@ export default function Equalizer({ t }) {
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
                     ].join(" ")}
                     style={{ height: ROW_H }}>
-                    <WaveformLines size={15} className="shrink-0" />
+                    <EqualizerIcon size={14} className="shrink-0" />
                     <span style={{ fontSize: "var(--t13)" }} className="flex-1 truncate">{p.name}</span>
                     {active && dirty && (
                       <span className={`shrink-0 ${active ? "text-white/70" : "text-muted"}`}

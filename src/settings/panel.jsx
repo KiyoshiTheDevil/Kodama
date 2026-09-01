@@ -4,7 +4,7 @@ import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleB
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
-import { ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X } from "../icons.jsx";
+import { ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon} from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
@@ -1063,7 +1063,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {/* The equaliser opens in its own window rather than living in this panel: ten
                     faders and a preset list need room, and it is something you keep open while
                     listening instead of visiting once. */}
-                <SettingRow label={t("eqTitle")} description={t("eqDesc")} icon={<WaveformLines />}>
+                <SettingRow label={t("eqTitle")} description={t("eqDesc")} icon={<EqualizerIcon />}>
                   <Button size="sm" variant="solid" color="accent" className="flex items-center gap-1.5" onPress={() => openEqualizerWindow()}>
                     <ArrowSquareOut size={14} />
                     {t("eqOpen")}

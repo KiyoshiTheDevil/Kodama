@@ -222,6 +222,9 @@ export const TranslateLyrics    = maskIcon("/translate.svg");
 export const Romanization       = maskIcon("/romanization.svg");
 export const MiniPlayerEnter    = maskIcon("/mini-player-enable.svg");  // collapse into the mini player
 export const MiniPlayerExit     = maskIcon("/mini-player-disable.svg"); // back to the main window
+// Drawn for the equaliser: a bank of faders at different settings, which says what the thing
+// is far more directly than a waveform does.
+export const EqualizerIcon      = maskIcon("/equalizer/eq-icon.svg");
 
 // ── Overlay editor ───────────────────────────────────────────────────────────
 // Drawn for the editor's inspector. Masked like the others, so they take the current text
