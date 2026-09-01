@@ -19,6 +19,7 @@ import {
 } from "@heroui/react";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
+import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
@@ -26,8 +27,6 @@ import {
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-const editorWindow = getCurrentWebviewWindow();
 import {
   isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners,
 } from "./schema.js";
@@ -149,28 +148,7 @@ function useElementSize() {
   return [ref, size];
 }
 
-// Header controls sit on a filled, rounded chip rather than being transparent until hovered:
-// on a 52px bar the bare icons read as floating specks, and the design gives every one of them
-// a surface. --surface-2/-3 are exactly the "control" and "control hovered" tokens.
-const HDR_ICON_BTN = "w-[46px]! h-[30px]! bg-[var(--surface-2)]! hover:bg-[var(--surface-3)]! text-primary!";
-
-// Grouped controls follow the same rule as the lyrics chips (see lyrics/tool-chips.jsx): the
-// free ends of a group keep the pill radius, the touching ends get a small notch.
-//
-// And the same trap applies. The design calls for a 24px outer radius, but on a 30px-tall
-// control the two radii along one side would add up to 48; the browser then scales ALL FOUR
-// corners by 30/48, so the 24 becomes 15 AND the 6px notch quietly becomes 3.75. At this
-// height the pill value IS 15, which is the look the 24 was after, and keeping it there is
-// what lets the notch stay exactly 6.
 const LAYER_ROW_H = 30;
-const HDR_H = 30;
-const HDR_NOTCH = 6;
-const hdrCorners = (left, right, height = HDR_H) => {
-  const pill = height / 2;
-  const l = left ? HDR_NOTCH : pill;
-  const r = right ? HDR_NOTCH : pill;
-  return `${l}px ${r}px ${r}px ${l}px`;
-};
 
 // Menu bar entry. The design puts the bar at 52px with 30px controls, so the trigger height
 // lives here rather than being repeated at each of the four menus.
@@ -830,28 +808,6 @@ function DesignPreview({ apiBase, doc: rawDoc, box }) {
   );
 }
 
-function WindowControls() {
-  const [max, setMax] = useState(false);
-  useEffect(() => {
-    let cancel = false;
-    const check = () => editorWindow.isMaximized().then((v) => { if (!cancel) setMax(v); });
-    check();
-    const un = editorWindow.onResized(() => check());
-    return () => { cancel = true; un.then((fn) => fn()); };
-  }, []);
-  const base = "w-9 h-7 flex items-center justify-center rounded text-secondary transition-colors shrink-0";
-  return (
-    <div className="flex items-center gap-0.5 ml-1" style={{ pointerEvents: "all" }}>
-      <button type="button" className={`${base} hover:bg-[var(--bg-hover)]`} onClick={() => editorWindow.minimize()} aria-label="Minimize"><Minus size={11} /></button>
-      <button type="button" className={`${base} hover:bg-[var(--bg-hover)]`} onClick={() => editorWindow.toggleMaximize()} aria-label="Maximize">
-        {max
-          ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1"><rect x="2" y="0" width="8" height="8" rx="0.5" /><path d="M0 2v7a1 1 0 0 0 1 1h7" /></svg>
-          : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1"><rect x="0.5" y="0.5" width="9" height="9" rx="0.5" /></svg>}
-      </button>
-      <button type="button" className={`${base} hover:bg-[#c42b1c] hover:text-white!`} onClick={() => editorWindow.close()} aria-label="Close"><X size={11} /></button>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function OverlayEditor({

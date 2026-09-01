@@ -9,7 +9,7 @@ import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
-import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter } from "./icons.jsx";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines} from "./icons.jsx";
 
 import { API, thumb, hiResThumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
@@ -31,6 +31,8 @@ import { SettingsSidebarContent } from "./settings/sidebar-nav.jsx";
 import { lockSettingsSection, setSettingsSectionStore } from "./settings/section-store.js";
 import { SettingsPanel } from "./settings/panel.jsx";
 import { ZOOM_STEPS, FONT_STEPS, applyFontScale, readFontScale } from "./settings/scale.js";
+import { applyToCore as applyEqToCore, loadState as loadEqState } from "./equalizer/presets.js";
+import { openEqualizerWindow } from "./equalizer/window.js";
 import { DEFAULT_SHORTCUTS } from "./settings/shortcuts.js";
 import { APP_ICON_DEFAULT } from "./settings/app-icons.js";
 import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
@@ -333,16 +335,6 @@ const winCtrl = {
   startDrag: () => appWindow.startDragging(),
 };
 
-// Inject tooltip keyframes once
-if (typeof document !== "undefined" && !document.getElementById("kiyoshi-tooltip-kf")) {
-  const s = document.createElement("style");
-  s.id = "kiyoshi-tooltip-kf";
-  s.textContent = `
-    @keyframes tooltipIn{from{opacity:0;transform:translate(-50%,calc(-100% + 4px))}to{opacity:1;transform:translate(-50%,-100%)}}
-    @keyframes tooltipOut{from{opacity:1;transform:translate(-50%,-100%)}to{opacity:0;transform:translate(-50%,calc(-100% + 4px))}}
-  `;
-  document.head.appendChild(s);
-}
 
 // ── IpcAudio ─────────────────────────────────────────────────────────────────
 // Drop-in replacement for `new Audio()` that routes playback through the Rust
@@ -2627,6 +2619,13 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                     </DropdownSection>
 
                     <DropdownSection className="w-full border-t border-border mt-1 pt-1">
+                      <DropdownItem textValue={t("eqTitle")} onAction={() => openEqualizerWindow()}>
+                        <WaveformLines size={14} />
+                        {t("eqTitle")}
+                      </DropdownItem>
+                    </DropdownSection>
+
+                    <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                       <DropdownSubmenuTrigger>
                         <DropdownItem textValue={t("share")}>
                           <ShareNodes size={14} />
@@ -4618,6 +4617,11 @@ export default function App() {
 
   // Applied synchronously here as well as in the effect, so there is no flash of unstyled text.
   const [appFontScale, setAppFontScale] = useState(() => applyFontScale(readFontScale()));
+
+  // The equaliser curve lives in its own window, but the audio core is here. Without this the
+  // saved curve would only take effect once that window had been opened at least once in the
+  // session, so playback would come up flat after every restart.
+  useEffect(() => { applyEqToCore(loadEqState()); }, []);
   useEffect(() => { applyFontScale(appFontScale); }, [appFontScale]);
 
   // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),

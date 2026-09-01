@@ -6,7 +6,7 @@ import { useZoom } from "../context.jsx";
 export function Tooltip({ text, children }) {
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [pos, setPos] = useState({ x: 0, y: 0, below: false });
   const showTimer = useRef(null);
   const hideTimer = useRef(null);
   const zoom = useZoom();
@@ -27,7 +27,11 @@ export function Tooltip({ text, children }) {
         setLeaving(false);
         const el = e.currentTarget.firstElementChild || e.target;
         const r = el.getBoundingClientRect();
-        setPos({ x: r.left + r.width / 2, y: r.top });
+        // Above by default, below when there is not enough room — a control in a 52px window
+        // header would otherwise put its tooltip off the top edge, where the window simply
+        // clips it away. 44px covers the tooltip's own height plus its offset.
+        const below = r.top < 44;
+        setPos({ x: r.left + r.width / 2, y: below ? r.bottom : r.top, below });
         clearTimeout(showTimer.current);
         showTimer.current = setTimeout(() => setVisible(true), 350);
       }}
@@ -43,10 +47,10 @@ export function Tooltip({ text, children }) {
         // offset, not just its content), throwing the tooltip off far from its anchor at any zoom
         // other than 100%.
         <div style={{
-          position: "fixed", left: pos.x, top: pos.y - 6,
-          transform: "translate(-50%, -100%)",
+          position: "fixed", left: pos.x, top: pos.y + (pos.below ? 6 : -6),
+          transform: `translate(-50%, ${pos.below ? "0" : "-100%"})`,
           pointerEvents: "none", zIndex: 99999,
-          animation: `${leaving ? "tooltipOut" : "tooltipIn"} 0.12s ease forwards`,
+          animation: `${leaving ? "tooltipOut" : "tooltipIn"}${pos.below ? "Below" : ""} 0.12s ease forwards`,
         }}>
           <div style={{
             zoom,

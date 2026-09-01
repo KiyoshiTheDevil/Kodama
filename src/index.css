@@ -742,6 +742,15 @@ button:not([class]) {
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to   { opacity: 1; transform: none; }
 }
+/* Tooltips. Two pairs, because a tooltip that has flipped below its anchor has a different
+   resting transform and would otherwise animate towards the position it is NOT in. These lived
+   as a <style> element written at App.jsx module scope, which only worked in the tool windows
+   by the accident of that module being imported for its side effects. */
+@keyframes tooltipIn       { from { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); } to { opacity: 1; transform: translate(-50%, -100%); } }
+@keyframes tooltipOut      { from { opacity: 1; transform: translate(-50%, -100%); }             to { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); } }
+@keyframes tooltipInBelow  { from { opacity: 0; transform: translate(-50%, -4px); }              to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes tooltipOutBelow { from { opacity: 1; transform: translate(-50%, 0); }                 to { opacity: 0; transform: translate(-50%, -4px); } }
+
 @keyframes fadeSlideOut {
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(-18px); }
