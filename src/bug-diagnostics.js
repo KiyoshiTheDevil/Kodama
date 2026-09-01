@@ -4,7 +4,7 @@
 const _errs = [];
 function push(s) {
   try {
-    _errs.push(`[${new Date().toISOString().slice(11, 19)}] ${String(s).slice(0, 600)}`);
+    _errs.push(`[${new Date().toLocaleTimeString()}] ${String(s).slice(0, 600)}`);
     if (_errs.length > 40) _errs.shift();
   } catch { /* ignore */ }
 }
@@ -13,7 +13,15 @@ export function installErrorCapture() {
   if (window.__kodamaErrCap) return;
   window.__kodamaErrCap = true;
   window.addEventListener("error", (e) => {
-    push(`error: ${e.message}` + (e.filename ? ` @ ${e.filename}:${e.lineno}:${e.colno}` : ""));
+    const err = e.error;
+    const head = (err && (err.name || err.message))
+      ? `${err.name || "Error"}: ${err.message || "(no message)"}`
+      : `${e.message || "(no message)"} [thrown value: ${typeof err} ${String(err).slice(0, 80)}]`;
+    const where = e.filename ? ` @ ${e.filename}:${e.lineno}:${e.colno}` : "";
+    const stack = err && err.stack
+      ? " | " + String(err.stack).split(/\r?\n/).slice(0, 4).join(" ⏎ ")
+      : "";
+    push(`error: ${head}${where}${stack}`);
   });
   window.addEventListener("unhandledrejection", (e) => {
     const r = e.reason;

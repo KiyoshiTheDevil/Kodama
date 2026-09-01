@@ -1016,5 +1016,6 @@
   "scrobbleEditDesc": "Was Last.fm für diesen Titel festhält.",
   "scrobbleArtist": "Interpret",
   "scrobbleTitle": "Titel",
-  "scrobbleReset": "Zurücksetzen"
+  "scrobbleReset": "Zurücksetzen",
+  "storageFullPin": "Konnte nicht gespeichert werden: Der lokale Speicher der App ist voll."
 }

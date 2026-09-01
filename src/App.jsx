@@ -3582,7 +3582,26 @@ export default function App() {
     const id = itemId(pl);
     const already = stored.find(p => itemId(p) === id);
     const next = already ? stored.filter(p => itemId(p) !== id) : [pl, ...stored];
-    localStorage.setItem(profileKey("kiyoshi-pinned"), JSON.stringify(next));
+    // Temporary, while a report of "pinning from the sidebar does nothing" is being chased:
+    // says whether this ran at all, with which id, and what it decided. Remove once the cause
+    // is known.
+    publishDiag("Pin attempt", {
+      id: id || "MISSING",
+      action: already ? "unpin" : "pin",
+      before: stored.length,
+      after: next.length,
+      key: profileKey("kiyoshi-pinned"),
+      at: new Date().toLocaleTimeString(),
+    });
+    try {
+      localStorage.setItem(profileKey("kiyoshi-pinned"), JSON.stringify(next));
+    } catch (err) {
+      // A full store threw here and the exception escaped, so the click did nothing and said
+      // nothing. Saying so is the minimum; the storage section of the diagnostics panel names
+      // what is filling it.
+      toast.danger(translate(localStorage.getItem("kiyoshi-lang") || "de", "storageFullPin"));
+      return;
+    }
     setPinnedIds(next.map(p => itemId(p)));
     window.dispatchEvent(new Event("kiyoshi-pins-updated"));
   }, []);
@@ -4593,6 +4612,15 @@ export default function App() {
         return !seen.has(id);   // never seen in the library ⇒ not ours to judge
       });
       if (next.length !== stored.length) {
+        // Temporary, while "pinning does nothing" is being chased: names what was dropped and
+        // from which list, so a prune can be told apart from a write that never happened.
+        publishDiag("Sidebar prune", {
+          list: prefix,
+          removed: stored.length - next.length,
+          ids: stored.filter((p) => !next.includes(p)).map((p) => p.playlistId || p.browseId || "?").join(", ").slice(0, 60),
+          "live ids": live.size,
+          at: new Date().toLocaleTimeString(),
+        });
         localStorage.setItem(key, JSON.stringify(next));
         touched = true;
       }
@@ -4610,6 +4638,39 @@ export default function App() {
     window.addEventListener("kodama-library-playlists", onList);
     return () => window.removeEventListener("kodama-library-playlists", onList);
   }, [reconcileSidebar]);
+
+  // Local storage usage. A full store fails every write with QuotaExceededError, and almost
+  // every writer in this app wraps setItem in a silent catch — so the app simply stops
+  // remembering things, with no symptom beyond features that "do nothing".
+  useEffect(() => {
+    const measure = () => {
+      let total = 0;
+      const sizes = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          // Two bytes per character: localStorage counts UTF-16 code units, which is why a
+          // store looks half as full as the string lengths suggest.
+          const bytes = ((localStorage.getItem(k) || "").length + k.length) * 2;
+          total += bytes;
+          sizes.push([k, bytes]);
+        }
+      } catch { return; }
+      sizes.sort((a, b) => b[1] - a[1]);
+      const kb = (n) => `${Math.round(n / 1024)} KB`;
+      publishDiag("Storage", {
+        used: `${(total / 1048576).toFixed(2)} MB`,
+        keys: sizes.length,
+        "1.": sizes[0] ? `${sizes[0][0]} — ${kb(sizes[0][1])}` : "-",
+        "2.": sizes[1] ? `${sizes[1][0]} — ${kb(sizes[1][1])}` : "-",
+        "3.": sizes[2] ? `${sizes[2][0]} — ${kb(sizes[2][1])}` : "-",
+        "4.": sizes[3] ? `${sizes[3][0]} — ${kb(sizes[3][1])}` : "-",
+      });
+    };
+    measure();
+    const id = setInterval(measure, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   // Sidebar bookkeeping, for the diagnostics panel. Pinning is a chain of localStorage writes
   // and events across three components, so when it does not take there is nothing on screen to
@@ -6565,7 +6626,12 @@ export default function App() {
           );
         })()}
 
-        {/* Global playlist context menu */}
+        {/* Global playlist context menu.
+            Every entry carries an explicit id. Without one, react-aria keys collection items by
+            their position — and this menu's length depends on the very thing the pin entry
+            changes: "remove from recent" is only rendered while the item is NOT pinned. Acting
+            on it therefore renumbered the list underneath the click. Same lesson as the queue:
+            identify by identity, never by position. */}
         {globalContextMenu && (() => {
           const pl = globalContextMenu.playlist;
           const isPinned = pinnedIds.includes(itemId(pl));
@@ -6580,10 +6646,10 @@ export default function App() {
             <ContextMenu x={globalContextMenu.x} y={globalContextMenu.y} zoom={uiZoom}
               onClose={() => setGlobalContextMenu(null)} ariaLabel="Playlist" minWidth={190}>
               <DropdownSection>
-                <CtxItem icon={<PushPin size={15} />}
+                <CtxItem id="pin" icon={<PushPin size={15} />}
                   label={isPinned ? translate(language, "unpin") : translate(language, "pin")}
                   onSelect={() => togglePin(pl)} />
-                <CtxItem icon={<DotsThreeVertical size={16} />} label={translate(language, "open")}
+                <CtxItem id="open" icon={<DotsThreeVertical size={16} />} label={translate(language, "open")}
                   onSelect={() => {
                     if (pl?.type === "album") openAlbum(pl, view);
                     else if (pl?.type === "artist") openArtist(pl, view);
@@ -6592,20 +6658,20 @@ export default function App() {
               </DropdownSection>
               {isPlaylistShare && plShareId ? (
                 <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                  <CtxItem icon={<ShareNodes size={15} />} label={translate(language, "copyYtMusicLink")}
+                  <CtxItem id="ytm" icon={<ShareNodes size={15} />} label={translate(language, "copyYtMusicLink")}
                     onSelect={() => navigator.clipboard.writeText(`https://music.youtube.com/playlist?list=${plShareId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})} />
-                  <CtxItem icon={<Copy size={15} />} label={translate(language, "copyYoutubeLink")}
+                  <CtxItem id="yt" icon={<Copy size={15} />} label={translate(language, "copyYoutubeLink")}
                     onSelect={() => navigator.clipboard.writeText(`https://youtube.com/playlist?list=${plShareId}`).then(() => toast.success(translate(language, "linkCopied"))).catch(() => {})} />
                 </DropdownSection>
               ) : null}
               {(showAlbumNav || showArtistNav) ? (
                 <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                   {showAlbumNav ? (
-                    <CtxItem icon={<VinylRecord size={15} />} label={translate(language, "goToAlbum")}
+                    <CtxItem id="album" icon={<VinylRecord size={15} />} label={translate(language, "goToAlbum")}
                       onSelect={() => openAlbum(pl, view)} />
                   ) : null}
                   {showArtistNav ? (
-                    <CtxItem icon={<Microphone size={15} />} label={translate(language, "goToArtist")}
+                    <CtxItem id="artist" icon={<Microphone size={15} />} label={translate(language, "goToArtist")}
                       onSelect={() => openArtist({ browseId: pl.artistBrowseId }, view)} />
                   ) : null}
                 </DropdownSection>
@@ -6613,15 +6679,15 @@ export default function App() {
               {(isUserPlaylist || !isPinned) ? (
                 <DropdownSection className="w-full border-t border-border mt-1 pt-1">
                   {isUserPlaylist ? (
-                    <CtxItem icon={<PencilSimple size={15} />} label={translate(language, "renamePlaylist")}
+                    <CtxItem id="rename" icon={<PencilSimple size={15} />} label={translate(language, "renamePlaylist")}
                       onSelect={() => setRenameDialog({ playlistId: pl.playlistId, title: pl.title })} />
                   ) : null}
                   {isUserPlaylist ? (
-                    <CtxItem icon={<Trash size={15} />} danger label={translate(language, "deletePlaylist")}
+                    <CtxItem id="delete" icon={<Trash size={15} />} danger label={translate(language, "deletePlaylist")}
                       onSelect={() => setDeleteDialog({ playlistId: pl.playlistId, title: pl.title })} />
                   ) : null}
                   {!isPinned ? (
-                    <CtxItem icon={<X size={16} />} danger label={translate(language, "removeFromRecent")}
+                    <CtxItem id="removeRecent" icon={<X size={16} />} danger label={translate(language, "removeFromRecent")}
                       onSelect={() => removeRecentPlaylist(itemId(pl))} />
                   ) : null}
                 </DropdownSection>

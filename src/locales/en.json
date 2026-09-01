@@ -1016,5 +1016,6 @@
   "scrobbleEditDesc": "What Last.fm records for this track.",
   "scrobbleArtist": "Artist",
   "scrobbleTitle": "Title",
-  "scrobbleReset": "Reset"
+  "scrobbleReset": "Reset",
+  "storageFullPin": "Could not save: the app's local storage is full."
 }
