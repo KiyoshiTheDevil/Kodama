@@ -26,6 +26,16 @@ export function installErrorCapture() {
   };
 }
 
+/**
+ * Record a deliberate observation, not an error. Same ring buffer, so it travels with a bug
+ * report — which is the only way to learn anything about a fault that only happens on someone
+ * else's machine. Kept rare and one-shot at each call site: this buffer holds 40 lines, and a
+ * chatty note would push out the errors it exists for.
+ */
+export function logDiag(msg) {
+  push("diag: " + msg);
+}
+
 export function getConsoleErrors() {
   return _errs.slice();
 }

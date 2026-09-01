@@ -1020,7 +1020,16 @@ def refresh_cookies():
     _psidts_last_refresh = time.time()
     has_ts = "__Secure-1PSIDTS" in cookie_str or "__Secure-3PSIDTS" in cookie_str
     _logging.info(f"[cookies] WebView refresh applied (PSIDTS present: {has_ts})")
-    return jsonify({"ok": True, "psidts": has_ts})
+    # Re-establish whether the session is accepted, with the cookies that just arrived.
+    # _LAST_AUTHED is what /profiles turns into "sessionExpired", and applying a repair
+    # without re-checking left the app still claiming the session was dead until the next
+    # scheduled ping — which is how a rotation that worked could still raise the warning.
+    # Forced, because the timestamp above would otherwise make it skip as too recent.
+    try:
+        _refresh_ytm_psidts(force=True)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "psidts": has_ts, "authed": _LAST_AUTHED})
 
 def get_ytmusic():
     if _ytm is None:

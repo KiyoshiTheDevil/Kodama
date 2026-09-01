@@ -8,6 +8,8 @@ import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
+import { logDiag } from "../bug-diagnostics.js";
+import { publishDiag, clearDiag } from "../diagnostics/live.js";
 import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClockwise, Crown, DotsThreeVertical, DownloadSimple, Heart, MagnifyingGlass, Minus, Pause, Play, Shuffle, Sort, SortDown, SortUp, Trash } from "../icons.jsx";
 
 // Collapsing-header geometry. CARD_H is the height the pinned card reserves in the flow;
@@ -24,11 +26,28 @@ import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClock
 // not an answer. When the guess misses, the virtualiser gets no scroll element at all: its
 // offset stays 0, it forever renders the first handful of rows at the top of the list, and the
 // remaining (estimated) height below them shows up as a growing empty area as you scroll past.
+// Enough to tell one candidate from another in a bug report, without dumping the DOM.
+function describeEl(el) {
+  if (!el) return "none";
+  const cls = (el.className && typeof el.className === "string")
+    ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".")
+    : "";
+  return `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}${cls}[h=${el.clientHeight}/${el.scrollHeight}]`;
+}
+
+// Prefers an ancestor that is scrollable AND currently overflowing, but falls back to the
+// nearest one that merely declares itself scrollable. Early in a load nothing overflows yet —
+// the tracks have not arrived — and returning nothing there left the list with no scroll
+// element at all until some other dependency happened to re-run this.
 function findScrollParent(el) {
+  let declared = null;
   for (let n = el.parentElement; n; n = n.parentElement) {
     const oy = getComputedStyle(n).overflowY;
-    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+    if (oy !== "auto" && oy !== "scroll") continue;
+    if (n.scrollHeight > n.clientHeight) return n;
+    if (!declared) declared = n;
   }
+  if (declared) return declared;
   return null;
 }
 
@@ -355,9 +374,14 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
     // Keep the container we already have while it is still valid — resolving it walks the
     // ancestors with getComputedStyle, and this effect runs on every render (i.e. every
     // scroll frame), so doing that unconditionally would cost a style recalc per frame.
-    const sc = (scrollEl && scrollEl.isConnected && scrollEl.contains(inner))
-      ? scrollEl
-      : findScrollParent(inner);
+    // Still connected and still an ancestor was not enough to call the cached container
+    // valid: a wrapper that happened to overflow while the page was settling stays connected
+    // and keeps containing the list forever, so a wrong guess was never revisited. It also has
+    // to still be the element that scrolls. Both reads are cheap here — this effect already
+    // forces layout with getBoundingClientRect two lines down.
+    const cacheOk = scrollEl && scrollEl.isConnected && scrollEl.contains(inner)
+      && scrollEl.scrollHeight > scrollEl.clientHeight;
+    const sc = cacheOk ? scrollEl : findScrollParent(inner);
     if (sc !== scrollEl) setScrollEl(sc);
     if (!sc) return;
     const top = Math.max(0, Math.round(inner.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop));
@@ -373,6 +397,78 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
     overscan: 12,
     scrollMargin: listScrollMargin,
   });
+
+  // ── Diagnostics for the empty-space fault ───────────────────────────────────
+  // A tester has seen a growing blank area below long playlists across several releases; it
+  // has never once reproduced here. The signature is unmistakable — the list keeps rendering
+  // from row 0 no matter how far down the scroller is — so rather than guess again, the app
+  // records what it resolved and whether it ever ends up in that state. Both notes are
+  // one-shot and travel with a bug report.
+  const diagRef = useRef({ logged: false, stuck: false, healed: false });
+
+  useEffect(() => {
+    if (diagRef.current.logged || !listInnerRef.current || !rowCount) return;
+    diagRef.current.logged = true;
+    logDiag(
+      `tracklist scroller=${describeEl(scrollEl)} margin=${listScrollMargin} rows=${rowCount}` +
+      ` win=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`,
+    );
+  }, [scrollEl, listScrollMargin, rowCount]);
+
+  // Publish to the live panel as well. Throttled to one animation frame: a scroll handler
+  // fires far more often than anything can be read, and the panel is usually not even open.
+  useEffect(() => () => clearDiag("Track-Liste"), []);
+  const diagFrame = useRef(0);
+
+  useEffect(() => {
+    const sc = scrollEl;
+    if (!sc) return;
+    const onScroll = () => {
+      if (!diagFrame.current) {
+        diagFrame.current = requestAnimationFrame(() => {
+          diagFrame.current = 0;
+          const items = rowVirtualizer.getVirtualItems();
+          publishDiag("Track-Liste", {
+            Scroller: describeEl(sc),
+            "scrollTop": Math.round(sc.scrollTop),
+            "Listenanfang": listScrollMargin,
+            "erste Zeile": items[0]?.index ?? "-",
+            "letzte Zeile": items[items.length - 1]?.index ?? "-",
+            "Zeilen": rowCount,
+            "Gesamthöhe": rowVirtualizer.getTotalSize(),
+          });
+        });
+      }
+      // Scrolled well past where the list begins, yet the first rendered row is still the
+      // first row of the list: that is the fault and nothing else looks like it.
+      const past = sc.scrollTop - listScrollMargin;
+      const first = rowVirtualizer.getVirtualItems()[0];
+      if (past < TRACK_ROW_H * 4 || !first || first.index !== 0) return;
+
+      if (!diagRef.current.stuck) {
+        diagRef.current.stuck = true;
+        logDiag(
+          `tracklist STUCK at row 0: scrollTop=${Math.round(sc.scrollTop)} margin=${listScrollMargin}` +
+          ` rows=${rowCount} scroller=${describeEl(sc)}`,
+        );
+      }
+      // One attempt to recover: drop the cached container and re-measure. If the wrong element
+      // was latched onto, this is what fixes it; if the guess is wrong the cost is a single
+      // extra measurement. Once only, so a false positive cannot turn into a loop.
+      if (!diagRef.current.healed) {
+        diagRef.current.healed = true;
+        setScrollEl(null);
+        bumpMeasure((n) => n + 1);
+      }
+    };
+    onScroll();   // publish once on open, before anything has been scrolled
+    sc.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      sc.removeEventListener("scroll", onScroll);
+      if (diagFrame.current) cancelAnimationFrame(diagFrame.current);
+      diagFrame.current = 0;
+    };
+  }, [scrollEl, listScrollMargin, rowCount, rowVirtualizer]);
 
   // ── Collapsing header ───────────────────────────────────────────────────────
   // The poster fades into a compact bar as you scroll. Progress is written straight to

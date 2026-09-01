@@ -33,6 +33,7 @@ import { SettingsPanel } from "./settings/panel.jsx";
 import { ZOOM_STEPS, FONT_STEPS, applyFontScale, readFontScale } from "./settings/scale.js";
 import { applyToCore as applyEqToCore, loadState as loadEqState } from "./equalizer/presets.js";
 import { openEqualizerWindow } from "./equalizer/window.js";
+import { DiagOverlay } from "./diagnostics/DiagOverlay.jsx";
 import { DEFAULT_SHORTCUTS } from "./settings/shortcuts.js";
 import { APP_ICON_DEFAULT } from "./settings/app-icons.js";
 import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
@@ -3322,6 +3323,24 @@ export default function App() {
   const [appKey, setAppKey] = useState(0); // increment to force full re-render
   const [switchingTo, setSwitchingTo] = useState(null); // profile being switched to → loading overlay
   const [viewRefreshKey, setViewRefreshKey] = useState(0); // increment to refresh current view
+  // Live diagnostics panel. Reachable by shortcut so a tester can bring it up without leaving
+  // the screen that is misbehaving, and from Settings > Debug so it is findable at all.
+  const [diagOpen, setDiagOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyD") {
+        e.preventDefault();
+        setDiagOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    const fromSettings = () => setDiagOpen(true);
+    window.addEventListener("kodama-open-diagnostics", fromSettings);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("kodama-open-diagnostics", fromSettings);
+    };
+  }, []);
   // Read inside the session-keeper effect, which must not re-run when the flag flips.
   const sessionExpiredRef = useRef(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -6219,6 +6238,8 @@ export default function App() {
         })()}
 
         {/* Track context menu */}
+        {diagOpen && <DiagOverlay onClose={() => setDiagOpen(false)} />}
+
         {trackContextMenu && (() => {
           const track = trackContextMenu.track;
           const ctxLiked = likedIds.has(track.videoId);

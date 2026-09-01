@@ -173,6 +173,8 @@ export function DebugFloatingWindow({ onClose }) {
         <span className="text-t12 font-semibold text-primary flex-1">Debug</span>
         <Button variant={activeTab === "info" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("info")}>Sysinfo</Button>
         <Button variant={activeTab === "logs" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("logs")}>Logs</Button>
+        <Button variant="ghost" size="sm" className="text-t11 px-2.5!"
+          onPress={() => window.dispatchEvent(new Event("kodama-open-diagnostics"))}>Live</Button>
         <div className="w-px h-3 bg-border mx-0.5" />
         <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[var(--status-danger)]! rounded-full"><X size={12} weight="bold" /></Button>
       </div>
