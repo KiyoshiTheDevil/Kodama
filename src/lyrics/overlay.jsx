@@ -4,6 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, openComposer } from "../context.jsx";
 import { translate, isRtlLang, isRtlText, hasJapaneseText } from "../i18n.js";
 import { CaretDown, Minus, Plus, UploadSimple } from "../icons.jsx";
+import { readLyricsCache, writeLyricsCache, dropLyricsCache } from "./cache.js";
 import { fetchLyrics } from "./fetch.js";
 import { paintLineWords } from "./paint.js";
 import { parseLrc, parseTtml, parseDurationToSeconds } from "./parse.js";
@@ -59,11 +60,9 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     setSubmitterName(r.submitterName || null);
     setAppliedVersionId(r.id ?? null);
     onSourceChange?.(r.source);
-    try {
-      localStorage.setItem(`kiyoshi-lyrics-${track?.videoId}`, JSON.stringify({
-        lrc: r.lrc, source: r.source, submitterName: r.submitterName || null, versionId: r.id ?? null, failedIds: [],
-      }));
-    } catch {}
+    writeLyricsCache(track?.videoId, {
+      lrc: r.lrc, source: r.source, submitterName: r.submitterName || null, versionId: r.id ?? null, failedIds: [],
+    });
   };
   const [tick, setTick] = useState(0);
   const [translations, setTranslations] = useState(null); // array of strings, one per lyric line
@@ -431,7 +430,6 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     // per-skip jank. Aborting cancels the fetch before it resolves, so no wasted parse.
     const ac = new AbortController();
 
-    const cacheKey = `kiyoshi-lyrics-${track.videoId}`;
 
     // Check for custom lyrics first
     fetch(`${API}/lyrics/custom/${track.videoId}`, { signal: ac.signal })
@@ -470,13 +468,13 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     // Check localStorage cache first (keyed by videoId), skip if refetching
     if (refetchKey === 0) {
       try {
-        const cached = localStorage.getItem(cacheKey);
+        const cached = readLyricsCache(track.videoId);
         if (cached) {
           const parsed = JSON.parse(cached);
           const { lrc, source, submitterName: cachedSubmitter } = parsed;
           // Invalidate old Unison cache entries that predate submitterName support
           if (source === "Unison" && !("submitterName" in parsed)) {
-            localStorage.removeItem(cacheKey);
+            dropLyricsCache(track.videoId);
             throw new Error("stale");
           }
           setLyrics(lrc);
@@ -494,7 +492,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               if (cancelled) return;
               const ids = res?.failedIds || [];
               ids.forEach(id => onProviderFailed?.(id));
-              try { localStorage.setItem(cacheKey, JSON.stringify({ lrc, source, submitterName: cachedSubmitter || null, failedIds: ids })); } catch {}
+              writeLyricsCache(track.videoId, { lrc, source, submitterName: cachedSubmitter || null, failedIds: ids });
             });
           }
           return;
@@ -502,7 +500,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       } catch {}
     } else {
       // Clear stale cache before refetching
-      try { localStorage.removeItem(cacheKey); } catch {}
+      dropLyricsCache(track.videoId);
     }
 
     // Show the winning version the moment it is decided, rather than after the slowest
@@ -534,7 +532,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
           onSourceChange?.(res.source);
         }
         // Cached only now: failedIds needs every provider to have answered.
-        try { localStorage.setItem(cacheKey, JSON.stringify({ lrc: res.lrc, source: res.source, submitterName: res.submitterName || null, failedIds: res.failedIds || [] })); } catch {}
+        writeLyricsCache(track.videoId, { lrc: res.lrc, source: res.source, submitterName: res.submitterName || null, failedIds: res.failedIds || [] });
       }
       // Mark providers that were tried but failed
       res?.failedIds?.forEach(id => onProviderFailed?.(id));

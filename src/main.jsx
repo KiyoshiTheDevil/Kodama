@@ -10,9 +10,14 @@ import EqualizerApp from "./equalizer/EqualizerApp.jsx";
 // a real entry point.
 import { BigPicture } from "./bigpicture/BigPicture.jsx";
 import { installErrorCapture } from "./bug-diagnostics.js";
+import { pruneLyricsCache } from "./lyrics/cache.js";
 import "./index.css";
 
 installErrorCapture(); // capture frontend errors for the bug-report tool
+// Installs from before the lyrics cache had a ceiling carry hundreds of untracked entries.
+// Measuring them means reading every one, so it waits until the app is idle rather than
+// adding megabytes of string reads to startup.
+(window.requestIdleCallback || ((fn) => setTimeout(fn, 3000)))(() => pruneLyricsCache());
 
 // Suppress WebView2/WebKit's native right-click menu (Back/Refresh/Save as/Print) in
 // packaged builds — it's a browser artifact that doesn't belong in a desktop app and has
