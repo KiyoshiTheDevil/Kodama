@@ -4611,6 +4611,30 @@ export default function App() {
     return () => window.removeEventListener("kodama-library-playlists", onList);
   }, [reconcileSidebar]);
 
+  // Sidebar bookkeeping, for the diagnostics panel. Pinning is a chain of localStorage writes
+  // and events across three components, so when it does not take there is nothing on screen to
+  // say which link failed.
+  useEffect(() => {
+    const publish = () => {
+      const read = (k) => { try { return JSON.parse(localStorage.getItem(profileKey(k)) || "[]"); } catch { return []; } };
+      const pinned = read("kiyoshi-pinned");
+      publishDiag("Sidebar", {
+        profile: window.__activeProfile || "default",
+        pinned: pinned.length,
+        "pinned ids": pinned.map((p) => p.playlistId || p.browseId || "?").join(", ").slice(0, 80) || "-",
+        recent: read("kiyoshi-recent").length,
+        "library seen": read("kiyoshi-library-seen").length,
+      });
+    };
+    publish();
+    window.addEventListener("kiyoshi-pins-updated", publish);
+    window.addEventListener("kiyoshi-recent-updated", publish);
+    return () => {
+      window.removeEventListener("kiyoshi-pins-updated", publish);
+      window.removeEventListener("kiyoshi-recent-updated", publish);
+    };
+  }, []);
+
   const removeRecentPlaylist = useCallback((id) => {
     const key = profileKey("kiyoshi-recent");
     const stored = (() => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } })();

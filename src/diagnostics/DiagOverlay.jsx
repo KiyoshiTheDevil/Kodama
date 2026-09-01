@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, X } from "../icons.jsx";
 import { diagText, readDiag, subscribeDiag } from "./live.js";
+import { getConsoleErrors } from "../bug-diagnostics.js";
+import { setDiagErrorSource } from "./live.js";
 
 const POS_KEY = "kodama-diag-pos";
 const W = 320;
@@ -68,7 +70,20 @@ export function DiagOverlay({ onClose }) {
   // handlers, so the panel repaints as the numbers move.
   useEffect(() => subscribeDiag(() => tick((n) => n + 1)), []);
 
+  // The copied text should carry the errors too, or a pasted report is missing the one line
+  // that explains the rest of it.
+  setDiagErrorSource(() => {
+    const e = getConsoleErrors();
+    if (!e.length) return "";
+    return ["", "errors", ...e.slice(-6).map((line) => "  " + line), ""].join("\n");
+  });
+
   const sections = readDiag();
+  // The error ring is already collected for bug reports but was never visible anywhere. When
+  // a click appears to do nothing, a thrown handler is the most likely reason and the least
+  // discoverable one — the app carries on as if nothing happened. Re-read on every repaint,
+  // which the render meter causes once a second.
+  const errors = getConsoleErrors().slice(-4);
 
   return createPortal(
     <div
@@ -119,6 +134,18 @@ export function DiagOverlay({ onClose }) {
             </div>
           </div>
         ))}
+        {errors.length > 0 && (
+          <div>
+            <div className="text-[var(--status-danger)] font-semibold mb-1" style={{ fontSize: "var(--t11)" }}>
+              Errors ({errors.length})
+            </div>
+            <div className="flex flex-col gap-1">
+              {errors.map((e, i) => (
+                <div key={i} className="text-secondary break-all leading-snug" style={{ fontSize: "var(--t10)" }}>{e}</div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="text-muted pt-1 border-t border-border" style={{ fontSize: "var(--t10)" }}>
           {window.innerWidth}×{window.innerHeight} · dpr {window.devicePixelRatio}
         </div>

@@ -71,6 +71,11 @@ export function readDiag() {
   return [...sections.entries()].map(([name, s]) => ({ name, ...s }));
 }
 
+// Filled in by the panel, the only place that knows about the error ring. Keeping that import
+// out of here leaves this module independent of the rest of the app.
+let errorText = () => "";
+export function setDiagErrorSource(fn) { errorText = fn; }
+
 /** Everything as plain text, for pasting into a message. */
 export function diagText() {
   const env = [
@@ -82,5 +87,5 @@ export function diagText() {
     .map(({ name, values }) =>
       `${name}\n` + Object.entries(values).map(([k, v]) => `  ${k}: ${v}`).join("\n"))
     .join("\n\n");
-  return `Kodama diagnostics ${new Date().toISOString()}\n\nenvironment\n  ${env}\n\n${body}\n`;
+  return `Kodama diagnostics ${new Date().toISOString()}\n\nenvironment\n  ${env}\n\n${body}\n${errorText()}`;
 }
