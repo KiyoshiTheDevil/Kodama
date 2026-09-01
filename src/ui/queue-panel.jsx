@@ -234,8 +234,18 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
     count: items.length,
     getScrollElement: () => listRef.current,
     estimateSize: (i) => (items[i]?.kind === "header" ? QUEUE_HEADER_H : QUEUE_ROW_H),
+    // Identity by track rather than by position, so a list that shifts is understood as the
+    // same items moved instead of every index having changed its contents.
+    getItemKey: (i) => items[i]?.key ?? i,
     overscan: 8,
   });
+  // Sizes are cached per index and estimateSize is not consulted again for an index it has
+  // already measured. Playing a different track moves the "now playing" heading, so indices
+  // swap between heading (32px) and row (50px) while keeping their cached height — which laid
+  // rows on top of each other. Dropping the cache whenever the flattened list changes is what
+  // makes the estimate follow the contents.
+  useEffect(() => { rowVirtualizer.measure(); }, [items, rowVirtualizer]);
+
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   // Open the per-transition fade editor for globalIdx → globalIdx+1.
