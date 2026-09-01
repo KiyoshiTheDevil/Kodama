@@ -6296,7 +6296,7 @@ export default function App() {
         {diagOpen && <DiagOverlay onClose={() => setDiagOpen(false)} />}
 
         {scrobbleEdit && (
-          <ScrobbleEditModal track={scrobbleEdit} t={(k, v) => translate(language, k, v)} onClose={() => setScrobbleEdit(null)} />
+          <ScrobbleEditModal track={scrobbleEdit} onClose={() => setScrobbleEdit(null)} />
         )}
 
         {trackContextMenu && (() => {
