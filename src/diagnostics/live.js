@@ -37,6 +37,36 @@ export function subscribeDiag(fn) {
   return () => listeners.delete(fn);
 }
 
+/**
+ * Renders per second across the instrumented components.
+ *
+ * This exists because of a loop that took five minutes to eat fourteen gigabytes and was found
+ * only because the machine was left alone. React's own guard could not catch it: the effect's
+ * dependency genuinely changed on every pass, so from React's side each render had a fresh
+ * reason. A rate is the one signal that tells a runaway apart from a busy second.
+ */
+let renders = 0;
+let meterTimer = 0;
+let meterPeak = 0;
+
+export function countRender() {
+  renders++;
+}
+
+export function startRenderMeter() {
+  if (meterTimer) return;
+  meterTimer = setInterval(() => {
+    const rate = renders;
+    renders = 0;
+    if (rate > meterPeak) meterPeak = rate;
+    publishDiag("Render", {
+      "pro Sekunde": rate,
+      Spitze: meterPeak,
+      Zustand: rate > 100 ? "AUSSER KONTROLLE" : rate > 30 ? "hoch" : "normal",
+    });
+  }, 1000);
+}
+
 export function readDiag() {
   return [...sections.entries()].map(([name, s]) => ({ name, ...s }));
 }

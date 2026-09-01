@@ -34,6 +34,7 @@ import { ZOOM_STEPS, FONT_STEPS, applyFontScale, readFontScale } from "./setting
 import { applyToCore as applyEqToCore, loadState as loadEqState } from "./equalizer/presets.js";
 import { openEqualizerWindow } from "./equalizer/window.js";
 import { DiagOverlay } from "./diagnostics/DiagOverlay.jsx";
+import { countRender, publishDiag, startRenderMeter } from "./diagnostics/live.js";
 import { DEFAULT_SHORTCUTS } from "./settings/shortcuts.js";
 import { APP_ICON_DEFAULT } from "./settings/app-icons.js";
 import { LyricsPrefsProvider, useLyricsPrefs, PlaybackPrefsProvider, usePlaybackPrefs } from "./preferences.jsx";
@@ -1484,6 +1485,20 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   const playbackProgressiveRef = useRef(playbackProgressive);
   playbackProgressiveRef.current = playbackProgressive;
   const [duration, setDuration] = useState(0);
+
+  // Playback, for the diagnostics panel. Covers the class of report that used to be traceable
+  // only through server logs: "takes forever to start", "skips to the next track", "crackles".
+  useEffect(() => {
+    publishDiag("Wiedergabe", {
+      "Titel": track?.title ? track.title.slice(0, 40) : "-",
+      "Zustand": preparing ? "lädt" : isPlaying ? "spielt" : "pausiert",
+      "Modus": playbackProgressive ? "progressiv" : "vollständig",
+      "Position": `${Math.round(progress)} / ${Math.round(duration)} s`,
+      "gepuffert": buffered == null ? "-" : `${Math.round(buffered * 100)} %`,
+      "Crossfade": crossfade ? `${crossfade}s` : "aus",
+      "Warteschlange": queue?.length ?? 0,
+    });
+  }, [track?.videoId, track?.title, isPlaying, preparing, playbackProgressive, progress, duration, buffered, crossfade, queue?.length]);
   const [volume, setVolume] = useState(() => {
     const saved = parseFloat(localStorage.getItem("kiyoshi-volume"));
     return isNaN(saved) ? 0.4 : Math.max(0, Math.min(1, saved));
@@ -3326,6 +3341,8 @@ export default function App() {
   // Live diagnostics panel. Reachable by shortcut so a tester can bring it up without leaving
   // the screen that is misbehaving, and from Settings > Debug so it is findable at all.
   const [diagOpen, setDiagOpen] = useState(false);
+  countRender();
+  useEffect(() => { startRenderMeter(); }, []);
   useEffect(() => {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyD") {
@@ -4636,6 +4653,19 @@ export default function App() {
 
   // Applied synchronously here as well as in the effect, so there is no flash of unstyled text.
   const [appFontScale, setAppFontScale] = useState(() => applyFontScale(readFontScale()));
+
+  // The values that differ from machine to machine, which is where "cannot reproduce" usually
+  // ends up. CSS zoom in particular distorts the measurements a virtualised list depends on.
+  useEffect(() => {
+    publishDiag("Umgebung", {
+      "UI-Zoom": `${Math.round(uiZoom * 100)} %`,
+      "Schriftgröße": `${Math.round(appFontScale * 100)} %`,
+      "Pixelverhältnis": window.devicePixelRatio,
+      "Theme": theme,
+      "Sprache": language,
+      "RTL": rtlLayout ? "an" : "aus",
+    });
+  }, [uiZoom, appFontScale, theme, language, rtlLayout]);
 
   // The equaliser curve lives in its own window, but the audio core is here. Without this the
   // saved curve would only take effect once that window had been opened at least once in the
