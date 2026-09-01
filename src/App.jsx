@@ -1489,14 +1489,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // Playback, for the diagnostics panel. Covers the class of report that used to be traceable
   // only through server logs: "takes forever to start", "skips to the next track", "crackles".
   useEffect(() => {
-    publishDiag("Wiedergabe", {
-      "Titel": track?.title ? track.title.slice(0, 40) : "-",
-      "Zustand": preparing ? "lädt" : isPlaying ? "spielt" : "pausiert",
-      "Modus": playbackProgressive ? "progressiv" : "vollständig",
-      "Position": `${Math.round(progress)} / ${Math.round(duration)} s`,
-      "gepuffert": buffered == null ? "-" : `${Math.round(buffered * 100)} %`,
-      "Crossfade": crossfade ? `${crossfade}s` : "aus",
-      "Warteschlange": queue?.length ?? 0,
+    publishDiag("Playback", {
+      track: track?.title ? track.title.slice(0, 40) : "-",
+      state: preparing ? "loading" : isPlaying ? "playing" : "paused",
+      mode: playbackProgressive ? "progressive" : "whole file",
+      position: `${Math.round(progress)} / ${Math.round(duration)} s`,
+      buffered: buffered == null ? "-" : `${Math.round(buffered * 100)} %`,
+      crossfade: crossfade ? `${crossfade}s` : "off",
+      queue: queue?.length ?? 0,
     });
   }, [track?.videoId, track?.title, isPlaying, preparing, playbackProgressive, progress, duration, buffered, crossfade, queue?.length]);
   const [volume, setVolume] = useState(() => {
@@ -4657,13 +4657,13 @@ export default function App() {
   // The values that differ from machine to machine, which is where "cannot reproduce" usually
   // ends up. CSS zoom in particular distorts the measurements a virtualised list depends on.
   useEffect(() => {
-    publishDiag("Umgebung", {
-      "UI-Zoom": `${Math.round(uiZoom * 100)} %`,
-      "Schriftgröße": `${Math.round(appFontScale * 100)} %`,
-      "Pixelverhältnis": window.devicePixelRatio,
-      "Theme": theme,
-      "Sprache": language,
-      "RTL": rtlLayout ? "an" : "aus",
+    publishDiag("Environment", {
+      "ui zoom": `${Math.round(uiZoom * 100)} %`,
+      "font scale": `${Math.round(appFontScale * 100)} %`,
+      "pixel ratio": window.devicePixelRatio,
+      theme,
+      language,
+      rtl: rtlLayout ? "on" : "off",
     });
   }, [uiZoom, appFontScale, theme, language, rtlLayout]);
 

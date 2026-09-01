@@ -1,6 +1,10 @@
 // The live diagnostics panel. Floats over whatever is on screen, because the numbers it shows
 // are only meaningful while the faulty state is visible — walking to a settings page to read
 // them can undo the very condition being measured.
+//
+// Everything in here is written in English rather than translated. It is a tool for reporting
+// faults, its output is pasted into issues and chats that are not in the reader's language,
+// and a fixed label is a string that can be searched for.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, X } from "../icons.jsx";
@@ -76,7 +80,7 @@ export function DiagOverlay({ onClose }) {
         className="flex items-center gap-2 px-3 h-9 shrink-0 border-b border-border select-none"
         style={{ cursor: "move" }}>
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success,#3ec79a)]" />
-        <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t12)" }}>Diagnose</span>
+        <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t12)" }}>Diagnostics</span>
         <button type="button" data-no-drag aria-label="Copy"
           onClick={() => {
             navigator.clipboard.writeText(diagText()).then(() => {
@@ -94,10 +98,10 @@ export function DiagOverlay({ onClose }) {
       </div>
 
       <div className="overflow-y-auto p-3 flex flex-col gap-3">
-        {copied && <div className="text-[var(--status-success,#3ec79a)]" style={{ fontSize: "var(--t11)" }}>In die Zwischenablage kopiert</div>}
+        {copied && <div className="text-[var(--status-success,#3ec79a)]" style={{ fontSize: "var(--t11)" }}>Copied to clipboard</div>}
         {sections.length === 0 && (
           <div className="text-muted" style={{ fontSize: "var(--t11)" }}>
-            Noch nichts zu messen. Öffne eine Playlist und scrolle.
+            Nothing to measure yet. Open a playlist and scroll.
           </div>
         )}
         {sections.map(({ name, values }) => (

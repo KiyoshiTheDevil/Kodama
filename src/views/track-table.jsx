@@ -417,7 +417,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
 
   // Publish to the live panel as well. Throttled to one animation frame: a scroll handler
   // fires far more often than anything can be read, and the panel is usually not even open.
-  useEffect(() => () => clearDiag("Track-Liste"), []);
+  useEffect(() => () => clearDiag("Track list"), []);
   const diagFrame = useRef(0);
 
   useEffect(() => {
@@ -428,14 +428,14 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
         diagFrame.current = requestAnimationFrame(() => {
           diagFrame.current = 0;
           const items = rowVirtualizer.getVirtualItems();
-          publishDiag("Track-Liste", {
-            Scroller: describeEl(sc),
-            "scrollTop": Math.round(sc.scrollTop),
-            "Listenanfang": listScrollMargin,
-            "erste Zeile": items[0]?.index ?? "-",
-            "letzte Zeile": items[items.length - 1]?.index ?? "-",
-            "Zeilen": rowCount,
-            "Gesamthöhe": rowVirtualizer.getTotalSize(),
+          publishDiag("Track list", {
+            scroller: describeEl(sc),
+            scrollTop: Math.round(sc.scrollTop),
+            "list starts at": listScrollMargin,
+            "first row": items[0]?.index ?? "-",
+            "last row": items[items.length - 1]?.index ?? "-",
+            rows: rowCount,
+            "total height": rowVirtualizer.getTotalSize(),
           });
         });
       }

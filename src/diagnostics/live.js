@@ -60,9 +60,9 @@ export function startRenderMeter() {
     renders = 0;
     if (rate > meterPeak) meterPeak = rate;
     publishDiag("Render", {
-      "pro Sekunde": rate,
-      Spitze: meterPeak,
-      Zustand: rate > 100 ? "AUSSER KONTROLLE" : rate > 30 ? "hoch" : "normal",
+      "per second": rate,
+      peak: meterPeak,
+      state: rate > 100 ? "RUNAWAY" : rate > 30 ? "high" : "normal",
     });
   }, 1000);
 }
