@@ -3765,9 +3765,10 @@ export default function App() {
   // Which field drives Discord's compact member-list status line (like PreMiD's "Pick Status
   // Display"): "song" (title) / "artist" / "app" (the fixed "Kodama" app name).
   const [discordStatusDisplay, setDiscordStatusDisplay] = usePersistedState("kiyoshi-discord-status-display", "song");
-  // Off by default: presence that stays put while paused is what Discord itself does for most
-  // players, and changing it for everyone would surprise the people who never asked.
-  const [discordClearOnPause, setDiscordClearOnPause] = usePersistedState("kiyoshi-discord-clear-on-pause", false);
+  // On by default. An app left running in the background otherwise fills Discord with people
+  // "listening" to something that stopped hours ago, which is what issue #27 was about; anyone
+  // who wants the paused state to stay visible can switch it back.
+  const [discordClearOnPause, setDiscordClearOnPause] = usePersistedState("kiyoshi-discord-clear-on-pause", true);
   // Opt-in (default off): register plays in the account's actual YT Music watch history
   // (via ytmusicapi's playbackTracking ping) so they count toward YT Music's own Recap/stats
   // — separate from Kodama's own local History list, which always works regardless of this.

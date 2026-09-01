@@ -17,6 +17,11 @@ impl DiscordRpc {
     }
 }
 
+/// Art asset key for the paused badge, uploaded under the Discord application's Rich Presence
+/// art. Unlike the cover, which is passed through as a plain URL, a badge is the same image
+/// every time and belongs on Discord's own CDN rather than being hotlinked.
+const PAUSED_IMAGE: &str = "paused";
+
 #[tauri::command]
 pub fn update_discord_rpc(
     state: tauri::State<'_, DiscordRpc>,
@@ -62,13 +67,18 @@ pub fn update_discord_rpc(
     if album_c.chars().count() >= 2 {
         assets = assets.large_text(&album_c);
     }
+    // Paused is shown as the small badge Discord draws over the bottom right of the cover,
+    // which is where every other client puts it. It used to be a "⏸" glued onto the artist
+    // line, where it competed with the text for the two-character minimum and read as part of
+    // the name. PAUSED_IMAGE is a Discord art asset key, so the badge only appears once an
+    // asset by that name exists in the application's Rich Presence art; until then there is
+    // simply no badge, which is a great deal better than a stray glyph.
+    if paused {
+        assets = assets.small_image(PAUSED_IMAGE).small_text("Paused");
+    }
     let button = activity::Button::new("Listen on YouTube Music", &yt_url);
 
-    let state_str = if paused {
-        if artist_c.chars().count() >= 2 { format!("{} · ⏸", artist_c) } else { String::new() }
-    } else {
-        artist_c.clone()
-    };
+    let state_str = artist_c.clone();
 
     // Map the user's choice to Discord's status_display_type (which field the compact member-list
     // status line shows). "song"→Details, "artist"→State, "app"→Name (Discord's default).
