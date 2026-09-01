@@ -4566,6 +4566,51 @@ export default function App() {
     if (touched) window.dispatchEvent(new Event("kiyoshi-recent-updated"));
   }, []);
 
+  // Playlists deleted on the website stayed in the sidebar forever, because a pinned or
+  // recent entry is local and nothing outside the app can reach it.
+  //
+  // The rule is deliberately narrow: an entry is only ever dropped once it has been SEEN in a
+  // library listing and then stops appearing in one. Absence alone means nothing — a playlist
+  // opened from a shared link is not in the library and never will be, and pruning on absence
+  // would delete exactly the entries that were repaired yesterday. Seen-ness is remembered per
+  // profile alongside the entries themselves.
+  const reconcileSidebar = useCallback((liveIds) => {
+    const live = new Set(liveIds);
+    const seenKey = profileKey("kiyoshi-library-seen");
+    let seen;
+    try { seen = new Set(JSON.parse(localStorage.getItem(seenKey) || "[]")); } catch { seen = new Set(); }
+
+    let touched = false;
+    for (const prefix of ["kiyoshi-recent", "kiyoshi-pinned"]) {
+      const key = profileKey(prefix);
+      let stored;
+      try { stored = JSON.parse(localStorage.getItem(key) || "[]"); } catch { continue; }
+      const next = stored.filter((p) => {
+        // Albums and artists are not in this listing at all and are none of its business.
+        const id = p.playlistId;
+        if (!id || p.type) return true;
+        if (live.has(id)) return true;
+        return !seen.has(id);   // never seen in the library ⇒ not ours to judge
+      });
+      if (next.length !== stored.length) {
+        localStorage.setItem(key, JSON.stringify(next));
+        touched = true;
+      }
+    }
+
+    // Record what this listing contained, so a playlist that disappears later can be told apart
+    // from one that was never in the library to begin with.
+    const merged = [...new Set([...seen, ...live])];
+    try { localStorage.setItem(seenKey, JSON.stringify(merged)); } catch { /* private window */ }
+    if (touched) window.dispatchEvent(new Event("kiyoshi-recent-updated"));
+  }, []);
+
+  useEffect(() => {
+    const onList = (e) => reconcileSidebar(Array.isArray(e.detail) ? e.detail : []);
+    window.addEventListener("kodama-library-playlists", onList);
+    return () => window.removeEventListener("kodama-library-playlists", onList);
+  }, [reconcileSidebar]);
+
   const removeRecentPlaylist = useCallback((id) => {
     const key = profileKey("kiyoshi-recent");
     const stored = (() => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } })();

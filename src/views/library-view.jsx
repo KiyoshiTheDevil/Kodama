@@ -48,7 +48,19 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
       .then(r => r.json())
       .then(d => {
         if (d.error) throw new Error(d.error);
-        if (tab === "playlists") setPlaylists(d.playlists || []);
+        if (tab === "playlists") {
+          setPlaylists(d.playlists || []);
+          // The sidebar keeps its own pinned and recent entries, which nothing tells when a
+          // playlist is deleted somewhere else. A successful listing is the one moment the app
+          // knows what still exists, so it says so and lets App reconcile.
+          // Only when the list is non-empty: an expired session answers with nothing, and
+          // treating that as "everything is gone" would wipe the user's pins.
+          if ((d.playlists || []).length) {
+            window.dispatchEvent(new CustomEvent("kodama-library-playlists", {
+              detail: (d.playlists || []).map((p) => p.playlistId).filter(Boolean),
+            }));
+          }
+        }
         if (tab === "albums") setAlbums(d.albums || []);
         if (tab === "artists") setArtists(d.artists || []);
       })
