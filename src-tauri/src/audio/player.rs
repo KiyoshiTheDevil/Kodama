@@ -564,6 +564,29 @@ pub fn audio_set_levels_enabled(enabled: bool) {
     LEVELS_WANTED.store(enabled, Ordering::Relaxed);
 }
 
+/// The equaliser curve. Stored globally rather than handed to each source: playback creates
+/// sources in eight different places, and two of them exist at once during a crossfade.
+/// Sources pick the change up on their next sample, so moving a slider is audible immediately
+/// without restarting anything.
+#[tauri::command]
+pub fn audio_set_eq(enabled: bool, preamp_db: f32, gains_db: Vec<f32>) -> Result<(), String> {
+    if gains_db.len() != super::eq::BANDS {
+        return Err(format!("expected {} bands, got {}", super::eq::BANDS, gains_db.len()));
+    }
+    let mut gains = [0.0f32; super::eq::BANDS];
+    for (slot, g) in gains.iter_mut().zip(gains_db) {
+        // The UI clamps too, but this is a public command surface and a wild value here would
+        // reach the filter design straight away.
+        *slot = if g.is_finite() { g.clamp(-24.0, 24.0) } else { 0.0 };
+    }
+    super::eq::set_config(super::eq::EqConfig {
+        enabled,
+        preamp_db: if preamp_db.is_finite() { preamp_db.clamp(-24.0, 24.0) } else { 0.0 },
+        gains_db: gains,
+    });
+    Ok(())
+}
+
 #[tauri::command]
 pub fn audio_play(
     state: tauri::State<AudioPlayer>,

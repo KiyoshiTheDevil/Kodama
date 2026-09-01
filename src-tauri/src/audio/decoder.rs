@@ -66,6 +66,9 @@ pub struct StreamingSource {
     sample_rate: u32,
     total_duration: Option<std::time::Duration>,
     analysis: Option<Arc<super::analyzer::AnalysisBuffer>>,
+    // Built on first use: every constructor would otherwise have to remember to make one,
+    // and the sample rate is only settled once the stream has been probed.
+    eq: Option<super::eq::EqChain>,
     tap_pos: u64,
 }
 
@@ -480,6 +483,7 @@ impl StreamingSource {
             sample_rate: info.sample_rate,
             total_duration: info.total_duration,
             analysis: None,
+            eq: None,
             tap_pos: 0,
         })
     }
@@ -510,6 +514,7 @@ impl StreamingSource {
             sample_rate: info.sample_rate,
             total_duration: info.total_duration,
             analysis: None,
+            eq: None,
             tap_pos: 0,
         })
     }
@@ -528,6 +533,12 @@ impl Iterator for StreamingSource {
     fn next(&mut self) -> Option<f32> {
         loop {
             if let Some(s) = self.ring.pop() {
+                // Equalise before the visualiser tap, so the bars show what is heard rather
+                // than what was decoded.
+                let s = self
+                    .eq
+                    .get_or_insert_with(|| super::eq::EqChain::new(self.sample_rate, self.channels))
+                    .process(s);
                 if let Some(a) = &self.analysis {
                     // Tap left channel only → mono stream at sample_rate.
                     if self.channels <= 1 || self.tap_pos % self.channels as u64 == 0 {
