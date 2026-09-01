@@ -1004,5 +1004,17 @@
   "eqDesc": "Zehn Bänder und eine Vorverstärkung für die Wiedergabe.",
   "eqVideoSyncHint": "Im Video-Sync-Modus wirkt der Equalizer nicht, dort kommt der Ton aus dem Video.",
   "eqBrowsePresets": "Presets durchsuchen",
-  "eqBrowseSoon": "Kommt bald"
+  "eqBrowseSoon": "Kommt bald",
+  "scrobblePrimaryArtist": "Nur Hauptinterpret scrobbeln",
+  "scrobblePrimaryArtistDesc": "Sendet nur den erstgenannten Interpreten statt der ganzen Liste.",
+  "scrobbleOverrides": "Titel-Korrekturen",
+  "scrobbleOverridesDesc": "Interpret und Titel, die für bestimmte Stücke gescrobbelt werden. Anlegen über das Menü neben dem Player.",
+  "scrobbleOverridesEmpty": "Noch keine Korrekturen.",
+  "scrobbleOverrideTitleOnly": "nur Titel",
+  "scrobbleOverrideRemove": "Korrektur entfernen",
+  "scrobbleEdit": "Scrobble-Angaben bearbeiten",
+  "scrobbleEditDesc": "Was Last.fm für diesen Titel festhält.",
+  "scrobbleArtist": "Interpret",
+  "scrobbleTitle": "Titel",
+  "scrobbleReset": "Zurücksetzen"
 }

@@ -19,6 +19,8 @@ import { ProfileSwitcherModal } from "./modals/profile-switcher-modal.jsx";
 import { RemotePairModal } from "./ui/remote-control.jsx";
 import { DEFAULT_LYRICS_PROVIDERS, mergeLyricsProviders } from "./lyrics/providers.js";
 import { parseDurationToSeconds } from "./lyrics/parse.js";
+import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./lastfm/scrobble-rules.js";
+import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
@@ -1467,7 +1469,7 @@ function vibrantAccentFromImage(img, satMin = 0.5, light = 0.6) {
 // Accent colour picker built from HeroUI colour components:
 // ColorSwatch (preset grid + preview) + ColorArea (saturation/brightness) + ColorSlider (hue).
 // Bridges between our hex-string accent value and react-aria Color objects.
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -2638,6 +2640,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                       <DropdownItem textValue={t("eqTitle")} onAction={() => openEqualizerWindow()}>
                         <EqualizerIcon size={14} />
                         {t("eqTitle")}
+                      </DropdownItem>
+                      <DropdownItem textValue={t("scrobbleEdit")} onAction={() => onEditScrobble?.(track)}>
+                        <PencilSimple size={14} />
+                        {t("scrobbleEdit")}
                       </DropdownItem>
                     </DropdownSection>
 
@@ -3832,10 +3838,16 @@ export default function App() {
   // ─── Last.fm scrobbling ──────────────────────────────────────────────────────
   const lastfmConnectedRef = useRef(false);
   const scrobbleRef = useRef({ videoId: null, played: 0, scrobbled: false, startTs: 0 });
+  // Which track's scrobble details are being edited, if any.
+  const [scrobbleEdit, setScrobbleEdit] = useState(null);
+  // What gets scrobbled runs through the rules from issue #16: the primary-artist setting and
+  // any per-track correction. Read at send time rather than held in state, so a correction made
+  // while a track is playing applies to that track's own scrobble.
   const lfmMeta = (tr) => ({
-    artist: (tr?.artists || "").replace(/\s*-\s*Topic$/i, "").trim(),
-    track: (tr?.title || "").trim(),
-    album: tr?.album || "",
+    ...resolveScrobbleMeta(tr, {
+      primaryOnly: loadPrimaryArtistOnly(),
+      overrides: loadOverrides(),
+    }),
     duration: parseDurationToSeconds(tr?.duration) || 0,
   });
   const lfmPost = (path, body) => {
@@ -5737,7 +5749,7 @@ export default function App() {
             zIndex: fullscreen ? 105 : "auto",
             padding: fullscreen ? 0 : "0 8px 8px 4px",
           }}>
-          <Player
+          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)}
             track={currentTrack}
             setTrack={setCurrentTrack}
             queue={queue}
@@ -6282,6 +6294,10 @@ export default function App() {
 
         {/* Track context menu */}
         {diagOpen && <DiagOverlay onClose={() => setDiagOpen(false)} />}
+
+        {scrobbleEdit && (
+          <ScrobbleEditModal track={scrobbleEdit} t={(k, v) => translate(language, k, v)} onClose={() => setScrobbleEdit(null)} />
+        )}
 
         {trackContextMenu && (() => {
           const track = trackContextMenu.track;

@@ -36,9 +36,11 @@ export function Toggle({ value, onChange }) {
   );
 }
 
-export function SettingRow({ label, description, icon, children }) {
+export function SettingRow({ label, description, icon, children, vertical = false }) {
   return (
-    <CardRoot variant="secondary" className="bg-surface-1 flex flex-row items-center justify-between gap-4 px-[18px] py-4 mb-1.5">
+    <CardRoot variant="secondary" className={`bg-surface-1 gap-4 px-[18px] py-4 mb-1.5 ${
+      vertical ? "flex flex-col items-stretch" : "flex flex-row items-center justify-between"
+    }`}>
       <div className="flex items-center gap-3 min-w-0">
         {icon && (
           <div className="w-[30px] h-[30px] rounded-md shrink-0 flex items-center justify-center text-accent">
@@ -50,7 +52,7 @@ export function SettingRow({ label, description, icon, children }) {
           {description && <div className="text-t11 text-muted mt-0.5 leading-snug">{description}</div>}
         </div>
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className={vertical ? "" : "shrink-0"}>{children}</div>
     </CardRoot>
   );
 }

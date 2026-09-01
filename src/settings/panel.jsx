@@ -23,6 +23,8 @@ import { DebugTab } from "./debug-tab.jsx";
 import { UnisonIdentitySection } from "./unison-identity.jsx";
 import { ComposerSettingsSection } from "./composer-section.jsx";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { ScrobbleOverrides } from "../lastfm/ScrobbleOverrides.jsx";
+import { loadPrimaryArtistOnly, savePrimaryArtistOnly } from "../lastfm/scrobble-rules.js";
 import { openEqualizerWindow } from "../equalizer/window.js";
 
 async function openOverlayEditor() {
@@ -165,6 +167,7 @@ function AccentColorPicker({ value, onChange }) {
 
 function LastfmRow() {
   const t = useLang();
+  const [primaryOnly, setPrimaryOnly] = useState(loadPrimaryArtistOnly);
   const [status, setStatus] = useState({ enabled: true, connected: false, username: "" });
   const [phase, setPhase] = useState("idle"); // idle | awaiting | working
   const tokenRef = useRef(null);
@@ -231,6 +234,7 @@ function LastfmRow() {
   }
 
   return (
+    <>
     <SettingRow
       label="Last.fm"
       description={status.connected ? t("lastfmConnectedDesc") : (phase === "awaiting" ? t("lastfmAwaitingDesc") : t("lastfmDesc"))}
@@ -238,6 +242,20 @@ function LastfmRow() {
     >
       {control}
     </SettingRow>
+
+    {/* Only once there is a connection: rules for a scrobble that is not being sent would be
+        settings about nothing. */}
+    {status.connected && (
+      <>
+        <SettingRow label={t("scrobblePrimaryArtist")} description={t("scrobblePrimaryArtistDesc")} icon={<Microphone size={15} />}>
+          <Toggle value={primaryOnly} onChange={(v) => { setPrimaryOnly(v); savePrimaryArtistOnly(v); }} />
+        </SettingRow>
+        <SettingRow label={t("scrobbleOverrides")} description={t("scrobbleOverridesDesc")} icon={<PencilSimple size={15} />} vertical>
+          <ScrobbleOverrides t={t} />
+        </SettingRow>
+      </>
+    )}
+    </>
   );
 }
 

@@ -1004,5 +1004,17 @@
   "eqDesc": "Ten bands and a preamp, applied to playback.",
   "eqVideoSyncHint": "The equalizer does not affect Video Sync, which plays its audio through the video.",
   "eqBrowsePresets": "Browse Presets",
-  "eqBrowseSoon": "Coming soon"
+  "eqBrowseSoon": "Coming soon",
+  "scrobblePrimaryArtist": "Scrobble primary artist only",
+  "scrobblePrimaryArtistDesc": "Send just the first credited artist instead of the full list.",
+  "scrobbleOverrides": "Track corrections",
+  "scrobbleOverridesDesc": "Artist and title to scrobble for particular tracks. Add one from the menu beside the player.",
+  "scrobbleOverridesEmpty": "No corrections yet.",
+  "scrobbleOverrideTitleOnly": "title only",
+  "scrobbleOverrideRemove": "Remove correction",
+  "scrobbleEdit": "Edit scrobble info",
+  "scrobbleEditDesc": "What Last.fm records for this track.",
+  "scrobbleArtist": "Artist",
+  "scrobbleTitle": "Title",
+  "scrobbleReset": "Reset"
 }
