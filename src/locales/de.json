@@ -285,6 +285,8 @@
   "closeTrayDesc": "Fenster schließen minimiert in den System-Tray statt die App zu beenden",
   "discordRpc": "Discord Rich Presence",
   "discordRpcDesc": "Zeigt den aktuellen Song in deinem Discord-Profil an",
+  "discordClearOnPause": "Bei Pause ausblenden",
+  "discordClearOnPauseDesc": "Entfernt den Discord-Status, sobald die Wiedergabe pausiert ist, statt ihn stehen zu lassen, während die App im Hintergrund läuft.",
   "discordStatusDisplay": "Status-Text anzeigen als",
   "discordStatusDisplayDesc": "Was in der kompakten Status-Zeile unter deinem Namen steht (Detail-Ansicht bleibt unberührt).",
   "discordStatusDisplaySong": "Songtitel",

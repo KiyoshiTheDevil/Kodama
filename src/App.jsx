@@ -3765,6 +3765,9 @@ export default function App() {
   // Which field drives Discord's compact member-list status line (like PreMiD's "Pick Status
   // Display"): "song" (title) / "artist" / "app" (the fixed "Kodama" app name).
   const [discordStatusDisplay, setDiscordStatusDisplay] = usePersistedState("kiyoshi-discord-status-display", "song");
+  // Off by default: presence that stays put while paused is what Discord itself does for most
+  // players, and changing it for everyone would surprise the people who never asked.
+  const [discordClearOnPause, setDiscordClearOnPause] = usePersistedState("kiyoshi-discord-clear-on-pause", false);
   // Opt-in (default off): register plays in the account's actual YT Music watch history
   // (via ytmusicapi's playbackTracking ping) so they count toward YT Music's own Recap/stats
   // — separate from Kodama's own local History list, which always works regardless of this.
@@ -4166,6 +4169,13 @@ export default function App() {
           invoke("clear_discord_rpc").catch(() => {});
           return;
         }
+        // Requested in issue #27: with the app left running in the background, a paused
+        // presence sits in the profile all day claiming something is happening. Optional,
+        // because the paused state is genuinely wanted by anyone who steps away mid-track.
+        if (discordClearOnPause && !isPlaying) {
+          invoke("clear_discord_rpc").catch(() => {});
+          return;
+        }
         invoke("update_discord_rpc", {
           title: currentTrack.title || "",
           artist: artistStr,
@@ -4190,7 +4200,7 @@ export default function App() {
       clearTimeout(debounce);
       clearInterval(interval);
     };
-  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay]);
+  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause]);
 
   // Kimuco Bridge — report now-playing to the OBS overlay app (external, port 8888).
   // Also pushes to the built-in overlay server when enabled.
@@ -6025,6 +6035,8 @@ export default function App() {
             onCloseTrayChange={v => { setCloseTray(v); import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: v }).catch(() => {})); }}
             discordRpc={discordRpc}
             onDiscordRpcChange={(v) => { setDiscordRpc(v); if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
+            discordClearOnPause={discordClearOnPause}
+            onDiscordClearOnPauseChange={setDiscordClearOnPause}
             discordStatusDisplay={discordStatusDisplay}
             onDiscordStatusDisplayChange={setDiscordStatusDisplay}
             ytmusicHistorySync={ytmusicHistorySync}
