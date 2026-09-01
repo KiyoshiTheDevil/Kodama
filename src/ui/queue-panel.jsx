@@ -242,9 +242,14 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // Sizes are cached per index and estimateSize is not consulted again for an index it has
   // already measured. Playing a different track moves the "now playing" heading, so indices
   // swap between heading (32px) and row (50px) while keeping their cached height — which laid
-  // rows on top of each other. Dropping the cache whenever the flattened list changes is what
-  // makes the estimate follow the contents.
-  useEffect(() => { rowVirtualizer.measure(); }, [items, rowVirtualizer]);
+  // rows on top of each other. Dropping the cache is what makes the estimate follow.
+  //
+  // Keyed on the layout rather than on the items array: a fresh array on every render would
+  // make this fire on every render, and measure() causes a render of its own. That is exactly
+  // how it first went wrong. Only the count and where the heading sits can change a size, so
+  // that pair is the whole trigger.
+  const layoutKey = `${items.length}:${currentIdx}`;
+  useEffect(() => { rowVirtualizer.measure(); }, [layoutKey, rowVirtualizer]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 

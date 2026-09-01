@@ -2,7 +2,7 @@
 // and the React contexts + hooks used across the app (language, animations, zoom, font scale).
 // Kept in its own module so components split out of App.jsx can import these without pointing
 // back at App.jsx (which would create a circular import).
-import { createContext, useContext } from "react";
+import { createContext, useContext, useCallback } from "react";
 import { translate } from "./i18n.js";
 
 export const API = "http://localhost:9847";
@@ -74,7 +74,11 @@ export async function openComposer(videoId) {
 export const LangContext = createContext("de");
 export const useLang = () => {
   const lang = useContext(LangContext);
-  return (key, vars) => translate(lang, key, vars);
+  // Memoised on the language, not rebuilt per render. `t` is a dependency of memos and effects
+  // all over the app, and an identity that changed every render quietly defeated every one of
+  // them — in one case turning a useEffect into a render loop that ran the renderer process out
+  // of memory. Nothing downstream has to know; it simply stops lying about having changed.
+  return useCallback((key, vars) => translate(lang, key, vars), [lang]);
 };
 
 // ─── Animation Context ────────────────────────────────────────────────────────

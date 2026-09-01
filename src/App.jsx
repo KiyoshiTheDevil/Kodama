@@ -4769,7 +4769,9 @@ export default function App() {
   useEffect(() => { profilesRef.current = profiles; }, [profiles]);
   const [hasProfile, setHasProfile] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const sessionWarnedRef = useRef(null); // profile name we've already shown the "session expired" toast for
+  const sessionWarnedRef = useRef(null);
+  // When this window came up, for the session warning's startup grace period.
+  const startedAtRef = useRef(Date.now()); // profile name we've already shown the "session expired" toast for
   // Views that come up empty because of it can say so instead of showing a blank page.
   const [sessionExpired, setSessionExpired] = useState(false);
   const sessionExpiredToastKeyRef = useRef(null); // key of the currently-shown toast, so it can be closed once the session recovers on its own
@@ -4803,7 +4805,13 @@ export default function App() {
       const expired = !!(active && active.type !== "local" && active.sessionExpired);
       sessionExpiredRef.current = expired;
       setSessionExpired(expired);
-      if (active && active.type !== "local" && (active.loggedOut || active.sessionExpired)) {
+      // The session keeper rotates roughly twelve seconds after launch and repairs most
+      // expired sessions on its own. Warning before it has had its turn produced a message
+      // that contradicted itself moments later, on every single start. A deliberate sign-out
+      // is not a race and is announced immediately.
+      const withinStartupGrace = active?.sessionExpired && !active?.loggedOut
+        && Date.now() - startedAtRef.current < 25000;
+      if (active && active.type !== "local" && (active.loggedOut || active.sessionExpired) && !withinStartupGrace) {
         if (sessionWarnedRef.current !== active.name) {
           sessionWarnedRef.current = active.name;
           setReauthName(active.name); // target the settings re-auth / login at this account

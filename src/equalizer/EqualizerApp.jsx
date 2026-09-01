@@ -2,7 +2,7 @@
  * Standalone entry point for the Equalizer window. Loaded when ?equalizer=1, so it never
  * starts the full App — a second App in another window would start a second audio pipeline.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { IconContext } from "../icons.jsx";
 import { translate } from "../i18n.js";
 import { applyFontScale, readFontScale } from "../settings/scale.js";
@@ -26,7 +26,9 @@ export default function EqualizerApp() {
   }, []);
 
   const [language] = useState(() => localStorage.getItem("kiyoshi-lang") || "de");
-  const t = (key, vars) => translate(language, key, vars);
+  // Stable per language, like the useLang hook: this is handed straight into memo and effect
+  // dependency lists downstream.
+  const t = useCallback((key, vars) => translate(language, key, vars), [language]);
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>

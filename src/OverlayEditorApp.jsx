@@ -3,7 +3,7 @@
  * Loaded when ?overlayEditor=1 — avoids running the full App
  * (audio player, backend connections, SSE streams, etc.)
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { IconContext } from "./icons.jsx";
 import { translate } from "./i18n.js";
 import OverlayEditor from "./overlay/OverlayEditor.jsx";
@@ -29,7 +29,9 @@ export default function OverlayEditorApp() {
 
 
   const [language] = useState(() => localStorage.getItem("kiyoshi-lang") || "de");
-  const t = (key, vars) => translate(language, key, vars);
+  // Stable per language, like the useLang hook: this is handed straight into memo and effect
+  // dependency lists downstream.
+  const t = useCallback((key, vars) => translate(language, key, vars), [language]);
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
