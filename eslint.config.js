@@ -8,6 +8,7 @@
 // and both would have been caught here before the app was ever reloaded.
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
+import reactPlugin from "eslint-plugin-react";
 
 export default [
   {
@@ -37,12 +38,19 @@ export default [
       "no-const-assign": "error",
     },
   },
-  // React components are referenced from JSX, which no-undef sees but core ESLint does not
-  // associate with the JSX element name. Treating every capitalised JSX tag as a read is what
-  // the react plugin normally does; instead of pulling that plugin in, unused-vars stays off
-  // entirely — it is not the class of bug this config is here for.
+  // Core ESLint does not connect a JSX element name to a variable, so `no-undef` never sees an
+  // undefined component: <Microphone /> with no import passed the lint and crashed the settings
+  // panel at runtime, which is precisely the class of fault this config exists to catch. The
+  // react plugin's own rule does make that connection.
+  //
+  // unused-vars stays off for the same underlying reason: without the plugin, every component
+  // imported for JSX looked unused.
   {
     files: ["src/**/*.jsx"],
-    rules: { "no-unused-vars": "off" },
+    plugins: { react: reactPlugin },
+    rules: {
+      "no-unused-vars": "off",
+      "react/jsx-no-undef": "error",
+    },
   },
 ];
