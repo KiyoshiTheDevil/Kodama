@@ -899,7 +899,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       <DisclosureHeading>
         <DisclosureTrigger
           className={cn(
-            "flex items-center text-[length:var(--t10)] font-semibold text-muted uppercase tracking-wider hover:text-secondary transition-colors duration-150",
+            "flex items-center text-[length:var(--t12)] font-semibold text-muted uppercase tracking-wider hover:text-secondary transition-colors duration-150",
             collapsed ? "w-full justify-center py-2" : "w-full gap-1.5 px-3 pt-1.5 pb-1"
           )}
           onMouseEnter={collapsed ? (e => {
@@ -2407,7 +2407,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             <DropdownPopover placement="top end"
               className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
             >
-              <div className="px-3 pt-2.5 pb-1 text-[length:var(--t11)] font-bold text-muted uppercase tracking-wider">
+              <div className="px-3 pt-2.5 pb-1 text-[length:var(--t12)] font-bold text-muted uppercase tracking-wider">
                 {t("sleepTimer")}
               </div>
               <DropdownMenu
@@ -6292,7 +6292,7 @@ export default function App() {
               {downloadQueueMin && (allFinished
                 ? <CheckCircle size={14} weight="fill" className="text-[var(--status-success)] shrink-0" />
                 : <Spinner size="sm" className="shrink-0" />)}
-              <span className="text-[length:var(--t10)] font-bold uppercase tracking-wider text-muted px-0.5">
+              <span className="text-[length:var(--t12)] font-bold uppercase tracking-wider text-muted px-0.5">
                 {translate(language, "downloadQueue")}
               </span>
               {downloadQueueMin && (

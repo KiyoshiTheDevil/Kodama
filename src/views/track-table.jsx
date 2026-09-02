@@ -798,7 +798,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
 
           {coverArt(148, "var(--r-xl)")}
 
-          <div style={{ marginTop: 18, fontSize: "var(--t11)", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <div style={{ marginTop: 18, fontSize: "var(--t12)", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
             {typeLabel ?? (isAlbum ? t("album") : t("playlist"))}
           </div>
 

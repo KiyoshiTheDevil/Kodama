@@ -104,7 +104,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
     return c;
   })();
 
-  const fieldLabel = "text-[length:var(--t10)] font-bold uppercase tracking-[0.08em] text-muted";
+  const fieldLabel = "text-[length:var(--t12)] font-bold uppercase tracking-[0.08em] text-muted";
   const Chips = ({ items, value, onPick }) => (
     <div className="flex flex-wrap gap-2">
       {items.map((c) => (

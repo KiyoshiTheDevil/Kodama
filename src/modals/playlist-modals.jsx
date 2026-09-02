@@ -39,7 +39,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onCreated, t }) {
     setCreating(false);
   };
 
-  const fieldLabel = "text-[length:var(--t10)] font-bold uppercase tracking-[0.08em] text-muted";
+  const fieldLabel = "text-[length:var(--t12)] font-bold uppercase tracking-[0.08em] text-muted";
   const privacyOpts = [
     ["PRIVATE",  t("privacyPrivate"),  <Lock size={14} />],
     ["UNLISTED", t("privacyUnlisted"), <EyeSlash size={14} />],

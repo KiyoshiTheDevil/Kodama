@@ -148,7 +148,7 @@ function AccentColorPicker({ value, onChange }) {
         </ColorAreaRoot>
         <div className="flex items-center gap-1.5">
           <ColorSwatchRoot color={color} shape="square" size="sm" className="shrink-0" />
-          <span className="text-[length:var(--t11)] text-muted font-mono uppercase flex-1 truncate">{hex}</span>
+          <span className="text-[length:var(--t12)] text-muted font-mono uppercase flex-1 truncate">{hex}</span>
           {window.EyeDropper && (
             <Button variant="ghost" size="sm" isIconOnly title="Pipette" onPress={async () => {
               try { const { sRGBHex } = await new window.EyeDropper().open(); if (/^#[0-9a-fA-F]{6}$/.test(sRGBHex)) onChange(sRGBHex); } catch {}
@@ -1721,7 +1721,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
                 {/* Contributors */}
                 <div style={{ height: "0.5px", background: "var(--border)", marginBottom: 24 }} />
-                <div style={{ fontSize: "var(--t11)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>
+                <div style={{ fontSize: "var(--t12)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>
                   {t("contributors")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
@@ -1783,7 +1783,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
 
                 {/* Tools */}
-                <div style={{ fontSize: "var(--t11)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                <div style={{ fontSize: "var(--t12)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
                   {t("tools")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>

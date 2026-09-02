@@ -81,7 +81,7 @@ function ArtistDescription({ text, name, url }) {
         border: "1px solid rgba(255,255,255,0.1)",
         borderRadius: "var(--r-xl)", padding: "12px 14px 10px",
       }}>
-        <div style={{ fontSize: "var(--t10)", fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{t("about")}</div>
+        <div style={{ fontSize: "var(--t12)", fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{t("about")}</div>
         <p style={{
           margin: 0, fontSize: "var(--t11)", lineHeight: 1.6,
           color: "rgba(255,255,255,0.8)", whiteSpace: "pre-wrap",
@@ -209,7 +209,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
 
         {/* Content */}
         <div style={{ position: "relative", zIndex: 2, padding: "0 24px 22px" }}>
-          <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{t("artist")}</div>
+          <div style={{ fontSize: "var(--t12)", fontWeight: 600, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{t("artist")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
             <h1 style={{ fontSize: 46, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1.05, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{artist.name}</h1>
             {onTogglePin && (
