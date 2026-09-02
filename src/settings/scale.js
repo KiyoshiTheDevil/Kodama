@@ -12,7 +12,12 @@ export const FONT_LABELS     = FONT_STEPS.map(s => `${Math.round(13 * s)}px`);
 // and every text-t* class silently fell back to the inherited size -- the editor's whole
 // typography was effectively one size, and changing a text-t13 to text-t18 did nothing at all.
 // Each window entry point calls this for itself.
-export const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
+//
+// Tailwind's OWN scale (text-xs ... text-2xl) is mapped onto these too, in index.css. HeroUI
+// sizes all of its text with those, so without the mapping every dropdown, modal and button in
+// the app ignored the font-size setting entirely. That is what t24 is here for -- nothing in
+// Kodama writes text-t24, but text-2xl resolves to it.
+export const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
 
 export function readFontScale() {
   const saved = parseFloat(localStorage.getItem("kiyoshi-font-scale"));

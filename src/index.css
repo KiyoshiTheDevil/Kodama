@@ -110,6 +110,31 @@
   --text-t18: var(--t18);
   --text-t20: var(--t20);
   --text-t22: var(--t22);
+  --text-t24: var(--t24);
+
+  /* Tailwind's own scale, remapped onto the same variables.
+
+     HeroUI sizes every piece of its text with these (72 uses of text-sm alone), and they
+     resolve against the root font size, which Kodama never touches -- so dropdowns, modals,
+     buttons and the search field ignored the font-size setting completely while the app's own
+     text followed it. Chosen to equal Tailwind's defaults exactly at 100%, so this changes
+     nothing at the default and only starts to matter once the setting is moved.
+
+     Line heights as unitless ratios rather than the rem values Tailwind ships: written as the
+     division they come from, they stay proportional as the size changes instead of pinning a
+     large size into a small leading. */
+  --text-xs:   var(--t12);
+  --text-xs--line-height:   calc(1 / 0.75);
+  --text-sm:   var(--t14);
+  --text-sm--line-height:   calc(1.25 / 0.875);
+  --text-base: var(--t16);
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg:   var(--t18);
+  --text-lg--line-height:   calc(1.75 / 1.125);
+  --text-xl:   var(--t20);
+  --text-xl--line-height:   calc(1.75 / 1.25);
+  --text-2xl:  var(--t24);
+  --text-2xl--line-height:  calc(2 / 1.5);
 }
 
 /* â”€â”€â”€ Font Awesome â€” loaded via Vite asset pipeline (guaranteed absolute path) â”€
