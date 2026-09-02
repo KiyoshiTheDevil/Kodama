@@ -51,8 +51,8 @@ export function SettingRow({ label, description, icon, children, vertical = fals
           </div>
         )}
         <div className="min-w-0">
-          <div className="text-t13 font-medium text-primary">{label}</div>
-          {description && <div className="text-t11 text-muted mt-0.5 leading-snug">{description}</div>}
+          <div className="text-[length:var(--t13)] font-medium text-primary">{label}</div>
+          {description && <div className="text-[length:var(--t11)] text-muted mt-0.5 leading-snug">{description}</div>}
         </div>
       </div>
       <div className={vertical ? "" : "shrink-0"}>{children}</div>

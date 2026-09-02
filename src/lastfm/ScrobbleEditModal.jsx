@@ -43,19 +43,19 @@ export function ScrobbleEditModal({ track, onClose }) {
             </ModalHeader>
             <ModalBody>
               <div className="flex flex-col gap-4 pb-1">
-                <p className="text-t11 text-muted">{t("scrobbleEditDesc")}</p>
+                <p className="text-[length:var(--t11)] text-muted">{t("scrobbleEditDesc")}</p>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-t11 text-muted">{t("scrobbleArtist")}</span>
+                  <span className="text-[length:var(--t11)] text-muted">{t("scrobbleArtist")}</span>
                   <TextFieldRoot value={artist} onChange={setArtist} aria-label={t("scrobbleArtist")}>
-                    <InputRoot autoFocus className="text-t13!" />
+                    <InputRoot autoFocus className="text-[length:var(--t13)]!" />
                   </TextFieldRoot>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-t11 text-muted">{t("scrobbleTitle")}</span>
+                  <span className="text-[length:var(--t11)] text-muted">{t("scrobbleTitle")}</span>
                   <TextFieldRoot value={title} onChange={setTitle} aria-label={t("scrobbleTitle")}>
-                    <InputRoot className="text-t13!" />
+                    <InputRoot className="text-[length:var(--t13)]!" />
                   </TextFieldRoot>
                 </div>
 

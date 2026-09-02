@@ -206,16 +206,16 @@ export default function MiniPlayerApp() {
         {/* Title + progress */}
         <div data-tauri-drag-region className="flex flex-col gap-1.5">
           <div data-tauri-drag-region>
-            <div className="text-t12 font-medium text-white truncate" title={np.title}>
+            <div className="text-[length:var(--t12)] font-medium text-white truncate" title={np.title}>
               {np.hasTrack ? np.title : t("miniPlayerIdle")}
             </div>
-            <div className="text-t10 text-white/60 truncate" title={np.artists}>{np.artists}</div>
+            <div className="text-[length:var(--t10)] text-white/60 truncate" title={np.artists}>{np.artists}</div>
           </div>
           {/* Seek — the player bar's slider, class for class (see .player-seek in index.css),
               so both windows share the 8px track, the interpolated fill and the hover
               gradient. The seek-band wrapper is what that gradient keys its hover off. */}
           <div data-tauri-drag-region className="flex items-center gap-1.5">
-            <span data-tauri-drag-region className="text-t10 text-white/50 tabular-nums shrink-0" style={{ minWidth: 26 }}>{fmt(shown)}</span>
+            <span data-tauri-drag-region className="text-[length:var(--t10)] text-white/50 tabular-nums shrink-0" style={{ minWidth: 26 }}>{fmt(shown)}</span>
             <div className="seek-band flex-1 flex items-center" style={{ height: 10 }}>
               <SliderRoot
                 aria-label="Seek"
@@ -234,7 +234,7 @@ export default function MiniPlayerApp() {
                 </SliderTrack>
               </SliderRoot>
             </div>
-            <span data-tauri-drag-region className="text-t10 text-white/50 tabular-nums shrink-0" style={{ minWidth: 26, textAlign: "right" }}>{fmt(np.duration)}</span>
+            <span data-tauri-drag-region className="text-[length:var(--t10)] text-white/50 tabular-nums shrink-0" style={{ minWidth: 26, textAlign: "right" }}>{fmt(np.duration)}</span>
           </div>
         </div>
       </div>

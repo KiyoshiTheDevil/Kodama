@@ -107,7 +107,7 @@ export function UnisonIdentitySection() {
       <CardRoot variant="secondary" className="p-4 flex flex-col gap-3">
         {!identity ? (
           <>
-            <div className="text-t12 text-muted leading-relaxed">{t("unisonNoIdentity")}</div>
+            <div className="text-[length:var(--t12)] text-muted leading-relaxed">{t("unisonNoIdentity")}</div>
             <div className="flex items-center gap-2">
               <Button color="accent" variant="solid" className="flex-1 justify-center" isDisabled={busy} onPress={create}>
                 {busy ? <Spinner size="sm" /> : t("unisonCreate")}
@@ -122,9 +122,9 @@ export function UnisonIdentitySection() {
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-accent-dim text-accent flex items-center justify-center shrink-0"><UserCircle size={20} /></div>
               <div className="flex-1 min-w-0">
-                <div className="text-t13 font-semibold truncate">{serverName || identity.displayName || t("unisonAnonymous")}</div>
+                <div className="text-[length:var(--t13)] font-semibold truncate">{serverName || identity.displayName || t("unisonAnonymous")}</div>
                 <button onClick={() => navigator.clipboard.writeText(identity.keyId).catch(() => {})} title={t("copy")}
-                  className="text-t10 text-muted font-mono truncate hover:text-primary bg-transparent border-0 p-0 cursor-default block max-w-full">
+                  className="text-[length:var(--t10)] text-muted font-mono truncate hover:text-primary bg-transparent border-0 p-0 cursor-default block max-w-full">
                   {identity.keyId.slice(0, 10)}…{identity.keyId.slice(-6)}
                 </button>
               </div>
@@ -132,8 +132,8 @@ export function UnisonIdentitySection() {
 
             {/* Custom nickname editor */}
             <div className="flex flex-col gap-1.5">
-              <div className="text-t11 font-semibold text-secondary">{t("unisonNickname")}</div>
-              <div className="text-t10 text-muted leading-relaxed">{t("unisonNicknameDesc")}</div>
+              <div className="text-[length:var(--t11)] font-semibold text-secondary">{t("unisonNickname")}</div>
+              <div className="text-[length:var(--t10)] text-muted leading-relaxed">{t("unisonNicknameDesc")}</div>
               <div className="flex items-center gap-2 mt-0.5">
                 <TextFieldRoot aria-label={t("unisonNickname")} className="flex-1" value={nickDraft} onChange={setNickDraft}>
                   <InputRoot placeholder={identity.displayName || ""} maxLength={20}
@@ -148,8 +148,8 @@ export function UnisonIdentitySection() {
                   </Button>
                 ) : null}
               </div>
-              {nickErr ? <div className="text-t10 text-[var(--status-danger)]">{nickErr}</div>
-                : <div className="text-t10 text-muted">{t("unisonNameDerived")}</div>}
+              {nickErr ? <div className="text-[length:var(--t10)] text-[var(--status-danger)]">{nickErr}</div>
+                : <div className="text-[length:var(--t10)] text-muted">{t("unisonNameDerived")}</div>}
             </div>
 
             <div className="flex items-center gap-2">
@@ -163,7 +163,7 @@ export function UnisonIdentitySection() {
             <Button variant="ghost" className="justify-center text-[var(--status-danger)]!" onPress={remove}>{t("unisonRemove")}</Button>
           </>
         )}
-        {err ? <div className="text-t11 text-[var(--status-danger)]">{err}</div> : null}
+        {err ? <div className="text-[length:var(--t11)] text-[var(--status-danger)]">{err}</div> : null}
       </CardRoot>
     </>
   );

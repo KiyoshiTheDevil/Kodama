@@ -148,7 +148,7 @@ function AccentColorPicker({ value, onChange }) {
         </ColorAreaRoot>
         <div className="flex items-center gap-1.5">
           <ColorSwatchRoot color={color} shape="square" size="sm" className="shrink-0" />
-          <span className="text-t11 text-muted font-mono uppercase flex-1 truncate">{hex}</span>
+          <span className="text-[length:var(--t11)] text-muted font-mono uppercase flex-1 truncate">{hex}</span>
           {window.EyeDropper && (
             <Button variant="ghost" size="sm" isIconOnly title="Pipette" onPress={async () => {
               try { const { sRGBHex } = await new window.EyeDropper().open(); if (/^#[0-9a-fA-F]{6}$/.test(sRGBHex)) onChange(sRGBHex); } catch {}
@@ -210,11 +210,11 @@ function LastfmRow() {
 
   let control;
   if (!status.enabled) {
-    control = <span className="text-t11 text-muted">{t("lastfmNotConfigured")}</span>;
+    control = <span className="text-[length:var(--t11)] text-muted">{t("lastfmNotConfigured")}</span>;
   } else if (status.connected) {
     control = (
       <div className="flex items-center gap-2">
-        <span className="text-t12 text-muted truncate max-w-[160px]">@{status.username}</span>
+        <span className="text-[length:var(--t12)] text-muted truncate max-w-[160px]">@{status.username}</span>
         <Button variant="danger-soft" size="sm" onPress={disconnect}>{t("disconnect")}</Button>
       </div>
     );
@@ -525,7 +525,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
         return (
           <Button key={i} variant={k === "del" ? "ghost" : "secondary"}
             onPress={() => onKey(k === "del" ? "del" : k)}
-            className="h-[58px] w-full rounded-xl text-t20 font-semibold">
+            className="h-[58px] w-full rounded-xl text-[length:var(--t20)] font-semibold">
             {k === "del" ? "⌫" : k}
           </Button>
         );
@@ -575,7 +575,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
           {show ? <EyeSlash size={18} /> : <Eye size={18} />}
         </button>
       </div>
-      {error && <div className="text-t12 font-medium" style={{ color: "var(--status-danger)" }}>{error}</div>}
+      {error && <div className="text-[length:var(--t12)] font-medium" style={{ color: "var(--status-danger)" }}>{error}</div>}
       <Button variant="primary" isDisabled={value.length === 0} onPress={() => value.length > 0 && onSubmit(value)}>
         {t("pinSubmit")}
       </Button>
@@ -789,24 +789,24 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       {vizPreviewTrack
                         ? <CoverView track={vizPreviewTrack} isPlaying={vizPreviewPlaying} onClose={() => {}} ambientVisualizer coverSize={vizPreviewCover}
                             vizConfig={{ ...vizConfig, barLength: (vizConfig.barLength ?? 90) * vizScale, gap: (vizConfig.gap ?? 8) * vizScale, barThickness: Math.max(1, (vizConfig.barThickness ?? 3) * vizScale) }} />
-                        : <div className="flex items-center justify-center h-full text-t13 text-muted">{t("visualizerPreviewHint") || "Play a song to preview the visualizer"}</div>}
+                        : <div className="flex items-center justify-center h-full text-[length:var(--t13)] text-muted">{t("visualizerPreviewHint") || "Play a song to preview the visualizer"}</div>}
                     </div>
                     <button onClick={toggleVizPreview} title={t("hidePreview") || "Vorschau einklappen"}
-                      className="absolute top-2 right-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 text-t12 text-white"
+                      className="absolute top-2 right-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 text-[length:var(--t12)] text-white"
                       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
                       <EyeSlash size={14} /><CaretUp size={12} />
                     </button>
                   </div>
                 ) : (
                   <button onClick={toggleVizPreview}
-                    className="mb-4 w-full flex items-center justify-center gap-2 rounded-xl border border-border text-t13 text-secondary hover:bg-hover transition-colors"
+                    className="mb-4 w-full flex items-center justify-center gap-2 rounded-xl border border-border text-[length:var(--t13)] text-secondary hover:bg-hover transition-colors"
                     style={{ height: 44 }}>
                     <Eye size={16} />{t("showPreview") || "Vorschau anzeigen"}<CaretDown size={13} />
                   </button>
                 )}
                 {/* Presets — save / apply / import / export named visualizer configs. */}
                 <div className="mb-5">
-                  <div className="text-t13 font-semibold mb-2.5" style={{ color: "var(--text-secondary)" }}>{t("visualizerPresets") || "Presets"}</div>
+                  <div className="text-[length:var(--t13)] font-semibold mb-2.5" style={{ color: "var(--text-secondary)" }}>{t("visualizerPresets") || "Presets"}</div>
                   <div className="flex gap-2 items-center mb-2">
                     <input value={vizPresetName} onChange={(e) => setVizPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }}
                       placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
@@ -821,7 +821,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     <div className="flex flex-col gap-1">
                       {vizPresets.map((p) => (
                         <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                          <button className="flex-1 min-w-0 text-left text-t13 font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
+                          <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
                           <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} title={t("export") || "Exportieren"}><DownloadSimple size={13} /></Button>
                           <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
                         </div>
@@ -1283,8 +1283,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       )}
                     >
                       <div>
-                        <div className="text-t13 font-semibold text-primary mb-0.5" style={{ fontFamily: f.font }}>{f.label}</div>
-                        <div className="text-t12 text-muted" style={{ fontFamily: f.font }}>{language === "de" ? "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern" : "The quick brown fox jumps over the lazy dog"}</div>
+                        <div className="text-[length:var(--t13)] font-semibold text-primary mb-0.5" style={{ fontFamily: f.font }}>{f.label}</div>
+                        <div className="text-[length:var(--t12)] text-muted" style={{ fontFamily: f.font }}>{language === "de" ? "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern" : "The quick brown fox jumps over the lazy dog"}</div>
                       </div>
                       {appFont === f.id && <Check size={16} className="text-accent shrink-0 ml-3" />}
                     </CardRoot>
@@ -1337,16 +1337,16 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                             isRecording ? "border-accent" : conflict ? "border-[rgba(255,100,100,0.45)]" : "border-transparent"
                           )}
                         >
-                          <span className="text-t13 text-secondary">{label}</span>
+                          <span className="text-[length:var(--t13)] text-secondary">{label}</span>
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
                             {isRecording ? (
-                              <span className="text-t12 text-accent italic min-w-[100px] text-right">{t("scRecording")}</span>
+                              <span className="text-[length:var(--t12)] text-accent italic min-w-[100px] text-right">{t("scRecording")}</span>
                             ) : displayKey === "—" ? (
-                              <span className="text-t14 font-semibold text-muted px-2">—</span>
+                              <span className="text-[length:var(--t14)] font-semibold text-muted px-2">—</span>
                             ) : (
                               <div className="flex items-center gap-1">
                                 {displayKey.split("+").map((part, ki) => (
-                                  <KbdRoot key={ki} style={{ fontFamily: "var(--font)" }} className={cn("text-t14 h-7 px-2.5 min-w-[30px] justify-center bg-surface-2!", conflict ? "text-[rgb(255,130,130)]!" : "text-primary!")}>
+                                  <KbdRoot key={ki} style={{ fontFamily: "var(--font)" }} className={cn("text-[length:var(--t14)] h-7 px-2.5 min-w-[30px] justify-center bg-surface-2!", conflict ? "text-[rgb(255,130,130)]!" : "text-primary!")}>
                                     <KbdContent>{part}</KbdContent>
                                   </KbdRoot>
                                 ))}
@@ -1446,7 +1446,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
 
                 <SectionLabel style={{ marginTop: 24 }}>{t("pinEmergency")}</SectionLabel>
-                <CardRoot variant="secondary" className="px-4 py-3.5 gap-0! text-t12 text-muted leading-[1.7]"
+                <CardRoot variant="secondary" className="px-4 py-3.5 gap-0! text-[length:var(--t12)] text-muted leading-[1.7]"
                   style={{ background: "var(--status-danger-soft)" }}>
                   <div style={{ marginBottom: 12, color: "var(--text-secondary)", fontWeight: 500 }}>{t("pinEmergencyDesc")}</div>
                   {!pinEmergencyConfirm ? (
@@ -1505,9 +1505,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     >
                       <div dangerouslySetInnerHTML={{ __html: lang.flag }} className="w-12 h-[30px] shrink-0 rounded overflow-hidden border border-border" />
                       <div className="flex-1 min-w-0">
-                        <div className={cn("text-t13 font-medium", language === lang.code ? "text-accent" : "text-primary")}>{lang.label}</div>
+                        <div className={cn("text-[length:var(--t13)] font-medium", language === lang.code ? "text-accent" : "text-primary")}>{lang.label}</div>
                         {lang.translators?.length > 0 && (
-                          <div className="text-t11 text-muted mt-1 flex items-center gap-1">
+                          <div className="text-[length:var(--t11)] text-muted mt-1 flex items-center gap-1">
                             <Users size={12} className="shrink-0" />
                             <span className="truncate">{lang.translators.join(", ")}</span>
                           </div>
@@ -1544,7 +1544,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
                 <CardRoot variant="secondary" className="bg-surface-1 flex flex-row items-center gap-3 px-4 py-3 mt-2">
                   <Translate size={18} className="shrink-0 text-secondary" />
-                  <div className="flex-1 text-t12 text-secondary leading-snug">{t("contributeTranslation")}</div>
+                  <div className="flex-1 text-[length:var(--t12)] text-secondary leading-snug">{t("contributeTranslation")}</div>
                   <Button variant="ghost" size="sm" className="shrink-0" onPress={() => openUrl("https://crowdin.com/project/kiyoshi-music").catch(console.error)}>
                     Crowdin →
                   </Button>
@@ -1573,7 +1573,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SettingRow label={t("overlayPort")} description={t("overlayPortDesc")} icon={<Link />}>
                   <div className="flex items-center gap-1.5">
                     <TextFieldRoot value={obsPortInput} onChange={(v) => setObsPortInput(String(v).replace(/[^0-9]/g, ""))} aria-label={t("overlayPort")} className="w-[76px]">
-                      <InputRoot className="text-t12! h-8!" />
+                      <InputRoot className="text-[length:var(--t12)]! h-8!" />
                     </TextFieldRoot>
                     <Button size="sm" variant="secondary" onPress={() => onObsPortSave?.(obsPortInput)}>{t("save")}</Button>
                   </div>
@@ -1619,17 +1619,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       <div className="flex items-center gap-2.5" style={{ marginBottom: updateInfo.releasedAt || updateInfo.changelog ? 10 : 0 }}>
                         <ArrowCircleUp size={20} className="text-accent shrink-0" />
                         <div>
-                          <div className="text-t15 font-bold text-accent">{updateInfo.version}</div>
+                          <div className="text-[length:var(--t15)] font-bold text-accent">{updateInfo.version}</div>
                           {updateInfo.releasedAt && (
-                            <div className="text-t11 text-muted mt-0.5">{t("released")}: {new Date(updateInfo.releasedAt).toLocaleDateString()}</div>
+                            <div className="text-[length:var(--t11)] text-muted mt-0.5">{t("released")}: {new Date(updateInfo.releasedAt).toLocaleDateString()}</div>
                           )}
                         </div>
                       </div>
                       {updateInfo.changelog && (
                         <>
                           <div className="h-px my-2.5" style={{ background: "color-mix(in srgb, var(--accent) 25%, transparent)" }} />
-                          <div className="text-t11 font-semibold text-muted mb-1.5">{t("changelog")}</div>
-                          <div className="text-t12 text-secondary leading-relaxed">{renderNewsBody(updateInfo.changelog)}</div>
+                          <div className="text-[length:var(--t11)] font-semibold text-muted mb-1.5">{t("changelog")}</div>
+                          <div className="text-[length:var(--t12)] text-secondary leading-relaxed">{renderNewsBody(updateInfo.changelog)}</div>
                         </>
                       )}
                     </CardRoot>
@@ -1637,7 +1637,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     {/* Action area */}
                     {updateDownloaded ? (
                       <>
-                        <div className="text-t12 my-2 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}>
+                        <div className="text-[length:var(--t12)] my-2 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}>
                           <CheckCircle size={14} weight="fill" />
                           {t("savedToDownloads")}
                         </div>
@@ -1648,7 +1648,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       </>
                     ) : updateDownloading ? (
                       <>
-                        <div className="text-t12 text-muted my-2 flex items-center gap-1.5">
+                        <div className="text-[length:var(--t12)] text-muted my-2 flex items-center gap-1.5">
                           <ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} />
                           {t("downloadingUpdate")} — {updateDownloadProgress ?? 0}%
                         </div>
@@ -1667,7 +1667,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 ) : (
                   <div className="flex flex-col items-center gap-2.5 py-10 px-4 text-muted">
                     <CheckCircle size={36} weight="fill" style={{ color: "var(--status-success)" }} />
-                    <div className="text-t13 font-medium text-secondary text-center">{t("upToDate")}</div>
+                    <div className="text-[length:var(--t13)] font-medium text-secondary text-center">{t("upToDate")}</div>
                   </div>
                 )}
 
@@ -1762,14 +1762,14 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       {c.avatar ? (
                         <img src={`/${c.avatar}`} alt={c.name} className="w-9 h-9 rounded-full shrink-0 object-cover" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-t13 font-bold text-white"
+                        <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-[length:var(--t13)] font-bold text-white"
                           style={{ background: "linear-gradient(135deg, var(--accent), #FF008C)" }}>
                           {c.name[0].toUpperCase()}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-t13 font-semibold">{c.name}</div>
-                        <div className="text-t11 text-muted mt-0.5">{c.role}</div>
+                        <div className="text-[length:var(--t13)] font-semibold">{c.name}</div>
+                        <div className="text-[length:var(--t11)] text-muted mt-0.5">{c.role}</div>
                       </div>
                       <div className="flex gap-0.5 shrink-0">
                         {c.links.map((l, i) => (
@@ -1891,9 +1891,9 @@ function FfmpegUpdateRow() {
     <>
       <SettingRow label="FFmpeg" description={desc} icon={<DownloadSimple size={15} />}>
         {phase === "downloading" ? (
-          <span className="text-t12 text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} />{percent}%</span>
+          <span className="text-[length:var(--t12)] text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} />{percent}%</span>
         ) : phase === "done" ? (
-          <span className="text-t12 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ffmpegUpdated")}</span>
+          <span className="text-[length:var(--t12)] flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ffmpegUpdated")}</span>
         ) : info?.updateAvailable ? (
           <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate")}</Button>
         ) : (!loading && info && !info.installed) ? (
@@ -1910,7 +1910,7 @@ function FfmpegUpdateRow() {
         </ProgressBar>
       )}
       {phase === "error" && (
-        <div className="text-t12 mt-1.5 flex items-center gap-1.5" style={{ color: "var(--status-danger)" }}>{t("ffmpegUpdateFailed")}</div>
+        <div className="text-[length:var(--t12)] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--status-danger)" }}>{t("ffmpegUpdateFailed")}</div>
       )}
     </>
   );
@@ -1950,9 +1950,9 @@ function YtDlpUpdateRow() {
   return (
     <SettingRow label="yt-dlp" description={desc} icon={<DownloadSimple size={15} />}>
       {phase === "updating" ? (
-        <span className="text-t12 text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} /></span>
+        <span className="text-[length:var(--t12)] text-muted flex items-center gap-1.5"><ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} /></span>
       ) : phase === "done" ? (
-        <span className="text-t12 flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ytdlpUpdated") || "yt-dlp updated"}</span>
+        <span className="text-[length:var(--t12)] flex items-center gap-1.5" style={{ color: "var(--status-success)" }}><CheckCircle size={14} weight="fill" />{t("ytdlpUpdated") || "yt-dlp updated"}</span>
       ) : phase === "error" ? (
         <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate") || "Update"}</Button>
       ) : info?.updateAvailable ? (

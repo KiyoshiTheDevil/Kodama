@@ -92,24 +92,11 @@
 
   /* Font size scale.
 
-     The namespace matters: Tailwind 4 builds its font-size utilities from --text-*, not from
-     --font-size-*. Under the wrong name it generated no rules at all, so every one of the ~200
-     text-t* classes in the app was inert and the text simply inherited its size — which is why
-     the font-size setting appeared to do nothing for most of the interface.
-
-     This list has to match CSS_FONT_SIZES in settings/scale.js, which is what writes the --tNN
-     values at runtime. They had drifted: t24/t28/t32 were mapped here but never written, so
-     those utilities pointed at nothing, and t22 was written but not mapped. */
-  --text-t10: var(--t10);
-  --text-t11: var(--t11);
-  --text-t12: var(--t12);
-  --text-t13: var(--t13);
-  --text-t14: var(--t14);
-  --text-t15: var(--t15);
-  --text-t16: var(--t16);
-  --text-t18: var(--t18);
-  --text-t20: var(--t20);
-  --text-t22: var(--t22);
+     Kodama's own sizes are written straight into the markup as text-[length:var(--tNN)] rather
+     than as named utilities. A named one (text-t13) is invisible to tailwind-merge, which runs
+     inside every HeroUI component: it classifies an unknown text-* as a COLOUR, so a class list
+     carrying both text-t13 and text-accent came out as text-accent alone and the size was
+     dropped without a word. The length: hint tells it what the class is. */
 
   /* Tailwind's own scale, multiplied by the font-size setting.
 

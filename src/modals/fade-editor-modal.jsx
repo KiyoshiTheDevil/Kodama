@@ -22,16 +22,16 @@ export function FadeEditorModal({ from, to, current, globalDefault = 0, onSave, 
             </ModalHeader>
             <ModalBody>
               <div className="flex flex-col gap-4 pb-1">
-                <div className="flex items-center gap-2 text-t12">
+                <div className="flex items-center gap-2 text-[length:var(--t12)]">
                   <span className="flex-1 min-w-0 truncate font-medium text-primary">{from?.title}</span>
                   <span className="shrink-0 text-accent font-bold">→</span>
                   <span className="flex-1 min-w-0 truncate font-medium text-primary text-right">{to?.title}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Slider min={0} max={12} step={1} value={secs} onChange={setSecs} width={180} />
-                  <span className="text-t12 text-secondary w-9 text-right">{secs}s</span>
+                  <span className="text-[length:var(--t12)] text-secondary w-9 text-right">{secs}s</span>
                 </div>
-                <p className="text-t11 text-muted">
+                <p className="text-[length:var(--t11)] text-muted">
                   {secs === 0 ? t("crossfadeHardCut") : t("customCrossfadeHint", { secs })}
                   {" · "}{t("crossfadeDefault")}: {globalDefault}s
                 </p>

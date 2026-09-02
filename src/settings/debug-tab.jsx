@@ -170,10 +170,10 @@ export function DebugFloatingWindow({ onClose }) {
         cursor: "grab", userSelect: "none", flexShrink: 0,
       }}>
         <Bug size={13} style={{ color: "var(--accent)", flexShrink: 0 }} />
-        <span className="text-t12 font-semibold text-primary flex-1">Debug</span>
-        <Button variant={activeTab === "info" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("info")}>Sysinfo</Button>
-        <Button variant={activeTab === "logs" ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setActiveTab("logs")}>Logs</Button>
-        <Button variant="ghost" size="sm" className="text-t11 px-2.5!"
+        <span className="text-[length:var(--t12)] font-semibold text-primary flex-1">Debug</span>
+        <Button variant={activeTab === "info" ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setActiveTab("info")}>Sysinfo</Button>
+        <Button variant={activeTab === "logs" ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setActiveTab("logs")}>Logs</Button>
+        <Button variant="ghost" size="sm" className="text-[length:var(--t11)] px-2.5!"
           onPress={() => window.dispatchEvent(new Event("kodama-open-diagnostics"))}>Live</Button>
         <div className="w-px h-3 bg-border mx-0.5" />
         <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[var(--status-danger)]! rounded-full"><X size={12} weight="bold" /></Button>
@@ -184,13 +184,13 @@ export function DebugFloatingWindow({ onClose }) {
         {activeTab === "info" && (
           <div style={{ overflowY: "auto" }}>
             {!info ? (
-              <div className="text-t12 text-muted p-2">{t("loading")}…</div>
+              <div className="text-[length:var(--t12)] text-muted p-2">{t("loading")}…</div>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {sysRows.map(([k, v]) => (
                   <CardRoot key={k} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-2 px-3 py-2">
-                    <span className="text-t11 text-muted min-w-[72px] shrink-0">{k}</span>
-                    <span className="text-t11 text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
+                    <span className="text-[length:var(--t11)] text-muted min-w-[72px] shrink-0">{k}</span>
+                    <span className="text-[length:var(--t11)] text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
                   </CardRoot>
                 ))}
               </div>
@@ -203,17 +203,17 @@ export function DebugFloatingWindow({ onClose }) {
             {/* Filter bar */}
             <div className="flex items-center gap-1 mb-1.5 flex-wrap shrink-0">
               {["ALL","INFO","WARN","ERROR"].map(f => (
-                <Button key={f} variant={filter === f ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setFilter(f)}>{f}</Button>
+                <Button key={f} variant={filter === f ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setFilter(f)}>{f}</Button>
               ))}
               <div className="w-px h-3 bg-border mx-0.5" />
               {["ALL","frontend","backend"].map(s => (
-                <Button key={s} variant={source === s ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setSource(s)}>{s === "ALL" ? "Alle" : s}</Button>
+                <Button key={s} variant={source === s ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setSource(s)}>{s === "ALL" ? "Alle" : s}</Button>
               ))}
               <div className="ml-auto flex gap-1">
-                <Button variant={autoScroll ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setAutoScroll(a => !a)}>
+                <Button variant={autoScroll ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setAutoScroll(a => !a)}>
                   <CaretDown size={10} /> Scroll
                 </Button>
-                <Button variant="ghost" size="sm" className="text-t11 px-2.5!" onPress={handleCopy}>
+                <Button variant="ghost" size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={handleCopy}>
                   {copied ? <><Check size={10} weight="bold" /> {t("copied")}</> : <><Copy size={10} /> {t("copyAll")}</>}
                 </Button>
               </div>
@@ -330,8 +330,8 @@ export function DebugTab({ t }) {
               ..._debugAuthRows(info, t),
             ].map(([k, v]) => (
               <CardRoot key={k} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-2.5 px-3.5 py-2.5">
-                <span className="text-t11 text-muted min-w-[76px] shrink-0">{k}</span>
-                <span className="text-t12 text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
+                <span className="text-[length:var(--t11)] text-muted min-w-[76px] shrink-0">{k}</span>
+                <span className="text-[length:var(--t12)] text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
               </CardRoot>
             ))}
           </div>
@@ -342,22 +342,22 @@ export function DebugTab({ t }) {
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         {/* Toolbar */}
         <div className="flex items-center gap-1 mb-2 flex-wrap">
-          <span className="text-t13 font-semibold text-primary mr-1.5">Logs</span>
+          <span className="text-[length:var(--t13)] font-semibold text-primary mr-1.5">Logs</span>
           {["ALL","INFO","WARN","ERROR"].map(f => (
-            <Button key={f} variant={filter === f ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setFilter(f)}>{f}</Button>
+            <Button key={f} variant={filter === f ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setFilter(f)}>{f}</Button>
           ))}
           <div className="w-px h-3.5 bg-border mx-0.5" />
           {["ALL","frontend","backend"].map(s => (
-            <Button key={s} variant={source === s ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setSource(s)}>{s === "ALL" ? "Alle" : s}</Button>
+            <Button key={s} variant={source === s ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setSource(s)}>{s === "ALL" ? "Alle" : s}</Button>
           ))}
           <div className="ml-auto flex gap-1">
-            <Button variant={autoScroll ? "secondary" : "ghost"} size="sm" className="text-t11 px-2.5!" onPress={() => setAutoScroll(a => !a)}>
+            <Button variant={autoScroll ? "secondary" : "ghost"} size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setAutoScroll(a => !a)}>
               <CaretDown size={11} /> Auto-Scroll
             </Button>
-            <Button variant="ghost" size="sm" className="text-t11 px-2.5!" onPress={() => setRefreshKey(k => k + 1)}>
+            <Button variant="ghost" size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={() => setRefreshKey(k => k + 1)}>
               <ArrowClockwise size={11} /> {t("refresh")}
             </Button>
-            <Button variant="ghost" size="sm" className="text-t11 px-2.5!" onPress={handleCopy}>
+            <Button variant="ghost" size="sm" className="text-[length:var(--t11)] px-2.5!" onPress={handleCopy}>
               {copied ? <><Check size={11} weight="bold" /> {t("copied")}</> : <><Copy size={11} /> {t("copyAll")}</>}
             </Button>
           </div>

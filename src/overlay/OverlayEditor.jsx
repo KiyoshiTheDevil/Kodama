@@ -157,7 +157,7 @@ function MenuBtn({ label, children, width = 230, corners }) {
     <Dropdown>
       <DropdownTrigger
         style={{ borderRadius: corners }}
-        className="h-[30px] px-4 border-0 bg-[var(--surface-2)] text-t14 text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer">
+        className="h-[30px] px-4 border-0 bg-[var(--surface-2)] text-[length:var(--t14)] text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer">
         {label}
       </DropdownTrigger>
       <DropdownPopover placement="bottom start" style={{ minWidth: width }}>
@@ -314,7 +314,7 @@ function OvlTextField({ label, value, onChange, placeholder }) {
     <div className="flex items-center justify-between gap-2">
       {label && <span className="text-muted shrink-0" style={{ fontSize: "var(--t12)" }}>{label}</span>}
       <TextFieldRoot value={value ?? ""} onChange={onChange} aria-label={label || placeholder} className="flex-1 min-w-0">
-        <InputRoot className="text-t12! h-8! bg-[var(--surface-2)]! border-border!" placeholder={placeholder} />
+        <InputRoot className="text-[length:var(--t12)]! h-8! bg-[var(--surface-2)]! border-border!" placeholder={placeholder} />
       </TextFieldRoot>
     </div>
   );
@@ -1625,7 +1625,7 @@ export default function OverlayEditor({
       <div className="shrink-0 flex items-center gap-1 h-[52px] pl-[22px] pr-3" {...(standalone ? { "data-tauri-drag-region": true } : {})}>
         <div className="flex items-center gap-2 pr-2 shrink-0">
           <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
-          <span className="text-t13 font-semibold text-primary">{t("ovlEditorTitle")}</span>
+          <span className="text-[length:var(--t13)] font-semibold text-primary">{t("ovlEditorTitle")}</span>
           {/* Set like a superscript beside the wordmark: raised against the cap height rather
               than centred on it, so it reads as a qualifier on the name instead of a second
               word in the row. */}
@@ -1776,7 +1776,7 @@ export default function OverlayEditor({
         {/* bg-accent! rather than color="accent": the solid variant does not paint the fill in
             this HeroUI version, which left the primary action looking like every other chip.
             The rest of the editor already reaches for the utility class for the same reason. */}
-        <Button variant="ghost" size="sm" className="gap-1.5 h-[30px]! px-4! ml-1.5 bg-accent! hover:bg-accent! text-white! text-t14! font-medium" style={{ borderRadius: hdrCorners(false, false) }}
+        <Button variant="ghost" size="sm" className="gap-1.5 h-[30px]! px-4! ml-1.5 bg-accent! hover:bg-accent! text-white! text-[length:var(--t14)]! font-medium" style={{ borderRadius: hdrCorners(false, false) }}
           onPress={() => { setBrowserOpen(true); setSaveOpen(false); }}><Swatches size={15} weight="fill" />{t("ovlProfileBrowse")}</Button>
         {standalone && <div className="w-px h-5 bg-border mx-1" />}
         {standalone && <WindowControls />}
@@ -1804,7 +1804,7 @@ export default function OverlayEditor({
             <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
           <div className="flex flex-col gap-0.5 px-[10px] py-1.5 overflow-y-auto min-h-0">
-            {orderedDesc.length === 0 && <div className="text-t11 text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
+            {orderedDesc.length === 0 && <div className="text-[length:var(--t11)] text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
             {orderedDesc.map((l, rowIdx) => {
               const M = TYPE_META[l.type] || TYPE_META.shape; const Icon = M.icon; const active = selectedIds.includes(l.id);
               const isDragging = dragId === l.id;
@@ -2111,16 +2111,16 @@ export default function OverlayEditor({
         <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3">
           {selectedIds.length > 1 ? (
             <>
-              <div className="text-t12 font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
-              <div className="text-t11 text-muted mb-3 leading-snug">{t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}</div>
+              <div className="text-[length:var(--t12)] font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
+              <div className="text-[length:var(--t11)] text-muted mb-3 leading-snug">{t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}</div>
               <Button variant="secondary" size="sm" className="gap-1.5 text-[var(--status-danger)]!" onPress={deleteSelected}>
                 <Trash size={13} /> {t("ovlMenuDelete")}
               </Button>
             </>
           ) : !selected ? (
             <>
-              <div className="text-t12 font-semibold text-primary mb-1">{t("ovlCanvas")}</div>
-              <div className="text-t11 text-muted mb-3 leading-snug">{t("ovlNoSelection")}</div>
+              <div className="text-[length:var(--t12)] font-semibold text-primary mb-1">{t("ovlCanvas")}</div>
+              <div className="text-[length:var(--t11)] text-muted mb-3 leading-snug">{t("ovlNoSelection")}</div>
               <Section title={t("ovlSize")}>
                 <div className="grid grid-cols-2 gap-2">
                   <PillNum prefix="W" value={doc.canvas.width} min={40} max={3840} onChange={(v) => updateCanvas({ width: v })} />
@@ -2201,7 +2201,7 @@ export default function OverlayEditor({
                 <div className="flex items-center gap-1.5">
                   <TypeIcon size={16} className="text-accent shrink-0" />
                   <TextFieldRoot value={selected.name ?? ""} onChange={(v) => setLayer(selected.id, { name: v })} aria-label={t("ovlName")} className="flex-1 min-w-0">
-                    <InputRoot className="text-t12! h-8! bg-[var(--surface-2)]! border-border!" placeholder={(TYPE_META[selected.type] || {}).label} />
+                    <InputRoot className="text-[length:var(--t12)]! h-8! bg-[var(--surface-2)]! border-border!" placeholder={(TYPE_META[selected.type] || {}).label} />
                   </TextFieldRoot>
                   <Button variant="ghost" size="sm" isIconOnly onPress={duplicateSelected} aria-label={t("ovlMenuDuplicate")} className="shrink-0"><Copy size={14} /></Button>
                   <Button variant="ghost" size="sm" isIconOnly onPress={() => deleteLayer(selected.id)} aria-label={t("ovlMenuDelete")} className="shrink-0 text-[var(--status-danger)]!"><Trash size={14} /></Button>
@@ -2328,12 +2328,12 @@ export default function OverlayEditor({
         <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-50 w-64 rounded-xl shadow-xl border border-border p-3 flex flex-col gap-2"
           style={{ background: "var(--bg-elevated)" }}
           onKeyDown={(e) => { if (e.key === "Enter") saveProfile(); if (e.key === "Escape") setSaveOpen(false); }}>
-          <span className="text-t12 font-semibold text-primary">{t("ovlProfileSave")}</span>
+          <span className="text-[length:var(--t12)] font-semibold text-primary">{t("ovlProfileSave")}</span>
           <TextFieldRoot value={saveName} onChange={setSaveName} aria-label={t("ovlProfileName")}>
-            <InputRoot autoFocus className="text-t12! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlProfileName")} />
+            <InputRoot autoFocus className="text-[length:var(--t12)]! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlProfileName")} />
           </TextFieldRoot>
           <div className="flex gap-1.5">
-            <Button variant="flat" color="primary" size="sm" className="flex-1 text-t12!" onPress={saveProfile}>
+            <Button variant="flat" color="primary" size="sm" className="flex-1 text-[length:var(--t12)]!" onPress={saveProfile}>
               <Check size={13} /> {t("ovlProfileSave")}
             </Button>
             <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={() => { setSaveOpen(false); setSaveName(""); }}>
@@ -2351,26 +2351,26 @@ export default function OverlayEditor({
         <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-50 w-72 rounded-xl shadow-xl border border-border p-3 flex flex-col gap-2.5"
           style={{ background: "var(--bg-elevated)" }}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setNudgeOpen(false); }}>
-          <span className="text-t12 font-semibold text-primary">{t("ovlPrefNudge")}</span>
+          <span className="text-[length:var(--t12)] font-semibold text-primary">{t("ovlPrefNudge")}</span>
           <label className="flex items-center justify-between gap-2">
-            <span className="text-t12 text-muted">{t("ovlPrefNudgeStep")}</span>
+            <span className="text-[length:var(--t12)] text-muted">{t("ovlPrefNudgeStep")}</span>
             <input type="text" inputMode="numeric" autoFocus value={prefs.nudge}
               onChange={(e) => setPref("nudge", Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 1))}
-              className="w-[70px] rounded-md px-2 py-1 text-t12 text-primary text-right outline-none border border-border focus:border-accent"
+              className="w-[70px] rounded-md px-2 py-1 text-[length:var(--t12)] text-primary text-right outline-none border border-border focus:border-accent"
               style={{ background: "var(--surface-2)" }} />
           </label>
           <label className="flex items-center justify-between gap-2">
-            <span className="text-t12 text-muted">{t("ovlPrefNudgeBig")}</span>
+            <span className="text-[length:var(--t12)] text-muted">{t("ovlPrefNudgeBig")}</span>
             <input type="text" inputMode="numeric" value={prefs.nudgeBig}
               onChange={(e) => setPref("nudgeBig", Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 1))}
-              className="w-[70px] rounded-md px-2 py-1 text-t12 text-primary text-right outline-none border border-border focus:border-accent"
+              className="w-[70px] rounded-md px-2 py-1 text-[length:var(--t12)] text-primary text-right outline-none border border-border focus:border-accent"
               style={{ background: "var(--surface-2)" }} />
           </label>
           <div className="flex gap-1.5 mt-0.5">
-            <Button variant="flat" color="primary" size="sm" className="flex-1 text-t12!" onPress={() => setNudgeOpen(false)}>
+            <Button variant="flat" color="primary" size="sm" className="flex-1 text-[length:var(--t12)]!" onPress={() => setNudgeOpen(false)}>
               <Check size={13} /> {t("ovlDone")}
             </Button>
-            <Button variant="ghost" size="sm" className="text-t12!" onPress={() => { setPref("nudge", 1); setPref("nudgeBig", 10); }}>
+            <Button variant="ghost" size="sm" className="text-[length:var(--t12)]!" onPress={() => { setPref("nudge", 1); setPref("nudgeBig", 10); }}>
               {t("ovlReset")}
             </Button>
           </div>
@@ -2502,9 +2502,9 @@ export default function OverlayEditor({
             <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 shrink-0">
               <div className="flex items-center gap-2.5 shrink-0">
                 <Swatches size={16} className="text-accent" />
-                <span className="text-t14 font-semibold text-primary">{t("ovlProfileBrowse")}</span>
+                <span className="text-[length:var(--t14)] font-semibold text-primary">{t("ovlProfileBrowse")}</span>
                 {profiles.length > 0 && (
-                  <span className="text-t11 text-muted">({profiles.length})</span>
+                  <span className="text-[length:var(--t11)] text-muted">({profiles.length})</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -2517,7 +2517,7 @@ export default function OverlayEditor({
                         value={browserQuery}
                         onChange={(e) => setBrowserQuery(e.target.value)}
                         placeholder={t("ovlProfileSearch")}
-                        className="h-8 w-[210px] rounded-lg pl-8 pr-2.5 text-t12 text-primary border border-border outline-none focus:border-accent transition-colors"
+                        className="h-8 w-[210px] rounded-lg pl-8 pr-2.5 text-[length:var(--t12)] text-primary border border-border outline-none focus:border-accent transition-colors"
                         style={{ background: "var(--bg-base)" }}
                       />
                     </div>
@@ -2527,7 +2527,7 @@ export default function OverlayEditor({
                       {sortOpts.map(([id, label]) => (
                         <button key={id} type="button" onClick={() => setBrowserSort(id)}
                           className={[
-                            "h-full px-3 rounded-md text-t12 font-medium border-0 cursor-default transition-colors",
+                            "h-full px-3 rounded-md text-[length:var(--t12)] font-medium border-0 cursor-default transition-colors",
                             browserSort === id ? "bg-accent text-[var(--accent-foreground)]" : "bg-transparent text-secondary hover:text-primary",
                           ].join(" ")}
                         >{label}</button>
@@ -2536,7 +2536,7 @@ export default function OverlayEditor({
                   </>
                 )}
                 <input ref={importFileRef} type="file" accept=".json" multiple className="hidden" onChange={handleImportFiles} />
-                <Button variant="flat" size="sm" className="h-8! gap-1.5 text-t12!" onPress={() => importFileRef.current?.click()}>
+                <Button variant="flat" size="sm" className="h-8! gap-1.5 text-[length:var(--t12)]!" onPress={() => importFileRef.current?.click()}>
                   <UploadSimple size={14} /> {t("ovlProfileImport")}
                 </Button>
                 <Tooltip text={t("close")}>
@@ -2552,13 +2552,13 @@ export default function OverlayEditor({
               {profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                   <Swatches size={36} className="text-muted opacity-40" />
-                  <div className="text-t13 text-muted">{t("ovlProfileEmpty")}</div>
-                  <div className="text-t11 text-muted opacity-70">{t("ovlProfileEmptyHint")}</div>
+                  <div className="text-[length:var(--t13)] text-muted">{t("ovlProfileEmpty")}</div>
+                  <div className="text-[length:var(--t11)] text-muted opacity-70">{t("ovlProfileEmptyHint")}</div>
                 </div>
               ) : shown.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                   <MagnifyingGlass size={30} className="text-muted opacity-40" />
-                  <div className="text-t13 text-muted">{t("ovlProfileNoResults")}</div>
+                  <div className="text-[length:var(--t13)] text-muted">{t("ovlProfileNoResults")}</div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
@@ -2589,7 +2589,7 @@ export default function OverlayEditor({
                               itself stays quiet. */}
                           <div className="absolute inset-x-0 bottom-0 p-2 flex items-center gap-1.5 opacity-0 group-hover/design:opacity-100 focus-within:opacity-100 transition-opacity"
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0))" }}>
-                            <Button variant="flat" color="primary" size="sm" className="flex-1 h-9! text-t12!" onPress={() => applyProfile(prof)}>
+                            <Button variant="flat" color="primary" size="sm" className="flex-1 h-9! text-[length:var(--t12)]!" onPress={() => applyProfile(prof)}>
                               {t("ovlProfileApply")}
                             </Button>
                             <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
@@ -2625,12 +2625,12 @@ export default function OverlayEditor({
                           {confirming && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center"
                               style={{ background: "rgba(0,0,0,0.74)", backdropFilter: "blur(4px)" }}>
-                              <div className="text-t12 text-white">{t("ovlProfileDeleteConfirm")}</div>
+                              <div className="text-[length:var(--t12)] text-white">{t("ovlProfileDeleteConfirm")}</div>
                               <div className="flex items-center gap-2">
-                                <Button variant="flat" size="sm" className="h-8! text-t12!" onPress={() => setConfirmDeleteId(null)}>
+                                <Button variant="flat" size="sm" className="h-8! text-[length:var(--t12)]!" onPress={() => setConfirmDeleteId(null)}>
                                   {t("cancel")}
                                 </Button>
-                                <Button variant="flat" color="danger" size="sm" className="h-8! text-t12!"
+                                <Button variant="flat" color="danger" size="sm" className="h-8! text-[length:var(--t12)]!"
                                   onPress={() => { deleteProfile(prof.id); setConfirmDeleteId(null); }}>
                                   {t("ovlProfileDelete")}
                                 </Button>
@@ -2651,15 +2651,15 @@ export default function OverlayEditor({
                                 if (e.key === "Enter") { renameProfile(prof.id, renameDraft); setRenamingId(null); }
                                 if (e.key === "Escape") setRenamingId(null);
                               }}
-                              className="w-full h-6 rounded-md px-1.5 text-t12 font-medium text-primary border border-accent outline-none"
+                              className="w-full h-6 rounded-md px-1.5 text-[length:var(--t12)] font-medium text-primary border border-accent outline-none"
                               style={{ background: "var(--bg-base)" }}
                             />
                           ) : (
-                            <div className="text-t12 font-medium text-primary truncate cursor-default"
+                            <div className="text-[length:var(--t12)] font-medium text-primary truncate cursor-default"
                               onDoubleClick={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }}
                               title={prof.name}>{prof.name}</div>
                           )}
-                          <div className="text-t10 text-muted mt-0.5 tabular-nums">
+                          <div className="text-[length:var(--t10)] text-muted mt-0.5 tabular-nums">
                             {cw} × {ch} · {layerCount} {t("ovlLayers").toLowerCase()} · {date}
                           </div>
                         </div>

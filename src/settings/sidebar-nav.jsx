@@ -90,7 +90,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
     }}>
       {/* Tooltip portal — same pattern as the main Sidebar's, for the icon-only labels when collapsed */}
       {tooltip && (
-        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-t12 whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-[length:var(--t12)] whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
           style={{ left: tooltip.x, top: tooltip.y }}>
           {tooltip.text}
         </div>
@@ -130,7 +130,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={item.id}
                 textValue={item.label}
                 className={cn(
-                  "text-t13 min-h-10 rounded-xl",
+                  "text-[length:var(--t13)] min-h-10 rounded-xl",
                   tab === item.id && "bg-accent-dim text-accent",
                   collapsed && "justify-center"
                 )}
@@ -161,7 +161,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={"sec:" + sec.id}
                 textValue={sec.label}
                 className={cn(
-                  "text-t12 min-h-8 rounded-lg pl-9 relative",
+                  "text-[length:var(--t12)] min-h-8 rounded-lg pl-9 relative",
                   activeSection === sec.id ? "text-accent font-medium" : "text-secondary"
                 )}
                 style={anim ? { animation: `unfoldDown 0.22s cubic-bezier(0.4,0,0.2,1) both`, animationDelay: `${i * 30}ms`, transformOrigin: "top" } : undefined}
@@ -181,7 +181,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
         {debugToast && (
           <div
             className={[
-              "absolute left-0 right-0 bottom-[calc(100%+6px)] rounded-lg px-2.5 py-1.5 text-t11 font-medium text-center pointer-events-none z-10 border",
+              "absolute left-0 right-0 bottom-[calc(100%+6px)] rounded-lg px-2.5 py-1.5 text-[length:var(--t11)] font-medium text-center pointer-events-none z-10 border",
               debugToast === "unlocked" ? "border-transparent" : "bg-surface-1 text-secondary border-border",
             ].join(" ")}
             style={{

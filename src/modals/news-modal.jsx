@@ -31,7 +31,7 @@ export function renderNewsBody(body) {
   const blocks = [];
   let list = null;
   const flush = () => { if (list) { blocks.push(<ul key={`ul-${blocks.length}`} className="list-disc pl-5 my-1 flex flex-col gap-0.5">{list}</ul>); list = null; } };
-  const HCLS = { 1: "text-t15 font-bold mt-2.5 mb-1", 2: "text-t13 font-semibold mt-2 mb-0.5", 3: "text-t12 font-semibold mt-1.5 mb-0.5" };
+  const HCLS = { 1: "text-[length:var(--t15)] font-bold mt-2.5 mb-1", 2: "text-[length:var(--t13)] font-semibold mt-2 mb-0.5", 3: "text-[length:var(--t12)] font-semibold mt-1.5 mb-0.5" };
   body.split("\n").forEach((line, idx) => {
     const s = line.trim();
     if (!s) { flush(); return; }
@@ -75,7 +75,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
             </ModalHeader>
             <ModalBody className="p-0! overflow-hidden">
               {list.length === 0 ? (
-                <div className="text-t13 text-muted text-center py-12">{t("newsEmpty") || "Keine Neuigkeiten."}</div>
+                <div className="text-[length:var(--t13)] text-muted text-center py-12">{t("newsEmpty") || "Keine Neuigkeiten."}</div>
               ) : (
                 <div className="flex" style={{ height: "62vh" }}>
                   {/* Left: entry list */}
@@ -97,8 +97,8 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                               {n.important && <Star size={10} weight="fill" className="text-accent shrink-0" />}
                               {unread && <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: "var(--accent)" }} />}
                             </div>
-                            <div className="text-t13 font-semibold truncate" style={{ color: active ? "var(--accent)" : "var(--text-primary)" }}>{n.title || "—"}</div>
-                            <div className="text-t10 text-muted truncate">{n.date}{n.min_version ? ` · ab ${n.min_version}` : ""}</div>
+                            <div className="text-[length:var(--t13)] font-semibold truncate" style={{ color: active ? "var(--accent)" : "var(--text-primary)" }}>{n.title || "—"}</div>
+                            <div className="text-[length:var(--t10)] text-muted truncate">{n.date}{n.min_version ? ` · ab ${n.min_version}` : ""}</div>
                           </div>
                         </button>
                       );
@@ -111,13 +111,13 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                         {selected.image && <img src={selected.image} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: "cover" }} />}
                         <div className="px-6 py-5">
                           <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-                            <span className="text-t10 font-bold px-2 py-0.5 rounded-md" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span>
+                            <span className="text-[length:var(--t10)] font-bold px-2 py-0.5 rounded-md" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span>
                             {selected.important && <Star size={13} weight="fill" className="text-accent" />}
-                            {selected.date && <span className="text-t12 text-muted">{selected.date}</span>}
-                            {selected.min_version && <span className="text-t11 text-muted">· ab {selected.min_version}{selected.max_version ? ` – ${selected.max_version}` : ""}</span>}
+                            {selected.date && <span className="text-[length:var(--t12)] text-muted">{selected.date}</span>}
+                            {selected.min_version && <span className="text-[length:var(--t11)] text-muted">· ab {selected.min_version}{selected.max_version ? ` – ${selected.max_version}` : ""}</span>}
                           </div>
-                          <div className="text-t20 font-bold mb-3 leading-snug">{selected.title || "—"}</div>
-                          {selected.body && <div className="text-t14 text-secondary leading-relaxed">{renderNewsBody(selected.body)}</div>}
+                          <div className="text-[length:var(--t20)] font-bold mb-3 leading-snug">{selected.title || "—"}</div>
+                          {selected.body && <div className="text-[length:var(--t14)] text-secondary leading-relaxed">{renderNewsBody(selected.body)}</div>}
                         </div>
                       </>
                     )}

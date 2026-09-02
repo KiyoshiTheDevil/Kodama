@@ -9,7 +9,7 @@ export function ProfileSwitcherModal({ isOpen, onOpenChange, accounts, onSwitch,
   const list = accounts || [];
 
   const Avatar = ({ a }) => (
-    <div className={cn("w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold text-t12",
+    <div className={cn("w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold text-[length:var(--t12)]",
       a.type === "local" ? "bg-elevated text-secondary border border-border" : "bg-accent text-white")}>
       {a.avatar
         ? <img src={thumb(a.avatar)} alt="" className="w-full h-full object-cover" />
@@ -37,8 +37,8 @@ export function ProfileSwitcherModal({ isOpen, onOpenChange, accounts, onSwitch,
                   >
                     <Avatar a={a} />
                     <div className="flex-1 min-w-0">
-                      <div className={cn("text-t13 font-medium truncate", a.active && "text-accent")}>{a.displayName || a.name}</div>
-                      <div className="text-t11 text-muted truncate">
+                      <div className={cn("text-[length:var(--t13)] font-medium truncate", a.active && "text-accent")}>{a.displayName || a.name}</div>
+                      <div className="text-[length:var(--t11)] text-muted truncate">
                         {a.type === "local" ? t("localAccount") : a.loggedOut ? t("logOut") : a.handle}
                       </div>
                     </div>

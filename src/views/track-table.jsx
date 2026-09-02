@@ -80,7 +80,7 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
       className={`rounded-xl shrink-0 ${danger ? "text-[var(--status-danger)]! hover:text-white! hover:bg-[rgba(239,68,68,0.85)]!" : ""} ${horizontal ? "gap-2 px-4.5!" : ""}`}
     >
       {icon}
-      {!iconOnly && <span className="text-t13 font-medium whitespace-nowrap">{label}</span>}
+      {!iconOnly && <span className="text-[length:var(--t13)] font-medium whitespace-nowrap">{label}</span>}
     </Button>
   );
   return iconOnly ? <Tooltip text={label}>{btn}</Tooltip> : btn;
@@ -183,7 +183,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
     >
       {/* Title */}
       <div className="flex items-center gap-3 min-w-0">
-        {showNum && <span className={`w-6 text-right shrink-0 text-t12 tabular-nums ${isPlaying ? "text-accent" : "text-muted"}`}>{index + 1}</span>}
+        {showNum && <span className={`w-6 text-right shrink-0 text-[length:var(--t12)] tabular-nums ${isPlaying ? "text-accent" : "text-muted"}`}>{index + 1}</span>}
         <div className="relative w-12 h-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
           {track.thumbnail
             ? <img src={thumb(hiResThumb(track.thumbnail, 120))} alt="" className="w-full h-full object-cover" />
@@ -197,7 +197,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           )}
         </div>
         <div className="min-w-0">
-          <div className={`flex items-center gap-1 overflow-hidden text-t13 font-medium ${isPlaying ? "text-accent" : "text-primary"}`}>
+          <div className={`flex items-center gap-1 overflow-hidden text-[length:var(--t13)] font-medium ${isPlaying ? "text-accent" : "text-primary"}`}>
             <span className="truncate min-w-0">{track.title}</span>
             {track.isExplicit && <ExplicitBadge />}
           </div>
@@ -233,7 +233,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
         )}
       </div>
       {/* Artist */}
-      <div className="text-t12 text-secondary truncate">
+      <div className="text-[length:var(--t12)] text-secondary truncate">
         <ArtistLinks track={track} onOpenArtist={onOpenArtist} />
         {(!track.artists || (Array.isArray(track.artists) && track.artists.length === 0)) && "—"}
       </div>
@@ -241,7 +241,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
       {!isAlbum && (
         <div
           onClick={e => { if (track.albumBrowseId && onOpenAlbum) { e.stopPropagation(); onOpenAlbum({ browseId: track.albumBrowseId, title: track.album }); }}}
-          className="text-t12 text-secondary truncate cursor-default transition-colors hover:text-primary"
+          className="text-[length:var(--t12)] text-secondary truncate cursor-default transition-colors hover:text-primary"
         >
           {track.album || "—"}
         </div>
@@ -262,7 +262,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
       </div>
       {/* Duration — centred, so the times sit directly under the clock in the header rather
           than being pushed to the column edge while the narrow icon floats above their end. */}
-      <div className="text-t12 text-muted text-center tabular-nums">
+      <div className="text-[length:var(--t12)] text-muted text-center tabular-nums">
         {track.duration || "—"}
       </div>
       {/* Selection — last column, so the title side stays undisturbed */}

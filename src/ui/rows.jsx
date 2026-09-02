@@ -87,16 +87,16 @@ export function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu
         )}
       </div>
       <div className="flex-1 overflow-hidden">
-        <div className={`flex items-center gap-1 overflow-hidden text-t13 font-medium transition-colors ${isPlaying ? "text-accent" : "text-primary"}`}>
+        <div className={`flex items-center gap-1 overflow-hidden text-[length:var(--t13)] font-medium transition-colors ${isPlaying ? "text-accent" : "text-primary"}`}>
           <span className="truncate min-w-0">{track.title}</span>
           {track.isExplicit && <ExplicitBadge />}
         </div>
-        <div className="text-t12 text-secondary truncate">
+        <div className="text-[length:var(--t12)] text-secondary truncate">
           <ArtistLinks track={track} onOpenArtist={onOpenArtist} />
           {track.album ? ` · ${track.album}` : ""}
         </div>
       </div>
-      <div className="text-t12 text-muted shrink-0">
+      <div className="text-[length:var(--t12)] text-muted shrink-0">
         {formatDuration(track.duration)}
       </div>
     </div>
@@ -135,8 +135,8 @@ export function GridCard({ thumbnail, title, subtitle, count, onClick, onPlay, o
       </div>
       {/* Title + subtitle below the cover */}
       <div className="pt-3 px-0.5" onClick={onClick}>
-        <div className="text-t13 font-semibold text-primary truncate">{title}</div>
-        {subtitle ? <div className="text-t12 text-muted mt-0.5 truncate">{subtitle}</div> : null}
+        <div className="text-[length:var(--t13)] font-semibold text-primary truncate">{title}</div>
+        {subtitle ? <div className="text-[length:var(--t12)] text-muted mt-0.5 truncate">{subtitle}</div> : null}
       </div>
     </div>
   );

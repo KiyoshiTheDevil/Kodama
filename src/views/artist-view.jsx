@@ -105,7 +105,7 @@ function ArtistDescription({ text, name, url }) {
                 <ModalHeading>{t("about")}</ModalHeading>
               </ModalHeader>
               <ModalBody>
-                <p className="scrollable text-t12 text-secondary leading-relaxed whitespace-pre-wrap max-h-[55vh] overflow-y-auto pr-1">{body}</p>
+                <p className="scrollable text-[length:var(--t12)] text-secondary leading-relaxed whitespace-pre-wrap max-h-[55vh] overflow-y-auto pr-1">{body}</p>
               </ModalBody>
               {wikiCited && (
                 <ModalFooter>

@@ -104,12 +104,12 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
     return c;
   })();
 
-  const fieldLabel = "text-t10 font-bold uppercase tracking-[0.08em] text-muted";
+  const fieldLabel = "text-[length:var(--t10)] font-bold uppercase tracking-[0.08em] text-muted";
   const Chips = ({ items, value, onPick }) => (
     <div className="flex flex-wrap gap-2">
       {items.map((c) => (
         <button key={c.value} onClick={() => onPick(value === c.value ? "" : c.value)}
-          className={cn("px-3.5 py-2 rounded-xl text-t13 border-none transition-colors duration-150",
+          className={cn("px-3.5 py-2 rounded-xl text-[length:var(--t13)] border-none transition-colors duration-150",
             value === c.value ? "bg-accent-dim text-accent font-semibold" : "bg-transparent text-secondary hover:bg-hover border border-border")}>
           {c.label}
         </button>
@@ -131,7 +131,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
               {status === "ok" ? (
                 <div className="flex flex-col items-center gap-3 py-8">
                   <CheckCircle size={44} weight="fill" className="text-accent" />
-                  <div className="text-t14 font-semibold">{t("reportSent") || "Danke! Dein Report wurde gesendet."}</div>
+                  <div className="text-[length:var(--t14)] font-semibold">{t("reportSent") || "Danke! Dein Report wurde gesendet."}</div>
                 </div>
               ) : (
                 /* max-height in vh, divided by zoom: ModalDialog (the ancestor) has `zoom`
@@ -179,14 +179,14 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <Info size={15} className="text-muted shrink-0" />
-                        <span className="text-t13 font-medium">{t("reportDiagnostics") || "Diagnose anhängen"}</span>
+                        <span className="text-[length:var(--t13)] font-medium">{t("reportDiagnostics") || "Diagnose anhängen"}</span>
                       </div>
                       <Toggle value={includeDiag} onChange={setIncludeDiag} />
                     </div>
                     {includeDiag && (
                       <div className="flex flex-wrap gap-1.5 mt-2.5">
                         {diagChips.map((chip, i) => (
-                          <span key={i} className="text-t11 font-mono px-2 py-0.5 rounded-md bg-surface border border-border text-secondary">{chip}</span>
+                          <span key={i} className="text-[length:var(--t11)] font-mono px-2 py-0.5 rounded-md bg-surface border border-border text-secondary">{chip}</span>
                         ))}
                       </div>
                     )}
@@ -196,7 +196,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <ImageSquare size={15} className="text-muted shrink-0" />
-                          <span className="text-t13 font-medium">{t("reportScreenshot") || "Attach screenshot"}</span>
+                          <span className="text-[length:var(--t13)] font-medium">{t("reportScreenshot") || "Attach screenshot"}</span>
                         </div>
                         <Toggle value={includeShot} onChange={setIncludeShot} />
                       </div>
@@ -206,14 +206,14 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
                       )}
                     </div>
                   )}
-                  {status === "error" && <div className="text-t12 text-red-400">{t("reportError") || "Senden fehlgeschlagen. Bitte später erneut versuchen."}</div>}
-                  {status === "unconfigured" && <div className="text-t12 text-amber-400">{t("reportUnconfigured") || "Feedback ist in diesem Build noch nicht konfiguriert."}</div>}
+                  {status === "error" && <div className="text-[length:var(--t12)] text-red-400">{t("reportError") || "Senden fehlgeschlagen. Bitte später erneut versuchen."}</div>}
+                  {status === "unconfigured" && <div className="text-[length:var(--t12)] text-amber-400">{t("reportUnconfigured") || "Feedback ist in diesem Build noch nicht konfiguriert."}</div>}
                 </div>
               )}
             </ModalBody>
             {status !== "ok" && (
               <ModalFooter>
-                <span className="text-t11 text-muted mr-auto">{contact.trim() ? (t("reportContactNote") || "Rückfragen möglich") : (t("reportAnon") || "Anonym · keine Account-Daten")}</span>
+                <span className="text-[length:var(--t11)] text-muted mr-auto">{contact.trim() ? (t("reportContactNote") || "Rückfragen möglich") : (t("reportAnon") || "Anonym · keine Account-Daten")}</span>
                 <Button variant="ghost" onPress={close}>{t("cancel")}</Button>
                 <Button color="accent" variant="solid" isDisabled={(!title.trim() && !description.trim() && !steps.trim()) || sending} onPress={submit}>
                   {sending ? <Spinner size="sm" /> : <span className="flex items-center gap-1.5"><PaperPlaneTilt size={15} />{t("reportSend") || "Senden"}</span>}

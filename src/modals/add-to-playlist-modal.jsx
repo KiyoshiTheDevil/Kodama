@@ -79,7 +79,7 @@ export function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) 
                   {playlists === null ? (
                     <div className="h-full flex items-center justify-center"><Spinner size="sm" /></div>
                   ) : filtered.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted text-t12">{t("noPlaylists")}</div>
+                    <div className="h-full flex items-center justify-center text-muted text-[length:var(--t12)]">{t("noPlaylists")}</div>
                   ) : (
                   <div className="flex flex-col gap-1">
                   {filtered.map((pl, i) => (
@@ -94,8 +94,8 @@ export function AddToPlaylistModal({ tracks, onClose, onNewPlaylist, onAdded }) 
                           : <Playlist size={18} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-t13 font-medium truncate">{pl.title}</div>
-                        {countLabel(pl.count) ? <div className="text-t11 text-muted truncate">{countLabel(pl.count)}</div> : null}
+                        <div className="text-[length:var(--t13)] font-medium truncate">{pl.title}</div>
+                        {countLabel(pl.count) ? <div className="text-[length:var(--t11)] text-muted truncate">{countLabel(pl.count)}</div> : null}
                       </div>
                       {busyId === pl.playlistId
                         ? <Spinner size="sm" className="shrink-0" />

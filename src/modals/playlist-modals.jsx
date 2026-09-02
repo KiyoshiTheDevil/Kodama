@@ -39,7 +39,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onCreated, t }) {
     setCreating(false);
   };
 
-  const fieldLabel = "text-t10 font-bold uppercase tracking-[0.08em] text-muted";
+  const fieldLabel = "text-[length:var(--t10)] font-bold uppercase tracking-[0.08em] text-muted";
   const privacyOpts = [
     ["PRIVATE",  t("privacyPrivate"),  <Lock size={14} />],
     ["UNLISTED", t("privacyUnlisted"), <EyeSlash size={14} />],
@@ -82,7 +82,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onCreated, t }) {
                       const active = privacy === val;
                       return (
                         <button key={val} onClick={() => setPrivacy(val)}
-                          className={cn("flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-t13 border-none w-full transition-colors duration-150",
+                          className={cn("flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-[length:var(--t13)] border-none w-full transition-colors duration-150",
                             active ? "bg-accent-dim text-accent font-semibold" : "bg-transparent text-secondary hover:bg-hover")}>
                           <span className={cn("flex w-4 justify-center shrink-0", !active && "opacity-55")}>{icon}</span>
                           {label}
@@ -160,7 +160,7 @@ export function DeletePlaylistModal({ dialog, onConfirm, onClose, t }) {
               <ModalHeading>{t("deletePlaylist")}</ModalHeading>
             </ModalHeader>
             <ModalBody>
-              <div className="text-t13 text-secondary leading-relaxed">
+              <div className="text-[length:var(--t13)] text-secondary leading-relaxed">
                 {t("deletePlaylistConfirm")}<br /><strong className="text-primary">{dialog.title}</strong>
               </div>
             </ModalBody>

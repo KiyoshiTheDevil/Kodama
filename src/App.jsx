@@ -816,7 +816,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           id={item.id}
           textValue={item.label}
           className={cn(
-            "text-t13 min-h-10 rounded-xl",
+            "text-[length:var(--t13)] min-h-10 rounded-xl",
             // activeNavId, not view: Liked Songs opens as a collection, so the entry has to
             // stay lit even though `view` says "collection".
             (activeNavId || view) === item.id && "bg-accent-dim text-accent",
@@ -854,7 +854,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           key={sidebarItemId(pl)}
           id={sidebarItemId(pl)}
           textValue={pl.title}
-          className={cn("text-t12 rounded-xl", collapsed ? "justify-center px-0 min-h-12" : "min-h-14")}
+          className={cn("text-[length:var(--t12)] rounded-xl", collapsed ? "justify-center px-0 min-h-12" : "min-h-14")}
           onContextMenu={e => onContextMenu?.(e, pl)}
           onMouseEnter={e => {
             if (collapsed) {
@@ -899,7 +899,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       <DisclosureHeading>
         <DisclosureTrigger
           className={cn(
-            "flex items-center text-t10 font-semibold text-muted uppercase tracking-wider hover:text-secondary transition-colors duration-150",
+            "flex items-center text-[length:var(--t10)] font-semibold text-muted uppercase tracking-wider hover:text-secondary transition-colors duration-150",
             collapsed ? "w-full justify-center py-2" : "w-full gap-1.5 px-3 pt-1.5 pb-1"
           )}
           onMouseEnter={collapsed ? (e => {
@@ -1002,7 +1002,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
 
       {/* Tooltip portal */}
       {tooltip && (
-        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-t12 whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-[length:var(--t12)] whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
           style={{ left: tooltip.x, top: tooltip.y }}>
           {tooltip.text}
         </div>
@@ -1066,7 +1066,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         ) : (
           <>
             <img src="/Kodama%20Logo.png" alt="Kodama" width="20" height="20" className="shrink-0" />
-            <span className="text-t15 font-medium whitespace-nowrap">Kodama</span>
+            <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">Kodama</span>
             <div className="ml-auto flex items-center gap-0.5 shrink-0">
               <Button
                 variant="ghost" size="sm" isIconOnly
@@ -1130,7 +1130,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <Button
             variant="ghost" fullWidth
             onPress={onCreatePlaylist}
-            className="justify-start gap-2.5 px-3 rounded-xl text-t13 text-secondary"
+            className="justify-start gap-2.5 px-3 rounded-xl text-[length:var(--t13)] text-secondary"
           >
             <Plus size={16} weight="bold" />
             {t("newPlaylist")}
@@ -1144,7 +1144,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <hr className="mb-2 mx-2 border-t border-border" />
           {updateInfo && (
             <div onClick={onOpenUpdateTab}
-              className="flex items-center gap-2 py-1.5 px-3 mb-1 rounded-xl text-t12 font-medium text-accent transition-all duration-150"
+              className="flex items-center gap-2 py-1.5 px-3 mb-1 rounded-xl text-[length:var(--t12)] font-medium text-accent transition-all duration-150"
               style={{ background: "rgba(224,64,251,0.08)" }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(224,64,251,0.15)"}
               onMouseLeave={e => e.currentTarget.style.background = "rgba(224,64,251,0.08)"}
@@ -1160,15 +1160,15 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                   className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-secondary hover:bg-hover hover:text-primary transition-colors duration-150"
                   style={{ contain: "layout style" }}
                 >
-                  <div className="w-7 h-7 shrink-0 rounded-full bg-accent flex items-center justify-center text-t11 font-medium overflow-hidden">
+                  <div className="w-7 h-7 shrink-0 rounded-full bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden">
                     {currentProfileData?.avatar
                       ? <img src={thumb(currentProfileData.avatar)} alt="" className="w-full h-full object-cover" />
                       : (currentProfileData?.displayName || "?")[0].toUpperCase()}
                   </div>
                   <div className="overflow-hidden flex-1 min-w-0 text-left">
-                    <div className="text-t12 font-medium truncate">{currentProfileData?.displayName || t("noProfile")}</div>
+                    <div className="text-[length:var(--t12)] font-medium truncate">{currentProfileData?.displayName || t("noProfile")}</div>
                     {!(hideUserHandle && currentProfileData?.handle) && (
-                      <div className="text-t11 text-muted truncate">{currentProfileData?.handle || t("switchProfile")}</div>
+                      <div className="text-[length:var(--t11)] text-muted truncate">{currentProfileData?.handle || t("switchProfile")}</div>
                     )}
                   </div>
                 </DropdownTrigger>
@@ -1202,7 +1202,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <div className="flex flex-col items-center gap-1 py-2">
             <Dropdown>
               <DropdownTrigger
-                className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-t11 font-medium overflow-hidden shrink-0"
+                className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
                 style={{ contain: "layout style" }}
                 onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ text: currentProfileData?.displayName || "Kiyoshi", x: r.right + 10, y: r.top + r.height / 2 }); }}
                 onMouseLeave={() => setTooltip(null)}
@@ -2407,7 +2407,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             <DropdownPopover placement="top end"
               className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
             >
-              <div className="px-3 pt-2.5 pb-1 text-t11 font-bold text-muted uppercase tracking-wider">
+              <div className="px-3 pt-2.5 pb-1 text-[length:var(--t11)] font-bold text-muted uppercase tracking-wider">
                 {t("sleepTimer")}
               </div>
               <DropdownMenu
@@ -2430,7 +2430,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                     <DropdownItem id="off" textValue={t("cancelSleepTimer")} className="text-[var(--status-danger)]">
                       <X size={13} />
                       {t("cancelSleepTimer")}
-                      <span className="ml-auto text-t12 font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>
+                      <span className="ml-auto text-[length:var(--t12)] font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>
                     </DropdownItem>
                   </DropdownSection>
                 ) : null}
@@ -3160,12 +3160,12 @@ function FfmpegUpdateBanner({ installed, latest, onClose }) {
           {phase === "done" ? <CheckCircle size={18} weight="fill" /> : <ArrowClockwise size={16} weight="bold" />}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-t13 font-semibold text-primary">
+          <div className="text-[length:var(--t13)] font-semibold text-primary">
             {phase === "done" ? t("ffmpegUpdated") : phase === "error" ? t("ffmpegUpdateFailed") : t("ffmpegUpdateAvailable")}
           </div>
           {phase === "downloading"
             ? <ProgressBar aria-label="FFmpeg update" value={percent} className="mt-1.5 gap-0!"><ProgressBarTrack className="h-[3px]!"><ProgressBarFill /></ProgressBarTrack></ProgressBar>
-            : <div className="text-t11 text-secondary truncate">{phase === "error" ? t("ffmpegConnectionLost") : installed ? `${installed} → ${latest}` : latest}</div>}
+            : <div className="text-[length:var(--t11)] text-secondary truncate">{phase === "error" ? t("ffmpegConnectionLost") : installed ? `${installed} → ${latest}` : latest}</div>}
         </div>
         {phase === "offer" && (<>
           <Button color="accent" variant="solid" size="sm" className="shrink-0" onPress={startUpdate}>{t("ffmpegUpdate")}</Button>
@@ -6216,7 +6216,7 @@ export default function App() {
                 : (switchingTo.displayName || switchingTo.name || "?")[0].toUpperCase()}
             </div>
             <Spinner size="lg" />
-            <div className="text-t14 text-secondary">
+            <div className="text-[length:var(--t14)] text-secondary">
               {translate(language, "switchingTo", { name: switchingTo.displayName || switchingTo.name })}
             </div>
           </div>
@@ -6292,11 +6292,11 @@ export default function App() {
               {downloadQueueMin && (allFinished
                 ? <CheckCircle size={14} weight="fill" className="text-[var(--status-success)] shrink-0" />
                 : <Spinner size="sm" className="shrink-0" />)}
-              <span className="text-t10 font-bold uppercase tracking-wider text-muted px-0.5">
+              <span className="text-[length:var(--t10)] font-bold uppercase tracking-wider text-muted px-0.5">
                 {translate(language, "downloadQueue")}
               </span>
               {downloadQueueMin && (
-                <span className="text-t10 font-bold text-muted tabular-nums">{overallDone} / {overallTotal}</span>
+                <span className="text-[length:var(--t10)] font-bold text-muted tabular-nums">{overallDone} / {overallTotal}</span>
               )}
               <div className="flex-1" />
               <Button variant="ghost" size="sm" isIconOnly onPress={() => setDownloadQueueMin(m => !m)} aria-label={downloadQueueMin ? "Expand" : "Minimize"}>
@@ -6318,14 +6318,14 @@ export default function App() {
                       {isFinished
                         ? <CheckCircle size={15} weight="fill" className="text-[var(--status-success)] shrink-0" />
                         : <Spinner size="sm" className="shrink-0" />}
-                      <div className="text-t12 font-semibold truncate flex-1">{batch.title}</div>
+                      <div className="text-[length:var(--t12)] font-semibold truncate flex-1">{batch.title}</div>
                       {!isFinished && (
                         <Button variant="ghost" size="sm" isIconOnly className="shrink-0 -mr-1" onPress={() => handleCancelBatch(batch.id)} aria-label={translate(language, "cancel")} title={translate(language, "cancel")}>
                           <X size={12} />
                         </Button>
                       )}
                     </div>
-                    {batch.artists && <div className="text-t11 text-muted truncate">{batch.artists}</div>}
+                    {batch.artists && <div className="text-[length:var(--t11)] text-muted truncate">{batch.artists}</div>}
                     <div className="mt-1.5">
                       <ProgressBar aria-label="Download progress" value={pct} className="w-full">
                         <ProgressBarTrack className="h-1.5!">
@@ -6333,7 +6333,7 @@ export default function App() {
                         </ProgressBarTrack>
                       </ProgressBar>
                     </div>
-                    <div className="flex items-center justify-between text-t11 text-muted mt-1">
+                    <div className="flex items-center justify-between text-[length:var(--t11)] text-muted mt-1">
                       <span>{done} / {total}</span>
                       <span>{pct}%</span>
                     </div>

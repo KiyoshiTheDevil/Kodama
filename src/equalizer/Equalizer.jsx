@@ -537,7 +537,7 @@ export default function Equalizer({ t }) {
               style={{ fontSize: "var(--t13)" }}
             />
             <div className="flex gap-1.5">
-              <Button variant="flat" color="primary" size="sm" className="flex-1 text-t12!"
+              <Button variant="flat" color="primary" size="sm" className="flex-1 text-[length:var(--t12)]!"
                 isDisabled={!saveName.trim()} onPress={savePreset}>
                 <Check size={13} /> {t("eqSave")}
               </Button>

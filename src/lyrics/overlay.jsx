@@ -879,7 +879,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             <Button
               variant="ghost" size="sm"
               onPress={resumeAutoscroll}
-              className="relative gap-2 h-9! px-4 rounded-full text-t13 font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
+              className="relative gap-2 h-9! px-4 rounded-full text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
             >
               <CaretDown size={13} weight="bold" />
               {t("resumeAutoscroll") || "Resume autoscroll"}

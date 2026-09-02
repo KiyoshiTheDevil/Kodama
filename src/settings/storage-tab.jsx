@@ -190,8 +190,8 @@ function CacheTab({ t }) {
 
             {/* Label + stats */}
             <div className="flex-1 min-w-0">
-              <div className="text-t13 font-medium text-primary">{label}</div>
-              <div className="text-t11 text-muted mt-0.5">
+              <div className="text-[length:var(--t13)] font-medium text-primary">{label}</div>
+              <div className="text-[length:var(--t11)] text-muted mt-0.5">
                 {s ? <span style={{ color, fontWeight: 600 }}>{fmtBytes(s.size)}</span> : "…"}
                 {s?.count != null && <span> · {s.count} {key === "images" ? t("cacheFiles") : t("cacheEntries")}</span>}
               </div>

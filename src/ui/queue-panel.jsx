@@ -78,11 +78,11 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
 
       {/* Title + artist */}
       <div className="flex-1 min-w-0">
-        <div className={`flex items-center gap-1 overflow-hidden text-t12 font-medium ${isActive ? "text-accent" : "text-primary"}`}>
+        <div className={`flex items-center gap-1 overflow-hidden text-[length:var(--t12)] font-medium ${isActive ? "text-accent" : "text-primary"}`}>
           <span className="truncate min-w-0">{track.title}</span>
           {track.isExplicit && <ExplicitBadge />}
         </div>
-        <div className="text-t11 text-secondary truncate">{track.artists}</div>
+        <div className="text-[length:var(--t11)] text-secondary truncate">{track.artists}</div>
       </div>
 
       {/* Custom-crossfade indicator (set via right-click) */}
@@ -95,7 +95,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
 
       {/* Duration */}
       {track.duration && (
-        <div className="shrink-0 min-w-[28px] text-t11 text-muted text-right">{track.duration}</div>
+        <div className="shrink-0 min-w-[28px] text-[length:var(--t11)] text-muted text-right">{track.duration}</div>
       )}
 
       {/* Like button */}
@@ -350,7 +350,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
             {[["queue", t("queue")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
               <button key={id} type="button" onClick={() => setPanelTab(id)}
                 style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
-                className={`flex-1 border-0 cursor-default select-none text-t12 font-semibold transition-[background-color,color] duration-150 ${
+                className={`flex-1 border-0 cursor-default select-none text-[length:var(--t12)] font-semibold transition-[background-color,color] duration-150 ${
                   panelTab === id
                     ? "bg-accent text-[var(--accent-foreground)]"
                     : "bg-[var(--fill-subtle)] text-secondary hover:text-primary hover:bg-hover"
@@ -379,39 +379,39 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
                   <img src={currentTrack.thumbnail} alt="" className="w-[52px] h-[52px] rounded-[var(--r-md)] object-cover shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <div className="text-t13 font-semibold text-primary truncate">{currentTrack.title}</div>
-                  <div className="text-t12 text-secondary mt-0.5 truncate">{currentTrack.artists}</div>
-                  {currentTrack.album && <div className="text-t11 text-muted mt-0.5 truncate">{currentTrack.album}</div>}
+                  <div className="text-[length:var(--t13)] font-semibold text-primary truncate">{currentTrack.title}</div>
+                  <div className="text-[length:var(--t12)] text-secondary mt-0.5 truncate">{currentTrack.artists}</div>
+                  {currentTrack.album && <div className="text-[length:var(--t11)] text-muted mt-0.5 truncate">{currentTrack.album}</div>}
                 </div>
               </CardRoot>
 
               {/* Description */}
               {songDesc === null && !songDescError && (
-                <div className="text-t12 text-muted">{t("loadingDots")}</div>
+                <div className="text-[length:var(--t12)] text-muted">{t("loadingDots")}</div>
               )}
               {songDescError && (
                 <div className="flex flex-col gap-2">
-                  <div className="text-t12 text-muted">{t("noCredits")}</div>
-                  <Button variant="secondary" size="sm" className="self-start gap-1.5 text-t11" onPress={() => { setSongDescId(null); fetchSongDesc(currentTrack?.videoId, true); }}
+                  <div className="text-[length:var(--t12)] text-muted">{t("noCredits")}</div>
+                  <Button variant="secondary" size="sm" className="self-start gap-1.5 text-[length:var(--t11)]" onPress={() => { setSongDescId(null); fetchSongDesc(currentTrack?.videoId, true); }}
                   ><ArrowClockwise size={11} /> {t("retry") || "Erneut versuchen"}</Button>
                 </div>
               )}
               {songDesc !== null && songDesc === "" && !songDescError && (
-                <div className="text-t12 text-muted">{t("noCredits")}</div>
+                <div className="text-[length:var(--t12)] text-muted">{t("noCredits")}</div>
               )}
               {songDesc && (
-                <p className="m-0 text-t12 leading-[1.7] text-secondary whitespace-pre-wrap">{songDesc}</p>
+                <p className="m-0 text-[length:var(--t12)] leading-[1.7] text-secondary whitespace-pre-wrap">{songDesc}</p>
               )}
             </>
           ) : (
-            <div className="text-t13 text-muted text-center mt-10">{t("selectSong")}</div>
+            <div className="text-[length:var(--t13)] text-muted text-center mt-10">{t("selectSong")}</div>
           )}
         </div>
       )}
 
       {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
         {queue.length === 0 ? (
-          <div className="p-6 text-t13 text-muted text-center">{t("emptyQueue")}</div>
+          <div className="p-6 text-[length:var(--t13)] text-muted text-center">{t("emptyQueue")}</div>
         ) : (
           <div className="relative w-full" style={{ height: totalHeight }}>
             {virtualItems.map(v => {
@@ -472,7 +472,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
             <Button
               variant="ghost" size="sm"
               onPress={() => listRef.current?.scrollTo({ top: Math.max(0, nowPlayingOffsetRef.current - 4), behavior: "smooth" })}
-              className="relative gap-2 h-9! px-4 rounded-full text-t13 font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
+              className="relative gap-2 h-9! px-4 rounded-full text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
             ><CaretLineUp size={15} weight="bold" className="text-accent" /> {t("scrollToTop")}</Button>
           </div>
         </div>,

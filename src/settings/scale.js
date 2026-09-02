@@ -10,7 +10,7 @@ export const FONT_LABELS     = FONT_STEPS.map(s => `${Math.round(13 * s)}px`);
 // That makes them per-document, and Kodama has more than one. The overlay editor and the mini
 // player are separate windows where App never mounts, so none of the variables existed there
 // and every text-t* class silently fell back to the inherited size -- the editor's whole
-// typography was effectively one size, and changing a text-t13 to text-t18 did nothing at all.
+// typography was effectively one size, and changing a text-[length:var(--t13)] to text-[length:var(--t18)] did nothing at all.
 // Each window entry point calls this for itself.
 //
 // Tailwind's OWN scale (text-xs ... text-2xl) is scaled too, in index.css, via --font-scale

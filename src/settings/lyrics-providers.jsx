@@ -73,7 +73,7 @@ export function LyricsProviderList({ providers, onChange }) {
             <GripLines size={16} style={{ pointerEvents: "none" }} />
           </div>
           {/* Label */}
-          <span className={cn("text-t13", p.enabled ? "text-primary" : "text-muted")}>{p.label}</span>
+          <span className={cn("text-[length:var(--t13)]", p.enabled ? "text-primary" : "text-muted")}>{p.label}</span>
           {/* Sync-type tag */}
           {/* Every level the source can deliver, not just its finest: a syllable-timed source
               can also give you words and lines, and only listing "Syllable" hid that. */}
