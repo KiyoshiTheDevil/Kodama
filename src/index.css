@@ -787,14 +787,16 @@ button:not([class]) {
    rectangle sliding in a slot rather than as a switch, and sat oddly beside the 16px radius
    of the settings groups.
 
-   Scoped away from sm/lg on purpose. The video-sync switch in the player bar is `lg` and
-   carries an ICON inside its thumb; forcing a 16px circle there would crush the glyph and
-   throw off the checked offset, which is baked into the size-specific rules. :not() rather
-   than .switch--md so this holds whether or not the default size emits a class of its own.
+   Scoped away from sm/lg and from the player bar's audio/video switch, each of which defines
+   its own geometry below. Written as :not() rather than keying on .switch--md so this holds
+   whether or not the default size emits a class of its own. Excluding them here rather than
+   out-specifying them there is deliberate: this rule is "every switch that has not been given
+   a size of its own", and saying so costs nothing while a specificity race costs every time
+   someone adds the next variant.
 
    The thumb travels by transform instead of HeroUI's margin. Margin is laid out, so the old
    version reflowed on every frame of every toggle; a transform does not touch layout at all. */
-.switch:not(.switch--sm):not(.switch--lg) {
+.switch:not(.switch--sm):not(.switch--lg):not(.av-switch) {
   /* Everything in rem, like HeroUI's own sizing: the app lets the user scale the type, and a
      switch pinned to px would shrink inside its own row as soon as they did. */
   .switch__control {
@@ -828,13 +830,59 @@ button:not([class]) {
 
 /* margin-inline-start followed the writing direction on its own; a transform does not, so
    RTL needs the mirrored value spelled out. */
-[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg)[aria-checked="true"] .switch__thumb,
-[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg)[data-selected="true"] .switch__thumb {
+[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg):not(.av-switch)[aria-checked="true"] .switch__thumb,
+[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg):not(.av-switch)[data-selected="true"] .switch__thumb {
   transform: translateX(calc(4px - 1.375rem));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .switch:not(.switch--sm):not(.switch--lg) .switch__thumb { transition: none; }
+  .switch:not(.switch--sm):not(.switch--lg):not(.av-switch) .switch__thumb { transition: none; }
+}
+
+/* The audio/video switch in the player bar. Same language as the settings switches — pill
+   track, round thumb — but it carries an icon inside the thumb, so the thumb has to be big
+   enough to hold one and the geometry is written out rather than inherited.
+
+   Sized in px, not rem, unlike the settings switches: it fills a fixed 60x30 slot inside a
+   fixed-height player bar. Scaling it with the user's type size while its own slot stayed put
+   would leave it sitting crooked in its own hole. The settings switches live in a column that
+   scales as a whole, which is why they do. */
+.av-switch {
+  .switch__control {
+    width: 60px;
+    height: 30px;
+    border-radius: var(--r-full);
+  }
+
+  .switch__thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    margin-inline-start: 2px;
+    transform: translateX(0);
+    /* The icon is centred by the thumb itself; HeroUI only sets `display: flex` on it. */
+    align-items: center;
+    justify-content: center;
+    transition:
+      transform 300ms cubic-bezier(.32, .72, 0, 1),
+      background-color 200ms var(--ease-out);
+  }
+
+  /* 60 - 26 - 2 either side. */
+  &[aria-checked="true"] .switch__thumb,
+  &[data-selected="true"] .switch__thumb {
+    margin-inline-start: 2px;
+    transform: translateX(30px);
+  }
+}
+
+[dir="rtl"] .av-switch[aria-checked="true"] .switch__thumb,
+[dir="rtl"] .av-switch[data-selected="true"] .switch__thumb {
+  transform: translateX(-30px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av-switch .switch__thumb { transition: none; }
 }
 .slider__track { background-color: var(--surface-2); }
 

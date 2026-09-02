@@ -2649,22 +2649,19 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             width: 60, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <Tooltip text={videoAvailable ? (showVideoView ? t("audioViewTooltip") : t("videoViewTooltip")) : t("videoViewUnavailableTooltip")}>
-              {/* HeroUI's largest preset ("lg") still renders a fairly small thumb — scale the
-                  whole switch up rather than hand-overriding its internal sizing, since the
-                  thumb's checked-position offset is baked into size-specific CSS and would
-                  otherwise stop lining up. Icon size is set pre-scale (13 × 1.25 ≈ 16px on screen,
-                  matching the other toolbar buttons' 16px icons). */}
+              {/* Geometry comes from `.av-switch` in index.css, sized to fill this 60x30 slot
+                  directly. It used to be HeroUI's `lg` blown up with scale(1.25), which softened
+                  the icon and meant the icon had to be sized pre-scale to land at 16px. */}
               <SwitchRoot
-                size="lg"
+                className="av-switch"
                 isSelected={showVideoView}
                 isDisabled={!videoAvailable}
                 onChange={(v) => onSetVideoView?.(v)}
                 aria-label={t("videoViewTooltip")}
-                style={{ transform: "scale(1.25)" }}
               >
                 <SwitchControl>
                   <SwitchThumb>
-                    {showVideoView ? <ClapperboardPlay size={13} weight="fill" /> : <HeadphonesSimple size={13} weight="fill" />}
+                    {showVideoView ? <ClapperboardPlay size={16} weight="fill" /> : <HeadphonesSimple size={16} weight="fill" />}
                   </SwitchThumb>
                 </SwitchControl>
               </SwitchRoot>
