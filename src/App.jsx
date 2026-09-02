@@ -22,6 +22,7 @@ import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./lastfm/scrobble-rules.js";
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
+import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
@@ -546,61 +547,6 @@ class IpcAudio {
 }
 
 function TitleBar() {
-  const [maximized, setMaximized] = useState(false);
-  const [hoveredBtn, setHoveredBtn] = useState(null);
-
-  useEffect(() => {
-    let cancel = false;
-    const check = () => appWindow.isMaximized().then(v => { if (!cancel) setMaximized(v); });
-    check();
-    const unlisten = appWindow.onResized(() => check());
-    return () => { cancel = true; unlisten.then(fn => fn()); };
-  }, []);
-
-  const btnBase = {
-    background: "none", border: "none", cursor: "default",
-    width: 36, height: 28, borderRadius: "var(--r-md)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    flexShrink: 0, transition: "background 0.12s",
-    color: "rgba(255,255,255,0.75)",
-  };
-
-  const buttons = [
-    {
-      id: "min",
-      action: () => appWindow.minimize(),
-      hover: "rgba(255,255,255,0.10)",
-      icon: (
-        <Minus size={10} />
-      ),
-    },
-    {
-      id: "max",
-      action: () => appWindow.toggleMaximize(),
-      hover: "rgba(255,255,255,0.10)",
-      icon: maximized ? (
-        // Restore icon — two overlapping squares
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-          <rect x="2" y="0" width="8" height="8" rx="0.5"/>
-          <path d="M0 2v7a1 1 0 0 0 1 1h7" />
-        </svg>
-      ) : (
-        // Maximize icon — single square
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-          <rect x="0.5" y="0.5" width="9" height="9" rx="0.5"/>
-        </svg>
-      ),
-    },
-    {
-      id: "close",
-      action: () => appWindow.close(),
-      hover: "#c42b1c",
-      icon: (
-        <X size={10} />
-      ),
-    },
-  ];
-
   return (
     <div style={{
       height: 32, display: "flex", alignItems: "center",
@@ -612,21 +558,9 @@ function TitleBar() {
         position: "absolute", top: 0, left: 80, right: 80, bottom: 0,
         pointerEvents: "all",
       }} />
-      <div style={{ display: "flex", gap: 2, position: "relative", pointerEvents: "all" }}>
-        {buttons.map(btn => (
-          <button
-            key={btn.id}
-            onClick={e => { e.stopPropagation(); btn.action(); }}
-            onMouseEnter={() => setHoveredBtn(btn.id)}
-            onMouseLeave={() => setHoveredBtn(null)}
-            style={{
-              ...btnBase,
-              background: hoveredBtn === btn.id ? btn.hover : "none",
-              color: hoveredBtn === btn.id && btn.id === "close" ? "#fff" : "rgba(255,255,255,0.75)",
-            }}
-          >{btn.icon}</button>
-        ))}
-      </div>
+      {/* Slightly smaller than in the tool windows: this bar is 32px and floats over the
+          content, where a 30px chip would leave no margin at all. */}
+      <WindowControls height={28} width={38} />
     </div>
   );
 }

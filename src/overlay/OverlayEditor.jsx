@@ -766,7 +766,6 @@ function LayerEffectsSection({ t, layer, setStyle }) {
   </>);
 }
 
-// Custom window controls (minimize / maximize / close) for the standalone editor window.
 // A real thumbnail of a saved design: the same engine that drives OBS, loaded in still mode
 // (no live stream, no active config) and fed the saved document by postMessage, then scaled to
 // fit the card. Nothing here is a second implementation of the renderer, so what the card shows

@@ -3,9 +3,10 @@
 // in the same visual language needs the same pieces, and a copy would have drifted.
 import { useState, useEffect } from "react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { Minus, X } from "../icons.jsx";
 
-const toolWindow = getCurrentWebviewWindow();
+// Resolves per document, so this is the main window in the main window and the tool window
+// in each tool window — which is what lets one set of controls serve all of them.
+const currentWindow = getCurrentWebviewWindow();
 
 /**
  * Figma's selection blue, shared by Kodama's tool windows. They keep a fixed accent instead of
@@ -55,26 +56,86 @@ export const hdrCorners = (left, right, height = HDR_H) => {
   return `${l}px ${r}px ${r}px ${l}px`;
 };
 
-/** Minimise / maximise / close for a window drawn without system decorations. */
-export function WindowControls() {
+// The three glyphs, drawn here rather than taken from the icon set.
+//
+// They used to be mixed: Minus and X came from Font Awesome while the squares were hand-drawn
+// at 1px, so three buttons sitting side by side had two different stroke weights and two
+// different cap styles. The restore glyph was worse than inconsistent — its back square ran to
+// exactly x=10 and its path to x=0, touching both edges of the viewBox with no margin, which
+// made it read as larger and heavier than its neighbours.
+//
+// One 10x10 grid, one stroke weight, one margin, round caps throughout: the softness is what
+// ties them to the rest of Kodama's chrome.
+const GLYPH = { width: 11, height: 11, viewBox: "0 0 10 10", fill: "none", stroke: "currentColor",
+  strokeWidth: 1.2, strokeLinecap: "round", strokeLinejoin: "round" };
+
+const GlyphMinimize = () => <svg {...GLYPH}><path d="M0.8 5h8.4" /></svg>;
+const GlyphMaximize = () => <svg {...GLYPH}><rect x="0.8" y="0.8" width="8.4" height="8.4" rx="1.6" /></svg>;
+// The back square is an open path, not a rect: where the two overlap the front one already
+// draws the line, and a full rect behind it puts two strokes on the same pixels.
+const GlyphRestore = () => (
+  <svg {...GLYPH}>
+    <path d="M2.6 2.6V1.8a1 1 0 0 1 1-1h4.6a1 1 0 0 1 1 1v4.6a1 1 0 0 1-1 1h-0.8" />
+    <rect x="0.8" y="2.6" width="6.6" height="6.6" rx="1.4" />
+  </svg>
+);
+const GlyphClose = () => <svg {...GLYPH}><path d="M1 1l8 8M9 1l-8 8" /></svg>;
+
+/**
+ * Minimise / maximise / close for a window drawn without system decorations.
+ *
+ * Shared by the main window and the tool windows, which each drew their own copy until the two
+ * had drifted apart in size, colour and hover behaviour. `getCurrentWebviewWindow()` resolves
+ * per document, so the same component controls whichever window it is mounted in.
+ *
+ * Built as a chip group in the header's own grammar — outer ends pilled, touching ends notched,
+ * exactly like the import/export and undo/redo groups it sits beside. As bare icons they read
+ * as something bolted on from the operating system; on chips they read as part of the bar.
+ */
+export function WindowControls({ height = HDR_H, width = 40 }) {
   const [max, setMax] = useState(false);
+  const [hovered, setHovered] = useState(null);
   useEffect(() => {
     let cancel = false;
-    const check = () => toolWindow.isMaximized().then((v) => { if (!cancel) setMax(v); });
+    const check = () => currentWindow.isMaximized().then((v) => { if (!cancel) setMax(v); });
     check();
-    const un = toolWindow.onResized(() => check());
+    const un = currentWindow.onResized(() => check());
     return () => { cancel = true; un.then((fn) => fn()); };
   }, []);
-  const base = "w-9 h-7 flex items-center justify-center rounded text-secondary transition-colors shrink-0";
+
+  const buttons = [
+    { id: "min", label: "Minimize", corners: hdrCorners(false, true, height), glyph: <GlyphMinimize />,
+      action: () => currentWindow.minimize() },
+    { id: "max", label: max ? "Restore" : "Maximize", corners: hdrCorners(true, true, height),
+      glyph: max ? <GlyphRestore /> : <GlyphMaximize />,
+      action: () => currentWindow.toggleMaximize() },
+    { id: "close", label: "Close", corners: hdrCorners(true, false, height), glyph: <GlyphClose />,
+      action: () => currentWindow.close() },
+  ];
+
   return (
-    <div className="flex items-center gap-0.5 ml-1" style={{ pointerEvents: "all" }}>
-      <button type="button" className={`${base} hover:bg-[var(--bg-hover)]`} onClick={() => toolWindow.minimize()} aria-label="Minimize"><Minus size={11} /></button>
-      <button type="button" className={`${base} hover:bg-[var(--bg-hover)]`} onClick={() => toolWindow.toggleMaximize()} aria-label="Maximize">
-        {max
-          ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1"><rect x="2" y="0" width="8" height="8" rx="0.5" /><path d="M0 2v7a1 1 0 0 0 1 1h7" /></svg>
-          : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1"><rect x="0.5" y="0.5" width="9" height="9" rx="0.5" /></svg>}
-      </button>
-      <button type="button" className={`${base} hover:bg-[#c42b1c] hover:text-white!`} onClick={() => toolWindow.close()} aria-label="Close"><X size={11} /></button>
+    <div className="flex items-center ml-1.5 shrink-0" style={{ gap: HDR_NOTCH, pointerEvents: "all" }}>
+      {buttons.map((b) => {
+        const on = hovered === b.id;
+        // Only close departs from the surface tokens, and only while hovered: it is the one
+        // control here that cannot be undone, and every desktop states that in red.
+        const danger = b.id === "close" && on;
+        return (
+          <button key={b.id} type="button" aria-label={b.label}
+            onClick={(e) => { e.stopPropagation(); b.action(); }}
+            onPointerEnter={() => setHovered(b.id)}
+            onPointerLeave={() => setHovered(null)}
+            className="flex items-center justify-center border-0 cursor-default shrink-0 transition-colors"
+            style={{
+              width, height,
+              borderRadius: b.corners,
+              background: danger ? "#c42b1c" : on ? "var(--surface-3)" : "var(--surface-2)",
+              color: danger ? "#fff" : "var(--text-primary)",
+            }}>
+            {b.glyph}
+          </button>
+        );
+      })}
     </div>
   );
 }
