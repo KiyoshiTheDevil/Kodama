@@ -1,7 +1,7 @@
 // Small shared settings/UI primitives extracted from App.jsx. Thin wrappers around HeroUI so
 // the many existing call sites ({value,onChange} etc.) stay unchanged.
 import React from "react";
-import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb, CardRoot } from "@heroui/react";
+import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb } from "@heroui/react";
 
 export function Slider({ min, max, step = 1, value, onChange, onChangeCommit, width = 120 }) {
   // Thin wrapper around HeroUI Slider so existing {min,max,step,value,onChange,onChangeCommit,width} callers stay unchanged.
@@ -37,8 +37,11 @@ export function Toggle({ value, onChange }) {
 }
 
 export function SettingRow({ label, description, icon, children, vertical = false }) {
+  // A plain div rather than CardRoot: the surface, the radius and the spacing all belong to
+  // the `.setting-row` rules in index.css, which fuse adjacent rows into one group. Keeping
+  // the card here would mean fighting its own radius from a second stylesheet.
   return (
-    <CardRoot variant="secondary" className={`bg-surface-1 gap-4 px-[18px] py-4 mb-1.5 ${
+    <div className={`setting-row gap-4 px-[18px] py-4 ${
       vertical ? "flex flex-col items-stretch" : "flex flex-row items-center justify-between"
     }`}>
       <div className="flex items-center gap-3 min-w-0">
@@ -53,7 +56,7 @@ export function SettingRow({ label, description, icon, children, vertical = fals
         </div>
       </div>
       <div className={vertical ? "" : "shrink-0"}>{children}</div>
-    </CardRoot>
+    </div>
   );
 }
 

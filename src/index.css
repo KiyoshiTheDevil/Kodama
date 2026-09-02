@@ -848,3 +848,44 @@ button:not([class]) {
 [dir="rtl"] .fa-share-nodes {
   transform: scaleX(-1);
 }
+
+/* ── Settings rows ────────────────────────────────────────────────────────────
+   Rows fuse into groups by ADJACENCY, with no wrapper element and no change at
+   any of the ~70 call sites. Two rows that sit next to each other in the JSX
+   grow together; anything between them (a section label, an explanatory
+   paragraph, a conditional block) breaks the group. The structure of the code
+   therefore becomes the structure on screen, which is the arrangement the code
+   already meant.
+
+   A wrapper was the obvious alternative and is wrong here: the rows are not
+   contiguous. Sections interleave rows with descriptions and conditional
+   panels, so "wrap each run" would have to be decided by hand ~70 times and
+   would go stale the first time someone inserts a paragraph.
+
+   :has() is doing the "is followed by a row" half; without it rows keep their
+   bottom corners, which looks slightly off but is not broken. */
+.setting-row {
+  position: relative;
+  background: var(--surface-1);
+  border-radius: var(--r-2xl);
+  margin-bottom: 6px;
+}
+.setting-row:has(+ .setting-row) {
+  margin-bottom: 0;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.setting-row + .setting-row {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+/* Inset from both sides via logical properties, so the divider follows the
+   writing direction instead of needing a mirrored rule for RTL. */
+.setting-row + .setting-row::before {
+  content: "";
+  position: absolute;
+  inset-inline: 18px;
+  top: 0;
+  height: 1px;
+  background: var(--border);
+}
