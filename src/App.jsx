@@ -2320,13 +2320,17 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <SkipBack size={22} style={prevBouncing ? { animation: "skipLeft 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards" } : undefined} />
             </Button>
           </Tooltip>
+          {/* The glyph erases the pill rather than sitting on it — see .play-knockout. */}
           <Button
             variant="primary" isDisabled={!track}
             onPress={track ? togglePlay : undefined}
-            className="w-16 h-10 rounded-full shrink-0"
+            aria-label={t("scPlayPause")}
+            className="w-16 h-10 rounded-full shrink-0 play-knockout"
             style={{ contain: "layout style" }}
           >
-            {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+            {isPlaying
+              ? <Pause size={20} weight="fill" className="play-knock-glyph" />
+              : <Play size={20} weight="fill" className="play-knock-glyph" />}
           </Button>
           <Tooltip text={t("scNext")}>
             <Button

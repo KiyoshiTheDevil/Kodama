@@ -992,3 +992,23 @@ button:not([class]) {
   height: 1px;
   background: var(--border);
 }
+
+/* ── Play / pause knocked out of the button ───────────────────────────────────
+   The glyph is a HOLE in the accent pill rather than a shape drawn on top of it,
+   so whatever sits behind the player bar shows through it. The bar is transparent
+   in normal use, which means the app background; in ambient mode and fullscreen it
+   is the blurred cover.
+
+   `destination-out` on the glyph erases the button's fill in the glyph's own shape.
+   The first attempt masked the button with hand-drawn play/pause outlines instead,
+   which was wrong twice over: the icon set is a WEBFONT, so there was no path to
+   reuse and the shapes had to be redrawn by eye — and redrawn too small, so the
+   glyph came out noticeably smaller than the one it replaced. Blending keeps the
+   real glyph, at its real size and weight, and it keeps following the icon set if
+   that ever changes.
+
+   `isolation` is what confines the erasure to the button. Without it the glyph
+   would punch through everything painted beneath it in the same stacking context,
+   taking the player bar with it. */
+.play-knockout { isolation: isolate; }
+.play-knockout .play-knock-glyph { mix-blend-mode: destination-out; }
