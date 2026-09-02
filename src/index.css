@@ -887,72 +887,59 @@ button:not([class]) {
 .slider__track { background-color: var(--surface-2); }
 
 /* ── Sliders ──────────────────────────────────────────────────────────────────
-   Deliberately the same object as a switch: identical track height, identical
-   round thumb, identical 2px inset. One of the two slides continuously, and that
-   is the only difference the eye should have to find. A first attempt made the
-   track thin (6px) instead, which read as a different component sitting in the
-   same column.
+   Deliberately the same object as a switch: same track height, same round thumb,
+   and the fill wraps the thumb with 2px of accent all round it — which is exactly
+   what a switch's track does to its thumb.
 
-   HeroUI's own is a 20px track with a white 24x16 lozenge — the lozenge the
-   switches used to have too.
+   Two earlier attempts got this wrong. A thin 6px track read as a different
+   component sitting in the same column. Then an inset fill left a hairline of
+   accent above or below the thumb: the fill was inset 2px and the thumb 1.75px
+   (1.375rem in 1.625rem), and that quarter pixel rounds to a visible line on one
+   side or the other depending where the fraction lands. Letting the fill enclose
+   the thumb removes the problem rather than balancing it, because the two are no
+   longer trying to agree on the same edge.
 
-   The player's own seek and volume bars are excluded: they have their own look,
-   and the seek bar in particular is deliberately thumbless.
-
-   What is NOT touched: the track's 12px transparent side borders. HeroUI reserves
-   them so the thumb has room at the extremes, and react-aria positions the thumb
-   against the content box they create. Narrowing them to match the smaller thumb
-   would shift where the thumb lands at 0% and 100%. The 18px circle inside a 24px
-   reservation simply stops a hair short of each end, which is no loss. */
+   The player's seek and volume bars keep their own look and are excluded. */
 .slider:not(.player-seek):not(.player-vol) {
   /* HeroUI reserves this much transparent border either side of the track so the thumb has
      room at the extremes, and react-aria positions against the box it creates. Restated here
-     as a variable and applied below, so the ring that has to reach across it cannot drift
-     out of step with it. */
+     so anything that has to reach across it stays in step. */
   --slider-edge: 0.75rem;
+  /* .switch__thumb verbatim, so slider and switch cannot drift apart. */
+  --slider-thumb: 1.375rem;
 
   .slider__track {
-    /* Same rem values as .switch__control, for the same reason: the app scales its type. */
+    /* .switch__control verbatim. rem because the app scales its type. */
     height: 1.625rem;
     border-radius: var(--r-full);
     border-inline-width: var(--slider-edge);
   }
 
-  /* The fill gets NO radius of its own. HeroUI reaches the left end by colouring the track's
-     12px start border accent (data-fill-start); a rounded fill butted against that cap gives
-     a bulge, then a pinch, then the bar. Left square, the cap supplies the round end, and the
-     right end disappears under the thumb. */
+  /* Runs the full height, and past the thumb by half a thumb plus the 2px surround. react-aria
+     sets `left` and `width` as percentages, so growing the painted box with padding on a
+     content-box extends it to the right without moving its left edge — the only way to reach
+     beyond the thumb without touching the numbers it is positioned by.
 
-  /* An inner ring in the track's own colour, drawn over the fill and the cap alike, so the
-     bar sits 2px inside the track exactly as the thumb does — without touching the geometry
-     react-aria positions against. The thumb's visible part is z-10 and stays above it. */
-  .slider__track::after {
-    content: "";
-    position: absolute;
-    /* Reaches out over the side borders. `inset: 0` on an absolute child resolves against the
-       PADDING box, which excludes them — and the start border is exactly what data-fill-start
-       colours accent, so it would have stayed at full height while the fill beside it was
-       inset. That step was visible as a cap-then-notch at the left end. */
-    inset-block: 0;
-    inset-inline: calc(-1 * var(--slider-edge));
-    border-radius: inherit;
-    border: 2px solid var(--surface-2);
-    pointer-events: none;
+     No radius at the start: HeroUI reaches the left end by colouring the track's start border
+     accent, and a rounded fill butted against that cap gives a bulge, then a pinch, then the
+     bar. The cap supplies the round end. */
+  .slider__fill {
+    box-sizing: content-box;
+    padding-inline-end: calc(var(--slider-thumb) / 2 + 2px);
+    border-start-end-radius: var(--r-full);
+    border-end-end-radius: var(--r-full);
   }
 
-  /* The thumb box stays full-height and invisible; ::after is the part you see. HeroUI
-     paints the box itself in the accent, which shows either side of the circle. The
-     player's sliders zero it out for the same reason. */
+  /* The thumb box itself is painted accent by HeroUI and shows either side of the circle;
+     the player's sliders zero it out for the same reason. ::after is the part you see. */
   .slider__thumb { background-color: transparent; }
 
-  /* 1.375rem is .switch__thumb exactly, so both land 2px inside a 1.625rem track. */
   .slider__thumb::after {
-    width: 1.375rem;
-    height: 1.375rem;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
     border-radius: 50%;
   }
 }
-
 
 /* Buffer fill for progressive playback, drawn inside the seek track behind the played fill.
    The track needs to be a positioning context for it — HeroUI lays the fill out in flow, so
