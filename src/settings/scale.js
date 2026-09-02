@@ -18,6 +18,20 @@ export const FONT_LABELS     = FONT_STEPS.map(s => `${Math.round(13 * s)}px`);
 // button in the app ignored the font-size setting entirely.
 export const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
 
+/**
+ * Lifts the whole ladder before the user's own scale is applied.
+ *
+ * The tNN names are historical: they were chosen when the text-t* classes did not work at all,
+ * so nobody ever saw the numbers they promised. Until then this text simply inherited — 14px
+ * from the body, or 12.25px inside a HeroUI component. The moment the classes started applying,
+ * every one of them dropped to its nominal value and the interface read as much too small.
+ *
+ * 14/13 puts t13, by far the most used step, back on the body's 14px, and brackets the old
+ * 12.25–14px range with t11 and t14. The names now understate the sizes by roughly a step; a
+ * rename would be the honest fix and is a much larger change than this one.
+ */
+const BASE_SCALE = 14 / 13;
+
 export function readFontScale() {
   const saved = parseFloat(localStorage.getItem("kiyoshi-font-scale"));
   return FONT_STEPS.includes(saved) ? saved : 1.0;
@@ -25,7 +39,7 @@ export function readFontScale() {
 
 export function applyFontScale(scale = 1) {
   CSS_FONT_SIZES.forEach((n) => {
-    document.documentElement.style.setProperty(`--t${n}`, `${Math.round(n * scale)}px`);
+    document.documentElement.style.setProperty(`--t${n}`, `${Math.round(n * BASE_SCALE * scale)}px`);
   });
   // The factor itself, for Tailwind's own scale. Those sizes have to stay expressed in the rem
   // values Tailwind ships and be multiplied — mapping them onto --tNN instead looks equivalent
