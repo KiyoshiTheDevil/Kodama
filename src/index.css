@@ -994,21 +994,37 @@ button:not([class]) {
 }
 
 /* ── Play / pause knocked out of the button ───────────────────────────────────
-   The glyph is a HOLE in the accent pill rather than a shape drawn on top of it,
-   so whatever sits behind the player bar shows through it. The bar is transparent
-   in normal use, which means the app background; in ambient mode and fullscreen it
-   is the blurred cover.
+   The pill is painted by the inline SVG in ui/play-button.jsx, not by the button,
+   so the glyph can be a hole in it. See that file for why a mask is the only route
+   and why the mask has to be inline.
 
-   `destination-out` on the glyph erases the button's fill in the glyph's own shape.
-   The first attempt masked the button with hand-drawn play/pause outlines instead,
-   which was wrong twice over: the icon set is a WEBFONT, so there was no path to
-   reuse and the shapes had to be redrawn by eye — and redrawn too small, so the
-   glyph came out noticeably smaller than the one it replaced. Blending keeps the
-   real glyph, at its real size and weight, and it keeps following the icon set if
-   that ever changes.
+   The button keeps HeroUI's variant tokens and the SVG fills from them, so hover
+   and pressed keep whatever the design system says they are. Its own background is
+   switched off on every state, not just at rest — HeroUI sets the hover and pressed
+   colours from more specific selectors, and missing one would bring the solid pill
+   back the moment the pointer arrived. */
+.play-pill,
+.play-pill:hover,
+.play-pill:active,
+.play-pill[data-hovered="true"],
+.play-pill[data-pressed="true"] { background-color: transparent; padding: 0; }
 
-   `isolation` is what confines the erasure to the button. Without it the glyph
-   would punch through everything painted beneath it in the same stacking context,
-   taking the player bar with it. */
-.play-knockout { isolation: isolate; }
-.play-knockout .play-knock-glyph { mix-blend-mode: destination-out; }
+/* HeroUI sizes any <svg> inside a button as an icon: 1rem square with negative inline
+   margins, from `.button svg:not(…)`. This svg is not an icon, it is the button's entire
+   face. That selector outweighs anything reasonable from here, so this is one of the few
+   places !important is the honest tool rather than a shortcut. In rem to stay locked to
+   the button, which is w-16 h-10 and therefore scales with the user's type size. */
+.play-pill svg {
+  width: 4rem !important;
+  height: 2.5rem !important;
+  margin: 0 !important;
+}
+
+.play-pill .play-pill__fill {
+  fill: var(--button-bg);
+  transition: fill 100ms var(--ease-out);
+}
+.play-pill:hover .play-pill__fill,
+.play-pill[data-hovered="true"] .play-pill__fill { fill: var(--button-bg-hover); }
+.play-pill:active .play-pill__fill,
+.play-pill[data-pressed="true"] .play-pill__fill { fill: var(--button-bg-pressed); }

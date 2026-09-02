@@ -22,6 +22,7 @@ import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./lastfm/scrobble-rules.js";
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
+import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
 import { Tooltip } from "./ui/tooltip.jsx";
@@ -2320,18 +2321,12 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <SkipBack size={22} style={prevBouncing ? { animation: "skipLeft 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards" } : undefined} />
             </Button>
           </Tooltip>
-          {/* The glyph erases the pill rather than sitting on it — see .play-knockout. */}
-          <Button
-            variant="primary" isDisabled={!track}
+          <PlayPauseButton
+            isPlaying={isPlaying}
+            isDisabled={!track}
             onPress={track ? togglePlay : undefined}
-            aria-label={t("scPlayPause")}
-            className="w-16 h-10 rounded-full shrink-0 play-knockout"
-            style={{ contain: "layout style" }}
-          >
-            {isPlaying
-              ? <Pause size={20} weight="fill" className="play-knock-glyph" />
-              : <Play size={20} weight="fill" className="play-knock-glyph" />}
-          </Button>
+            label={t("scPlayPause")}
+          />
           <Tooltip text={t("scNext")}>
             <Button
               variant="ghost" isIconOnly isDisabled={!track}
