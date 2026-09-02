@@ -901,43 +901,48 @@ button:not([class]) {
 
    The player's seek and volume bars keep their own look and are excluded. */
 .slider:not(.player-seek):not(.player-vol) {
-  /* HeroUI reserves this much transparent border either side of the track so the thumb has
-     room at the extremes, and react-aria positions against the box it creates. Restated here
-     so anything that has to reach across it stays in step. */
-  --slider-edge: 0.75rem;
-  /* .switch__thumb verbatim, so slider and switch cannot drift apart. */
+  /* Every dimension below derives from these two, which are .switch__control and
+     .switch__thumb verbatim so a slider and a switch cannot drift apart. rem throughout,
+     because the app lets the user scale the type. */
+  --slider-h: 1.625rem;
   --slider-thumb: 1.375rem;
+  /* The accent around the thumb. Derived, so it lands exactly on the track's edge above and
+     below instead of overshooting by a fraction — that fraction is the hairline that several
+     earlier attempts kept producing. */
+  --slider-ring: calc((var(--slider-h) - var(--slider-thumb)) / 2);
+  /* Transparent border either side, reserving room for the thumb at the extremes; react-aria
+     and the fill both position against the box it leaves. Half the track height, so at 0% and
+     100% the thumb's ring is tangent to the track's rounded end, plus a pixel: the browser
+     rounds a fractional border width when it renders but does not round the ring's radius, and
+     dead-on tangency left the ring a third of a pixel outside. HeroUI's own value is a flat
+     0.75rem, narrower still than the ring's outer radius. */
+  --slider-edge: calc(var(--slider-h) / 2 + 1px);
 
   .slider__track {
-    /* .switch__control verbatim. rem because the app scales its type. */
-    height: 1.625rem;
+    height: var(--slider-h);
     border-radius: var(--r-full);
     border-inline-width: var(--slider-edge);
   }
 
-  /* Runs the full height, and past the thumb by half a thumb plus the 2px surround. react-aria
-     sets `left` and `width` as percentages, so growing the painted box with padding on a
-     content-box extends it to the right without moving its left edge — the only way to reach
-     beyond the thumb without touching the numbers it is positioned by.
-
-     No radius at the start: HeroUI reaches the left end by colouring the track's start border
-     accent, and a rounded fill butted against that cap gives a bulge, then a pinch, then the
-     bar. The cap supplies the round end. */
-  .slider__fill {
-    box-sizing: content-box;
-    padding-inline-end: calc(var(--slider-thumb) / 2 + 2px);
-    border-start-end-radius: var(--r-full);
-    border-end-end-radius: var(--r-full);
-  }
+  /* Runs the full height and ends at the thumb's centre, where react-aria puts it. No radius
+     at the start: HeroUI reaches the left end by colouring the track's start border accent,
+     and a rounded fill butted against that cap gives a bulge, then a pinch, then the bar.
+     The cap supplies the round end; the right end disappears under the thumb. */
+  .slider__fill { border-radius: 0; }
 
   /* The thumb box itself is painted accent by HeroUI and shows either side of the circle;
      the player's sliders zero it out for the same reason. ::after is the part you see. */
   .slider__thumb { background-color: transparent; }
 
+  /* The accent around the thumb is a ring on the THUMB, not an extension of the fill. Carried
+     by the fill it had to reach half a thumb past the value, which at the minimum was the only
+     thing on the track and formed a magenta disc around the handle. On the thumb it is the
+     same at every value, including zero. */
   .slider__thumb::after {
     width: var(--slider-thumb);
     height: var(--slider-thumb);
     border-radius: 50%;
+    box-shadow: 0 0 0 var(--slider-ring) var(--accent);
   }
 }
 
