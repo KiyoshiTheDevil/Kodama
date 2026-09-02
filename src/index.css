@@ -905,13 +905,40 @@ button:not([class]) {
    would shift where the thumb lands at 0% and 100%. The 18px circle inside a 24px
    reservation simply stops a hair short of each end, which is no loss. */
 .slider:not(.player-seek):not(.player-vol) {
+  /* HeroUI reserves this much transparent border either side of the track so the thumb has
+     room at the extremes, and react-aria positions against the box it creates. Restated here
+     as a variable and applied below, so the ring that has to reach across it cannot drift
+     out of step with it. */
+  --slider-edge: 0.75rem;
+
   .slider__track {
     /* Same rem values as .switch__control, for the same reason: the app scales its type. */
     height: 1.625rem;
     border-radius: var(--r-full);
+    border-inline-width: var(--slider-edge);
   }
 
-  .slider__fill { border-radius: var(--r-full); }
+  /* The fill gets NO radius of its own. HeroUI reaches the left end by colouring the track's
+     12px start border accent (data-fill-start); a rounded fill butted against that cap gives
+     a bulge, then a pinch, then the bar. Left square, the cap supplies the round end, and the
+     right end disappears under the thumb. */
+
+  /* An inner ring in the track's own colour, drawn over the fill and the cap alike, so the
+     bar sits 2px inside the track exactly as the thumb does — without touching the geometry
+     react-aria positions against. The thumb's visible part is z-10 and stays above it. */
+  .slider__track::after {
+    content: "";
+    position: absolute;
+    /* Reaches out over the side borders. `inset: 0` on an absolute child resolves against the
+       PADDING box, which excludes them — and the start border is exactly what data-fill-start
+       colours accent, so it would have stayed at full height while the fill beside it was
+       inset. That step was visible as a cap-then-notch at the left end. */
+    inset-block: 0;
+    inset-inline: calc(-1 * var(--slider-edge));
+    border-radius: inherit;
+    border: 2px solid var(--surface-2);
+    pointer-events: none;
+  }
 
   /* The thumb box stays full-height and invisible; ::after is the part you see. HeroUI
      paints the box itself in the accent, which shows either side of the circle. The
