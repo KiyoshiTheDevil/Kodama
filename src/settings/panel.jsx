@@ -1017,7 +1017,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
                 {accentDynamic ? (
                   <>
-                    <div className="flex items-center gap-3 mb-2 rounded-xl border border-border px-4 py-3.5" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)" }}>
+                    {/* Same radius and padding as a setting row, and no border: since the rows
+                        became one fused, borderless group this notice was the only thing left in
+                        the column still drawing an outline around itself. */}
+                    <div className="flex items-center gap-3 mb-1.5 rounded-[var(--r-2xl)] px-[18px] py-4" style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)" }}>
                       <span className="w-8 h-8 rounded-full shrink-0" style={{ background: "var(--accent)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" }} />
                       <span style={{ fontSize: "var(--t13)", color: "var(--text-secondary)" }}>{t("accentDynamicDesc") || "The accent colour is derived live from the current track's cover art."}</span>
                     </div>

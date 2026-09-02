@@ -886,6 +886,44 @@ button:not([class]) {
 }
 .slider__track { background-color: var(--surface-2); }
 
+/* ── Sliders ──────────────────────────────────────────────────────────────────
+   HeroUI draws a 20px track with a white 24x16 lozenge for a thumb — the same
+   lozenge the switches used to have, and at that height the track reads as a
+   filled pill rather than as something with a handle on it. A thin track with a
+   round thumb says "drag me" and matches the switches.
+
+   The player's own seek and volume bars are excluded: they have their own look,
+   and the seek bar in particular is deliberately thumbless.
+
+   What is NOT touched: the track's 12px transparent side borders. HeroUI reserves
+   them so the thumb has room at the extremes, and react-aria positions the thumb
+   against the content box they create. Narrowing them to match the smaller thumb
+   would shift where the thumb lands at 0% and 100%. The 18px circle inside a 24px
+   reservation simply stops a hair short of each end, which is no loss. */
+.slider:not(.player-seek):not(.player-vol) {
+  .slider__track {
+    height: 6px;
+    border-radius: var(--r-full);
+    /* The thumb is taller than its own box now and must not be clipped. */
+    overflow: visible;
+  }
+
+  .slider__fill { border-radius: var(--r-full); }
+
+  /* The thumb box stays full-height and invisible; ::after is the part you see. HeroUI
+     paints the box itself in the accent, which at a 6px track height is a 28px accent bar
+     poking out either side of the circle. The player's sliders zero it out for the same
+     reason. */
+  .slider__thumb { background-color: transparent; }
+
+  .slider__thumb::after {
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+  }
+}
+
+
 /* Buffer fill for progressive playback, drawn inside the seek track behind the played fill.
    The track needs to be a positioning context for it — HeroUI lays the fill out in flow, so
    without this the absolute child would anchor to some ancestor further up. */
