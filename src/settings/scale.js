@@ -13,11 +13,10 @@ export const FONT_LABELS     = FONT_STEPS.map(s => `${Math.round(13 * s)}px`);
 // typography was effectively one size, and changing a text-t13 to text-t18 did nothing at all.
 // Each window entry point calls this for itself.
 //
-// Tailwind's OWN scale (text-xs ... text-2xl) is mapped onto these too, in index.css. HeroUI
-// sizes all of its text with those, so without the mapping every dropdown, modal and button in
-// the app ignored the font-size setting entirely. That is what t24 is here for -- nothing in
-// Kodama writes text-t24, but text-2xl resolves to it.
-export const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+// Tailwind's OWN scale (text-xs ... text-2xl) is scaled too, in index.css, via --font-scale
+// below. HeroUI sizes all of its text with those, so without it every dropdown, modal and
+// button in the app ignored the font-size setting entirely.
+export const CSS_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
 
 export function readFontScale() {
   const saved = parseFloat(localStorage.getItem("kiyoshi-font-scale"));
@@ -28,5 +27,10 @@ export function applyFontScale(scale = 1) {
   CSS_FONT_SIZES.forEach((n) => {
     document.documentElement.style.setProperty(`--t${n}`, `${Math.round(n * scale)}px`);
   });
+  // The factor itself, for Tailwind's own scale. Those sizes have to stay expressed in the rem
+  // values Tailwind ships and be multiplied — mapping them onto --tNN instead looks equivalent
+  // but is not, because the root font size here is 14px, so Tailwind's text-sm is 12.25px and
+  // not the nominal 14. Pointing it at --t14 quietly made every dropdown and modal 14% bigger.
+  document.documentElement.style.setProperty("--font-scale", String(scale));
   return scale;
 }

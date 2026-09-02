@@ -110,30 +110,32 @@
   --text-t18: var(--t18);
   --text-t20: var(--t20);
   --text-t22: var(--t22);
-  --text-t24: var(--t24);
 
-  /* Tailwind's own scale, remapped onto the same variables.
+  /* Tailwind's own scale, multiplied by the font-size setting.
 
-     HeroUI sizes every piece of its text with these (72 uses of text-sm alone), and they
-     resolve against the root font size, which Kodama never touches -- so dropdowns, modals,
-     buttons and the search field ignored the font-size setting completely while the app's own
-     text followed it. Chosen to equal Tailwind's defaults exactly at 100%, so this changes
-     nothing at the default and only starts to matter once the setting is moved.
+     HeroUI sizes every piece of its text with these (72 uses of text-sm alone) and they resolve
+     against the root font size, which the setting never touches — so dropdowns, modals, buttons
+     and the search field ignored it completely while the app's own text followed it.
 
-     Line heights as unitless ratios rather than the rem values Tailwind ships: written as the
-     division they come from, they stay proportional as the size changes instead of pinning a
-     large size into a small leading. */
-  --text-xs:   var(--t12);
+     Kept as the rem values Tailwind ships, scaled by a factor, rather than pointed at --tNN.
+     The two look interchangeable and are not: the root font size here is 14px, so text-sm is
+     12.25px and not the nominal 14, and mapping it onto --t14 silently enlarged every dropdown
+     and modal by 14% at the default setting.
+
+     Line heights as unitless ratios rather than Tailwind's rem values, so a larger size gets
+     proportionally more leading instead of being pinned into the old one. The ratios are
+     written as the division they come from. */
+  --text-xs:   calc(0.75rem  * var(--font-scale, 1));
   --text-xs--line-height:   calc(1 / 0.75);
-  --text-sm:   var(--t14);
+  --text-sm:   calc(0.875rem * var(--font-scale, 1));
   --text-sm--line-height:   calc(1.25 / 0.875);
-  --text-base: var(--t16);
+  --text-base: calc(1rem     * var(--font-scale, 1));
   --text-base--line-height: calc(1.5 / 1);
-  --text-lg:   var(--t18);
+  --text-lg:   calc(1.125rem * var(--font-scale, 1));
   --text-lg--line-height:   calc(1.75 / 1.125);
-  --text-xl:   var(--t20);
+  --text-xl:   calc(1.25rem  * var(--font-scale, 1));
   --text-xl--line-height:   calc(1.75 / 1.25);
-  --text-2xl:  var(--t24);
+  --text-2xl:  calc(1.5rem   * var(--font-scale, 1));
   --text-2xl--line-height:  calc(2 / 1.5);
 }
 
