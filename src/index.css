@@ -781,6 +781,61 @@ button:not([class]) {
    out from the setting cards (which sit on a darker surface). The player sliders keep
    their own look via the more specific .player-seek / .player-vol rules above. */
 .switch { --switch-control-bg: var(--surface-2); }
+
+/* Switch geometry: a pill with a round thumb.
+   HeroUI ships a 12px-rounded track with a 22x16 lozenge thumb, which reads as a small
+   rectangle sliding in a slot rather than as a switch, and sat oddly beside the 16px radius
+   of the settings groups.
+
+   Scoped away from sm/lg on purpose. The video-sync switch in the player bar is `lg` and
+   carries an ICON inside its thumb; forcing a 16px circle there would crush the glyph and
+   throw off the checked offset, which is baked into the size-specific rules. :not() rather
+   than .switch--md so this holds whether or not the default size emits a class of its own.
+
+   The thumb travels by transform instead of HeroUI's margin. Margin is laid out, so the old
+   version reflowed on every frame of every toggle; a transform does not touch layout at all. */
+.switch:not(.switch--sm):not(.switch--lg) {
+  /* Everything in rem, like HeroUI's own sizing: the app lets the user scale the type, and a
+     switch pinned to px would shrink inside its own row as soon as they did. */
+  .switch__control {
+    width: 2.75rem;
+    height: 1.625rem;
+    border-radius: var(--r-full);
+  }
+
+  .switch__thumb {
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 50%;
+    /* Fixed on both sides: the travel is the transform's job now. */
+    margin-inline-start: 2px;
+    transform: translateX(0);
+    transition:
+      transform 300ms cubic-bezier(.32, .72, 0, 1),
+      background-color 200ms var(--ease-out);
+  }
+
+  /* Track (2.75rem) minus thumb (1.375rem) minus the 2px inset either side. Kept in rem for
+     the same reason as the sizes: a hard 18px overshoots the track the moment the root font
+     size is anything but 16, and the control clips its overflow, so the thumb would simply
+     vanish at the end of its run. */
+  &[aria-checked="true"] .switch__thumb,
+  &[data-selected="true"] .switch__thumb {
+    margin-inline-start: 2px;
+    transform: translateX(calc(1.375rem - 4px));
+  }
+}
+
+/* margin-inline-start followed the writing direction on its own; a transform does not, so
+   RTL needs the mirrored value spelled out. */
+[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg)[aria-checked="true"] .switch__thumb,
+[dir="rtl"] .switch:not(.switch--sm):not(.switch--lg)[data-selected="true"] .switch__thumb {
+  transform: translateX(calc(4px - 1.375rem));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch:not(.switch--sm):not(.switch--lg) .switch__thumb { transition: none; }
+}
 .slider__track { background-color: var(--surface-2); }
 
 /* Buffer fill for progressive playback, drawn inside the seek track behind the played fill.
