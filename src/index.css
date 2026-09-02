@@ -887,10 +887,14 @@ button:not([class]) {
 .slider__track { background-color: var(--surface-2); }
 
 /* ── Sliders ──────────────────────────────────────────────────────────────────
-   HeroUI draws a 20px track with a white 24x16 lozenge for a thumb — the same
-   lozenge the switches used to have, and at that height the track reads as a
-   filled pill rather than as something with a handle on it. A thin track with a
-   round thumb says "drag me" and matches the switches.
+   Deliberately the same object as a switch: identical track height, identical
+   round thumb, identical 2px inset. One of the two slides continuously, and that
+   is the only difference the eye should have to find. A first attempt made the
+   track thin (6px) instead, which read as a different component sitting in the
+   same column.
+
+   HeroUI's own is a 20px track with a white 24x16 lozenge — the lozenge the
+   switches used to have too.
 
    The player's own seek and volume bars are excluded: they have their own look,
    and the seek bar in particular is deliberately thumbless.
@@ -902,23 +906,22 @@ button:not([class]) {
    reservation simply stops a hair short of each end, which is no loss. */
 .slider:not(.player-seek):not(.player-vol) {
   .slider__track {
-    height: 6px;
+    /* Same rem values as .switch__control, for the same reason: the app scales its type. */
+    height: 1.625rem;
     border-radius: var(--r-full);
-    /* The thumb is taller than its own box now and must not be clipped. */
-    overflow: visible;
   }
 
   .slider__fill { border-radius: var(--r-full); }
 
   /* The thumb box stays full-height and invisible; ::after is the part you see. HeroUI
-     paints the box itself in the accent, which at a 6px track height is a 28px accent bar
-     poking out either side of the circle. The player's sliders zero it out for the same
-     reason. */
+     paints the box itself in the accent, which shows either side of the circle. The
+     player's sliders zero it out for the same reason. */
   .slider__thumb { background-color: transparent; }
 
+  /* 1.375rem is .switch__thumb exactly, so both land 2px inside a 1.625rem track. */
   .slider__thumb::after {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.375rem;
+    height: 1.375rem;
     border-radius: 50%;
   }
 }
