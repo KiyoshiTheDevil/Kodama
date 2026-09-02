@@ -88,9 +88,10 @@ const GlyphClose = () => <svg {...GLYPH}><path d="M1 1l8 8M9 1l-8 8" /></svg>;
  * had drifted apart in size, colour and hover behaviour. `getCurrentWebviewWindow()` resolves
  * per document, so the same component controls whichever window it is mounted in.
  *
- * Built as a chip group in the header's own grammar — outer ends pilled, touching ends notched,
- * exactly like the import/export and undo/redo groups it sits beside. As bare icons they read
- * as something bolted on from the operating system; on chips they read as part of the bar.
+ * The chip is transparent until the pointer arrives, so at rest these are three quiet glyphs
+ * rather than three filled buttons competing with the title beside them. The shape underneath
+ * is still the header's own grammar — outer ends pilled, touching ends notched, exactly like
+ * the import/export and undo/redo groups — which is what the hover reveals.
  */
 export function WindowControls({ height = HDR_H, width = 40 }) {
   const [max, setMax] = useState(false);
@@ -114,7 +115,12 @@ export function WindowControls({ height = HDR_H, width = 40 }) {
   ];
 
   return (
-    <div className="flex items-center ml-1.5 shrink-0" style={{ gap: HDR_NOTCH, pointerEvents: "all" }}>
+    // position:relative is load-bearing in the main window: its drag region is an absolutely
+    // positioned sibling that reaches to within 80px of the right edge, and this group is wider
+    // than that. Without a positioning context of its own the group paints *under* the drag
+    // region, which swallows the clicks on whichever buttons the overlap reaches.
+    <div className="flex items-center ml-1.5 shrink-0"
+      style={{ gap: HDR_NOTCH, pointerEvents: "all", position: "relative" }}>
       {buttons.map((b) => {
         const on = hovered === b.id;
         // Only close departs from the surface tokens, and only while hovered: it is the one
@@ -129,8 +135,8 @@ export function WindowControls({ height = HDR_H, width = 40 }) {
             style={{
               width, height,
               borderRadius: b.corners,
-              background: danger ? "#c42b1c" : on ? "var(--surface-3)" : "var(--surface-2)",
-              color: danger ? "#fff" : "var(--text-primary)",
+              background: danger ? "#c42b1c" : on ? "var(--surface-2)" : "transparent",
+              color: danger ? "#fff" : on ? "var(--text-primary)" : "var(--text-secondary)",
             }}>
             {b.glyph}
           </button>
