@@ -90,19 +90,26 @@
      rounded-3xl) their genuine intended radii. Remapping --radius-2xl to the
      undefined --r-2xl previously broke ListBox item corners. */
 
-  /* Font size scale */
-  --font-size-t10: var(--t10);
-  --font-size-t11: var(--t11);
-  --font-size-t12: var(--t12);
-  --font-size-t13: var(--t13);
-  --font-size-t14: var(--t14);
-  --font-size-t15: var(--t15);
-  --font-size-t16: var(--t16);
-  --font-size-t18: var(--t18);
-  --font-size-t20: var(--t20);
-  --font-size-t24: var(--t24);
-  --font-size-t28: var(--t28);
-  --font-size-t32: var(--t32);
+  /* Font size scale.
+
+     The namespace matters: Tailwind 4 builds its font-size utilities from --text-*, not from
+     --font-size-*. Under the wrong name it generated no rules at all, so every one of the ~200
+     text-t* classes in the app was inert and the text simply inherited its size — which is why
+     the font-size setting appeared to do nothing for most of the interface.
+
+     This list has to match CSS_FONT_SIZES in settings/scale.js, which is what writes the --tNN
+     values at runtime. They had drifted: t24/t28/t32 were mapped here but never written, so
+     those utilities pointed at nothing, and t22 was written but not mapped. */
+  --text-t10: var(--t10);
+  --text-t11: var(--t11);
+  --text-t12: var(--t12);
+  --text-t13: var(--t13);
+  --text-t14: var(--t14);
+  --text-t15: var(--t15);
+  --text-t16: var(--t16);
+  --text-t18: var(--t18);
+  --text-t20: var(--t20);
+  --text-t22: var(--t22);
 }
 
 /* â”€â”€â”€ Font Awesome â€” loaded via Vite asset pipeline (guaranteed absolute path) â”€
