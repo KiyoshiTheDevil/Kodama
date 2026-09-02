@@ -2709,6 +2709,19 @@ _STREAM_ATTEMPTS = [
     (_AUDIO_FMT, None,            True),
 ]
 
+def _stream_attempts():
+    """
+    The client ladder, with the PO-token attempt in front when it is available.
+
+    This used to be spelled out at each call site, and only some of them had it: playback and
+    video sync did, while /stream, the download queue and both audio exports iterated
+    _STREAM_ATTEMPTS directly. The result was an app that played a track happily and then
+    refused to export the same track with "Requested format is not available" followed by
+    HTTP 403 -- the tiers without a PO token are exactly the ones YouTube now turns away.
+    """
+    return ([(_AUDIO_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
+
+
 def _browser_cookie_opts():
     """
     Return a list of ydl_opts dicts that use cookiesfrombrowser for each
@@ -2849,30 +2862,21 @@ def stream_url(video_id):
     last_err = None
     _t_total = time.time()
 
-    # ── Tier 0: authenticated web_music + GVS PO token (the real fix) ─────────
-    # Bypasses BOTH the PO-token wall (Premium-only tracks) and the anonymous
-    # mobile-client "Sign in to confirm you're not a bot" check, because it runs
-    # as the logged-in web client with a freshly minted PO token. Only active
-    # when node>=22 + the bgutil generator are present (see _POT_AVAILABLE);
-    # otherwise we fall straight through to the legacy tiers below.
-    if _POT_AVAILABLE:
-        _t = time.time()
-        try:
-            info = _ydl_extract_url(video_id, _AUDIO_FMT, extra_opts=_pot_opts(), skip_auth=False)
-            url = _stream_url_from_info(info)
-            if url:
-                _logging.info(f"[stream] {video_id} OK via web_music+PO token in {time.time()-_t:.1f}s (total {time.time()-_t_total:.1f}s)")
-                return jsonify({"url": url})
-        except Exception as e:
-            last_err = e
-            _logging.warning(f"[stream] {video_id} web_music+PO token FAILED in {time.time()-_t:.1f}s: {e}")
-
-    # ── Tier 1: app session (authenticated web + anonymous mobile/web) ───────
+    # ── Tier 0+1: PO token first, then the app session ───────────────────────
+    # Tier 0 is the authenticated web_music client with a freshly minted GVS PO token, which
+    # bypasses both the PO-token wall on Premium-only tracks and the anonymous mobile clients'
+    # "Sign in to confirm you're not a bot" check. It is the first rung of _stream_attempts()
+    # and only present when node>=22 and the bgutil generator are (see _POT_AVAILABLE).
+    #
+    # Tier 1 follows in the same loop: app cookies are kept fresh by the session keeper, and the
+    # anonymous mobile clients resolve most tracks with no cookies at all. The browser-cookie
+    # tier below is slow and usually fails on Windows (locked DB / DPAPI), so it only runs as a
+    # last-ditch source of fresh Premium cookies, not up front on every song.
     # Tried FIRST because it's the fast common path: app cookies are kept fresh by the session
     # keeper, and the anonymous mobile clients resolve most tracks with no cookies at all. The
     # browser-cookie tier below is slow and usually fails on Windows (locked DB / DPAPI), so it
     # only runs as a last-ditch source of fresh Premium cookies — not up front on every song.
-    for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+    for fmt, extra, no_auth in _stream_attempts():
         _t = time.time()
         try:
             info = _ydl_extract_url(video_id, fmt, extra_opts=extra, skip_auth=no_auth)
@@ -2963,7 +2967,7 @@ def stream_prepare(video_id):
     # Tier 0: authenticated web_music + GVS PO token first (bypasses the PO-token
     # wall / bot-check that otherwise 403s the media URL at download time), then
     # fall through to the legacy client tiers. Only prepended when available.
-    attempts = ([(_AUDIO_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
+    attempts = _stream_attempts()
     for fmt, extra, no_auth in attempts:
         try:
             ydl_opts = {
@@ -4462,7 +4466,7 @@ def _download_song_bg(video_id, meta):
                     _download_queue[video_id]["progress"] = round(downloaded / total, 3)
 
         last_dl_err = None
-        for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+        for fmt, extra, no_auth in _stream_attempts():
             try:
                 ydl_opts = {
                     "format": fmt,
@@ -4894,7 +4898,7 @@ def _export_audio_bg(video_id, output_path, fmt="opus", meta=None):
             tmp_tpl = os.path.join(tmp_dir, "export.%(ext)s")
             ffmpeg_dir = _find_ffmpeg()
             last_exp_err = None
-            for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+            for fmt, extra, no_auth in _stream_attempts():
                 try:
                     ydl_opts = {
                         "format": fmt,
@@ -4954,7 +4958,7 @@ def _export_audio_bg(video_id, output_path, fmt="opus", meta=None):
         tmp_dir = tempfile.mkdtemp()
         tmp_tpl = os.path.join(tmp_dir, "export.%(ext)s")
         last_mp3_err = None
-        for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+        for fmt, extra, no_auth in _stream_attempts():
             try:
                 ydl_opts = {
                     "format": fmt,
@@ -5112,7 +5116,7 @@ def _video_sync_download_clip(vid, out_wav, ffmpeg_dir):
     # URLs that ffmpeg cannot fetch. It then aborts with a nonsense exit code and video sync
     # reported "no video available" for every track. This path was added after the PO-token
     # work and never got the tier; measured, it succeeds with it and fails without.
-    attempts = ([(_AUDIO_FMT, _pot_opts(), False)] if _POT_AVAILABLE else []) + list(_STREAM_ATTEMPTS)
+    attempts = _stream_attempts()
     for fmt, extra, no_auth in attempts:
         try:
             ydl_opts = {
@@ -5350,23 +5354,15 @@ def _ydl_pick_any_video(video_id, extra_opts=None, skip_auth=False, use_ytm=True
 @app.route("/video-sync/stream/<video_id>")
 def video_sync_stream(video_id):
     """Resolve a playable video URL — mirrors /stream/<video_id>'s client fallback chain
-    (_STREAM_ATTEMPTS) but with a video-capable, quality-aware format selector.
+    (_stream_attempts) but with a video-capable, quality-aware format selector.
     ?maxHeight=<int> caps the resolution (omitted = best available)."""
     max_height = request.args.get("maxHeight", type=int)
     video_fmt = _video_fmt_for_quality(max_height)
     last_err = None
 
-    if _POT_AVAILABLE:
-        try:
-            info = _ydl_extract_url(video_id, video_fmt, extra_opts=_pot_opts(), skip_auth=False)
-            url = _video_stream_url_from_info(info)
-            if url:
-                return jsonify({"url": url})
-        except Exception as e:
-            last_err = e
-            _logging.warning(f"[video-sync-stream] {video_id} web_music+PO token FAILED: {e}")
-
-    for fmt, extra, no_auth in _STREAM_ATTEMPTS:
+    # The PO-token attempt used to be spelled out here; it is now the first rung of
+    # _stream_attempts(), which this loop walks with a video-capable format selector.
+    for fmt, extra, no_auth in _stream_attempts():
         try:
             info = _ydl_extract_url(video_id, video_fmt, extra_opts=extra, skip_auth=no_auth)
             url = _video_stream_url_from_info(info)
