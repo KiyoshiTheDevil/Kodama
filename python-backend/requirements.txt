@@ -1,4 +1,4 @@
-ytmusicapi==1.12.1
+ytmusicapi==1.12.2
 flask
 flask-cors
 requests
