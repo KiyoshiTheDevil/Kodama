@@ -421,8 +421,10 @@ html, body, #root {
 }
 ::-webkit-scrollbar-track:hover   { background: rgba(255,255,255,0.03); }
 
-/* Fully hidden scrollbar (still scrolls via wheel/trackpad) — e.g. the collapsed sidebar's
-   pinned-icon rail, matching Discord's server list. */
+/* Fully hidden scrollbar (still scrolls via wheel/trackpad). Used for the sidebar's list in
+   both states, matching Discord: a bar down the edge of a narrow, permanently visible column
+   is chrome you look past rather than read, and the list's own overflow already shows there is
+   more below it. */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
 

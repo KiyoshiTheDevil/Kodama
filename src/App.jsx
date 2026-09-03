@@ -1118,7 +1118,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         // Collapsed: no visible scrollbar at all (still scrolls via wheel/trackpad) — same
         // approach as Discord's server rail. That sidesteps the squeeze entirely rather than
         // trying to keep a visible scrollbar's reserved width from disturbing the icon centering.
-        <div className={cn("overflow-y-auto flex-1 min-h-0 my-1", collapsed ? "px-0 no-scrollbar" : "px-2")}>
+        <div className={cn("overflow-y-auto flex-1 min-h-0 my-1 no-scrollbar", collapsed ? "px-0" : "px-2")}>
           {pinnedPlaylists.length > 0 && playlistSection("pinned", pinnedPlaylists, PushPin, "fill")}
           {recentPlaylists.filter(pl => !isPinned(pl)).length > 0 && playlistSection("recentlyOpened", recentPlaylists.filter(pl => !isPinned(pl)), ClockCounterClockwise)}
         </div>
