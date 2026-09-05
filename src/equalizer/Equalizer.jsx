@@ -6,7 +6,7 @@ import { Button } from "@heroui/react";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { HDR_ICON_BTN, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
 import {
-  ArrowClockwise, Check, EqualizerIcon, FileExport, FileImport, FloppyDisk, Plus, Power, Swatches, Trash, WarningCircle, X,
+  ArrowClockwise, Check, EqualizerIcon, FileExport, FileImport, FloppyDisk, Plus, Power, Swatches, Trash, X,
 } from "../icons.jsx";
 import {
   BANDS, BUILTIN, RANGE_DB, applyToCore, isBuiltin, loadState, normalizePreset, saveState,
@@ -28,34 +28,6 @@ const SCALE = [12, 8, 4, 0, -4, -8, -12];
 const ROW_H = 30;
 
 const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
-
-/**
- * Whether the player is set to Video Sync, which routes its audio through the video element
- * and so never passes the Rust core where the equaliser lives. Without saying so, the window
- * looks broken: the faders move, the meter follows, and nothing at all changes in the ears.
- *
- * Read straight out of localStorage because this is a separate window with no player of its
- * own. `storage` fires in *other* documents when one of them writes, which is what keeps this
- * current while the switch is flipped in the main window; the focus listener is the backstop,
- * since that event's behaviour across webview windows is not something to depend on, and
- * focusing this window is exactly when its answer starts to matter.
- */
-function useVideoSyncEnabled() {
-  const read = () => {
-    try { return localStorage.getItem("kiyoshi-video-sync") === "true"; } catch { return false; }
-  };
-  const [on, setOn] = useState(read);
-  useEffect(() => {
-    const sync = () => setOn(read());
-    window.addEventListener("storage", sync);
-    window.addEventListener("focus", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("focus", sync);
-    };
-  }, []);
-  return on;
-}
 
 /**
  * One vertical slider. Built from a plain div rather than <input type="range">: the design
@@ -166,7 +138,6 @@ export default function Equalizer({ t }) {
   const [past, setPast] = useState([]);
   const [future, setFuture] = useState([]);
   const importRef = useRef(null);
-  const videoSyncOn = useVideoSyncEnabled();
   // The eleven faders need a floor of their own, so the column's ceiling is whichever is
   // smaller: a flat 400, or what the window can spare. Without the second the panel could be
   // dragged wide on a large window and then stay wide when the window was made small again,
@@ -399,21 +370,6 @@ export default function Equalizer({ t }) {
 
         <WindowControls />
       </div>
-
-      {/* A limitation, not a fault, so it states the reason rather than offering a remedy:
-          there is nothing to fix here and nothing this window could do about it. Only shown
-          while Video Sync is actually switched on — as a permanent footnote it would be noise
-          for everyone who never uses it. */}
-      {videoSyncOn && (
-        <div className="shrink-0 mx-2.5 mb-2.5 flex items-center gap-2 px-3.5 py-2 rounded-[12px]"
-          style={{
-            background: "var(--status-warning-soft)",
-            border: "1px solid var(--status-warning-line)",
-          }}>
-          <WarningCircle size={14} weight="fill" className="shrink-0" style={{ color: "var(--status-warning)" }} />
-          <span className="text-secondary" style={{ fontSize: "var(--t12)" }}>{t("eqVideoSyncHint")}</span>
-        </div>
-      )}
 
       <div className="flex-1 flex min-h-0">
         {/* ── Presets ─────────────────────────────────────────────────────── */}

@@ -10,6 +10,37 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.37] - 2026-09-06
+
+Changes:
+- Ten-band equaliser in its own window
+- Diagnostics panel with render rate, environment, playback and captured errors
+- Scrobble corrections, and an option to scrobble the primary artist only
+- The Discord status can hide itself while playback is paused
+- Settings rows fuse into groups, switches and sliders redrawn as pills
+- The play/pause glyph is cut out of the button
+- Window controls redrawn, one set for every window
+- Speed Dial can be switched off
+- The sidebar's search, buttons and groups share one edge and one radius
+- Scroll shadows in both sidebars, and no stepper arrows on scrollbars
+- The ytmusicapi version is listed with the others
+- Fullscreen switches in one step, without the window shrinking first
+- The player bar and the cursor clear the screen after a second, and stay while hovered
+
+Fixes:
+- Pinning and other settings failed silently once the lyrics cache had filled local storage
+- The font size setting had no effect on most of the interface
+- Fullscreen left a strip of screen uncovered
+- The library failed to load when a playlist had no artwork
+- Export and download were missing the PO token rung
+- HeroUI components stayed on light colours in the OLED theme
+- Sidebar tooltips and dropdown menus were misplaced at any zoom other than 100 %
+- Windows media controls kept showing the previous track
+- The queue ran the renderer out of memory, and rows overlapped after changing track
+- Sidebar entries stayed behind for playlists deleted elsewhere
+- Cover art on the home view is sharp again
+
+
 ## [1.0.0-alpha.36] - 2026-08-31
 
 Changes:

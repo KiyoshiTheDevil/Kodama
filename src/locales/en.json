@@ -1003,7 +1003,6 @@
   "eqModified": "modified",
   "eqOpen": "Open equalizer",
   "eqDesc": "Ten bands and a preamp, applied to playback.",
-  "eqVideoSyncHint": "The equalizer does not affect Video Sync, which plays its audio through the video.",
   "eqBrowsePresets": "Browse Presets",
   "eqBrowseSoon": "Coming soon",
   "scrobblePrimaryArtist": "Scrobble primary artist only",
