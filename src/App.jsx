@@ -793,6 +793,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
   // map it to our accent via data-[selected=true]. onAction handles navigation;
   // selectedKeys (controlled from `view`) drives the active highlight.
   const navList = (items) => (
+    // px-0 on the list: .list-box carries p-1, which inset these buttons 4px further than the
+    // pinned/recent block beside them. Vertical padding is kept.
     <ListBox
       aria-label="Navigation"
       selectionMode="none"
@@ -809,7 +811,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         }
         onCloseOverlay?.();
       }}
-      className="w-full"
+      className="w-full px-0!"
     >
       {items.map(item => (
         <ListBoxItem
@@ -817,7 +819,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           id={item.id}
           textValue={item.label}
           className={cn(
-            "text-[length:var(--t13)] min-h-10 rounded-xl",
+            "text-[length:var(--t13)] min-h-10 rounded-full",
             // activeNavId, not view: Liked Songs opens as a collection, so the entry has to
             // stay lit even though `view` says "collection".
             (activeNavId || view) === item.id && "bg-accent-dim text-accent",
@@ -892,7 +894,12 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     // A subtle full-width translucent card behind the whole group (trigger + revealed items),
     // in both collapsed and expanded sidebar, so Pinned/Recently Opened read as two visually
     // distinct blocks instead of blurring into the surrounding list.
-    <div className="bg-white/5 hover:bg-white/10 rounded-xl w-full mb-1.5 overflow-hidden transition-colors duration-150">
+    // 1.25rem is exactly the nav buttons' own radius: they are min-h-10 (2.5rem) and fully
+    // rounded, so their corners resolve to half of that. In rem rather than px so the two stay
+    // equal at every type scale. Collapsed, this group is shorter than the buttons and the
+    // browser scales the corners down to half its height by itself, which makes the closed
+    // group a true pill; open, it keeps the buttons' radius.
+    <div className="bg-white/5 hover:bg-white/10 rounded-[1.25rem] w-full mb-1.5 overflow-hidden transition-colors duration-150">
     <Disclosure
       isExpanded={collapsedGroupOpen[titleKey] ?? false}
       onExpandedChange={(v) => setCollapsedGroupExpanded(titleKey, v)}
@@ -1049,7 +1056,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
               onFocus={sugFocus} onBlur={sugBlur}>
               <SearchFieldRoot value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
-                <SearchFieldGroup>
+                <SearchFieldGroup className="rounded-full!">
                   <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
                   <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
                   <SearchFieldClearButton />
@@ -1085,9 +1092,11 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
 
       {/* Search row — Windows/Linux only (macOS shows the search inside the header above).
           contain:layout style isolates React Aria's data-attribute updates from app-wide
-          style recalcs without the paint-clipping of contain:content. */}
+          style recalcs without the paint-clipping of contain:content.
+          px-2, not px-3: the same inset as the pinned/recent block below, so the search field,
+          the nav buttons and those groups all paint to one edge. */}
       {!collapsed && !IS_MAC && (
-        <div className="px-3 mb-3" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
+        <div className="px-2 mb-3" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
           onFocus={sugFocus} onBlur={sugBlur}>
           <SearchFieldRoot
             value={query}
@@ -1095,7 +1104,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             onSubmit={handleSubmit}
             className="w-full"
           >
-            <SearchFieldGroup>
+            <SearchFieldGroup className="rounded-full!">
               <SearchFieldSearchIcon>
                 <MagnifyingGlass size={16} />
               </SearchFieldSearchIcon>
