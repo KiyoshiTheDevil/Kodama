@@ -1164,12 +1164,13 @@ button:not([class]) {
    that sets its own — the lyric lines (inline `cursor: default`), every HeroUI component
    (--cursor-interactive) and the `cursor: default !important` rule for buttons and links
    above. Toggled on <html> from App.jsx so portalled overlays are covered too. */
-/* A fully transparent 32x32 cursor rather than `cursor: none`. Both mean "show nothing", but
-   not by the same route: `none` tells the browser to draw no cursor at all, while an image
-   makes the system draw an invisible one. In Kodama the first was unreliable — the arrow stayed
-   on a resting pointer although every measurement said `none`, while the same mechanism works
-   perfectly in an ordinary Chromium browser on the same machine. `none` stays as the fallback
-   for anything that cannot load the image. */
+/* A fully transparent 32x32 cursor rather than a plain `cursor: none`. Both mean "show
+   nothing", but not by the same route: `none` asks the browser to draw no cursor at all, an
+   image has the system draw an invisible one. Kept as the belt-and-braces form after a long
+   hunt (2026-09-06) in which a resting pointer sometimes stayed visible on one machine no
+   matter what the page said. That turned out to be the system drawing a SOFTWARE cursor —
+   composited into the picture, hence at the window's frame rate, duplicated across monitors and
+   left behind as a ghost — which no application can reach. `none` stays as the fallback. */
 html.cursor-hidden, html.cursor-hidden * {
   cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR42u3BAQEAAACCIP+vbkhAAQAAAO8GECAAAcm1w7EAAAAASUVORK5CYII=") 0 0, none !important;
 }
