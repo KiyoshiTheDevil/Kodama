@@ -4009,6 +4009,8 @@ export default function App() {
   const [playerVisible, setPlayerVisible] = useState(true);
   const [cursorVisible, setCursorVisible] = useState(true);
   const hideTimerRef = useRef(null);
+  // How long the player bar and the cursor stay after the last pointer movement in fullscreen.
+  const FS_HIDE_DELAY = 1500;
 
   useEffect(() => {
     if (!fullscreen) {
@@ -4033,13 +4035,13 @@ export default function App() {
       hideTimerRef.current = setTimeout(() => {
         setPlayerVisible(false);
         setCursorVisible(false);
-      }, 3000);
+      }, FS_HIDE_DELAY);
     };
     // Start timer immediately when entering fullscreen
     hideTimerRef.current = setTimeout(() => {
       setPlayerVisible(false);
       setCursorVisible(false);
-    }, 3000);
+    }, FS_HIDE_DELAY);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mousedown", onMove);
     return () => {
