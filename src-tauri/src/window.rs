@@ -355,15 +355,29 @@ pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tau
 #[cfg(windows)]
 static CURSOR_HIDDEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Move the pointer one pixel and straight back.
+///
+/// It ends up exactly where it was; the point is the movement itself, which is the only thing
+/// that makes the browser re-read the cursor it draws for its own window. The app's idle timer
+/// ignores a one-pixel round trip — well under the threshold that counts as activity.
+#[cfg(windows)]
+unsafe fn nudge_pointer() {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, SetCursorPos};
+    let mut p = POINT::default();
+    if GetCursorPos(&mut p).is_ok() {
+        let step = if p.x > 0 { -1 } else { 1 };
+        let _ = SetCursorPos(p.x + step, p.y);
+        let _ = SetCursorPos(p.x, p.y);
+    }
+}
+
 #[tauri::command]
 pub fn set_cursor_hidden(window: tauri::WebviewWindow, hidden: bool) {
     #[cfg(windows)]
     {
         use std::sync::atomic::Ordering;
-        use windows::Win32::Foundation::POINT;
-        use windows::Win32::UI::WindowsAndMessaging::{
-            GetCursorPos, SetCursorPos, ShowCursor,
-        };
+        use windows::Win32::UI::WindowsAndMessaging::ShowCursor;
         // ShowCursor counts, so a repeated hide would need a matching number of shows.
         if CURSOR_HIDDEN.swap(hidden, Ordering::SeqCst) == hidden {
             return;
@@ -384,13 +398,22 @@ pub fn set_cursor_hidden(window: tauri::WebviewWindow, hidden: bool) {
             // cursor, at which point it reads the `none` the page has been reporting all along.
             // The app's own idle timer ignores it: a one-pixel round trip is well under the
             // threshold that counts as activity.
-            let mut p = POINT::default();
-            if GetCursorPos(&mut p).is_ok() {
-                let step = if p.x > 0 { -1 } else { 1 };
-                let _ = SetCursorPos(p.x + step, p.y);
-                let _ = SetCursorPos(p.x, p.y);
-            }
+            nudge_pointer();
         });
+        // …and again a moment later. One nudge lands only if the browser is in a position to
+        // act on it right then, which is why hiding worked sometimes and not others. Three
+        // bounded attempts over a third of a second, then it stops for good: enough to catch a
+        // missed one, far short of anything that keeps poking at the pointer while idle.
+        for delay in [150u64, 350] {
+            let win = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+                if !CURSOR_HIDDEN.load(Ordering::SeqCst) {
+                    return;
+                }
+                let _ = win.run_on_main_thread(|| unsafe { nudge_pointer() });
+            });
+        }
     }
     #[cfg(not(windows))]
     {
