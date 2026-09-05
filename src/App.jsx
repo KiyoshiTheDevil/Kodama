@@ -4016,6 +4016,17 @@ export default function App() {
   // Set while the pointer is on the player bar. Nothing hides then: the bar must not slide out
   // from under the cursor mid-reach, and an invisible cursor over controls is no help either.
   const overPlayerRef = useRef(false);
+  // Temporary instrumentation for the "cursor will not stay hidden" hunt. Only rendered with
+  // the debug tab unlocked; remove once the cause is nailed down.
+  const fsProbeRef = useRef(null);
+  const fsStatsRef = useRef({ seen: 0, taken: 0, dx: 0, dy: 0, last: 0, kinds: {} });
+  // Last real pointer position, so the probe can say what sits under it.
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const on = (e) => { lastPointerRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener("mousemove", on, true);
+    return () => window.removeEventListener("mousemove", on, true);
+  }, []);
 
   useEffect(() => {
     if (!fullscreen) {
@@ -4054,9 +4065,14 @@ export default function App() {
     };
     armHideRef.current = arm;
     const onMove = (e) => {
+      const st = fsStatsRef.current;
+      st.seen++;
+      st.kinds[e.type] = (st.kinds[e.type] || 0) + 1;
+      if (lastX !== null) { st.dx = e.clientX - lastX; st.dy = e.clientY - lastY; }
       if (lastX !== null
         && Math.abs(e.clientX - lastX) < MOVE_THRESHOLD
         && Math.abs(e.clientY - lastY) < MOVE_THRESHOLD) return;
+      st.taken++; st.last = Date.now();
       lastX = e.clientX; lastY = e.clientY;
       setPlayerVisible(true);
       setCursorVisible(true);
@@ -4086,6 +4102,29 @@ export default function App() {
     document.documentElement.classList.toggle("cursor-hidden", hidden);
     return () => document.documentElement.classList.remove("cursor-hidden");
   }, [fullscreen, cursorVisible]);
+
+  // Live readout for the fullscreen idle hunt (debug tab unlocked only). Written straight into
+  // the node so it can tick at 100ms without re-rendering the app.
+  const fsProbeOn = fullscreen && localStorage.getItem("kiyoshi-debug-unlocked") === "true";
+  useEffect(() => {
+    if (!fsProbeOn) return;
+    const id = setInterval(() => {
+      const el = fsProbeRef.current;
+      if (!el) return;
+      const st = fsStatsRef.current;
+      const hidden = document.documentElement.classList.contains("cursor-hidden");
+      const under = document.elementFromPoint(lastPointerRef.current.x, lastPointerRef.current.y);
+      el.textContent = [
+        `player ${playerVisible ? "shown" : "hidden"}   cursor ${cursorVisible ? "shown" : "hidden"}   class ${hidden ? "on" : "off"}`,
+        `overBar ${overPlayerRef.current}   since last move ${((Date.now() - st.last) / 1000).toFixed(1)}s`,
+        `events seen ${st.seen}  accepted ${st.taken}  ${JSON.stringify(st.kinds)}`,
+        `last delta ${st.dx},${st.dy}`,
+        `under pointer <${under?.tagName?.toLowerCase() || "?"}> class="${(under?.className || "").toString().slice(0, 60)}"`,
+        `computed cursor ${under ? getComputedStyle(under).cursor : "?"}`,
+      ].join(String.fromCharCode(10));
+    }, 100);
+    return () => clearInterval(id);
+  }, [fsProbeOn, playerVisible, cursorVisible]);
 
   const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }
   const audioRef = useRef(null);
@@ -5668,6 +5707,14 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
+        {fsProbeOn && (
+          <pre ref={fsProbeRef} style={{
+            position: "fixed", top: 8, insetInlineStart: 8, zIndex: 99999, margin: 0,
+            padding: "8px 10px", borderRadius: 8, pointerEvents: "none",
+            background: "rgba(0,0,0,0.75)", color: "#7CFC9B", font: "11px/1.5 monospace",
+            whiteSpace: "pre",
+          }} />
+        )}
         {!fullscreen && !IS_MAC && <TitleBar />}
         <div style={{
           width: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
