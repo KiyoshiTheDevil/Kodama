@@ -392,11 +392,14 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                   </div>
                   {pages.length > 1 && (
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                      <Button isIconOnly size="sm" variant="secondary" className="size-7 min-w-0 rounded-full" isDisabled={curPage === 0} onPress={() => goPage(-1)}>
-                        <CaretLeft size={13} weight="bold" />
+                      {/* h-8 w-10 rather than size-7: that was 1.75rem square, which is 24.5px
+                          at the app's 14px root — small enough to be fiddly. Wider than tall
+                          suits a pager and buys the horizontal room where the aiming happens. */}
+                      <Button isIconOnly size="sm" variant="secondary" className="h-8 w-10 min-w-0 rounded-full" isDisabled={curPage === 0} onPress={() => goPage(-1)}>
+                        <CaretLeft size={14} weight="bold" />
                       </Button>
-                      <Button isIconOnly size="sm" variant="secondary" className="size-7 min-w-0 rounded-full" isDisabled={curPage >= pages.length - 1} onPress={() => goPage(1)}>
-                        <CaretRight size={13} weight="bold" />
+                      <Button isIconOnly size="sm" variant="secondary" className="h-8 w-10 min-w-0 rounded-full" isDisabled={curPage >= pages.length - 1} onPress={() => goPage(1)}>
+                        <CaretRight size={14} weight="bold" />
                       </Button>
                     </div>
                   )}
