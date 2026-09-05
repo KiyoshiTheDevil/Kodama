@@ -1158,3 +1158,10 @@ button:not([class]) {
     min-width: calc(var(--dd-min-w, 13.75rem) * var(--ui-zoom, 1));
   }
 }
+
+/* Fullscreen idle: hide the cursor everywhere.
+   `cursor` inherits, so a single `cursor: none` on the app shell stops at the first element
+   that sets its own — the lyric lines (inline `cursor: default`), every HeroUI component
+   (--cursor-interactive) and the `cursor: default !important` rule for buttons and links
+   above. Toggled on <html> from App.jsx so portalled overlays are covered too. */
+html.cursor-hidden, html.cursor-hidden * { cursor: none !important; }

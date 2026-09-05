@@ -4009,13 +4009,22 @@ export default function App() {
   const [playerVisible, setPlayerVisible] = useState(true);
   const [cursorVisible, setCursorVisible] = useState(true);
   const hideTimerRef = useRef(null);
+  // The fullscreen effect's own re-arm, so leaving the player bar can restart the countdown.
+  const armHideRef = useRef(null);
   // How long the player bar and the cursor stay after the last pointer movement in fullscreen.
-  const FS_HIDE_DELAY = 1500;
+  const FS_HIDE_DELAY = 1000;
+  // Set while the pointer is on the player bar. Nothing hides then: the bar must not slide out
+  // from under the cursor mid-reach, and an invisible cursor over controls is no help either.
+  const overPlayerRef = useRef(false);
 
   useEffect(() => {
     if (!fullscreen) {
       setPlayerVisible(true);
       setCursorVisible(true);
+      overPlayerRef.current = false;
+      // Windowed, nothing may re-arm: a stale arm() from an earlier fullscreen session would
+      // hide the bar in a window where it is supposed to stay.
+      armHideRef.current = null;
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       return;
     }
@@ -4026,30 +4035,48 @@ export default function App() {
     // after 3s, shifting layout again — a self-triggering loop. Only treat it as real activity
     // if the pointer's coordinates actually changed.
     let lastX = null, lastY = null;
+    const arm = () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => {
+        // Resting on the bar is not idling. Come back rather than hide, so the moment the
+        // pointer leaves it the countdown is already running again.
+        if (overPlayerRef.current) return arm();
+        setPlayerVisible(false);
+        setCursorVisible(false);
+      }, FS_HIDE_DELAY);
+    };
+    armHideRef.current = arm;
     const onMove = (e) => {
       if (e.clientX === lastX && e.clientY === lastY) return;
       lastX = e.clientX; lastY = e.clientY;
       setPlayerVisible(true);
       setCursorVisible(true);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => {
-        setPlayerVisible(false);
-        setCursorVisible(false);
-      }, FS_HIDE_DELAY);
+      arm();
     };
     // Start timer immediately when entering fullscreen
-    hideTimerRef.current = setTimeout(() => {
-      setPlayerVisible(false);
-      setCursorVisible(false);
-    }, FS_HIDE_DELAY);
+    arm();
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mousedown", onMove);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onMove);
+      armHideRef.current = null;
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, [fullscreen]);
+
+  // Hiding the cursor takes more than `cursor: none` on the shell. The property inherits, so it
+  // only reaches elements that do not set one themselves — and plenty do: every lyric line
+  // carries an inline `cursor: default`, HeroUI puts --cursor-interactive (also `default`) on
+  // its components, and index.css has a `cursor: default !important` rule for buttons and
+  // links. Resting the pointer on any of those kept the arrow on screen while the player bar
+  // slid away. A class on <html> covers the whole document instead, portalled overlays
+  // included, and outranks all of the above.
+  useEffect(() => {
+    const hidden = fullscreen && !cursorVisible;
+    document.documentElement.classList.toggle("cursor-hidden", hidden);
+    return () => document.documentElement.classList.remove("cursor-hidden");
+  }, [fullscreen, cursorVisible]);
 
   const [collection, setCollection] = useState(null); // { title, thumbnail, tracks }
   const audioRef = useRef(null);
@@ -5627,7 +5654,7 @@ export default function App() {
       {flashbang && (
         <div onAnimationEnd={() => setFlashbang(false)} style={{ position: "fixed", inset: 0, zIndex: 999999, pointerEvents: "none", background: "white", animation: "flashbangFade 3s ease-out forwards" }} />
       )}
-      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: fullscreen && !cursorVisible ? "none" : "default", zoom: uiZoom }}>
+      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: "default", zoom: uiZoom }}>
         {/* Experimental: the playing track's cover as a heavily-blurred, theme-tinted ambient
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
@@ -5819,7 +5846,10 @@ export default function App() {
                 </CardRoot>
               </div>
             )}
-          <div style={{
+          <div
+            onMouseEnter={() => { overPlayerRef.current = true; }}
+            onMouseLeave={() => { overPlayerRef.current = false; armHideRef.current?.(); }}
+            style={{
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             opacity: settingsOpen ? 0 : 1,
             transform: (fullscreen && !playerVisible) ? "translateY(120%)" : "translateY(0)",
