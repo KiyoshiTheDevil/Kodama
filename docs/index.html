@@ -33,7 +33,12 @@
     <div class="hero">
       <p class="tagline">A desktop player for <b>YouTube Music</b><br>Synced lyrics, personalization, and more.</p>
       <div class="device">
-        <img class="shot" src="shots/home.png" alt="Kodama — Home view" loading="eager">
+        <!-- WebP first (204 KB against the PNG's 1.5 MB, indistinguishable at 3x on the
+             sidebar text), PNG kept as the fallback. -->
+        <picture>
+          <source srcset="shots/home.webp" type="image/webp">
+          <img class="shot" src="shots/home.png" alt="Kodama — Home view" width="1920" height="1048" loading="eager">
+        </picture>
       </div>
     </div>
   </div>
