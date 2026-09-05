@@ -4118,6 +4118,19 @@ export default function App() {
     return () => { alive = false; };
   }, [fullscreen, cursorVisible]);
 
+  // Second lever, because ShowCursor only reaches windows on our own thread and the WebView's
+  // content window is not one of them — which is why the OS route alone was hit and miss.
+  //
+  // The browser re-reads the cursor when the element under the pointer CHANGES. So change it:
+  // while the cursor is hidden, a transparent sheet covers the window and takes hit testing, so
+  // the hovered element becomes the sheet and its `cursor: none` is what gets read. It holds
+  // that for as long as the cursor stays hidden — an earlier attempt handed hit testing back on
+  // the next animation frame, which runs BEFORE that frame's layout, so the browser never once
+  // laid out with the sheet as the hit target and the whole point was lost.
+  //
+  // Nothing is lost by it: mouse events still bubble to the window listeners that bring the
+  // interface back, and the first movement unmounts the sheet again.
+
   // The pointer is on someone else's window now, so it has to be back on screen — Windows would
   // otherwise keep it hidden while the app sits in the background.
   useEffect(() => {
@@ -5734,6 +5747,12 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
+        {fullscreen && !cursorVisible && (
+          <div aria-hidden="true" style={{
+            position: "fixed", inset: 0, zIndex: 2147483000,
+            cursor: "none", background: "transparent",
+          }} />
+        )}
         {fsProbeOn && (
           <pre ref={fsProbeRef} style={{
             position: "fixed", top: 8, insetInlineStart: 8, zIndex: 99999, margin: 0,
