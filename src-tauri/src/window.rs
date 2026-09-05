@@ -215,10 +215,12 @@ pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tau
         use windows::Win32::Graphics::Gdi::{
             GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
         };
+        use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
         use windows::Win32::UI::WindowsAndMessaging::{
             GetWindowLongPtrW, GetWindowPlacement, SetWindowLongPtrW, SetWindowPlacement,
-            SetWindowPos, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOMOVE,
-            SWP_NOOWNERZORDER, SWP_NOSIZE, WINDOWPLACEMENT, WS_MAXIMIZE,
+            SetWindowPos, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST, SM_CXPADDEDBORDER,
+            SM_CXSIZEFRAME, SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE,
+            WINDOWPLACEMENT, WS_MAXIMIZE,
         };
 
         let Ok(handle) = window.hwnd() else { return };
@@ -236,7 +238,7 @@ pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tau
                 length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
                 ..Default::default()
             };
-            let rect: RECT;
+            let mut rect: RECT;
             unsafe {
                 let hwnd = HWND(raw as _);
                 if GetWindowPlacement(hwnd, &mut placement).is_err() {
@@ -252,6 +254,21 @@ pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tau
                 }
                 // rcMonitor, not rcWork: the whole screen, taskbar included.
                 rect = info.rcMonitor;
+                // …but the window has to reach PAST the screen on three sides to cover it.
+                // Kodama's window is borderless with a shadow, and tao shrinks the client area
+                // of such a window by the resize-frame thickness on left, right and bottom (it
+                // skips that only for its own fullscreen flag, which we are not setting). Put
+                // the window rectangle exactly on the monitor and that inset shows up as an
+                // uncovered strip along those edges. Growing the window by the same amount puts
+                // the CLIENT area on the monitor rectangle, which is what fullscreen means here.
+                // The top is already handled: tao insets it by 1px on Windows 11 and
+                // nccalc_subclass above takes that pixel straight back.
+                let dpi = GetDpiForWindow(hwnd);
+                let frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi)
+                    + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+                rect.left -= frame;
+                rect.right += frame;
+                rect.bottom += frame;
             }
             *state.saved.lock().unwrap() = Some(placement);
 
