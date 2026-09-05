@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, CardRoot, ScrollShadowRoot, Skeleton, Spinner, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
-import { API, thumb, useLang } from "../context.jsx";
+import { API, thumb, thumbHi, useLang } from "../context.jsx";
 import { ArrowsClockwise, CaretLeft, CaretRight, CloudSun, Headphones, Moon, MoonStars, MusicNote, Play, PodcastIcon, Sun, SunHorizon } from "../icons.jsx";
 import { ExplicitBadge } from "../ui/rows.jsx";
 
@@ -221,7 +221,11 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
         <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "50%" : 10, overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
           <div style={{ width: size, height: size, background: "var(--bg-elevated)" }}>
             {item.thumbnail
-              ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
+              /* Twice the card's own size: the default thumb() keeps whatever small variant the
+                 backend picked (_pick_thumb takes the smallest at least 226px wide), which is
+                 soft on a HiDPI screen. Derived from `size` rather than a flat number so the
+                 request follows the card instead of over-fetching for the small ones. */
+              ? <img className="home-card-img" src={thumbHi(item.thumbnail, size * 2)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
               : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {isPodcast ? <PodcastIcon size={size * 0.3} style={{ opacity: 0.4 }} /> : <MusicNote size={size * 0.3} style={{ opacity: 0.25 }} />}
                 </div>
@@ -406,7 +410,12 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                       style={{ cursor: "default", minWidth: 0 }}>
                       <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", borderRadius: "var(--r-lg)", overflow: "hidden", background: "var(--bg-elevated)" }}>
                         {item.thumbnail
-                          ? <img className="home-card-img" src={thumb(item.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
+                          /* A flat 480: these tiles are a grid fraction, so there is no pixel
+                             size to derive from, and they grow with the panel. Not higher —
+                             hiResThumb maps an i.ytimg.com URL onto fixed variants, and above
+                             480 that becomes maxresdefault, which plenty of videos do not have.
+                             hqdefault always exists. */
+                          ? <img className="home-card-img" src={thumbHi(item.thumbnail, 480)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
                           : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
                         }
                         {/* Gradient + title/artist overlay (bottom-left) */}
