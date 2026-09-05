@@ -128,12 +128,19 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       <div style={{ height: 1, background: "var(--stroke)", margin: collapsed ? "0 8px 8px" : "0 12px 8px", flexShrink: 0 }} />
 
       {/* Nav items */}
-      <div className="scrollable" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: collapsed ? "0 4px 8px" : "0 8px 8px" }}>
+      {/* Same treatment as the main sidebar's list, so the buttons in the two line up: its own
+          px-2 rather than a hard 8px (px-2 is 0.5rem and follows the type scale), and no
+          scrollbar. `.scrollable` was reserving a stable gutter, which pushed the right edge
+          8px further in than the left and made these buttons narrower than the main ones. */}
+      <div className={cn("no-scrollbar", collapsed ? "px-1" : "px-2")}
+        style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: 8 }}>
         <ListBox
           aria-label={t("appSettings")}
           selectionMode="none"
           onAction={(key) => { const k = String(key); if (k.startsWith("sec:")) onSectionSelect?.(k.slice(4)); else setTab(k); }}
-          className="w-full"
+          // px-0 for the same reason as the main sidebar's list: .list-box carries p-1, which
+          // inset these buttons 4px more than the 8px their container already gives them.
+          className="w-full px-0!"
         >
           {navItems.flatMap(item => {
             const parent = (
