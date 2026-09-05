@@ -89,21 +89,29 @@ header nav a:hover { color:var(--t1); }
 
 .below { text-align:center; margin-top:40px; }
 .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+:root { --btn-r-out: 24.5px; --btn-r-in: 10px; }  /* 24.5px = half the 49px button height */
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:600; font-size:15px; padding:13px 24px; border-radius:12px;
   transition:transform .50s ease, background .15s, box-shadow .18s, border-color .15s, filter .12s; }
 .btn:active { transform:scale(.97); }  /* the app's tactile press */
 /* Primary: flat accent fill like the app's regular buttons (no glow). */
-.primary { background:var(--accent); color:#000000; border-radius:999px 4px 4px 999px; }
+.primary { background:var(--accent); color:#000000; border-radius:var(--btn-r-out) var(--btn-r-in) var(--btn-r-in) var(--btn-r-out); }
 .primary:hover { filter:brightness(1.06); }
 /* Secondary is a borderless glass surface like the app's translucent buttons. */
 .secondary { background:rgba(255,255,255,0.05); color:var(--t1);
-  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-radius:4px 999px 999px 4px; font-weight:400;}
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-radius:var(--btn-r-in) var(--btn-r-out) var(--btn-r-out) var(--btn-r-in); font-weight:400;}
 .secondary:hover { background:rgba(255,255,255,0.10); }
-/* The two buttons are shaped as one joined pill: the outer corners go fully round (999px,
-   which the browser caps at half the height), the inner ones stay nearly square where they
-   meet. That only reads correctly side by side, so below the width where they still fit on one
-   line, stack them full-width and round each one all the way instead of leaving it with one
-   "cut off"-looking sharp edge. */
+/* The two buttons are shaped as one joined pill: fully round on the outside, softly rounded
+   where they meet. That only reads correctly side by side, so below the width where they still
+   fit on one line, stack them full-width and round each one all the way instead of leaving it
+   with one "cut off"-looking sharp edge.
+
+   The outer radius is written out as half the button's height rather than as 999px, and that
+   matters: a browser scales ALL of an element's radii by one common factor as soon as two
+   radii of a side are longer than that side. 999px against a 49px height means a factor of
+   0.0245, which quietly turns the inner radius into a tenth of a pixel too. Every value we
+   tried there looked identical because every value WAS identical. At exactly half the height
+   the two radii of a side add up to the side itself, so nothing is scaled and the inner corners
+   are honoured as written. */
 @media (max-width:560px) {
   .cta { flex-direction:column; }
   .btn { width:100%; }
