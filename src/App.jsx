@@ -4031,9 +4031,16 @@ export default function App() {
     // Hiding the player bar shifts layout under a stationary cursor (translateY sliding it
     // off-screen). Some WebViews fire a synthetic mousemove when the element under an unmoved
     // cursor changes (confirmed reproducible on macOS/WKWebView for this bug report, not on
-    // Windows/WebView2 here). That synthetic event then re-showed the bar, which hid again
-    // after 3s, shifting layout again — a self-triggering loop. Only treat it as real activity
-    // if the pointer's coordinates actually changed.
+    // Windows/WebView2 here). That synthetic event then re-showed the bar, which hid again,
+    // shifting layout again — a self-triggering loop.
+    //
+    // Comparing coordinates catches those events only when they repeat the last position
+    // exactly. A threshold catches the rest: a mouse resting on a desk still reports the odd
+    // single-pixel twitch, and views that move under the pointer by themselves (the lyrics
+    // scroll, the visualizer) give the browser reason to re-send a position it has rounded
+    // differently. Sub-pixel wobble is not someone asking for the controls back — every video
+    // player draws the line somewhere, and 3px is well below a deliberate movement.
+    const MOVE_THRESHOLD = 3;
     let lastX = null, lastY = null;
     const arm = () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -4047,7 +4054,9 @@ export default function App() {
     };
     armHideRef.current = arm;
     const onMove = (e) => {
-      if (e.clientX === lastX && e.clientY === lastY) return;
+      if (lastX !== null
+        && Math.abs(e.clientX - lastX) < MOVE_THRESHOLD
+        && Math.abs(e.clientY - lastY) < MOVE_THRESHOLD) return;
       lastX = e.clientX; lastY = e.clientY;
       setPlayerVisible(true);
       setCursorVisible(true);
