@@ -339,6 +339,43 @@ pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tau
     }
 }
 
+/// Hide or show the mouse pointer, at the OS level.
+///
+/// `cursor: none` in the page is not enough. The browser only re-reads the cursor when the
+/// element under the pointer changes; a style change on an element the pointer already sits on
+/// is not an occasion, so on a resting pointer the arrow stays drawn even though everything in
+/// the page reports `none` (measured in the running app, and it flickers away for an instant on
+/// the next mouse movement, which is when the browser does re-read). Windows has no such
+/// notion: ShowCursor takes effect immediately.
+///
+/// The display counter is shared by the windows of a thread, so this pairs strictly — one hide
+/// per show, guarded by a flag, and always from the main thread, which is the one that owns the
+/// window and the WebView child. Anything that puts the pointer back on screen (any mouse
+/// movement, leaving fullscreen, losing focus) calls this with `false`.
+#[cfg(windows)]
+static CURSOR_HIDDEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[tauri::command]
+pub fn set_cursor_hidden(window: tauri::WebviewWindow, hidden: bool) {
+    #[cfg(windows)]
+    {
+        use std::sync::atomic::Ordering;
+        use windows::Win32::UI::WindowsAndMessaging::ShowCursor;
+        // ShowCursor counts, so a repeated hide would need a matching number of shows.
+        if CURSOR_HIDDEN.swap(hidden, Ordering::SeqCst) == hidden {
+            return;
+        }
+        let _ = window.run_on_main_thread(move || unsafe {
+            ShowCursor(!hidden);
+        });
+    }
+    #[cfg(not(windows))]
+    {
+        // macOS and Linux hide the pointer from CSS without this.
+        let _ = (window, hidden);
+    }
+}
+
 // Per-profile WebView data directory. Persisted (not wiped on close) so a hidden
 // "session-keeper" WebView can keep the browser session — and its rotating *SIDTS cookies —
 // alive after login. Wiped only at the start of an interactive login (fresh slate per login,
