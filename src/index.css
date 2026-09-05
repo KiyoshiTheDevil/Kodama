@@ -19,6 +19,13 @@
   --foreground:              var(--text-primary);
   --surface:                 var(--bg-surface);
   --overlay:                 var(--bg-elevated);
+  /* The two the bridge was missing. HeroUI's own dark values for these are a generic grey
+     (oklch 25.7% / 27.2%) tuned for an ordinary dark theme, so on OLED's pure black the cards
+     using them — a CardRoot with no bg- class of its own, e.g. the Unison identity card and the
+     language rows — sat far lighter than every surface around them. Mapped onto our ladder they
+     follow whichever theme is active, OLED included. */
+  --surface-secondary:       var(--surface-1);
+  --surface-tertiary:        var(--surface-2);
   --primary:                 var(--accent);
   --muted:                   var(--text-muted);
 
