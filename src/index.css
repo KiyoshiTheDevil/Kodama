@@ -1165,3 +1165,11 @@ button:not([class]) {
    (--cursor-interactive) and the `cursor: default !important` rule for buttons and links
    above. Toggled on <html> from App.jsx so portalled overlays are covered too. */
 html.cursor-hidden, html.cursor-hidden * { cursor: none !important; }
+/* Except a <video>, where the rule above changes nothing: Chromium gives every video element a
+   media-controls shadow tree, and the descendant selector does not reach into a shadow root, so
+   the hit test lands on something we cannot style and the arrow stays. Taking the video out of
+   hit testing settles it regardless — whatever is behind it decides, and that inherits `none`.
+   Only while the cursor is hidden, so nothing about a video's normal behaviour changes; the
+   next mouse movement drops the class again. Kodama's video is decorative anyway: muted, no
+   controls, driven by the audio clock. */
+html.cursor-hidden video { pointer-events: none !important; }
