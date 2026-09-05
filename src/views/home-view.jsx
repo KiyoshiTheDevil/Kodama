@@ -26,7 +26,7 @@ function Carousel({ children, style, insetX = 0 }) {
 
 // Reusable media tile matching the Home-page card behavior (hover image-scale,
 // play overlay, CardRoot). shape: "square" | "circle" | "video".
-export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit }) {
+export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit, showSpeedDial = true }) {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moodGroups, setMoodGroups] = useState({});   // { "For you": [...], "Moods & moments": [...], "Genres": [...] }
@@ -147,7 +147,10 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
   // the first all-songs section that isn't Discover/Listen again.
   const speedDialSection  = allSections.find(isQuickPicks)
                             || allSections.find(s => isAllSongsSection(s) && !isDiscover(s) && !isListenAgain(s));
-  const speedDialItems    = speedDialSection?.items || [];
+  // Switched off, the items are simply empty and every "no speed dial" branch below — the
+  // single-column layout, the hidden pager — takes over on its own. The section stays out of
+  // `regularSections` either way, so hiding the panel does not make it reappear as a carousel.
+  const speedDialItems    = showSpeedDial ? (speedDialSection?.items || []) : [];
 
   // Left column: up to 2 carousel sections. Prefer Listen again + Daily Discover,
   // then fill from remaining (non-song-grid) sections so the column reliably

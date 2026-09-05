@@ -535,6 +535,8 @@
   "hideExplicit": "Explizite Inhalte ausblenden",
   "trackNumbers": "Titelnummerierung",
   "trackNumbersDesc": "Zeigt die Position der Titel in Playlists und Alben an",
+  "speedDial": "Speed Dial",
+  "speedDialDesc": "Zeigt das Raster mit schnellen Vorschlägen auf der Startseite",
   "anonStats": "Anonyme Nutzungsstatistik",
   "anonStatsDesc": "Sendet einmal täglich einen anonymen Herzschlag, damit die Zahl aktiver Kodama-Nutzer angezeigt werden kann. Keine persönlichen Daten, keine IP-Speicherung, nicht über Tage hinweg verknüpfbar.",
   "hideExplicitDesc": "Songs mit dem \"E\"-Badge werden nicht angezeigt",

@@ -4682,6 +4682,7 @@ export default function App() {
   const [lyricsRomajiFontSize, setLyricsRomajiFontSize] = usePersistedState("kiyoshi-lyrics-romaji-font-size", 18);
   const [hideExplicit, setHideExplicit] = usePersistedState("kiyoshi-hide-explicit", false);
   const [showTrackNumbers, setShowTrackNumbers] = usePersistedState("kodama-track-numbers", false);
+  const [showSpeedDial, setShowSpeedDial] = usePersistedState("kodama-speed-dial", true);
   // Anonymous active-user stats: default ON, one-click opt-out. See analytics/.
   const [anonStats, setAnonStats] = usePersistedState("kodama-anon-stats", true);
   const [hideUserHandle, setHideUserHandle] = usePersistedState("kiyoshi-hide-handle", false);
@@ -5704,7 +5705,7 @@ export default function App() {
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
           <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%" }}>
-            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
+            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={goBack} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
@@ -6133,6 +6134,8 @@ export default function App() {
             onHideExplicitChange={setHideExplicit}
             showTrackNumbers={showTrackNumbers}
             onTrackNumbersChange={setShowTrackNumbers}
+            showSpeedDial={showSpeedDial}
+            onSpeedDialChange={setShowSpeedDial}
             anonStats={anonStats}
             onAnonStatsChange={setAnonStats}
             hideUserHandle={hideUserHandle}
