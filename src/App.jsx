@@ -4103,6 +4103,29 @@ export default function App() {
     return () => document.documentElement.classList.remove("cursor-hidden");
   }, [fullscreen, cursorVisible]);
 
+  // Setting `cursor: none` is not enough to make the pointer go away. The browser re-reads the
+  // cursor when the element under the pointer CHANGES; a style change on an element the pointer
+  // is already on does not count, so the arrow stayed on screen while everything reported
+  // `none` — measured in the app with the probe below, and visible flickering off for an
+  // instant on the next mouse movement, which is exactly the moment the browser does re-read.
+  //
+  // So change the element under the pointer. This overlay covers the window while the cursor is
+  // hidden and takes hit testing for one frame, which is a real change of hovered element and
+  // forces the re-read; its own cursor is `none`, so that is what gets picked up. It then hands
+  // hit testing back, so nothing underneath becomes unclickable — by then the element below has
+  // the same `none` and the browser has no reason to change anything again.
+  const cursorEaterRef = useRef(null);
+  useEffect(() => {
+    if (!fullscreen || cursorVisible) return;
+    const el = cursorEaterRef.current;
+    if (!el) return;
+    el.style.pointerEvents = "auto";
+    const id = requestAnimationFrame(() => {
+      if (cursorEaterRef.current) cursorEaterRef.current.style.pointerEvents = "none";
+    });
+    return () => cancelAnimationFrame(id);
+  }, [fullscreen, cursorVisible]);
+
   // Live readout for the fullscreen idle hunt (debug tab unlocked only). Written straight into
   // the node so it can tick at 100ms without re-rendering the app.
   const fsProbeOn = fullscreen && localStorage.getItem("kiyoshi-debug-unlocked") === "true";
@@ -5707,6 +5730,12 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
+        {fullscreen && !cursorVisible && (
+          <div ref={cursorEaterRef} aria-hidden="true" style={{
+            position: "fixed", inset: 0, zIndex: 2147483000,
+            cursor: "none", pointerEvents: "none", background: "transparent",
+          }} />
+        )}
         {fsProbeOn && (
           <pre ref={fsProbeRef} style={{
             position: "fixed", top: 8, insetInlineStart: 8, zIndex: 99999, margin: 0,
