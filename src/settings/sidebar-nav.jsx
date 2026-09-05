@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
-import { cn, Button, ListBox, ListBoxItem } from "@heroui/react";
+import { cn, Button, ListBox, ListBoxItem, ScrollShadowRoot } from "@heroui/react";
 import { API, useLang, useAnimations } from "../context.jsx";
 import { translate } from "../i18n.js";
 import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
@@ -128,12 +128,20 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       <div style={{ height: 1, background: "var(--stroke)", margin: collapsed ? "0 8px 8px" : "0 12px 8px", flexShrink: 0 }} />
 
       {/* Nav items */}
-      {/* Same treatment as the main sidebar's list, so the buttons in the two line up: its own
-          px-2 rather than a hard 8px (px-2 is 0.5rem and follows the type scale), and no
-          scrollbar. `.scrollable` was reserving a stable gutter, which pushed the right edge
-          8px further in than the left and made these buttons narrower than the main ones. */}
-      <div className={cn("no-scrollbar", collapsed ? "px-1" : "px-2")}
-        style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: 8 }}>
+      {/* Same insets as the main sidebar's list so the buttons in the two line up: px-2 rather
+          than a hard 8px, since px-2 is 0.5rem and follows the type scale. `.scrollable` used to
+          be here and reserved a stable scrollbar gutter, which pushed the right edge 8px further
+          in than the left.
+
+          The scrollbar is hidden, and a fade at whichever end can still be scrolled takes over
+          the job of saying so — HeroUI masks the content rather than laying a shadow over it, so
+          the list dissolves into the panel instead of ending under a bar. hideScrollBar is the
+          component's own prop, which avoids a specificity fight with our .no-scrollbar. */}
+      <ScrollShadowRoot
+        size={24}
+        hideScrollBar
+        className={collapsed ? "px-1" : "px-2"}
+        style={{ flex: 1, minHeight: 0, overflowX: "hidden", paddingBottom: 8 }}>
         <ListBox
           aria-label={t("appSettings")}
           selectionMode="none"
@@ -193,7 +201,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
             return [parent, ...children];
           })}
         </ListBox>
-      </div>
+      </ScrollShadowRoot>
 
       {/* Footer — version info + debug tap + quit */}
       <div style={{ borderTop: "0.5px solid var(--stroke)", paddingTop: 8, flexShrink: 0, position: "relative", margin: "0 8px 8px" }}>
