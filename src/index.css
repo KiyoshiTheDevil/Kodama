@@ -415,6 +415,11 @@ html, body, #root {
    purely visual, zero reflow.                                              */
 ::-webkit-scrollbar               { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track         { background: transparent; }
+/* The stepper arrows at either end. Never styled before, so WebView2 drew its own — two grey
+   triangles on every carousel and list, which is chrome from a different decade and a target
+   nobody aims for when a wheel and a trackpad exist. */
+::-webkit-scrollbar-button        { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-corner        { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background-color: #333;
   border-radius: 4px;
