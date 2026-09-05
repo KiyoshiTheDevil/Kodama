@@ -360,13 +360,36 @@ pub fn set_cursor_hidden(window: tauri::WebviewWindow, hidden: bool) {
     #[cfg(windows)]
     {
         use std::sync::atomic::Ordering;
-        use windows::Win32::UI::WindowsAndMessaging::ShowCursor;
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetCursorPos, SetCursorPos, ShowCursor,
+        };
         // ShowCursor counts, so a repeated hide would need a matching number of shows.
         if CURSOR_HIDDEN.swap(hidden, Ordering::SeqCst) == hidden {
             return;
         }
         let _ = window.run_on_main_thread(move || unsafe {
             ShowCursor(!hidden);
+            if !hidden {
+                return;
+            }
+            // ShowCursor covers the windows of our own thread. The one the pointer is actually
+            // over belongs to the WebView's process, and there the cursor is whatever the
+            // browser last set — which it only reconsiders when it receives mouse input. That
+            // is why this worked in some spots and not others, and why native applications,
+            // which own their input thread, have no such trouble.
+            //
+            // So give it the input. Nudging the pointer one pixel and straight back leaves it
+            // exactly where it was and produces the movement the browser needs to re-read the
+            // cursor, at which point it reads the `none` the page has been reporting all along.
+            // The app's own idle timer ignores it: a one-pixel round trip is well under the
+            // threshold that counts as activity.
+            let mut p = POINT::default();
+            if GetCursorPos(&mut p).is_ok() {
+                let step = if p.x > 0 { -1 } else { 1 };
+                let _ = SetCursorPos(p.x + step, p.y);
+                let _ = SetCursorPos(p.x, p.y);
+            }
         });
     }
     #[cfg(not(windows))]
