@@ -67,3 +67,40 @@ export function Tooltip({ text, children }) {
     </span>
   );
 }
+
+/**
+ * The label a collapsed sidebar shows next to an icon.
+ *
+ * Both sidebars keep a single `{text, x, y}` in state, filled from the hovered row's
+ * getBoundingClientRect. That rect is in real screen pixels, so the element that consumes it
+ * must live in an unzoomed context — and `position: fixed` is NOT that context: `zoom` on an
+ * ancestor scales a fixed child's own left/top as well. Rendered inline inside the app shell
+ * (which carries the UI zoom) the label therefore drifted by exactly the zoom factor: measured
+ * at 120 %, top 180 landed at 216, so at anything but 100 % the tooltip pointed at the wrong
+ * row entirely.
+ *
+ * Portalled to plain <body> the coordinates land where they were measured, and `zoom` goes on
+ * the inner box only so the label still scales with the rest of the interface — the same split
+ * the hover Tooltip above uses.
+ */
+export function SidebarTooltip({ tooltip }) {
+  const zoom = useZoom();
+  if (!tooltip) return null;
+  return createPortal(
+    <div style={{
+      position: "fixed", left: tooltip.x, top: tooltip.y,
+      transform: "translateY(-50%)",
+      pointerEvents: "none", zIndex: 9999,
+    }}>
+      <div style={{
+        zoom,
+        background: "var(--bg-elevated)", color: "var(--text-primary)",
+        padding: "4px 10px", borderRadius: "var(--r-md)",
+        fontSize: "var(--t12)", whiteSpace: "nowrap",
+        border: "1px solid var(--border)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+      }}>{tooltip.text}</div>
+    </div>,
+    document.body
+  );
+}

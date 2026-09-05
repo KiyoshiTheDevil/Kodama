@@ -5,6 +5,7 @@ import { translate } from "../i18n.js";
 import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
 import { subscribeSettingsSection, getSettingsSection } from "./section-store.js";
+import { SidebarTooltip } from "../ui/tooltip.jsx";
 
 export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing }) {
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
@@ -100,13 +101,8 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       overflow: "hidden",
       animation: anim ? (closing ? "fadeSlideOut 0.22s cubic-bezier(0.4,0,0.2,1) forwards" : "fadeSlideIn 0.25s cubic-bezier(0.4,0,0.2,1)") : undefined,
     }}>
-      {/* Tooltip portal — same pattern as the main Sidebar's, for the icon-only labels when collapsed */}
-      {tooltip && (
-        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-[length:var(--t12)] whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
-          style={{ left: tooltip.x, top: tooltip.y }}>
-          {tooltip.text}
-        </div>
-      )}
+      {/* Icon-only labels while collapsed — shared with the main Sidebar. */}
+      <SidebarTooltip tooltip={tooltip} />
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center",

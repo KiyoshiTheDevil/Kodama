@@ -26,7 +26,7 @@ import { applyTheme } from "./theme.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
-import { Tooltip } from "./ui/tooltip.jsx";
+import { Tooltip, SidebarTooltip } from "./ui/tooltip.jsx";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
 import { APP_VERSION } from "./version.js";
 // Side-effect import: installs the console interceptor whose ring buffer the Debug tab reads.
@@ -1008,13 +1008,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     <div className="w-full h-full bg-transparent flex flex-col pt-4 shrink-0 rounded-xl overflow-hidden"
       style={{ visibility: settingsOpen ? "hidden" : "visible" }}>
 
-      {/* Tooltip portal */}
-      {tooltip && (
-        <div className="fixed -translate-y-1/2 bg-elevated text-primary px-2.5 py-1 rounded text-[length:var(--t12)] whitespace-nowrap border border-border pointer-events-none z-[9999] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
-          style={{ left: tooltip.x, top: tooltip.y }}>
-          {tooltip.text}
-        </div>
-      )}
+      <SidebarTooltip tooltip={tooltip} />
 
       {/* Header. macOS (variant D): the search field sits at the very top, flanked by the
           native traffic lights (left padding clears them); refresh + collapse move to the
