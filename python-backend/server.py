@@ -2360,9 +2360,31 @@ def shutdown():
     threading.Thread(target=_shutdown, daemon=True).start()
     return "ok"
 
+# Read once: these never change while the process lives, and /status is pinged on every start.
+_BACKEND_VERSIONS = None
+
+def _backend_versions():
+    """Versions of the pieces that decide whether YouTube talks to us at all.
+
+    Worth surfacing rather than keeping to ourselves: when extraction or the library breaks it
+    is usually one of these being out of date, and a bug report that names them saves a round
+    of questions. Each is read defensively — a missing package must not take /status down."""
+    global _BACKEND_VERSIONS
+    if _BACKEND_VERSIONS is None:
+        import platform
+        out = {"python": platform.python_version()}
+        for label, mod, attr in (("ytmusicapi", "ytmusicapi", "__version__"),
+                                 ("ytdlp", "yt_dlp.version", "__version__")):
+            try:
+                out[label] = getattr(__import__(mod, fromlist=["_"]), attr, "?")
+            except Exception:
+                out[label] = "?"
+        _BACKEND_VERSIONS = out
+    return _BACKEND_VERSIONS
+
 @app.route("/status")
 def status():
-    return jsonify({"ok": True, "message": "Kodama Backend laeuft"})
+    return jsonify({"ok": True, "message": "Kodama Backend laeuft", "versions": _backend_versions()})
 
 # In-memory LRU cache für Lyrics-Übersetzungen (max 500 Einträge)
 _LYRICS_CACHE_MAX = 500

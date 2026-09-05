@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, Button, ListBox, ListBoxItem } from "@heroui/react";
-import { useLang, useAnimations } from "../context.jsx";
+import { API, useLang, useAnimations } from "../context.jsx";
 import { translate } from "../i18n.js";
 import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
@@ -16,6 +16,18 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
   const [debugToast, setDebugToast] = useState(null);
   const debugTapTimer = useRef(null);
   const chromiumVersion = window.navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? "—";
+  // The backend's own versions. /status is pinged at startup anyway and now carries them; the
+  // one that earns a line here is ytmusicapi, because it is what breaks the library when
+  // YouTube changes a response shape, and knowing it turns a bug report into a diagnosis.
+  const [backendVersions, setBackendVersions] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API}/status`)
+      .then((r) => r.json())
+      .then((d) => { if (alive && d?.versions) setBackendVersions(d.versions); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   useEffect(() => {
     const handler = (e) => setDebugUnlocked(e.detail.unlocked);
     window.addEventListener("kiyoshi-debug-change", handler);
@@ -130,7 +142,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={item.id}
                 textValue={item.label}
                 className={cn(
-                  "text-[length:var(--t13)] min-h-10 rounded-xl",
+                  "text-[length:var(--t13)] min-h-10 rounded-full",
                   tab === item.id && "bg-accent-dim text-accent",
                   collapsed && "justify-center"
                 )}
@@ -161,7 +173,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={"sec:" + sec.id}
                 textValue={sec.label}
                 className={cn(
-                  "text-[length:var(--t12)] min-h-8 rounded-lg pl-9 relative",
+                  "text-[length:var(--t12)] min-h-8 rounded-full pl-9 relative",
                   activeSection === sec.id ? "text-accent font-medium" : "text-secondary"
                 )}
                 style={anim ? { animation: `unfoldDown 0.22s cubic-bezier(0.4,0,0.2,1) both`, animationDelay: `${i * 30}ms`, transformOrigin: "top" } : undefined}
@@ -204,6 +216,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
             <div style={{ fontSize: "var(--t10)", color: "var(--t3)", lineHeight: 1.7 }}>
               <span onClick={handleTauriVersionTap} style={{ cursor: "default", userSelect: "none" }}>Tauri 2.10.3</span><br />
               Chromium {chromiumVersion}
+              {backendVersions?.ytmusicapi && <><br />ytmusicapi {backendVersions.ytmusicapi}</>}
             </div>
           </div>
         )}
