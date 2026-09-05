@@ -1137,3 +1137,24 @@ button:not([class]) {
 .play-pill[data-hovered="true"] .play-pill__fill { fill: var(--button-bg-hover); }
 .play-pill:active .play-pill__fill,
 .play-pill[data-pressed="true"] .play-pill__fill { fill: var(--button-bg-pressed); }
+
+/* Dropdown popovers shrink and grow with the UI zoom.
+   ------------------------------------------------------------------------------------------
+   react-aria portals the popover into <body>, so it sits OUTSIDE the app shell that carries
+   `zoom`; only its content (the menu, via src/ui/zoomed-heroui.jsx) is zoomed. Every width
+   written on the popover is therefore in real pixels and stays put while everything inside it
+   scales — measured at 80 %, HeroUI's own `md:min-w-55` held the account menu at 192.5px while
+   its content wanted 157, leaving a band of dead space to the right of every row.
+   Multiplying by --ui-zoom (published on the root in App.jsx) keeps the box in step with what
+   is inside it. Unlayered on purpose: it has to beat both HeroUI's @layer components default
+   and any min-w-* utility, which is why the call sites set --dd-min-w instead. */
+.dropdown__popover {
+  min-width: calc(var(--dd-min-w, 0px) * var(--ui-zoom, 1));
+}
+/* HeroUI's own default is md-gated (narrow windows let the popover shrink-wrap); mirrored here
+   so the only thing this changes is the zoom, not when a floor applies. */
+@media (min-width: 48rem) {
+  .dropdown__popover {
+    min-width: calc(var(--dd-min-w, 13.75rem) * var(--ui-zoom, 1));
+  }
+}

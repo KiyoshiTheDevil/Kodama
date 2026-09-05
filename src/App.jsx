@@ -949,7 +949,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     <DropdownPopover placement="top start"
       className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-3 data-[entering]:duration-300 data-[entering]:ease-out data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:slide-out-to-bottom-3 data-[exiting]:duration-200 data-[exiting]:ease-in"
     >
-      <DropdownMenu onAction={handleAccountAction} aria-label={t("account")} className="w-[var(--trigger-width)] min-w-56">
+      <DropdownMenu onAction={handleAccountAction} aria-label={t("account")} className="min-w-56">
         <DropdownSection>
           <DropdownItem id="profile" textValue={t("account")}>
             <span className="w-4 flex justify-center shrink-0"><UserCircle size={16} /></span>
@@ -2462,7 +2462,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                   <DotsThreeVertical size={18} />
                 </DropdownTrigger>
                 <DropdownPopover placement="top end"
-                  className="min-w-60 data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
+                  className="[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
                 >
                   <DropdownMenu aria-label="More">
                     {/* Add to Playlist (submenu) + Like */}
@@ -2525,7 +2525,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {/* Inline height, not max-h-80: HeroUI sizes its popover from the
                               available viewport space, and that wins over the utility class —
                               with 44 entries the menu grew to the full window height. */}
-                          <DropdownPopover className="min-w-40 overflow-y-auto scrollable" style={{ maxHeight: 320 }}>
+                          <DropdownPopover className="[--dd-min-w:10rem] overflow-y-auto scrollable" style={{ maxHeight: 320 }}>
                             <DropdownMenu aria-label="Language">
                               {TRANSLATION_LANGS.map(({ code, name }) => (
                                 <DropdownItem key={code} textValue={name} onAction={() => setTranslationLang(code)}
@@ -2595,7 +2595,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {t("share")}
                           <DropdownSubmenuIndicator className="ml-auto" />
                         </DropdownItem>
-                        <DropdownPopover className="min-w-56">
+                        <DropdownPopover className="[--dd-min-w:14rem]">
                           <DropdownMenu aria-label={t("share")}>
                             <DropdownSection>
                               <DropdownItem textValue={t("copyShareLink")}
@@ -4758,6 +4758,13 @@ export default function App() {
   useEffect(() => { applyEqToCore(loadEqState()); }, []);
   useEffect(() => { applyFontScale(appFontScale); }, [appFontScale]);
 
+  // The UI zoom, published on the root for the few elements that live OUTSIDE the zoomed app
+  // shell: react-aria portals its popovers straight into <body>, so any width written on one is
+  // in real pixels and would not follow the zoom. Only meaningful in that unzoomed context —
+  // used inside the shell it would apply the zoom a second time. See .dropdown__popover in
+  // index.css.
+  useEffect(() => { document.documentElement.style.setProperty("--ui-zoom", uiZoom); }, [uiZoom]);
+
   // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),
   // damit position:fixed / 100vh-Werte korrekt bleiben.
   const [lyricsProviders, setLyricsProviders] = useState(() => {
@@ -6508,7 +6515,7 @@ export default function App() {
                     {translate(language, "share")}
                     <DropdownSubmenuIndicator className="ml-auto" />
                   </DropdownItem>
-                  <DropdownPopover className="min-w-56">
+                  <DropdownPopover className="[--dd-min-w:14rem]">
                     <DropdownMenu aria-label={translate(language, "share")}>
                       <DropdownSection>
                         <CtxItem icon={<ShareNodes size={15} />} label={translate(language, "copyShareLink")}

@@ -2087,7 +2087,7 @@ export default function OverlayEditor({
                   className="w-7 pr-1 flex items-center justify-center border-0 bg-transparent cursor-pointer text-current hover:brightness-125 transition-[filter]">
                   <CaretDown size={11} />
                 </DropdownTrigger>
-                <DropdownPopover placement="top start" className="min-w-44">
+                <DropdownPopover placement="top start" className="[--dd-min-w:11rem]">
                   <DropdownMenu aria-label={t("ovlShape")} onAction={(key) => setTool({ type: "shape", shape: String(key) })}>
                     {it.variants.map((v) => (
                       <DropdownItem key={v} id={v} textValue={t("ovlShape_" + v)}>{t("ovlShape_" + v)}</DropdownItem>
@@ -2261,7 +2261,7 @@ export default function OverlayEditor({
                     className={`w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors ${(selected.blend && selected.blend !== "normal") ? "text-accent" : "text-muted hover:text-primary"}`}>
                     <Droplet size={14} />
                   </DropdownTrigger>
-                  <DropdownPopover placement="bottom end" className="min-w-[180px] max-h-[320px] overflow-y-auto">
+                  <DropdownPopover placement="bottom end" className="[--dd-min-w:180px] max-h-[320px] overflow-y-auto">
                     <DropdownMenu aria-label={t("ovlBlend") || "Blend"}
                       onAction={(key) => setLayer(selected.id, { blend: String(key) })}>
                       {BLEND_OPTS().map((o) => (
