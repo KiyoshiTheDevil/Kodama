@@ -4001,6 +4001,11 @@ export default function App() {
   // ambient backdrop-blur until the slide settles, so the animation stays on the compositor.
   const [queueSettled, setQueueSettled] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  // Read by the keyboard shortcut, whose handler is not re-bound on every fullscreen change.
+  // A state updater would work too, but not as a place to fire the window call from: React may
+  // run an updater twice, and this one has to happen exactly once.
+  const fullscreenRef = useRef(false);
+  useEffect(() => { fullscreenRef.current = fullscreen; }, [fullscreen]);
   const [playerVisible, setPlayerVisible] = useState(true);
   const [cursorVisible, setCursorVisible] = useState(true);
   const hideTimerRef = useRef(null);
@@ -5471,12 +5476,17 @@ export default function App() {
         e.preventDefault();
         if (audioRef.current) { const dv = Math.max(0, Math.sqrt(audioRef.current.volume) - 0.02); audioRef.current.volume = dv * dv; }
       } else if (matchShortcut(sc.fullscreen, e)) {
-        setFullscreen(f => {
-          const next = !f;
-          import('@tauri-apps/api/core').then(({ invoke }) => invoke('set_fullscreen', { fullscreen: next }).catch(() => {}));
-          if (next) setOverlayOpen(true);
-          return next;
-        });
+        // Resize the window first, flip the layout after — set_fullscreen only resolves once
+        // the window has actually moved, so the interface never lays itself out for a size the
+        // window does not have yet. Same order as the player's own fullscreen button.
+        {
+          const next = !fullscreenRef.current;
+          fullscreenRef.current = next;
+          import('@tauri-apps/api/core')
+            .then(({ invoke }) => invoke('set_fullscreen', { fullscreen: next }))
+            .catch(() => {})
+            .finally(() => { setFullscreen(next); if (next) setOverlayOpen(true); });
+        }
       } else if (e.code === "Escape") {
         setOverlayOpen(false);
         setQueueOpen(false);

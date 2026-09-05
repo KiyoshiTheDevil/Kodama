@@ -167,32 +167,157 @@ pub fn remove_window_border_for(app: tauri::AppHandle, label: String) {
     }
 }
 
-pub struct WasMaximized(Mutex<bool>);
+/// What the window looked like before it went fullscreen.
+///
+/// On Windows that is the whole WINDOWPLACEMENT, which carries both the restore rectangle and
+/// whether the window was maximized. Everywhere else the platform's own window manager handles
+/// the round trip and only the maximized flag is needed.
+pub struct FullscreenState {
+    #[cfg(windows)]
+    saved: Mutex<Option<windows::Win32::UI::WindowsAndMessaging::WINDOWPLACEMENT>>,
+    #[cfg(not(windows))]
+    was_maximized: Mutex<bool>,
+}
 
-impl WasMaximized {
+impl FullscreenState {
     pub fn new() -> Self {
-        WasMaximized(Mutex::new(false))
+        FullscreenState {
+            #[cfg(windows)]
+            saved: Mutex::new(None),
+            #[cfg(not(windows))]
+            was_maximized: Mutex::new(false),
+        }
     }
 }
 
+/// Enter or leave fullscreen.
+///
+/// Windows does this itself instead of going through tao, because tao's path cannot get a
+/// *maximized* window into fullscreen in one step. It calls SetWindowPos while WS_MAXIMIZE is
+/// still set, so the window keeps counting as maximized; on the way back its
+/// SetWindowPlacement(SW_SHOWMAXIMIZED) is then a no-op and the window stays at monitor size.
+/// The old workaround here was to unmaximize first and sleep 80 ms so the change had landed —
+/// which is precisely the "window briefly shrinks" flicker, once on the way in and once on the
+/// way out.
+///
+/// Clearing WS_MAXIMIZE with SetWindowLongPtrW moves nothing on its own, so it can be folded
+/// into the same SetWindowPos that jumps to the monitor rectangle: one transition, nothing
+/// intermediate to paint. The way back is a single SetWindowPlacement, which restores the
+/// maximized state or the old rectangle exactly as it was.
+///
+/// HWND_TOPMOST rides along in that same call to cover the taskbar (the always-on-top the old
+/// code set separately), and is dropped again on the way out.
 #[tauri::command]
-pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tauri::State<WasMaximized>) {
-    if fullscreen {
-        let maximized = window.is_maximized().unwrap_or(false);
-        *state.0.lock().unwrap() = maximized;
+pub fn set_fullscreen(window: tauri::WebviewWindow, fullscreen: bool, state: tauri::State<FullscreenState>) {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::{HWND, RECT};
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, GetWindowPlacement, SetWindowLongPtrW, SetWindowPlacement,
+            SetWindowPos, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOMOVE,
+            SWP_NOOWNERZORDER, SWP_NOSIZE, WINDOWPLACEMENT, WS_MAXIMIZE,
+        };
 
-        if maximized {
-            let _ = window.unmaximize();
-            std::thread::sleep(std::time::Duration::from_millis(80));
+        let Ok(handle) = window.hwnd() else { return };
+        // HWND is not Send, so only the raw value crosses into the main-thread closure.
+        let raw = handle.0 as isize;
+        // The window work has to happen on the main thread, but the caller flips the app's own
+        // layout the moment this returns. Waiting for the hop keeps those two in step: without
+        // it the interface can lay itself out for fullscreen a frame before the window is,
+        // which is a smaller version of the very flicker this is meant to remove. Bounded, so a
+        // stalled main thread cannot wedge the command.
+        let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+
+        if fullscreen {
+            let mut placement = WINDOWPLACEMENT {
+                length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
+                ..Default::default()
+            };
+            let rect: RECT;
+            unsafe {
+                let hwnd = HWND(raw as _);
+                if GetWindowPlacement(hwnd, &mut placement).is_err() {
+                    return;
+                }
+                let mut info = MONITORINFO {
+                    cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                    ..Default::default()
+                };
+                let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if !GetMonitorInfoW(monitor, &mut info).as_bool() {
+                    return;
+                }
+                // rcMonitor, not rcWork: the whole screen, taskbar included.
+                rect = info.rcMonitor;
+            }
+            *state.saved.lock().unwrap() = Some(placement);
+
+            let _ = window.run_on_main_thread(move || unsafe {
+                let hwnd = HWND(raw as _);
+                let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+                SetWindowLongPtrW(hwnd, GWL_STYLE, style & !(WS_MAXIMIZE.0 as isize));
+                let _ = SetWindowPos(
+                    hwnd,
+                    HWND_TOPMOST,
+                    rect.left,
+                    rect.top,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    SWP_NOOWNERZORDER | SWP_FRAMECHANGED,
+                );
+                let _ = done_tx.send(());
+            });
+            let _ = done_rx.recv_timeout(std::time::Duration::from_millis(500));
+        } else {
+            let saved = state.saved.lock().unwrap().take();
+            let _ = window.run_on_main_thread(move || unsafe {
+                let hwnd = HWND(raw as _);
+                // Z-order only — no geometry, so this does not show as a step of its own.
+                let _ = SetWindowPos(
+                    hwnd,
+                    HWND_NOTOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER | SWP_FRAMECHANGED,
+                );
+                // WS_MAXIMIZE is deliberately left cleared: SetWindowPlacement sets it again
+                // when the saved state says maximized, and would otherwise see a window that
+                // already claims to be maximized and do nothing.
+                if let Some(placement) = saved {
+                    let _ = SetWindowPlacement(hwnd, &placement);
+                }
+                let _ = done_tx.send(());
+            });
+            let _ = done_rx.recv_timeout(std::time::Duration::from_millis(500));
         }
-        let _ = window.set_fullscreen(true);
-        let _ = window.set_always_on_top(true);
-    } else {
-        let _ = window.set_fullscreen(false);
-        let _ = window.set_always_on_top(false);
-        if *state.0.lock().unwrap() {
-            std::thread::sleep(std::time::Duration::from_millis(80));
-            let _ = window.maximize();
+    }
+
+    // macOS and Linux hand fullscreen to the window manager, which gets a maximized window
+    // right on its own — but tao still restores to the pre-maximized rectangle, so the
+    // maximized state is put back by hand afterwards.
+    #[cfg(not(windows))]
+    {
+        if fullscreen {
+            let maximized = window.is_maximized().unwrap_or(false);
+            *state.was_maximized.lock().unwrap() = maximized;
+            if maximized {
+                let _ = window.unmaximize();
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+            let _ = window.set_fullscreen(true);
+            let _ = window.set_always_on_top(true);
+        } else {
+            let _ = window.set_fullscreen(false);
+            let _ = window.set_always_on_top(false);
+            if *state.was_maximized.lock().unwrap() {
+                std::thread::sleep(std::time::Duration::from_millis(80));
+                let _ = window.maximize();
+            }
         }
     }
 }

@@ -14,7 +14,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use audio::{AudioPlayer, start_audio_thread, audio_play, audio_crossfade, audio_pause, audio_resume, audio_stop, audio_seek, audio_set_volume, audio_set_levels_enabled, audio_set_eq};
 use discord::{DiscordRpc, disconnect_rpc, update_discord_rpc, clear_discord_rpc};
-use window::{WasMaximized, set_fullscreen, open_login_window, close_login_window, open_composer_window, remove_window_border_for, lock_square_for, ensure_session_keeper, rotate_session_cookies, stop_session_keeper};
+use window::{FullscreenState, set_fullscreen, open_login_window, close_login_window, open_composer_window, remove_window_border_for, lock_square_for, ensure_session_keeper, rotate_session_cookies, stop_session_keeper};
 use server::{ServerProcess, stop_server};
 #[cfg(windows)]
 use obs::start_audio_session_tagger;
@@ -145,7 +145,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(ServerProcess::new())
-        .manage(WasMaximized::new())
+        .manage(FullscreenState::new())
         .manage(DiscordRpc::new())
         .manage(AudioPlayer::new())
         .manage(CloseTray(AtomicBool::new(true)))
