@@ -1164,7 +1164,15 @@ button:not([class]) {
    that sets its own — the lyric lines (inline `cursor: default`), every HeroUI component
    (--cursor-interactive) and the `cursor: default !important` rule for buttons and links
    above. Toggled on <html> from App.jsx so portalled overlays are covered too. */
-html.cursor-hidden, html.cursor-hidden * { cursor: none !important; }
+/* A fully transparent 32x32 cursor rather than `cursor: none`. Both mean "show nothing", but
+   not by the same route: `none` tells the browser to draw no cursor at all, while an image
+   makes the system draw an invisible one. In Kodama the first was unreliable — the arrow stayed
+   on a resting pointer although every measurement said `none`, while the same mechanism works
+   perfectly in an ordinary Chromium browser on the same machine. `none` stays as the fallback
+   for anything that cannot load the image. */
+html.cursor-hidden, html.cursor-hidden * {
+  cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR42u3BAQEAAACCIP+vbkhAAQAAAO8GECAAAcm1w7EAAAAASUVORK5CYII=") 0 0, none !important;
+}
 /* Except a <video>, where the rule above changes nothing: Chromium gives every video element a
    media-controls shadow tree, and the descendant selector does not reach into a shadow root, so
    the hit test lands on something we cannot style and the arrow stays. Taking the video out of
