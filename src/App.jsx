@@ -22,6 +22,7 @@ import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./lastfm/scrobble-rules.js";
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
+import { applyTheme } from "./theme.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
@@ -3681,7 +3682,7 @@ export default function App() {
 
   const handleThemeChange = useCallback((t) => {
     setTheme(t);
-    document.documentElement.setAttribute("data-theme", t);
+    applyTheme(t);
     if (t === "light") {
       const now = Date.now();
       if (now - lightClickRef.current.lastTime < 700) {
@@ -3700,7 +3701,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    applyTheme(theme);
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTrack, setCurrentTrack] = useState(null);

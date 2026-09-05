@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { IconContext } from "../icons.jsx";
 import { translate } from "../i18n.js";
 import { applyFontScale, readFontScale } from "../settings/scale.js";
+import { applyTheme, readTheme } from "../theme.js";
 import Equalizer from "./Equalizer.jsx";
 import { useToolAccent } from "../ui/window-chrome.jsx";
 
@@ -15,8 +16,10 @@ export default function EqualizerApp() {
   useToolAccent();
 
   // Own window, own document: the type scale that every var(--tNN) reads is written at runtime
-  // by whichever entry point mounts, and App does not mount here.
+  // by whichever entry point mounts, and App does not mount here. The theme is the same story,
+  // and this window used to set none at all — which left HeroUI on its light token set.
   applyFontScale(readFontScale());
+  applyTheme(readTheme());
 
   // Strip the Windows 11 accent border from this borderless window.
   useEffect(() => {

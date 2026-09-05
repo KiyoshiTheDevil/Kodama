@@ -13,6 +13,7 @@ import { translate } from "../i18n.js";
 import { thumbHi } from "../context.jsx";
 import { EV_NOW_PLAYING, MINI_SIZE_KEY, sayHello, sendToMain, requestShowMain } from "./bridge.js";
 import { applyFontScale, readFontScale } from "../settings/scale.js";
+import { applyTheme, readTheme } from "../theme.js";
 
 const fmt = (s) => {
   if (!isFinite(s) || s < 0) s = 0;
@@ -38,7 +39,7 @@ export default function MiniPlayerApp() {
   useEffect(() => {
     const accent = localStorage.getItem("kiyoshi-accent");
     if (accent) document.documentElement.style.setProperty("--accent", accent);
-    document.documentElement.setAttribute("data-theme", localStorage.getItem("kiyoshi-theme") || "dark");
+    applyTheme(readTheme());
     if (localStorage.getItem("kiyoshi-high-contrast") === "true") {
       document.documentElement.setAttribute("data-highcontrast", "true");
     }

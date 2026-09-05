@@ -8,14 +8,17 @@ import { IconContext } from "./icons.jsx";
 import { translate } from "./i18n.js";
 import OverlayEditor from "./overlay/OverlayEditor.jsx";
 import { applyFontScale, readFontScale } from "./settings/scale.js";
+import { applyTheme, readTheme } from "./theme.js";
 import { useToolAccent } from "./ui/window-chrome.jsx";
 
 const API = "http://localhost:9847";
 
 export default function OverlayEditorApp() {
   // Own window, own document: the type scale variables that every text-t* class reads are
-  // written by whichever entry point mounts, and App does not mount here.
+  // written by whichever entry point mounts, and App does not mount here. The theme is the same
+  // story, and this window used to set none at all — which left HeroUI on its light token set.
   applyFontScale(readFontScale());
+  applyTheme(readTheme());
 
   // Strip the Windows 11 accent border from this borderless (decorations:false) window.
   useEffect(() => {
