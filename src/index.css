@@ -420,6 +420,20 @@ html, body, #root {
    nobody aims for when a wheel and a trackpad exist. */
 ::-webkit-scrollbar-button        { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner        { background: transparent; }
+
+/* …except that hiding them only works where the rules above are consulted at all.
+   HeroUI's ScrollShadow applies its `scrollbar` utility, which sets the STANDARD
+   scrollbar-width and scrollbar-color. The moment scrollbar-color has a value, Chromium
+   switches that element to the standard scrollbar model and ignores every ::-webkit-scrollbar
+   rule — including the one above, which is why the carousels kept their arrows while
+   everything else lost them. Back to auto puts them on the custom model again.
+
+   Not the ones with hideScrollBar: that sets scrollbar-width: none, and overriding it here
+   would bring the bar back in the sidebars. */
+.scroll-shadow:not(.scroll-shadow--hide-scrollbar) {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
 ::-webkit-scrollbar-thumb {
   background-color: #333;
   border-radius: 4px;
