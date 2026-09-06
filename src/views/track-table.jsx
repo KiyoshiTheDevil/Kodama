@@ -6,6 +6,7 @@ import { Button } from "@heroui/react";
 import { thumb, hiResThumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
 import { Tooltip } from "../ui/tooltip.jsx";
+import { ProgressToast } from "../ui/progress-toast.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
 import { logDiag } from "../bug-diagnostics.js";
@@ -873,18 +874,9 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
           </div>
       </div>
 
-      {/* Loading progress */}
-      {loading && !cached && (
-        <div style={{ padding: "0 28px 12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)" }}>{t("fetchingSongs")}</span>
-            <span style={{ fontSize: "var(--t11)", color: "var(--accent)", fontWeight: 500 }}>{progress}%</span>
-          </div>
-          <div style={{ height: 3, background: "var(--bg-elevated)", borderRadius: "var(--r-full)", overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: "var(--r-full)", background: "linear-gradient(90deg,var(--accent),#c020e0)", width: `${progress}%`, transition: "width 0.4s ease" }} />
-          </div>
-        </div>
-      )}
+      {/* Loading progress, reported in the corner rather than between the header and the table,
+          where it used to push the rows down and pull them back up when it finished. */}
+      {loading && !cached && <ProgressToast label={t("fetchingSongs")} percent={progress} />}
 
       {/* Column headers */}
       <div style={{
