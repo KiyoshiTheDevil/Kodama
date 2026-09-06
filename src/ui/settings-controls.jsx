@@ -1,13 +1,19 @@
 // Small shared settings/UI primitives extracted from App.jsx. Thin wrappers around HeroUI so
 // the many existing call sites ({value,onChange} etc.) stay unchanged.
-import React from "react";
+import React, { Children, cloneElement, isValidElement, useId } from "react";
 import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb } from "@heroui/react";
 
-export function Slider({ min, max, step = 1, value, onChange, onChangeCommit, width = 120 }) {
+export function Slider({
+  min, max, step = 1, value, onChange, onChangeCommit, width = 120,
+  "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy,
+}) {
   // Thin wrapper around HeroUI Slider so existing {min,max,step,value,onChange,onChangeCommit,width} callers stay unchanged.
+  // A control needs a name; inside a SettingRow it gets one from the row's own label, so the
+  // fallback below is only for the handful of sliders that sit somewhere else.
   return (
     <SliderRoot
-      aria-label="slider"
+      aria-label={ariaLabelledBy ? undefined : (ariaLabel || "Slider")}
+      aria-labelledby={ariaLabelledBy}
       value={value}
       minValue={min}
       maxValue={max}
@@ -25,10 +31,15 @@ export function Slider({ min, max, step = 1, value, onChange, onChangeCommit, wi
   );
 }
 
-export function Toggle({ value, onChange }) {
+export function Toggle({ value, onChange, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy }) {
   // Thin wrapper around HeroUI Switch so all existing Toggle({value,onChange}) call sites stay unchanged.
   return (
-    <SwitchRoot isSelected={!!value} onChange={onChange} aria-label="toggle">
+    <SwitchRoot
+      isSelected={!!value}
+      onChange={onChange}
+      aria-label={ariaLabelledBy ? undefined : (ariaLabel || "Toggle")}
+      aria-labelledby={ariaLabelledBy}
+    >
       <SwitchControl>
         <SwitchThumb />
       </SwitchControl>
@@ -37,6 +48,21 @@ export function Toggle({ value, onChange }) {
 }
 
 export function SettingRow({ label, description, icon, children, vertical = false }) {
+  // The row's visible label also names the control in it. Without this a screen reader reads
+  // "switch" or "slider" and stops, on some seventy rows; naming each one by hand would mean
+  // seventy strings to keep in step with the labels right beside them.
+  //
+  // Only a single element child is named, and only one that does not already say what it is:
+  // a row holding two buttons has their own text, and one that passes an aria-label meant it.
+  // Slider and Toggle above read the attribute; anything else gets a harmless extra attribute
+  // it may ignore.
+  const labelId = useId();
+  const only = Children.count(children) === 1 ? Children.only(children) : null;
+  const named = only && isValidElement(only)
+    && !only.props["aria-label"] && !only.props["aria-labelledby"]
+    ? cloneElement(only, { "aria-labelledby": labelId })
+    : children;
+
   // A plain div rather than CardRoot: the surface, the radius and the spacing all belong to
   // the `.setting-row` rules in index.css, which fuse adjacent rows into one group. Keeping
   // the card here would mean fighting its own radius from a second stylesheet.
@@ -51,11 +77,11 @@ export function SettingRow({ label, description, icon, children, vertical = fals
           </div>
         )}
         <div className="min-w-0">
-          <div className="text-[length:var(--t13)] font-medium text-primary">{label}</div>
+          <div id={labelId} className="text-[length:var(--t13)] font-medium text-primary">{label}</div>
           {description && <div className="text-[length:var(--t11)] text-muted mt-0.5 leading-snug">{description}</div>}
         </div>
       </div>
-      <div className={vertical ? "" : "shrink-0"}>{children}</div>
+      <div className={vertical ? "" : "shrink-0"}>{named}</div>
     </div>
   );
 }

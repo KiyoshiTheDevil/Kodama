@@ -159,19 +159,19 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className={fieldLabel}>{t("reportWhatHappened") || "Was ist passiert?"}</label>
-                    <TextFieldRoot aria-label="desc" value={description} onChange={setDescription} className="w-full">
+                    <TextFieldRoot aria-label={t("reportWhatHappened") || "Was ist passiert?"} value={description} onChange={setDescription} className="w-full">
                       <TextArea className="min-h-[80px] resize-none" placeholder={t("reportDescPlaceholder2") || "Was hast du erwartet, was ist stattdessen passiert?"} />
                     </TextFieldRoot>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className={fieldLabel}>{t("reportSteps") || "Schritte zum Nachstellen"}</label>
-                    <TextFieldRoot aria-label="steps" value={steps} onChange={setSteps} className="w-full">
+                    <TextFieldRoot aria-label={t("reportSteps") || "Schritte zum Nachstellen"} value={steps} onChange={setSteps} className="w-full">
                       <TextArea className="min-h-[70px] resize-none" placeholder={t("reportStepsPlaceholder") || "1. …\n2. …\n3. …"} />
                     </TextFieldRoot>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className={fieldLabel}>{t("reportContact") || "Kontakt (optional)"}</label>
-                    <TextFieldRoot aria-label="contact" value={contact} onChange={setContact} className="w-full">
+                    <TextFieldRoot aria-label={t("reportContact") || "Kontakt (optional)"} value={contact} onChange={setContact} className="w-full">
                       <InputRoot placeholder={t("reportContactPlaceholder") || "Discord-Handle für Rückfragen"} />
                     </TextFieldRoot>
                   </div>
