@@ -8,7 +8,7 @@ import EqualizerApp from "./equalizer/EqualizerApp.jsx";
 // "Launch" button in Settings > Experimental. The gamepad test spike (GamepadTest.jsx)
 // stays out — it was only ever a throwaway harness for verifying the Gamepad API, not
 // a real entry point.
-import { BigPicture } from "./bigpicture/BigPicture.jsx";
+import { BigPictureGate } from "./bigpicture/BigPicture.jsx";
 import { installErrorCapture } from "./bug-diagnostics.js";
 import { pruneLyricsCache } from "./lyrics/cache.js";
 import { installImageFallback } from "./ui/image-fallback.js";
@@ -47,7 +47,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   ) : (
     <>
       {isOverlayEditor ? <OverlayEditorApp /> : <App />}
-      <BigPicture />
+      <BigPictureGate />
     </>
   )
 );

@@ -30,8 +30,38 @@ const tabOfScreen = (s) => (s === "home" || s === "search") ? s : (s.startsWith(
 init({ debug: false, visualDebug: false });
 pause();
 
-export function BigPicture() {
-  const [open, setOpen] = useState(false);
+/**
+ * Mounts Big Picture only once it is asked for.
+ *
+ * The screen itself calls useFocusable, and norigin registers that in an effect on mount with
+ * whatever the ref points at right then. Mounted-but-closed, the component renders null, so the
+ * ref points at nothing and norigin says so on every start: "Component added without a node
+ * reference." Waiting until there is something to attach to is the whole fix; it also keeps the
+ * screen's dozen listeners and its gamepad polling out of an ordinary session.
+ *
+ * Once mounted it stays mounted, and the screen's own F10 takes over the toggling from here.
+ */
+export function BigPictureGate() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (mounted) return;
+    const enter = () => setMounted(true);
+    const onKey = (e) => { if (e.key === "F10") { e.preventDefault(); enter(); } };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("kodama-open-bigpicture", enter);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("kodama-open-bigpicture", enter);
+    };
+  }, [mounted]);
+  return mounted ? <BigPicture startOpen /> : null;
+}
+
+export function BigPicture({ startOpen = false }) {
+  const [open, setOpen] = useState(startOpen);
+  // The gate above swallows the F10 that got us here, so the sounds are set up from here on a
+  // start that is already open.
+  useEffect(() => { if (startOpen) initSounds(); }, [startOpen]);
   const [screen, setScreen] = useState("home"); // "home" | "nowplaying" | "search" | "browse-{type}" | "detail"
   const [detailItem, setDetailItem] = useState(null); // { type, item } for the detail screen
   const [artistItem, setArtistItem] = useState(null); // { browseId, artist } for the artist screen
