@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button, SearchFieldRoot, SearchFieldGroup, SearchFieldInput, SearchFieldClearButton, TabsRoot, TabListContainer, TabList, Tab, TabIndicator, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
 import { SharedElementTransition } from "react-aria-components";
 import { API, useLang } from "../context.jsx";
-import { SEGMENTED_BUTTON, SEGMENTED_GROUP, SEGMENTED_STYLE } from "../ui/settings-controls.jsx";
+import { SEGMENTED_BUTTON, SEGMENTED_GROUP, SEGMENTED_STYLE, segmentedCorners } from "../ui/settings-controls.jsx";
 import { MagnifyingGlass, Microphone, Playlist, Sliders, VinylRecord, WarningCircle } from "../icons.jsx";
 import { GridCard } from "../ui/rows.jsx";
 
@@ -153,8 +153,9 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
           className={SEGMENTED_GROUP}
           style={SEGMENTED_STYLE}
         >
-          {sortOptions.map(o => (
-            <ToggleButton key={o.value} id={o.value} className={SEGMENTED_BUTTON}>{o.label}</ToggleButton>
+          {sortOptions.map((o, i) => (
+            <ToggleButton key={o.value} id={o.value} className={SEGMENTED_BUTTON}
+              style={{ borderRadius: segmentedCorners(i, sortOptions.length) }}>{o.label}</ToggleButton>
           ))}
         </ToggleButtonGroupRoot>
         {/* Search — right side */}
@@ -165,8 +166,11 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
               keeps the field where it was. */}
           <div style={{
             // 210, not 200: box-sizing is border-box app-wide, so the padding has to be added
-            // to the width or it eats into the field instead of sitting around it.
-            width: searchOpen ? 210 : 0, overflow: "hidden", padding: 5, margin: -5,
+            // to the width or it eats into the field instead of sitting around it. Closed, the
+            // padding goes too - it cannot shrink below itself, so it kept a 10px window open
+            // onto the field's rounded edge, showing as a sliver beside the search button.
+            width: searchOpen ? 210 : 0, overflow: "hidden",
+            padding: searchOpen ? 5 : 0, margin: searchOpen ? -5 : 0,
             transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
           }}>
             <SearchFieldRoot value={searchQuery} onChange={setSearchQuery} aria-label={t("search")} className="w-[200px]">

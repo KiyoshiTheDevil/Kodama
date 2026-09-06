@@ -114,16 +114,19 @@ export function SettingsSectionDesc({ children, style }) {
 
 /**
  * A segmented picker in the app's own chip language - the one the overlay editor's File/Edit/
- * View buttons speak: a filled surface-2 chip, 30px tall, fully rounded, no border.
+ * View buttons speak: filled surface-2 chips, 30px tall, 6px apart, brightening on hover.
  *
- * Applied through HeroUI's own toggle-button variables rather than by overriding its rules,
- * so the component keeps its focus ring, its pressed scale and its disabled handling, and
- * nothing here has to win a specificity fight to take effect.
+ * The shape is the group's, not each button's: free ends keep the pill radius, touching ends
+ * take a small notch, exactly as hdrCorners does it for the window chrome. That is what makes
+ * three chips read as one control rather than three buttons that happen to be near each other.
+ *
+ * Applied through HeroUI's own toggle-button variables rather than by overriding its rules, so
+ * the component keeps its focus ring, its pressed scale and its disabled handling.
  *
  * Selected uses accent-dim with accent text, which is how the app already says "this is the
  * active one" in the sidebar's navigation and in the bug report's category picker.
  */
-export const SEGMENTED_GROUP = "gap-1.5";
+export const SEGMENTED_GROUP = "gap-[6px]";
 export const SEGMENTED_STYLE = {
   "--toggle-button-bg": "var(--surface-2)",
   "--toggle-button-bg-hover": "var(--surface-3)",
@@ -132,4 +135,19 @@ export const SEGMENTED_STYLE = {
   "--toggle-button-bg-selected-hover": "var(--accent-dim)",
   "--toggle-button-fg-selected": "var(--accent)",
 };
-export const SEGMENTED_BUTTON = "h-[30px]! md:h-[30px]! rounded-full! px-4! text-[length:var(--t13)]!";
+export const SEGMENTED_BUTTON = "h-[30px]! md:h-[30px]! px-4! text-[length:var(--t13)]!";
+
+/**
+ * The corners for the button at `index` of `count`, in that grouped shape.
+ *
+ * Written out rather than left to rounded-full: at 30px tall the pill value IS 15, and stating
+ * it keeps the 6px notch at 6. Ask for a radius larger than half the side and the browser
+ * scales every corner of the element down to fit - the notch with them.
+ */
+export function segmentedCorners(index, count, height = 30) {
+  const pill = height / 2;
+  const notch = 6;
+  const l = index === 0 ? pill : notch;
+  const r = index === count - 1 ? pill : notch;
+  return `${l}px ${r}px ${r}px ${l}px`;
+}
