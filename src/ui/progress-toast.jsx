@@ -25,7 +25,11 @@ export function ProgressToast({ label, percent }) {
     // sits on this wrapper, unzoomed and in real pixels, and the zoom goes on the toast inside
     // it. Putting both on one element would multiply its own offsets by the zoom as well.
     <div style={{
-      position: "fixed", bottom: 120, insetInlineEnd: 24, zIndex: 99999, pointerEvents: "none",
+      position: "fixed", zIndex: 99999, pointerEvents: "none",
+      // Scaled by hand, because this wrapper deliberately is not zoomed: the player bar it has
+      // to clear lives inside the shell and grows with the zoom, so a fixed 120 would sit on
+      // top of it once the interface is enlarged.
+      bottom: 120 * zoom, insetInlineEnd: 24 * zoom,
     }}>
     <div
       role="status"

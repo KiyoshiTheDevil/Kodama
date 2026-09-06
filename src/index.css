@@ -1197,11 +1197,11 @@ img.img-failed {
    came out at 100 % while everything around them scaled. Zooming the region is safe: the stack
    offsets are a constant gap and the heights come from scrollHeight, both of which live in the
    same coordinate space as the region itself.
-   What does NOT come along is the region's own placement - an element's `zoom` multiplies its
-   own offsets too - so those are divided back out here. 120px clears the player bar; 1rem is
-   what .toast-region--bottom-end sets for the side. Unlayered, to beat both. */
+   The 120px that clears the player bar is left in the zoomed space on purpose, so it scales
+   with everything else. The bar is inside the shell: at 150 % it is not 112px tall but 168, and
+   a fixed offset would no longer clear it. Written here rather than as a class on the provider,
+   next to the zoom it depends on. Unlayered, to beat .toast-region--bottom-end's own 1rem. */
 .toast-region {
   zoom: var(--ui-zoom, 1);
-  bottom: calc(120px / var(--ui-zoom, 1));
-  inset-inline-end: calc(1rem / var(--ui-zoom, 1));
+  bottom: 120px;
 }
