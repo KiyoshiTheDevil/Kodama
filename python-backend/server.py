@@ -2864,6 +2864,97 @@ def _find_pot_server_dir():
             return b
     return None
 
+# The Node version the installer ships. Kept in step with the download step in
+# .github/workflows/release.yml - if that moves, this moves with it, or a self-heal would
+# fetch a different runtime than a fresh install gets.
+_NODE_PIN = "v22.18.0"
+_node_heal_done = False
+
+def _node_download():
+    """(url, kind, name) for this platform's pinned Node, or (None, None, None)."""
+    if sys.platform == "win32":
+        return (f"https://nodejs.org/dist/{_NODE_PIN}/win-x64/node.exe", "exe", "win-x64/node.exe")
+    if sys.platform == "darwin":
+        import platform as _platform
+        arch = "arm64" if _platform.machine() in ("arm64", "aarch64") else "x64"
+        name = f"node-{_NODE_PIN}-darwin-{arch}.tar.gz"
+        return (f"https://nodejs.org/dist/{_NODE_PIN}/{name}", "tar", name)
+    # Linux is built from source and brings its own node; nothing to fetch.
+    return (None, None, None)
+
+def _expected_node_sha(name):
+    """The published checksum for that file, or None if it cannot be read."""
+    try:
+        r = requests.get(f"https://nodejs.org/dist/{_NODE_PIN}/SHASUMS256.txt", timeout=20)
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            digest, _, fname = line.partition("  ")
+            if fname.strip() == name:
+                return digest.strip()
+    except Exception as e:
+        _logging.warning("[runtime] could not read node checksums: %s", e)
+    return None
+
+def _heal_node():
+    """Fetch the Node runtime when there is none.
+
+    The installer normally brings it and _adopt_runtime_assets takes a copy. This is for the
+    case where neither happened: a copy that failed to be made, met by an installer that no
+    longer carries the original. Without it the PO-token path is simply off, and playback falls
+    back to the rungs that do not need it - so this is a repair, not a dependency.
+
+    The download is checked against the checksum nodejs.org publishes beside it. We are about
+    to run this file; taking it on trust because it arrived over TLS is not enough.
+    """
+    global _node_heal_done
+    if _node_heal_done:
+        return None
+    _node_heal_done = True  # one attempt per run, whatever happens
+    url, kind, name = _node_download()
+    if not url:
+        return None
+    import hashlib, tempfile, shutil
+    expected = _expected_node_sha(name)
+    if not expected:
+        _logging.warning("[runtime] no checksum for %s - not fetching node", name)
+        return None
+    dst = os.path.join(RUNTIME_DIR, _node_name())
+    _logging.info("[runtime] no node anywhere, fetching %s", url)
+    try:
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
+        h = hashlib.sha256()
+        with tempfile.NamedTemporaryFile(dir=RUNTIME_DIR, delete=False) as tmp:
+            tmp_path = tmp.name
+            with requests.get(url, stream=True, timeout=120) as r:
+                r.raise_for_status()
+                for chunk in r.iter_content(1 << 20):
+                    h.update(chunk)
+                    tmp.write(chunk)
+        if h.hexdigest() != expected:
+            os.remove(tmp_path)
+            _logging.error("[runtime] node checksum mismatch, discarded")
+            return None
+        if kind == "tar":
+            import tarfile
+            with tarfile.open(tmp_path) as tf:
+                member = next((m for m in tf.getmembers() if m.name.endswith("/bin/node")), None)
+                if not member:
+                    os.remove(tmp_path)
+                    _logging.error("[runtime] no node binary inside %s", name)
+                    return None
+                extracted = os.path.join(RUNTIME_DIR, "node.incoming")
+                with tf.extractfile(member) as src, open(extracted, "wb") as out:
+                    shutil.copyfileobj(src, out)
+            os.remove(tmp_path)
+            tmp_path = extracted
+        os.chmod(tmp_path, 0o755)
+        os.replace(tmp_path, dst)
+        _logging.info("[runtime] node placed at %s", dst)
+        return dst
+    except Exception as e:
+        _logging.error("[runtime] fetching node failed: %s", e)
+        return None
+
 def _adopt_runtime_assets():
     """Take a copy of the bundled Node runtime and PO-token generator into RUNTIME_DIR.
 
@@ -2941,7 +3032,32 @@ _NODE22 = _find_node22()
 _POT_SERVER_DIR = _find_pot_server_dir()
 _POT_AVAILABLE = bool(_NODE22 and _POT_SERVER_DIR)
 print(f"[pot] node>=22={_NODE22} | generator={_POT_SERVER_DIR} | enabled={_POT_AVAILABLE}", flush=True)
-threading.Thread(target=_adopt_runtime_assets, daemon=True).start()
+def _prepare_runtime():
+    """Take our own copy of the bundled runtime, and fetch what is missing entirely.
+
+    Off the startup path: copying 80 MB takes a moment and a download takes longer, and the
+    session this runs in already resolved - to the bundled files, or to nothing at all. When it
+    turns something up, the globals below are refreshed so this session gets it too rather than
+    waiting for the next start; _pot_opts and _stream_attempts read them when they are called.
+    """
+    global _NODE22, _POT_SERVER_DIR, _POT_AVAILABLE
+    _adopt_runtime_assets()
+    if not _find_node22():
+        _heal_node()
+    node, potdir = _find_node22(), _find_pot_server_dir()
+    if (node, potdir) == (_NODE22, _POT_SERVER_DIR):
+        return
+    _NODE22, _POT_SERVER_DIR = node, potdir
+    was = _POT_AVAILABLE
+    _POT_AVAILABLE = bool(_NODE22 and _POT_SERVER_DIR)
+    print(f"[pot] runtime settled: node={_NODE22} | generator={_POT_SERVER_DIR} | enabled={_POT_AVAILABLE}", flush=True)
+    # The generator only runs once there is a Node to run it with.
+    if _POT_AVAILABLE and not was:
+        try:
+            _start_pot_server()
+        except Exception as e:
+            _logging.warning("[pot] could not start the generator after healing: %s", e)
+
 
 def _pot_opts():
     """ydl_opts enabling web_music + bgutil PO token + Node runtime.
@@ -2983,6 +3099,9 @@ def _start_pot_server():
         print(f"[pot] failed to start bgutil server: {e}", flush=True)
 
 _start_pot_server()
+# Started only now, because it may call _start_pot_server itself once it has found a Node to
+# run the generator with, and that is defined just above.
+threading.Thread(target=_prepare_runtime, daemon=True).start()
 
 @app.route("/stream/<video_id>")
 def stream_url(video_id):
