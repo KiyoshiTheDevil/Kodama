@@ -241,7 +241,7 @@
   "cancelSleepTimer": "Cancel timer",
   "minutes": "min",
   "audioOutput": "Output device",
-  "audioOutputDesc": "Where sound is played. Takes effect with the next track.",
+  "audioOutputDesc": "Where sound is played. Follows the system when set to default.",
   "audioOutputSystem": "System default",
   "audioOutputMissing": "Not connected right now, so the system default is used.",
   "autoplay": "Autoplay",

@@ -20,6 +20,10 @@ use super::decoder::StreamingSource;
 /// it reappears, and the default stands in until then.
 static PREFERRED_OUTPUT: Mutex<String> = Mutex::new(String::new());
 
+/// The device the stream in use was actually built on. Compared against what the system says
+/// now, to notice a change nobody told us about.
+static CURRENT_OUTPUT: Mutex<Option<String>> = Mutex::new(None);
+
 /// Every output device the system offers, by name.
 pub fn output_device_names() -> Vec<String> {
     use cpal::traits::{DeviceTrait, HostTrait};
@@ -38,6 +42,12 @@ pub fn default_output_name() -> Option<String> {
     cpal::default_host().default_output_device().and_then(|d| d.name().ok())
 }
 
+fn set_current_output(name: Option<String>) {
+    if let Ok(mut g) = CURRENT_OUTPUT.lock() {
+        *g = name;
+    }
+}
+
 /// Open an output stream, on the chosen device if it is there and usable.
 ///
 /// Falls back to the default on every count - not configured, not plugged in, refuses to open.
@@ -49,7 +59,10 @@ fn open_output() -> Result<(rodio::OutputStream, rodio::OutputStreamHandle), Str
         if let Ok(mut devices) = cpal::default_host().output_devices() {
             if let Some(device) = devices.find(|d| d.name().map(|n| n == wanted).unwrap_or(false)) {
                 match rodio::OutputStream::try_from_device(&device) {
-                    Ok(pair) => return Ok(pair),
+                    Ok(pair) => {
+                        set_current_output(Some(wanted));
+                        return Ok(pair);
+                    }
                     Err(e) => eprintln!("[Audio] '{wanted}' would not open ({e}), using the default"),
                 }
             } else {
@@ -57,7 +70,9 @@ fn open_output() -> Result<(rodio::OutputStream, rodio::OutputStreamHandle), Str
             }
         }
     }
-    rodio::OutputStream::try_default().map_err(|e| e.to_string())
+    let pair = rodio::OutputStream::try_default().map_err(|e| e.to_string())?;
+    set_current_output(default_output_name());
+    Ok(pair)
 }
 
 pub enum AudioCmd {
@@ -69,6 +84,8 @@ pub enum AudioCmd {
     SetVolume(f32),
     // Start `url` on a second sink and crossfade from the current track over `duration` secs.
     Crossfade { url: String, seek_to: f64, duration: f64 },
+    // Play through this device from now on; empty means "follow the system".
+    SetOutput(String),
 }
 
 // Build a ready-to-play decoder source for any of our URL kinds (used by Play's progressive
@@ -118,6 +135,53 @@ impl AudioPlayer {
 
 pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<AudioCmd> {
     let (tx, rx) = std::sync::mpsc::sync_channel::<AudioCmd>(64);
+    // The thread's own handle: switching output rebuilds the stream and then resumes by
+    // sending itself a Seek, which is the path that already knows how to rebuild a sink.
+    let self_tx = tx.clone();
+
+    // Follow the system when it changes its mind about where sound goes.
+    //
+    // This is the bug behind the report that started this: plug in headphones while the app is
+    // running and everything else moves over, because everything else rebuilds its output when
+    // the default changes. cpal 0.15 has no notification for that, so we look - every two
+    // seconds, at a string comparison, which costs nothing next to what the audio thread is
+    // already doing.
+    //
+    // It also covers the other direction: a chosen device that was unplugged is picked up again
+    // the moment it reappears, rather than staying on the stand-in until the next restart.
+    {
+        let watch_tx = tx.clone();
+        let mut last_try: Option<(std::time::Instant, Option<String>)> = None;
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let wanted = PREFERRED_OUTPUT.lock().map(|g| g.clone()).unwrap_or_default();
+            let current = CURRENT_OUTPUT.lock().ok().and_then(|g| g.clone());
+            let should_be = if wanted.is_empty() {
+                default_output_name()
+            } else if output_device_names().iter().any(|n| *n == wanted) {
+                Some(wanted.clone())
+            } else {
+                // Still not plugged in: whatever the default is now is the right answer.
+                default_output_name()
+            };
+            if should_be.is_none() || should_be == current {
+                continue;
+            }
+            // If the swap did not take - a device that lists but will not open - the difference
+            // is still there next time round, and retrying every two seconds would restart
+            // playback every two seconds. Same target, same failure: wait a while.
+            let now = std::time::Instant::now();
+            if last_try.as_ref().map(|(t, w)| *w == should_be && now.duration_since(*t).as_secs() < 30)
+                == Some(true)
+            {
+                continue;
+            }
+            last_try = Some((now, should_be.clone()));
+            eprintln!("[Audio] output moved: {current:?} -> {should_be:?}");
+            // A full queue means the thread is busy; the next round sees the same difference.
+            let _ = watch_tx.try_send(AudioCmd::SetOutput(wanted));
+        });
+    }
 
     // Shared handle to the analysis buffer of the currently-playing source.
     let current_analysis: Arc<Mutex<Option<Arc<analyzer::AnalysisBuffer>>>> =
@@ -176,7 +240,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
     let current_analysis = Arc::clone(&current_analysis);
 
     std::thread::spawn(move || {
-        let (_stream, handle) = match open_output() {
+        let (mut _stream, mut handle) = match open_output() {
             Ok(pair) => pair,
             Err(e) => {
                 eprintln!("[Audio] Output init failed: {e}");
@@ -449,6 +513,37 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         progressive_url = None;
                         dl_progress = None;
                     }
+                    AudioCmd::SetOutput(name) => {
+                        // The stream is built once, when this thread starts - long before the
+                        // interface exists to say which device it wants. So a preference only
+                        // means something if the stream can be built again, and that is this.
+                        if let Ok(mut g) = PREFERRED_OUTPUT.lock() {
+                            *g = name;
+                        }
+                        // Where to pick playback up again.
+                        let resume = sink.as_ref().map(|s| s.get_pos().as_secs_f64() + seek_offset);
+                        // A crossfade cannot survive the swap - it is two sinks against one
+                        // clock - so it ends here and whatever was playing carries on alone.
+                        if let Some(s) = sink2.take() { s.stop(); }
+                        xfade_start = None;
+                        match open_output() {
+                            Ok((new_stream, new_handle)) => {
+                                _stream = new_stream;
+                                handle = new_handle;
+                                eprintln!("[Audio] output rebuilt");
+                            }
+                            // Keep the stream we have: playing on the old device beats silence.
+                            // The device we are on is still recorded as whatever open_output
+                            // last settled on, so the watcher will try again rather than give up.
+                            Err(e) => eprintln!("[Audio] could not open the new output ({e}), staying put"),
+                        }
+                        // The old sink is deliberately still here: Seek reads the paused state
+                        // off it, and stops it itself. Taking it away first would resume a
+                        // track the listener had paused.
+                        if let Some(pos) = resume {
+                            let _ = self_tx.try_send(AudioCmd::Seek(pos));
+                        }
+                    }
                     AudioCmd::Seek(t) => {
                         let was_paused = sink.as_ref().map(|s| s.is_paused()).unwrap_or(false);
                         if let Some(url) = progressive_url.clone() {
@@ -709,9 +804,6 @@ pub fn audio_outputs() -> serde_json::Value {
 /// Only recorded here - the stream is built from it the next time one is built. Switching what
 /// is already playing comes next.
 #[tauri::command]
-pub fn audio_set_output(name: String) {
-    if let Ok(mut g) = PREFERRED_OUTPUT.lock() {
-        *g = name;
-        eprintln!("[Audio] output preference set to '{}'", if g.is_empty() { "system default" } else { &g });
-    }
+pub fn audio_set_output(state: tauri::State<AudioPlayer>, name: String) -> Result<(), String> {
+    send_audio(&state, AudioCmd::SetOutput(name))
 }

@@ -241,7 +241,7 @@
   "cancelSleepTimer": "Timer abbrechen",
   "minutes": "Min.",
   "audioOutput": "Ausgabegerät",
-  "audioOutputDesc": "Worüber der Ton läuft. Wirkt ab dem nächsten Titel.",
+  "audioOutputDesc": "Worüber der Ton läuft. Folgt dem System, wenn Systemstandard gewählt ist.",
   "audioOutputSystem": "Systemstandard",
   "audioOutputMissing": "Gerade nicht verbunden, daher läuft der Ton über den Systemstandard.",
   "autoplay": "Autom. Wiedergabe",
