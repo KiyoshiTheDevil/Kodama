@@ -4,9 +4,11 @@
 // a bar wedged between the header and the column titles, which pushed the table down and then
 // pulled it back up when it finished - motion in the part of the screen you are trying to read.
 //
-// So it sits with the toasts instead: same corner, same offset clear of the player bar. Unlike
-// a real toast it is not dismissed on a timer, because it is not an announcement - it is the
-// state of something still happening, and it goes when that is done.
+// Built from HeroUI's own toast classes rather than styled to look like one: it sits beside
+// real toasts, so anything hand-matched would drift the first time the theme moved. Only the
+// placement is ours, since .toast expects to be laid out by the toast region and this one is
+// not in it. Unlike a real toast it is not dismissed on a timer, because it is not an
+// announcement - it is the state of something still happening, and it goes when that is done.
 import { createPortal } from "react-dom";
 import { Spinner } from "@heroui/react";
 
@@ -20,36 +22,36 @@ export function ProgressToast({ label, percent }) {
     <div
       role="status"
       aria-live="polite"
-      className="animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]"
+      className="toast animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]"
       style={{
-        // Level with the toast stack (see ToastProvider in App.jsx), and just under it: a real
-        // announcement is worth covering this for the few seconds it lasts.
-        position: "fixed", bottom: 120, insetInlineEnd: 24, zIndex: 99999,
-        width: 260, padding: "12px 14px",
-        background: "var(--bg-elevated)",
-        border: "0.5px solid var(--border)",
-        borderRadius: "var(--r-xl)",
-        boxShadow: "var(--elevation-3)",
-        pointerEvents: "none",
+        // .toast is absolute and stretched by its region; this one places itself, level with
+        // the toast stack (see ToastProvider in App.jsx) and clear of the player bar.
+        position: "fixed", left: "auto", right: "auto",
+        bottom: 120, insetInlineEnd: 24, zIndex: 99999,
+        width: 280, pointerEvents: "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: pct === null ? 0 : 9 }}>
-        <Spinner size="sm" />
-        <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", flex: 1, minWidth: 0 }}
-          className="truncate">{label}</span>
+      <div className="toast__indicator"><Spinner size="sm" /></div>
+      <div className="toast__content">
+        <div className="flex items-center gap-2 w-full">
+          <span className="toast__title truncate">{label}</span>
+          {pct !== null && (
+            <span className="toast__title ms-auto text-accent tabular-nums">{pct}%</span>
+          )}
+        </div>
         {pct !== null && (
-          <span style={{ fontSize: "var(--t12)", color: "var(--accent)", fontWeight: 600 }}>{pct}%</span>
+          <div className="w-full mt-2 h-[3px] rounded-full overflow-hidden" style={{ background: "var(--bg-base)" }}>
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${pct}%`,
+                background: "linear-gradient(90deg,var(--accent),#c020e0)",
+                transition: "width 0.25s ease",
+              }}
+            />
+          </div>
         )}
       </div>
-      {pct !== null && (
-        <div style={{ height: 3, background: "var(--bg-base)", borderRadius: "var(--r-full)", overflow: "hidden" }}>
-          <div style={{
-            height: "100%", width: `${pct}%`, borderRadius: "var(--r-full)",
-            background: "linear-gradient(90deg,var(--accent),#c020e0)",
-            transition: "width 0.25s ease",
-          }} />
-        </div>
-      )}
     </div>,
     document.body
   );
