@@ -1182,3 +1182,11 @@ html.cursor-hidden, html.cursor-hidden * {
    next mouse movement drops the class again. Kodama's video is decorative anyway: muted, no
    controls, driven by the audio clock. */
 html.cursor-hidden video { pointer-events: none !important; }
+
+/* Artwork whose URL failed to load (see src/ui/image-fallback.js). Its src has been pointed at
+   a blank pixel, so the element draws nothing of its own and this shows through: the same
+   placeholder the views already use where a track has no artwork at all. */
+img.img-failed {
+  background: var(--placeholder-gradient);
+  object-fit: cover;
+}

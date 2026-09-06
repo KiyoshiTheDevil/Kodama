@@ -11,9 +11,11 @@ import EqualizerApp from "./equalizer/EqualizerApp.jsx";
 import { BigPicture } from "./bigpicture/BigPicture.jsx";
 import { installErrorCapture } from "./bug-diagnostics.js";
 import { pruneLyricsCache } from "./lyrics/cache.js";
+import { installImageFallback } from "./ui/image-fallback.js";
 import "./index.css";
 
 installErrorCapture(); // capture frontend errors for the bug-report tool
+installImageFallback(); // artwork that fails to load shows the placeholder, not a broken icon
 // Installs from before the lyrics cache had a ceiling carry hundreds of untracked entries.
 // Measuring them means reading every one, so it waits until the app is idle rather than
 // adding megabytes of string reads to startup.
