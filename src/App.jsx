@@ -9,7 +9,7 @@ import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
-import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon} from "./icons.jsx";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
@@ -2722,13 +2722,14 @@ function LoginBtn({ onClick, children, secondary, disabled }) {
 }
 
 function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
-  const [step, setStep] = useState("start"); // start | waiting | success | local-create
+  const [step, setStep] = useState("start"); // start | waiting | success | failed | local-create
+  const [failure, setFailure] = useState("");
   const [localName, setLocalName] = useState("");
   const [localLoading, setLocalLoading] = useState(false);
   const t = useLang();
 
   useEffect(() => {
-    let unlistenComplete, unlistenCancelled;
+    let unlistenComplete, unlistenCancelled, unlistenFailed;
     import("@tauri-apps/api/event").then(({ listen }) => {
       listen("login-complete", () => {
         setStep("success");
@@ -2737,10 +2738,17 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
       listen("login-cancelled", () => {
         setStep("start");
       }).then(fn => { unlistenCancelled = fn; });
+      // Cookies arrived but the backend could not use them. Saying so beats the green tick
+      // the app used to show while the account quietly failed to appear.
+      listen("login-failed", (e) => {
+        setFailure(typeof e?.payload === "string" ? e.payload : "");
+        setStep("failed");
+      }).then(fn => { unlistenFailed = fn; });
     });
     return () => {
       if (unlistenComplete) unlistenComplete();
       if (unlistenCancelled) unlistenCancelled();
+      if (unlistenFailed) unlistenFailed();
     };
   }, []);
 
@@ -2890,6 +2898,27 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
               {t("loginWaitingDesc")}
             </div>
             <Btn onClick={cancelLogin} secondary>{t("cancel")}</Btn>
+          </div>
+        )}
+
+        {/* ── Fehlgeschlagen ── */}
+        {step === "failed" && (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
+              <WarningCircle size={52} weight="fill" style={{ color: "var(--status-danger)" }} />
+            </div>
+            <div style={{ fontSize: "var(--t16)", fontWeight: 600, marginBottom: 6 }}>{t("loginFailed")}</div>
+            <div style={{ fontSize: "var(--t13)", color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 20 }}>
+              {t("loginFailedHint")}
+            </div>
+            {failure && (
+              <div style={{
+                fontSize: "var(--t11)", color: "var(--text-muted)", fontFamily: "monospace",
+                background: "var(--surface-1)", borderRadius: "var(--r-md)",
+                padding: "8px 10px", marginBottom: 20, wordBreak: "break-word", textAlign: "left",
+              }}>{failure}</div>
+            )}
+            <Btn onClick={() => { setFailure(""); setStep("start"); }}>{t("tryAgain") || "Try again"}</Btn>
           </div>
         )}
 

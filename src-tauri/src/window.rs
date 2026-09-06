@@ -543,7 +543,7 @@ pub async fn open_login_window(
                         .join("; ");
 
                     let client = reqwest::Client::new();
-                    let _ = client
+                    let response = client
                         .post("http://localhost:9847/auth/cookie-login")
                         .json(&serde_json::json!({
                             "cookie": cookie_str,
@@ -554,8 +554,35 @@ pub async fn open_login_window(
                         .send()
                         .await;
 
+                    // What the backend answers decides whether this was a login. It writes the
+                    // cookies, then tries a real request with them, and DELETES the file again
+                    // if that fails - so a discarded answer meant the window closed, the app
+                    // said "signed in", and the account was never there. Which is exactly what
+                    // it looked like from the outside: nothing happening at all.
+                    let failure = match response {
+                        Ok(r) if r.status().is_success() => None,
+                        Ok(r) => {
+                            let status = r.status();
+                            let body = r.text().await.unwrap_or_default();
+                            // The backend reports its reason as {"error": "..."}; pass that on
+                            // rather than a status code nobody can act on.
+                            let reason = serde_json::from_str::<serde_json::Value>(&body)
+                                .ok()
+                                .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
+                                .unwrap_or_else(|| format!("HTTP {}", status.as_u16()));
+                            Some(reason)
+                        }
+                        Err(e) => Some(format!("{}", e)),
+                    };
+
                     let _ = win.destroy();
-                    let _ = app_clone.emit("login-complete", &profile);
+                    match failure {
+                        None => { let _ = app_clone.emit("login-complete", &profile); }
+                        Some(reason) => {
+                            eprintln!("[login] cookie-login rejected: {}", reason);
+                            let _ = app_clone.emit("login-failed", &reason);
+                        }
+                    }
                     completed = true;
                     break;
                 }
