@@ -1049,7 +1049,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <>
             <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
               onFocus={sugFocus} onBlur={sugBlur}>
-              <SearchFieldRoot value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
+              <SearchFieldRoot aria-label={t("search")} value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
                 <SearchFieldGroup className="rounded-full!">
                   <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
                   <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
@@ -1093,6 +1093,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         <div className="px-2 mb-3" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
           onFocus={sugFocus} onBlur={sugBlur}>
           <SearchFieldRoot
+            aria-label={t("search")}
             value={query}
             onChange={setQuery}
             onSubmit={handleSubmit}

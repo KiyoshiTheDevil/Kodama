@@ -477,7 +477,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
             {/* Header + group selector (HeroUI segmented ToggleButtonGroup) */}
             <div style={{ padding: "16px 20px 14px", borderBottom: "1.5px solid var(--border-subtle, var(--bg-elevated))" }}>
               <div style={{ fontSize: "var(--t16)", fontWeight: 700, marginBottom: 12 }}>{t("moodsGenres")}</div>
-              <ToggleButtonGroupRoot selectionMode="single" disallowEmptySelection size="sm"
+              <ToggleButtonGroupRoot aria-label={t("moodsGenres")} selectionMode="single" disallowEmptySelection size="sm"
                 selectedKeys={[activeMoodTab]}
                 onSelectionChange={(keys) => { const k = [...keys][0]; if (k != null) { setActiveMoodTab(String(k)); setActiveMoodChip(null); setMoodPlaylists([]); } }}>
                 {Object.keys(moodGroups).map(tabKey => (

@@ -1127,6 +1127,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {videoSyncEnabled && (
                   <SettingRow label={t("videoSyncQuality")} description={t("videoSyncQualityDesc")} icon={<Sliders />}>
                     <ToggleButtonGroupRoot
+                      aria-label={t("videoSyncQuality")}
                       selectionMode="single"
                       disallowEmptySelection
                       selectedKeys={[videoSyncQuality]}
@@ -1164,6 +1165,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {discordRpc && (
                   <SettingRow label={t("discordStatusDisplay")} description={t("discordStatusDisplayDesc")} icon={<Info size={15} />}>
                     <ToggleButtonGroupRoot
+                      aria-label={t("discordStatusDisplay")}
                       selectionMode="single"
                       disallowEmptySelection
                       selectedKeys={[discordStatusDisplay]}
@@ -1222,6 +1224,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {videoSyncEnabled && (
                   <SettingRow label={t("videoLyricsStyle")} description={t("videoLyricsStyleDesc")} icon={<Columns />}>
                     <ToggleButtonGroupRoot
+                      aria-label={t("videoLyricsStyle")}
                       selectionMode="single"
                       disallowEmptySelection
                       selectedKeys={[videoLyricsStyle]}

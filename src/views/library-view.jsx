@@ -143,6 +143,7 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
         <Sliders size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
         <ToggleButtonGroupRoot
+          aria-label={t("sortOrder") || "Sort order"}
           selectionMode="single"
           disallowEmptySelection
           selectedKeys={[sortOrder]}
