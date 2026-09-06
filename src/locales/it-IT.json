@@ -95,7 +95,7 @@
   "experimentalEmptyTitle": "Ancora nessun esperimento",
   "experimentalEmptyHint": "Le nuove funzionalità sperimentali verranno mostrate qui per prime, prima di diventare parte integrante dell'app.",
   "bigPictureMode": "Modalità Big Picture",
-  "bigPictureModeDesc": "Un'interfaccia semplificata e ottimizzata per controller/TV. Ancora in fase sperimentale alcune aree non sono ancora completate. Premi Esc o F10 per uscire.",
+  "bigPictureModeDesc": "Un'interfaccia semplificata e ottimizzata per controller/TV. Ancora in fase sperimentale alcune aree non sono ancora completate. Premi Esc per uscire.",
   "bigPictureLaunch": "Avvia",
   "videoSyncMode": "Modalità sincronizzazione video",
   "videoSyncModeDesc": "Mostra il video musicale ufficiale (senza audio) al posto della copertina, sincronizzato con il brano attualmente in riproduzione. Funzione sperimentale, non disponibile o precisa per ogni brano.",

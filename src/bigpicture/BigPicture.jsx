@@ -1,8 +1,9 @@
 // Big Picture mode — full-screen lean-back UI driven by a controller (verified Standard Mapping)
-// and keyboard, with a spatial-navigation focus ring (norigin v2). Toggle with F10.
+// and keyboard, with a spatial-navigation focus ring (norigin v2). Opened from
+// Settings > Experimental; Escape (or B on a controller) closes it.
 //
 // Phase 1: a Home grid + a real Now Playing screen (wired to the live player via playerBridge).
-// Later phases add browsing/search/detail screens + a proper entry point (instead of F10).
+// Later phases add browsing/search/detail screens + a proper entry point of its own.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { init, pause, resume, FocusContext, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { useController } from "./useController.js";
@@ -39,28 +40,27 @@ pause();
  * reference." Waiting until there is something to attach to is the whole fix; it also keeps the
  * screen's dozen listeners and its gamepad polling out of an ordinary session.
  *
- * Once mounted it stays mounted, and the screen's own F10 takes over the toggling from here.
+ * Once mounted it stays mounted; Escape closes the screen, as does B on a controller.
+ *
+ * The Launch button in Settings > Experimental is the only way in. There used to be an F10
+ * shortcut beside it, which put an unfinished screen one keystroke away for everyone, including
+ * people who had never heard of it.
  */
 export function BigPictureGate() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (mounted) return;
     const enter = () => setMounted(true);
-    const onKey = (e) => { if (e.key === "F10") { e.preventDefault(); enter(); } };
-    window.addEventListener("keydown", onKey);
     window.addEventListener("kodama-open-bigpicture", enter);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("kodama-open-bigpicture", enter);
-    };
+    return () => window.removeEventListener("kodama-open-bigpicture", enter);
   }, [mounted]);
   return mounted ? <BigPicture startOpen /> : null;
 }
 
 export function BigPicture({ startOpen = false }) {
   const [open, setOpen] = useState(startOpen);
-  // The gate above swallows the F10 that got us here, so the sounds are set up from here on a
-  // start that is already open.
+  // Nothing else runs on the way in now, so a start that is already open sets up its own
+  // sounds. Priming the audio context needs a real user gesture, and the Launch press is one.
   useEffect(() => { if (startOpen) initSounds(); }, [startOpen]);
   const [screen, setScreen] = useState("home"); // "home" | "nowplaying" | "search" | "browse-{type}" | "detail"
   const [detailItem, setDetailItem] = useState(null); // { type, item } for the detail screen
@@ -91,10 +91,9 @@ export function BigPicture({ startOpen = false }) {
     switchTab(TAB_KEYS[(i + dir + TAB_KEYS.length) % TAB_KEYS.length]);
   }, [switchTab]);
 
-  // F10 toggles the whole mode; while open, Menu/"m"/ContextMenu opens the context menu.
+  // While open, Menu/"m"/ContextMenu opens the context menu and q/e cycle the tabs.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "F10") { e.preventDefault(); setOpen(o => { const next = !o; if (next) initSounds(); return next; }); return; }
       if (!openRef.current || menuRef.current) return;
       if (e.key === "ContextMenu" || e.key.toLowerCase() === "m") { e.preventDefault(); openMenu(); }
       else if (e.key.toLowerCase() === "q") cycleTab(-1);
@@ -104,8 +103,9 @@ export function BigPicture({ startOpen = false }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [openMenu, cycleTab]);
 
-  // Same entry point as F10, for the "Launch" button in Settings > Experimental — always opens
-  // (rather than toggling) since that button only makes sense as an "enter" action.
+  // The "Launch" button in Settings > Experimental — always opens rather than toggling, since
+  // that button only makes sense as an "enter" action. Also fires on a second press while the
+  // screen is already mounted but closed.
   useEffect(() => {
     const onLaunch = () => setOpen(o => { if (!o) initSounds(); return true; });
     window.addEventListener("kodama-open-bigpicture", onLaunch);
@@ -215,11 +215,10 @@ export function BigPicture({ startOpen = false }) {
   }, [openMenu, cycleTab]);
   useController({ active: open, onDirection, onEnter, onBack, onButton });
 
-  // Keyboard back/exit. The controller has its B button, but a keyboard/mouse user (who launched
-  // from Settings > Experimental) had no way out: Escape was only handled inside the context menu,
-  // and F10 (the toggle) is unreliable — Windows/WebView2 often swallows it for menu activation.
-  // Wire Escape to the same onBack that B uses: it pops the trail and closes at the root. The
-  // keybar already shows "Esc · Close", so this just makes that promise actually work.
+  // Keyboard back/exit, and the only one there is: the controller has its B button, but a
+  // keyboard/mouse user had no way out at all, since Escape used to be handled only inside the
+  // context menu. Wired to the same onBack that B uses: it pops the trail and closes at the
+  // root. The keybar already shows "Esc · Close", so this makes that promise work.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {

@@ -4,8 +4,8 @@ import App from "./App";
 import OverlayEditorApp from "./OverlayEditorApp.jsx";
 import MiniPlayerApp from "./miniplayer/MiniPlayerApp.jsx";
 import EqualizerApp from "./equalizer/EqualizerApp.jsx";
-// Big Picture mode — still early/WIP (see src/bigpicture/), reachable via F10 or the
-// "Launch" button in Settings > Experimental. The gamepad test spike (GamepadTest.jsx)
+// Big Picture mode — still early/WIP (see src/bigpicture/), reachable only through the
+// "Launch" button in Settings > Experimental, and mounted only once that is pressed. The gamepad test spike (GamepadTest.jsx)
 // stays out — it was only ever a throwaway harness for verifying the Gamepad API, not
 // a real entry point.
 import { BigPictureGate } from "./bigpicture/BigPicture.jsx";

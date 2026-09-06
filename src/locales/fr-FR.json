@@ -95,7 +95,7 @@
   "experimentalEmptyTitle": "Aucune expériences pour le moment",
   "experimentalEmptyHint": "Les nouvelles fonctionnalités expérimentales apparaîtront ici en premier, avant qu'elles ne deviennent une partie permanente de l'application.",
   "bigPictureMode": "Mode Big Picture",
-  "bigPictureModeDesc": "Une interface optimisée pour les TV/Manettes. Encore en développement - Certaines zones ne sont pas encore terminées. Appuyez sur Echap ou F10 pour quitter le mode Big Picture.",
+  "bigPictureModeDesc": "Une interface optimisée pour les TV/Manettes. Encore en développement - Certaines zones ne sont pas encore terminées. Appuyez sur Echap pour quitter le mode Big Picture.",
   "bigPictureLaunch": "Démarrer",
   "videoSyncMode": "Mode vidéo",
   "videoSyncModeDesc": "Affiche le clip vidéo officiel au lieu de la pochette, synchronisé avec la chanson en cours de lecture. Expérimental — indisponible ou mal synchronisés pour certains titres.",

@@ -21,7 +21,8 @@ function ac() {
   return ctx;
 }
 
-// Prime the context during a real user gesture (F10 open) so later gamepad-triggered blips play.
+// Prime the context during a real user gesture (the Launch press) so later gamepad-triggered
+// blips play.
 export function initSounds() { ac(); }
 
 function blip({ freq = 600, to = null, type = "sine", dur = 0.05, gain = 0.09, delay = 0 }) {

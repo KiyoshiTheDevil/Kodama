@@ -96,7 +96,7 @@
   "experimentalEmptyTitle": "Sin experimentos aun",
   "experimentalEmptyHint": "Nuevas características experimentales aparecerán aquí primero, antes de convertirse en una parte permanente de la aplicación.",
   "bigPictureMode": "Modo Big Picture",
-  "bigPictureModeDesc": "Una interfaz apta para mando/Televisión desde lejos. Aún esta en desarrollo temprano — algunas áreas aun no están terminadas. Presiona Esc o F10 para salir.",
+  "bigPictureModeDesc": "Una interfaz apta para mando/Televisión desde lejos. Aún esta en desarrollo temprano — algunas áreas aun no están terminadas. Presiona Esc para salir.",
   "bigPictureLaunch": "Iniciar",
   "videoSyncMode": "Modo de sincronización de video",
   "videoSyncModeDesc": "Muestra el video musical oficial (silenciado) en vez de la portada, sincronizado a la canción actual. Experimental — no esta disponible ni es exacto en todas las canciones.",
