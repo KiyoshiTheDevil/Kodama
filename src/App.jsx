@@ -5756,7 +5756,8 @@ export default function App() {
       {ffmpegUpdate && <FfmpegUpdateBanner installed={ffmpegUpdate.installed} latest={ffmpegUpdate.latest} onClose={() => setFfmpegUpdate(null)} />}
 
       {/* Toast Notifications */}
-      <ToastProvider placement="bottom end" className="bottom-[120px]! z-[100000]!" />
+      {/* Offsets live in index.css beside the zoom that has to divide them back out. */}
+      <ToastProvider placement="bottom end" className="z-[100000]!" />
 
 
       {flashbang && (

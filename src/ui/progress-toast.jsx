@@ -11,23 +11,30 @@
 // announcement - it is the state of something still happening, and it goes when that is done.
 import { createPortal } from "react-dom";
 import { Spinner } from "@heroui/react";
+import { useZoom } from "../context.jsx";
 
 /**
  * @param label   what is happening
  * @param percent 0-100, or null when the work has no measurable end
  */
 export function ProgressToast({ label, percent }) {
+  const zoom = useZoom();
   const pct = typeof percent === "number" ? Math.max(0, Math.min(100, percent)) : null;
   return createPortal(
+    // Portalled to <body>, which is outside the shell carrying the UI zoom - so the placement
+    // sits on this wrapper, unzoomed and in real pixels, and the zoom goes on the toast inside
+    // it. Putting both on one element would multiply its own offsets by the zoom as well.
+    <div style={{
+      position: "fixed", bottom: 120, insetInlineEnd: 24, zIndex: 99999, pointerEvents: "none",
+    }}>
     <div
       role="status"
       aria-live="polite"
       className="toast animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]"
       style={{
-        // .toast is absolute and stretched by its region; this one places itself, level with
-        // the toast stack (see ToastProvider in App.jsx) and clear of the player bar.
-        position: "fixed", left: "auto", right: "auto",
-        bottom: 120, insetInlineEnd: 24, zIndex: 99999,
+        // .toast is absolute and stretched by its region; this one is on its own.
+        zoom,
+        position: "static", left: "auto", right: "auto",
         width: 280, pointerEvents: "none",
         // A little more room than .toast's own gap-1.5. A toast puts an icon next to a
         // line of text; here a spinner sits beside two stacked rows, and at six pixels
@@ -60,6 +67,7 @@ export function ProgressToast({ label, percent }) {
           </div>
         )}
       </div>
+    </div>
     </div>,
     document.body
   );

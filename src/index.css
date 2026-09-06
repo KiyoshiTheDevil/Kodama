@@ -1190,3 +1190,18 @@ img.img-failed {
   background: var(--placeholder-gradient);
   object-fit: cover;
 }
+
+/* Toasts follow the UI zoom.
+   ------------------------------------------------------------------------------------------
+   The toast region is portalled to <body>, outside the shell that carries `zoom`, so toasts
+   came out at 100 % while everything around them scaled. Zooming the region is safe: the stack
+   offsets are a constant gap and the heights come from scrollHeight, both of which live in the
+   same coordinate space as the region itself.
+   What does NOT come along is the region's own placement - an element's `zoom` multiplies its
+   own offsets too - so those are divided back out here. 120px clears the player bar; 1rem is
+   what .toast-region--bottom-end sets for the side. Unlayered, to beat both. */
+.toast-region {
+  zoom: var(--ui-zoom, 1);
+  bottom: calc(120px / var(--ui-zoom, 1));
+  inset-inline-end: calc(1rem / var(--ui-zoom, 1));
+}
