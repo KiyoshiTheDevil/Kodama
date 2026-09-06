@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Button, CardRoot, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, Skeleton } from "@heroui/react";
+import { Button, CardRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, Skeleton } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, hiResThumb, useLang } from "../context.jsx";
 import { ArrowLeft, ArrowSquareOut, Info, Microphone, MusicNote, Play, PushPin, Radio, Shuffle, UserCheck, UserPlus } from "../icons.jsx";
 import { TrackRow } from "../ui/rows.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 
 function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square", size = 148, onOpen, onPlay, onContextMenu }) {
   const isVideo = shape === "video";

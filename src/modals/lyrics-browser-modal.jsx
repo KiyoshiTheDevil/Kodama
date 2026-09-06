@@ -5,8 +5,8 @@
 // Extracted from App.jsx.
 import { useState, useEffect, useMemo } from "react";
 import { useAnimatedClose } from "./use-animated-close.js";
-import { cn, Button, Spinner, toast, ModalRoot, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
-import { DropdownMenu, ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
+import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy } from "../icons.jsx";
 import { API, useLang, openComposer } from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";

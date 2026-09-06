@@ -1,7 +1,8 @@
 // LAN remote-control UI: the pairing modal (QR + approve/deny) and the settings panel that
 // lists paired devices. Extracted from App.jsx; both share the remote i18n + device props.
 import { useState, useEffect } from "react";
-import { Button, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalCloseTrigger } from "@heroui/react";
+import { Button, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalCloseTrigger } from "@heroui/react";
+import { ModalRoot } from "./zoomed-heroui.jsx";
 import { ModalDialog } from "./zoomed-heroui.jsx";
 import { DeviceMobile, Check, PushPin, Trash } from "../icons.jsx";
 import { useLang } from "../context.jsx";

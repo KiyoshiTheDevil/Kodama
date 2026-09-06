@@ -2,8 +2,8 @@
 // file). Unread state is tracked by the parent; `unreadIds` marks which were new on open.
 // Extracted from App.jsx together with its tiny inline/block markdown renderers.
 import { useState } from "react";
-import { cn, Button, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { cn, Button, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Megaphone, Star, ArrowClockwise } from "../icons.jsx";
 

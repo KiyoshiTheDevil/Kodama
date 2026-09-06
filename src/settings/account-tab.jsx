@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { cn, Button, CardRoot, InputRoot, TextFieldRoot, toast, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
+import { cn, Button, CardRoot, InputRoot, TextFieldRoot, toast, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang } from "../context.jsx";
 import { ArrowClockwise, ArrowSquareOut, BrandYoutube, Clock, ClockCounterClockwise, EyeSlash, Heart, ImageSquare, MusicNote, Playlist, SignOut, Trash, UserCircle, UserPlus } from "../icons.jsx";
 import { SettingRow, Toggle, SettingsSectionLabel } from "../ui/settings-controls.jsx";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 
 function fmtDuration(totalSec) {
   const s = Math.max(0, Math.floor(totalSec || 0));

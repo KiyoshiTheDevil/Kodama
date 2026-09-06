@@ -7,11 +7,8 @@
 // Built on the app's own modal rather than a hand-made floating box, like the crossfade editor
 // beside it — the header, the close control, the backdrop and its motion all come from there.
 import { useState } from "react";
-import {
-  Button, InputRoot, ModalBackdrop, ModalBody, ModalCloseTrigger, ModalContainer,
-  ModalHeader, ModalHeading, ModalIcon, ModalRoot, TextFieldRoot,
-} from "@heroui/react";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { Button, InputRoot, ModalBackdrop, ModalBody, ModalCloseTrigger, ModalContainer, ModalHeader, ModalHeading, ModalIcon, TextFieldRoot,  } from "@heroui/react";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { PencilSimple } from "../icons.jsx";
 import { useLang } from "../context.jsx";
 import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./scrobble-rules.js";

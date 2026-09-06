@@ -2,8 +2,8 @@
 // self-contained HeroUI modal that receives the translator `t` as a prop and talks to the
 // backend directly. Kept together because they share the same small dependency footprint.
 import { useState, useEffect } from "react";
-import { cn, Button, Spinner, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, TextFieldRoot, InputRoot, TextArea } from "@heroui/react";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { cn, Button, Spinner, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, TextFieldRoot, InputRoot, TextArea } from "@heroui/react";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { Lock, EyeSlash, Globe, Playlist, PencilSimple, Trash } from "../icons.jsx";
 import { API } from "../context.jsx";
 

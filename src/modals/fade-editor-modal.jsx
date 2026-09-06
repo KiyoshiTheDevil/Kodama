@@ -1,8 +1,8 @@
 // Per-transition crossfade editor — set/override the crossfade duration for a specific
 // track→track transition in the queue. Extracted from App.jsx.
 import { useState } from "react";
-import { Button, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalCloseTrigger } from "@heroui/react";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { Button, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalCloseTrigger } from "@heroui/react";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { Sliders } from "../icons.jsx";
 import { useLang } from "../context.jsx";
 import { Slider } from "../ui/settings-controls.jsx";

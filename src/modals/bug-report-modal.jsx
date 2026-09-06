@@ -3,8 +3,8 @@
 // backend logs, frontend console errors) so reports are triageable without back-and-forth.
 import { useState, useEffect } from "react";
 import { useAnimatedClose } from "./use-animated-close.js";
-import { cn, Button, Spinner, TextFieldRoot, InputRoot, TextArea, ModalRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
-import { ModalDialog } from "../ui/zoomed-heroui.jsx";
+import { cn, Button, Spinner, TextFieldRoot, InputRoot, TextArea, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
+import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { Bug, CheckCircle, Info, ImageSquare, PaperPlaneTilt } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
 import { API, useZoom } from "../context.jsx";
