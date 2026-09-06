@@ -194,7 +194,11 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
     <div style={{ paddingBottom: 32 }}>
 
       {/* ── Hero banner ── */}
-      <div style={{ position: "relative", minHeight: 320, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      {/* 320 is the height a banner needs to be worth looking at. Without one there is nothing
+          to look at: the fallback gradient is a near-black tint, so the space read as a hole
+          above the name. Channels that upload fan versions have no banner at all (see #28), so
+          the header shrinks to what the text in it actually needs. */}
+      <div style={{ position: "relative", minHeight: artist.thumbnail ? 320 : 200, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
         {artist.thumbnail
           ? <img src={thumb(hiResThumb(artist.thumbnail, 800))} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, rgba(${artistAccent},0.6), rgba(${artistAccent},0.2))` }} />}
@@ -260,7 +264,11 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
         {artist.description && <ArtistDescription text={artist.description} name={artist.name} url={artist.descriptionUrl} />}
       </div>
 
-      <div style={{ padding: "0 24px" }}>
+      {/* The gap under the header belongs here, once, rather than on whichever section
+          happens to come first. Top songs used to carry it as its own marginTop, so a page
+          without them - a channel, see #28 - had its first heading sitting right against the
+          banner. */}
+      <div style={{ padding: "24px 24px 0" }}>
 
         {/* Top Songs */}
         {artist.tracks?.length > 0 && (() => {
@@ -268,7 +276,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
           if (!visibleTracks.length) return null;
           return (
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("topSongs")}</div>
               {artist.songsBrowseId && (
                 <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0"
