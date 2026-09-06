@@ -111,3 +111,25 @@ export function SettingsSectionDesc({ children, style }) {
     }}>{children}</div>
   );
 }
+
+/**
+ * A segmented picker in the app's own chip language - the one the overlay editor's File/Edit/
+ * View buttons speak: a filled surface-2 chip, 30px tall, fully rounded, no border.
+ *
+ * Applied through HeroUI's own toggle-button variables rather than by overriding its rules,
+ * so the component keeps its focus ring, its pressed scale and its disabled handling, and
+ * nothing here has to win a specificity fight to take effect.
+ *
+ * Selected uses accent-dim with accent text, which is how the app already says "this is the
+ * active one" in the sidebar's navigation and in the bug report's category picker.
+ */
+export const SEGMENTED_GROUP = "gap-1.5";
+export const SEGMENTED_STYLE = {
+  "--toggle-button-bg": "var(--surface-2)",
+  "--toggle-button-bg-hover": "var(--surface-3)",
+  "--toggle-button-bg-pressed": "var(--surface-3)",
+  "--toggle-button-bg-selected": "var(--accent-dim)",
+  "--toggle-button-bg-selected-hover": "var(--accent-dim)",
+  "--toggle-button-fg-selected": "var(--accent)",
+};
+export const SEGMENTED_BUTTON = "h-[30px]! md:h-[30px]! rounded-full! px-4! text-[length:var(--t13)]!";
