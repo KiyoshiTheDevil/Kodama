@@ -31,7 +31,10 @@ export function ProgressToast({ label, percent }) {
         width: 280, pointerEvents: "none",
       }}
     >
-      <div className="toast__indicator"><Spinner size="sm" /></div>
+      {/* .toast aligns to the top, which is right for a title over a description but not
+          for a title over a bar - there the spinner reads as sitting too high. The
+          content beside it already centres itself; this matches it. */}
+      <div className="toast__indicator self-center"><Spinner size="sm" /></div>
       <div className="toast__content">
         <div className="flex items-center gap-2 w-full">
           <span className="toast__title truncate">{label}</span>
