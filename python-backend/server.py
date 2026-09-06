@@ -3853,7 +3853,20 @@ def _extract_artist_desc_url(browse_id):
 @app.route("/artist/<browse_id>")
 def get_artist(browse_id):
     try:
-        artist = get_ytmusic().get_artist(browse_id)
+        try:
+            artist = get_ytmusic().get_artist(browse_id)
+        except KeyError as e:
+            # Not every page behind an artist link is an official artist page. Channels that
+            # upload fan or unofficial versions answer with a different header, and ytmusicapi
+            # reads the official one by hard index - so it raises KeyError on that very name.
+            # It has get_user for these, which reads the header they do send and parses the
+            # same shelves. Everything below takes its fields with a default, so the pieces a
+            # channel has no equivalent for (top songs, monthly listeners, a banner) simply
+            # come out empty rather than needing a second code path. Reported as issue #28.
+            if "musicImmersiveHeaderRenderer" not in str(e):
+                raise
+            _logging.info("[artist] %s is not an artist page, reading it as a channel", browse_id)
+            artist = get_ytmusic().get_user(browse_id)
 
         # Top songs
         tracks = []
