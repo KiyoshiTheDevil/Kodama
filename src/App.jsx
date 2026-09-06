@@ -4216,8 +4216,8 @@ export default function App() {
     };
   }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause]);
 
-  // Kimuco Bridge — report now-playing to the OBS overlay app (external, port 8888).
-  // Also pushes to the built-in overlay server when enabled.
+  // Now-playing state for the overlay: pushed to the backend once a second, which is what the
+  // overlay editor's live preview and the OBS overlay page both read.
   useEffect(() => {
     const report = () => {
       const a = audioRef.current;
@@ -4236,12 +4236,7 @@ export default function App() {
         duration:  a?.duration    || 0,
         isPlaying: isPlaying && !!currentTrack,
       };
-      // External Kimuco v1
-      fetch("http://127.0.0.1:8888/api/source/kiyoshi", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(500), body: JSON.stringify(payload),
-      }).catch(() => {});
-      // Built-in overlay backend state. Pushed unconditionally (cheap localhost POST, 1/s):
+      // Pushed unconditionally (cheap localhost POST, 1/s):
       // it feeds the overlay-editor live preview and the OBS overlay page, both of which read
       // the backend's _ov_state. Gating this on obsEnabled meant the editor preview showed
       // "No Music" whenever the OBS server toggle happened to be off (incl. when it was only
