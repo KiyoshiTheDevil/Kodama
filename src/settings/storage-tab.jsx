@@ -3,14 +3,8 @@ import { cn, Button, CardRoot } from "@heroui/react";
 import { API } from "../context.jsx";
 import { Check, DownloadSimple, HardDrives, ImageSquare, Microphone, MusicNote, Queue, VinylRecord } from "../icons.jsx";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel } from "../ui/settings-controls.jsx";
+import { fmtBytes } from "../format.js";
 
-function fmtBytes(b) {
-  if (!b) return "0 B";
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 const MAX_CACHE_STEPS = [100, 250, 500, 1000, 2000, 5000, 0]; // 0 = unlimited
 

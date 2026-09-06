@@ -9,6 +9,7 @@ import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "../ui/settings-controls.jsx";
+import { fmtBytes } from "../format.js";
 import { CoverView } from "../views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 import { APP_VERSION } from "../version.js";
@@ -262,7 +263,7 @@ function LastfmRow() {
 
 export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
-  autoDownloadUpdates, onAutoDownloadUpdatesChange,
+  autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
   theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
@@ -1627,8 +1628,13 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         <ArrowCircleUp size={20} className="text-accent shrink-0" />
                         <div>
                           <div className="text-[length:var(--t15)] font-bold text-accent">{updateInfo.version}</div>
-                          {updateInfo.releasedAt && (
-                            <div className="text-[length:var(--t11)] text-muted mt-0.5">{t("released")}: {new Date(updateInfo.releasedAt).toLocaleDateString()}</div>
+                          {(updateInfo.releasedAt || updateSize) && (
+                            <div className="text-[length:var(--t11)] text-muted mt-0.5">
+                              {[
+                                updateInfo.releasedAt && `${t("released")}: ${new Date(updateInfo.releasedAt).toLocaleDateString()}`,
+                                updateSize && fmtBytes(updateSize),
+                              ].filter(Boolean).join("  ·  ")}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1658,6 +1664,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         <div className="text-[length:var(--t12)] text-muted my-2 flex items-center gap-1.5">
                           <ArrowClockwise size={13} style={{ animation: "spin2 0.8s linear infinite" }} />
                           {t("downloadingUpdate")} — {updateDownloadProgress ?? 0}%
+                          {updateSize ? ` · ${fmtBytes(updateSize)}` : ""}
                         </div>
                         <ProgressBar aria-label="Update download" value={updateDownloadProgress ?? 0} className="w-full gap-0! mb-2.5">
                           <ProgressBarTrack className="h-[3px]!"><ProgressBarFill /></ProgressBarTrack>

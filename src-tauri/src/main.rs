@@ -37,6 +37,41 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// How large the pending update is, in bytes.
+///
+/// The updater knows the download size only once the download has started, which is too late
+/// to tell anyone what they are about to fetch. The manifest carries a URL per platform, so
+/// this asks the server for the length and nothing else.
+///
+/// Done here rather than in the page because the target has to be picked, and this side is the
+/// one that knows what it was built as - and because a HEAD from the webview would be a
+/// cross-origin request against a redirect to a different host.
+#[tauri::command]
+async fn update_download_size(manifest: String) -> Option<u64> {
+    let value: serde_json::Value = serde_json::from_str(&manifest).ok()?;
+    // The same keys the updater itself builds its platform lookup from.
+    let os = if cfg!(target_os = "windows") { "windows" }
+        else if cfg!(target_os = "macos") { "darwin" }
+        else { "linux" };
+    let arch = if cfg!(target_arch = "aarch64") { "aarch64" } else { "x86_64" };
+    let url = value
+        .get("platforms")?
+        .get(format!("{}-{}", os, arch))?
+        .get("url")?
+        .as_str()?
+        .to_string();
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+    let resp = client.head(&url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.content_length()
+}
+
 // Capture the main window as a PNG and return it base64-encoded (for bug-report screenshots).
 // Native capture keeps backdrop-filter/blur intact, which HTML-based capture cannot. The
 // window is located via Tauri's own geometry (not by name) and cropped out of its monitor —
@@ -248,7 +283,7 @@ fn main() {
             appicon::set_app_icon,
             audio_play, audio_crossfade, audio_pause, audio_resume,
             audio_stop, audio_seek, audio_set_volume, audio_set_levels_enabled, audio_set_eq,
-            relaunch_app, quit_app, stop_server_cmd,
+            relaunch_app, quit_app, stop_server_cmd, update_download_size,
             update_tray_labels, set_close_to_tray,
             capture_screenshot,
             ensure_session_keeper, rotate_session_cookies, stop_session_keeper,

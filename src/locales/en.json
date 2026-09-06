@@ -525,7 +525,7 @@
   "latestVersion": "Latest version",
   "changelog": "Changelog",
   "autoDownloadUpdates": "Download updates automatically",
-  "autoDownloadUpdatesDesc": "Fetch a new version as soon as it is found, so it only needs a restart. Updates are well over a hundred megabytes.",
+  "autoDownloadUpdatesDesc": "Fetch a new version as soon as one is found, so only the restart is left.",
   "restartNow": "Restart now",
   "downloadUpdate": "Download update",
   "released": "Released",

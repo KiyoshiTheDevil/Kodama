@@ -27,6 +27,7 @@ import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
 import { Tooltip, SidebarTooltip } from "./ui/tooltip.jsx";
+import { fmtBytes } from "./format.js";
 import { usePersistedState } from "./hooks/use-persisted-state.js";
 import { APP_VERSION } from "./version.js";
 // Side-effect import: installs the console interceptor whose ring buffer the Debug tab reads.
@@ -595,7 +596,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
   const [query, setQuery] = useState("");
   // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
   const [suggestions, setSuggestions] = useState([]);
@@ -1245,9 +1246,10 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                 onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
                 onMouseEnter={e => {
                   const r = e.currentTarget.getBoundingClientRect();
+                  const size = updateSize ? ` · ${fmtBytes(updateSize)}` : "";
                   const text = updateDownloaded ? t("restartNow")
-                    : updateDownloading ? `${t("downloadingUpdate")} ${updateDownloadProgress ?? 0}%`
-                    : t("updateAvailable");
+                    : updateDownloading ? `${t("downloadingUpdate")} ${updateDownloadProgress ?? 0}%${size}`
+                    : `${t("updateAvailable")}${size}`;
                   setTooltip({ text, x: r.right + 10, y: r.top + r.height / 2 });
                 }}
                 onMouseLeave={() => setTooltip(null)}
@@ -3471,6 +3473,7 @@ export default function App() {
   // The version a check last reported, so the next one can tell a new release from the same
   // one being found again.
   const updateVersionRef = useRef(null);
+  const [updateSize, setUpdateSize] = useState(null); // bytes, once known
   const mutePrevVolumeRef = useRef(0.5);
 
   // ─── Toast Notifications (HeroUI toast system) ───────────────────────────────
@@ -3505,9 +3508,19 @@ export default function App() {
           releasedAt: update.date || null,
           _update: update,
         });
+        // The updater reports a size only once a download is running, which is too late to say
+        // what is about to be fetched. The manifest has the URL, so ask the server for the
+        // length. Best effort: no size is a missing line, not a failed check.
+        setUpdateSize(null);
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const bytes = await invoke("update_download_size", { manifest: JSON.stringify(update.rawJson || {}) });
+          if (bytes) setUpdateSize(bytes);
+        } catch (e) { console.warn("[Updater] size lookup failed:", e); }
       } else {
         updateVersionRef.current = null;
         setUpdateInfo(null);
+        setUpdateSize(null);
         if (showFeedback) addToast(translate(lang, "upToDate"), "info");
       }
     } catch (e) {
@@ -3525,7 +3538,11 @@ export default function App() {
       let downloaded = 0;
       let total = 0;
       await updateInfo._update.download(event => {
-        if (event.event === "Started")  total = event.data.contentLength ?? 0;
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+          // The transfer itself is the authority on its own size.
+          if (total > 0) setUpdateSize(total);
+        }
         if (event.event === "Progress") {
           downloaded += event.data.chunkLength ?? 0;
           setUpdateDownloadProgress(total > 0 ? Math.round((downloaded / total) * 100) : null);
@@ -5782,6 +5799,7 @@ export default function App() {
             updateDownloadProgress={updateDownloadProgress}
             updateDownloaded={updateDownloaded}
             onInstallUpdate={installUpdate}
+            updateSize={updateSize}
             offlineMode={offlineMode}
             isActuallyOffline={isActuallyOffline}
             onToggleOffline={handleToggleOffline}
@@ -6218,6 +6236,7 @@ export default function App() {
             animations={animations}
             onAnimationsChange={setAnimations}
             autoDownloadUpdates={autoDownloadUpdates}
+            updateSize={updateSize}
             onAutoDownloadUpdatesChange={setAutoDownloadUpdates}
             lyricsFontSize={lyricsFontSize}
             onLyricsFontSizeChange={setLyricsFontSize}

@@ -525,7 +525,7 @@
   "latestVersion": "Neueste Version",
   "changelog": "Änderungen",
   "autoDownloadUpdates": "Updates automatisch herunterladen",
-  "autoDownloadUpdatesDesc": "Eine neue Version holen, sobald sie gefunden wird, sodass nur noch ein Neustart nötig ist. Updates sind deutlich über hundert Megabyte groß.",
+  "autoDownloadUpdatesDesc": "Neue Version holen, sobald es eine gibt. Danach fehlt nur noch der Neustart.",
   "restartNow": "Jetzt neu starten",
   "downloadUpdate": "Update herunterladen",
   "released": "Veröffentlicht",
