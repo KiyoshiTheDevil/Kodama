@@ -68,7 +68,12 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "acc-visual",    label: t("accVisual") },
       { id: "acc-behaviour", label: t("behaviour") },
     ] },
-    { id: "connections",   label: t("connections"),   iconEl: <Link size={18} /> },
+    { id: "connections",   label: t("connections"),   iconEl: <Link size={18} />, sections: [
+      { id: "conn-discord", label: "Discord" },
+      { id: "conn-lastfm",  label: "Last.fm" },
+      { id: "conn-ytmusic", label: "YouTube Music" },
+      { id: "conn-remote",  label: t("remoteControl") },
+    ] },
     { id: "lyrics",        label: t("lyrics"),        iconEl: <ChatText size={18} />, sections: [
       { id: "lyrics-visual",    label: t("lyrVisual") },
       { id: "lyrics-effects",   label: t("lyrEffects") },
@@ -76,8 +81,18 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "lyrics-unison",    label: t("unisonIdentity") },
       { id: "lyrics-composer",  label: t("composer") },
     ] },
-    { id: "wiedergabe",    label: t("playback"),      iconEl: <Play size={18} /> },
-    { id: "visualizer",    label: t("visualizer"),    iconEl: <WaveformLines size={18} /> },
+    { id: "wiedergabe",    label: t("playback"),      iconEl: <Play size={18} />, sections: [
+      { id: "pb-general", label: t("general") },
+      { id: "pb-video",   label: t("pbSecVideo") },
+      { id: "pb-privacy", label: t("pbSecPrivacy") },
+    ] },
+    { id: "visualizer",    label: t("visualizer"),    iconEl: <WaveformLines size={18} />, sections: [
+      { id: "viz-general",  label: t("vizSecGeneral") },
+      { id: "viz-shape",    label: t("vizSecShape") },
+      { id: "viz-bars",     label: t("vizSecBars") },
+      { id: "viz-dynamics", label: t("vizSecDynamics") },
+      { id: "viz-colour",   label: t("vizSecColour") },
+    ] },
     { id: "storage",       label: t("storage"),       iconEl: <HardDrives size={18} />, sections: [
       { id: "storage-downloads", label: t("storageDownloads") },
       { id: "storage-cache",     label: t("storageCache") },
