@@ -2817,16 +2817,32 @@ def _node_major(node_path):
     except Exception:
         return 0
 
-def _find_node22():
-    """Path to a Node >= 22 executable, or None. Env override wins, then the
-    bundled node (next to the server exe), then whatever is on PATH."""
-    import shutil
-    node_name = "node.exe" if sys.platform == "win32" else "node"
+# Where the Node runtime and the PO-token generator live once they are ours rather than the
+# installer's: inside the app's own data directory, next to the profiles and caches.
+#
+# The point is that it is NOT the install directory. An update runs the OLD uninstaller first,
+# and that deletes an explicit list of files from there - node.exe among them - before laying
+# the new version down. Anything outside is on nobody's list, so it survives untouched, and an
+# update no longer has to carry the 81 MB of Node that has not changed since it was pinned.
+RUNTIME_DIR = os.path.join(_base_dir, "runtime")
+
+def _node_name():
+    return "node.exe" if sys.platform == "win32" else "node"
+
+def _bundle_roots():
+    """The places the installer may have put a resource, relative to the server executable."""
     exe_dir = os.path.dirname(os.path.abspath(sys.executable))
     parent = os.path.dirname(exe_dir)
-    cands = [os.environ.get("KODAMA_NODE")]
-    for d in (exe_dir, parent, os.path.join(parent, "Resources"), os.path.join(exe_dir, "..", "Resources")):
-        cands.append(os.path.join(d, node_name))
+    return [exe_dir, parent, os.path.join(parent, "Resources"),
+            os.path.join(exe_dir, "..", "Resources")]
+
+def _find_node22():
+    """Path to a Node >= 22 executable, or None. Env override wins, then our own copy, then
+    the bundled one (next to the server exe), then whatever is on PATH."""
+    import shutil
+    cands = [os.environ.get("KODAMA_NODE"), os.path.join(RUNTIME_DIR, _node_name())]
+    for d in _bundle_roots():
+        cands.append(os.path.join(d, _node_name()))
     cands.append(shutil.which("node"))
     for c in cands:
         if c and os.path.isfile(c) and _node_major(c) >= _MIN_NODE_MAJOR:
@@ -2837,12 +2853,9 @@ def _find_pot_server_dir():
     """The bgutil generator 'server' dir (holds build/generate_once.js), or None.
     Probes both `potgen/server` and `resources/potgen/server` under every plausible
     root so it works regardless of how the Tauri bundle nests its resources."""
-    exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-    parent = os.path.dirname(exe_dir)
-    roots = [exe_dir, parent, os.path.join(parent, "Resources"),
-             os.path.join(exe_dir, "..", "Resources"), _base_dir,
-             os.path.dirname(os.path.abspath(__file__))]
-    bases = [os.environ.get("KODAMA_POT_SERVER")]
+    roots = _bundle_roots() + [_base_dir, os.path.dirname(os.path.abspath(__file__))]
+    bases = [os.environ.get("KODAMA_POT_SERVER"),
+             os.path.join(RUNTIME_DIR, "potgen", "server")]
     for b in roots:
         bases.append(os.path.join(b, "potgen", "server"))
         bases.append(os.path.join(b, "resources", "potgen", "server"))
@@ -2851,10 +2864,84 @@ def _find_pot_server_dir():
             return b
     return None
 
+def _adopt_runtime_assets():
+    """Take a copy of the bundled Node runtime and PO-token generator into RUNTIME_DIR.
+
+    Done once, so that a later update can leave them out of its installer entirely: they are
+    already where nothing deletes them. Until that update ships this changes nothing anyone can
+    see - both copies exist and the lookups above find ours first.
+
+    Runs off the startup path. Copying 80 MB takes a moment, and the session it happens in does
+    not need the result: the lookups already resolved, to the bundled files if ours were not
+    there yet. The next start picks up the copy.
+
+    A record of what each copy was made from means a pinned version bump is noticed and recopied
+    rather than silently kept. A slim installer brings no source at all, and then whatever is
+    already here is exactly what should stay.
+    """
+    import shutil, json as _json
+    record_path = os.path.join(RUNTIME_DIR, "source.json")
+    try:
+        with open(record_path) as f:
+            record = _json.load(f)
+    except Exception:
+        record = {}
+
+    def source_stamp(path):
+        st = os.stat(path)
+        return {"size": st.st_size, "mtime": int(st.st_mtime)}
+
+    def adopt(key, src, dst, copier):
+        if not src:
+            return  # slim install: nothing to adopt, keep what is here
+        try:
+            stamp = source_stamp(src)
+        except OSError:
+            return
+        if record.get(key) == stamp and os.path.exists(dst):
+            return
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
+        # Build beside the target and move into place, so an interrupted copy never leaves a
+        # half-written runtime behind for the next start to trip over.
+        tmp = dst + ".incoming"
+        try:
+            if os.path.exists(tmp):
+                shutil.rmtree(tmp, ignore_errors=True) if os.path.isdir(tmp) else os.remove(tmp)
+            copier(src, tmp)
+            if os.path.exists(dst):
+                shutil.rmtree(dst, ignore_errors=True) if os.path.isdir(dst) else os.remove(dst)
+            os.replace(tmp, dst)
+            record[key] = stamp
+            _logging.info("[runtime] adopted %s from %s", key, src)
+        except Exception as e:
+            _logging.warning("[runtime] could not adopt %s: %s", key, e)
+            shutil.rmtree(tmp, ignore_errors=True) if os.path.isdir(tmp) else None
+
+    # The bundled originals, as the installer laid them down. Deliberately not the PATH node:
+    # only what shipped with the app is ours to copy.
+    bundled_node = next((p for p in (os.path.join(d, _node_name()) for d in _bundle_roots())
+                         if os.path.isfile(p)), None)
+    bundled_pot = next((b for b in (os.path.join(d, *rest)
+                                    for d in _bundle_roots()
+                                    for rest in (("potgen", "server"), ("resources", "potgen", "server")))
+                        if os.path.isfile(os.path.join(b, "build", "generate_once.js"))), None)
+
+    adopt("node", bundled_node, os.path.join(RUNTIME_DIR, _node_name()), shutil.copy2)
+    adopt("potgen", bundled_pot, os.path.join(RUNTIME_DIR, "potgen", "server"),
+          lambda a, b: shutil.copytree(a, b))
+
+    try:
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
+        with open(record_path, "w") as f:
+            _json.dump(record, f)
+    except Exception:
+        pass
+
 _NODE22 = _find_node22()
 _POT_SERVER_DIR = _find_pot_server_dir()
 _POT_AVAILABLE = bool(_NODE22 and _POT_SERVER_DIR)
 print(f"[pot] node>=22={_NODE22} | generator={_POT_SERVER_DIR} | enabled={_POT_AVAILABLE}", flush=True)
+threading.Thread(target=_adopt_runtime_assets, daemon=True).start()
 
 def _pot_opts():
     """ydl_opts enabling web_music + bgutil PO token + Node runtime.
