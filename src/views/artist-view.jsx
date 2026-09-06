@@ -194,11 +194,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
     <div style={{ paddingBottom: 32 }}>
 
       {/* ── Hero banner ── */}
-      {/* 320 is the height a banner needs to be worth looking at. Without one there is nothing
-          to look at: the fallback gradient is a near-black tint, so the space read as a hole
-          above the name. Channels that upload fan versions have no banner at all (see #28), so
-          the header shrinks to what the text in it actually needs. */}
-      <div style={{ position: "relative", minHeight: artist.thumbnail ? 320 : 200, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "relative", minHeight: 320, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
         {artist.thumbnail
           ? <img src={thumb(hiResThumb(artist.thumbnail, 800))} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, rgba(${artistAccent},0.6), rgba(${artistAccent},0.2))` }} />}
