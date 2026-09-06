@@ -283,6 +283,25 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         )>();
         let mut dl_progress2: Option<super::http_source::DownloadProgress> = None;
 
+        // Make the incoming crossfade track the only one playing, and tell the interface the
+        // fade is over. Used both when the ramp reaches the end and when something cuts it
+        // short - a macro rather than a function because it moves half the loop's state, and
+        // duplicating it is how the two paths drift apart.
+        macro_rules! finish_crossfade {
+            () => {
+                if let Some(s) = sink.take() { s.stop(); }
+                sink = sink2.take();
+                if let Some(s) = &sink { s.set_volume(volume); }
+                duration = duration2;
+                seek_offset = 0.0;
+                audio_data = None;
+                progressive_url = prog_url2.take();
+                dl_progress = dl_progress2.take();
+                xfade_start = None;
+                let _ = app.emit("audio-crossfade-done", ());
+            };
+        }
+
         let mut play_gen: u64 = 0;
 
         loop {
@@ -520,12 +539,19 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         if let Ok(mut g) = PREFERRED_OUTPUT.lock() {
                             *g = name;
                         }
-                        // Where to pick playback up again.
-                        let resume = sink.as_ref().map(|s| s.get_pos().as_secs_f64() + seek_offset);
                         // A crossfade cannot survive the swap - it is two sinks against one
-                        // clock - so it ends here and whatever was playing carries on alone.
-                        if let Some(s) = sink2.take() { s.stop(); }
-                        xfade_start = None;
+                        // clock - so end it, by FINISHING it rather than dropping it. sink2 is
+                        // the track being faded to, which is the one the listener is on their
+                        // way to; throwing it away left the outgoing track to run out into
+                        // silence with nothing to follow it, and the interface still waiting
+                        // for a fade that would never report back.
+                        if xfade_start.is_some() {
+                            finish_crossfade!();
+                            eprintln!("[Audio] Crossfade finished early for an output change");
+                        }
+                        // Read after the promotion above, so it is the position of whichever
+                        // track is actually playing now.
+                        let resume = sink.as_ref().map(|s| s.get_pos().as_secs_f64() + seek_offset);
                         match open_output() {
                             Ok((new_stream, new_handle)) => {
                                 _stream = new_stream;
@@ -644,16 +670,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 // Done when the ramp completes or the outgoing track runs out.
                 let out_ended = sink.as_ref().map(|s| s.empty()).unwrap_or(true);
                 if p >= 1.0 || out_ended {
-                    if let Some(s) = sink.take() { s.stop(); }
-                    sink = sink2.take();
-                    if let Some(s) = &sink { s.set_volume(volume); }
-                    duration = duration2;
-                    seek_offset = 0.0;
-                    audio_data = None;
-                    progressive_url = prog_url2.take();
-                    dl_progress = dl_progress2.take();
-                    xfade_start = None;
-                    let _ = app.emit("audio-crossfade-done", ());
+                    finish_crossfade!();
                     eprintln!("[Audio] Crossfade promoted incoming track");
                 }
             }
