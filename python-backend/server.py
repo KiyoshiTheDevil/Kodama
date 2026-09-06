@@ -538,6 +538,8 @@ class _TeeStream:
         self._wrapped = wrapped
         self._level = level
         self._buf = ""
+        # Whether the last entry came from a \r, and may therefore be overwritten by the next.
+        self._transient = False
 
     def write(self, text):
         # Write through first: a failure while buffering must never cost the real output.
@@ -547,19 +549,36 @@ class _TeeStream:
             except Exception:
                 pass
         try:
-            self._buf += text
-            while "\n" in self._buf:
-                line, self._buf = self._buf.split("\n", 1)
-                line = line.rstrip("\r")
+            # A carriage return ends a line just as a newline does; it only means "rewrite the
+            # one you are on" instead of "start a new one". Splitting on \n alone let yt-dlp's
+            # download progress, which is all \r, pile up in the buffer until the next real
+            # newline came along: a single entry holding every percentage AND the unrelated
+            # message that happened to follow it, clipped at 2000 characters when it ran long.
+            self._buf += text.replace("\r\n", "\n")
+            while True:
+                nl, cr = self._buf.find("\n"), self._buf.find("\r")
+                if nl < 0 and cr < 0:
+                    break
+                cut = nl if cr < 0 or (0 <= nl < cr) else cr
+                transient = cut == cr and (nl < 0 or cr < nl)
+                line, self._buf = self._buf[:cut], self._buf[cut + 1:]
                 if not line.strip():
                     continue
+                entry = {
+                    "ts": time.time(),
+                    "level": self._level,
+                    "msg": line[:2000],
+                    "source": "backend",
+                }
                 with _debug_log_lock:
-                    _debug_log.append({
-                        "ts": time.time(),
-                        "level": self._level,
-                        "msg": line[:2000],
-                        "source": "backend",
-                    })
+                    # Do what the carriage return asked for: a run of progress updates
+                    # overwrites itself and leaves one line behind, at 100 %, rather than a
+                    # hundred entries pushing everything else out of the ring.
+                    if transient and self._transient and _debug_log:
+                        _debug_log[-1] = entry
+                    else:
+                        _debug_log.append(entry)
+                self._transient = transient
         except Exception:
             self._buf = ""
 
