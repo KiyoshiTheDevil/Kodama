@@ -910,7 +910,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
 
                 <SectionAnchor id="viz-shape" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("vizSecShape")}</SectionLabel>
+                <SectionLabel>{t("vizSecShape")}</SectionLabel>
                 <SettingRow label={t("visualizerShape") || "Shape"} icon={<WaveformLines />}>
                   <div className="flex gap-1.5">
                     <Button variant={vizConfig.shape === "frame" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ shape: "frame" })}>{t("visualizerFrame") || "Frame"}</Button>
@@ -931,7 +931,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
 
                 <SectionAnchor id="viz-bars" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("vizSecBars")}</SectionLabel>
+                <SectionLabel>{t("vizSecBars")}</SectionLabel>
                 <SettingRow label={t("visualizerBars") || "Bars"} icon={<WaveformLines />}>
                   <Slider min={8} max={160} step={2} value={vizConfig.barCount} onChange={(v) => onUpdateViz({ barCount: v })} width={200} />
                 </SettingRow>
@@ -946,7 +946,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
 
                 <SectionAnchor id="viz-dynamics" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("vizSecDynamics")}</SectionLabel>
+                <SectionLabel>{t("vizSecDynamics")}</SectionLabel>
                 <SettingRow label={t("visualizerResponse") || "Responsiveness"} icon={<WaveformLines />}>
                   <Slider min={0} max={100} step={5} value={Math.round((vizConfig.responsiveness ?? 0.75) * 100)} onChange={(v) => onUpdateViz({ responsiveness: v / 100 })} width={200} />
                 </SettingRow>
@@ -973,7 +973,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
 
                 <SectionAnchor id="viz-colour" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("vizSecColour")}</SectionLabel>
+                <SectionLabel>{t("vizSecColour")}</SectionLabel>
                 <SettingRow label={t("visualizerColor") || "Color"} icon={<PaintBrushBroad />}>
                   <div className="flex items-center gap-1.5">
                     <Button variant={vizConfig.color === "accent" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ color: "accent" })}>{t("accent") || "Accent"}</Button>
@@ -1210,7 +1210,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
 
                 <SectionAnchor id="pb-video" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("pbSecVideo")}</SectionLabel>
+                <SectionLabel>{t("pbSecVideo")}</SectionLabel>
                 <SettingRow label={t("videoSyncMode")} description={t("videoSyncModeDesc")} icon={<ClapperboardPlay />}>
                   <Toggle value={videoSyncEnabled} onChange={onToggleVideoSync} />
                 </SettingRow>
@@ -1234,7 +1234,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
 
                 <SectionAnchor id="pb-privacy" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("pbSecPrivacy")}</SectionLabel>
+                <SectionLabel>{t("pbSecPrivacy")}</SectionLabel>
                 <SettingRow label={t("hideExplicit")} description={t("hideExplicitDesc")} icon={<EyeSlash />}>
                   <Toggle value={hideExplicit} onChange={onHideExplicitChange} />
                 </SettingRow>
@@ -1275,17 +1275,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
 
                 <SectionAnchor id="conn-lastfm" />
-                <SectionLabel style={{ marginTop: 4 }}>Last.fm</SectionLabel>
+                <SectionLabel>Last.fm</SectionLabel>
                 <LastfmRow />
 
                 <SectionAnchor id="conn-ytmusic" />
-                <SectionLabel style={{ marginTop: 4 }}>YouTube Music</SectionLabel>
+                <SectionLabel>YouTube Music</SectionLabel>
                 <SettingRow label={t("ytmusicHistorySync")} description={t("ytmusicHistorySyncDesc")} icon={<ClockCounterClockwise />}>
                   <Toggle value={ytmusicHistorySync} onChange={onYtmusicHistorySyncChange} />
                 </SettingRow>
 
                 <SectionAnchor id="conn-remote" />
-                <SectionLabel style={{ marginTop: 4 }}>{t("remoteControl")}</SectionLabel>
+                <SectionLabel>{t("remoteControl")}</SectionLabel>
                 <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
                   <Toggle value={remoteEnabled} onChange={onToggleRemote} />
                 </SettingRow>
@@ -1403,7 +1403,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
 
                 <div id="set-sec-acc-behaviour" data-settings-section="acc-behaviour" style={{ scrollMarginTop: 8 }}>
-                <SectionLabel style={{ marginTop: 4 }}>{t("behaviour")}</SectionLabel>
+                <SectionLabel>{t("behaviour")}</SectionLabel>
                 <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
                   <Toggle value={closeTray} onChange={onCloseTrayChange} />
                 </SettingRow>
