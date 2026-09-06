@@ -2687,6 +2687,7 @@ dependencies = [
  "audiopus",
  "base64 0.22.1",
  "cocoa",
+ "cpal",
  "discord-rich-presence",
  "objc",
  "reqwest 0.12.28",

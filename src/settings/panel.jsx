@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { parseColor } from "react-aria-components";
-import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleButton, ToggleButtonGroupRoot, ProgressBar, ProgressBarTrack, ProgressBarFill, KbdRoot, KbdContent, ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot } from "@heroui/react";
+import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleButton, ToggleButtonGroupRoot, ProgressBar, ProgressBarTrack, ProgressBarFill, KbdRoot, KbdContent, ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
-import { ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone} from "../icons.jsx";
+import {
+  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh,
+} from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "../ui/settings-controls.jsx";
 import { fmtBytes } from "../format.js";
+import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { CoverView } from "../views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 import { APP_VERSION } from "../version.js";
@@ -261,9 +264,64 @@ function LastfmRow() {
 }
 
 
+/**
+ * Which device sound comes out of.
+ *
+ * The list is read when the menu opens rather than kept: devices appear and disappear while the
+ * app runs, which is the whole reason this row exists. A saved choice that is not plugged in
+ * right now still shows, so it is clear what will be used once it is back - the audio side
+ * falls back to the system default meanwhile, and says so here.
+ */
+function AudioOutputRow({ t, value, onChange }) {
+  const [devices, setDevices] = useState([]);
+  const [systemDefault, setSystemDefault] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const info = await invoke("audio_outputs");
+      setDevices(info?.devices || []);
+      setSystemDefault(info?.systemDefault || null);
+    } catch (e) { console.warn("[audio] could not list outputs:", e); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const systemLabel = t("audioOutputSystem") || "System default";
+  const missing = value && devices.length > 0 && !devices.includes(value);
+
+  return (
+    <SettingRow
+      label={t("audioOutput") || "Output device"}
+      description={missing
+        ? (t("audioOutputMissing") || "Not connected right now, using the system default")
+        : (t("audioOutputDesc") || "Where sound is played")}
+      icon={<SpeakerHigh />}
+    >
+      <Dropdown onOpenChange={(open) => { if (open) load(); }}>
+        <DropdownTrigger className="max-w-[260px] flex items-center gap-2 py-1.5 px-3 rounded-full bg-hover text-[length:var(--t12)] text-secondary hover:text-primary">
+          <span className="truncate">{value || systemLabel}</span>
+          <CaretDown size={12} className="shrink-0" />
+        </DropdownTrigger>
+        <DropdownPopover className="[--dd-min-w:16rem]">
+          <DropdownMenu aria-label={t("audioOutput") || "Output device"}
+            onAction={(key) => onChange(key === "__system__" ? "" : String(key))}>
+            <DropdownItem id="__system__" textValue={systemLabel}>
+              {systemLabel}{systemDefault ? ` (${systemDefault})` : ""}
+            </DropdownItem>
+            {devices.map((d) => (
+              <DropdownItem key={d} id={d} textValue={d}>{d}</DropdownItem>
+            ))}
+          </DropdownMenu>
+        </DropdownPopover>
+      </Dropdown>
+    </SettingRow>
+  );
+}
+
 export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
   autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
+  audioOutput, onAudioOutputChange,
   theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
@@ -1080,6 +1138,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             {tab === "wiedergabe" && (
               <>
                 <SectionLabel>{t("general")}</SectionLabel>
+                <AudioOutputRow t={t} value={audioOutput} onChange={onAudioOutputChange} />
                 <SettingRow label={t("autoplay")} description={t("autoplayDesc")} icon={<PlayCircle />}>
                   <Toggle value={autoplay} onChange={onAutoplayChange} />
                 </SettingRow>

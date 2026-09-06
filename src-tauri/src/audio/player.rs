@@ -13,6 +13,53 @@ static LEVELS_WANTED: AtomicBool = AtomicBool::new(false);
 use super::analyzer;
 use super::decoder::StreamingSource;
 
+/// The output device the user picked, by name, or empty for "whatever the system says".
+///
+/// A name rather than a handle: devices come and go, and the one that was chosen may not be
+/// plugged in at the moment. Matching by name on each build means it is used again as soon as
+/// it reappears, and the default stands in until then.
+static PREFERRED_OUTPUT: Mutex<String> = Mutex::new(String::new());
+
+/// Every output device the system offers, by name.
+pub fn output_device_names() -> Vec<String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    match cpal::default_host().output_devices() {
+        Ok(devices) => devices.filter_map(|d| d.name().ok()).collect(),
+        Err(e) => {
+            eprintln!("[Audio] could not list output devices: {e}");
+            Vec::new()
+        }
+    }
+}
+
+/// The name of the device the system currently treats as the default, if any.
+pub fn default_output_name() -> Option<String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    cpal::default_host().default_output_device().and_then(|d| d.name().ok())
+}
+
+/// Open an output stream, on the chosen device if it is there and usable.
+///
+/// Falls back to the default on every count - not configured, not plugged in, refuses to open.
+/// A missing headset should mean sound from the speakers, not silence.
+fn open_output() -> Result<(rodio::OutputStream, rodio::OutputStreamHandle), String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let wanted = PREFERRED_OUTPUT.lock().map(|g| g.clone()).unwrap_or_default();
+    if !wanted.is_empty() {
+        if let Ok(mut devices) = cpal::default_host().output_devices() {
+            if let Some(device) = devices.find(|d| d.name().map(|n| n == wanted).unwrap_or(false)) {
+                match rodio::OutputStream::try_from_device(&device) {
+                    Ok(pair) => return Ok(pair),
+                    Err(e) => eprintln!("[Audio] '{wanted}' would not open ({e}), using the default"),
+                }
+            } else {
+                eprintln!("[Audio] '{wanted}' is not connected, using the default");
+            }
+        }
+    }
+    rodio::OutputStream::try_default().map_err(|e| e.to_string())
+}
+
 pub enum AudioCmd {
     Play { url: String, seek_to: f64 },
     Pause,
@@ -129,8 +176,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
     let current_analysis = Arc::clone(&current_analysis);
 
     std::thread::spawn(move || {
-        let output = rodio::OutputStream::try_default();
-        let (_stream, handle) = match output {
+        let (_stream, handle) = match open_output() {
             Ok(pair) => pair,
             Err(e) => {
                 eprintln!("[Audio] Output init failed: {e}");
@@ -647,4 +693,25 @@ pub fn audio_seek(state: tauri::State<AudioPlayer>, position: f64) -> Result<(),
 #[tauri::command]
 pub fn audio_set_volume(state: tauri::State<AudioPlayer>, volume: f32) -> Result<(), String> {
     send_audio(&state, AudioCmd::SetVolume(volume))
+}
+
+/// The output devices to choose from, and which one the system is using right now.
+#[tauri::command]
+pub fn audio_outputs() -> serde_json::Value {
+    serde_json::json!({
+        "devices": output_device_names(),
+        "systemDefault": default_output_name(),
+    })
+}
+
+/// Choose an output device by name; an empty name means "follow the system".
+///
+/// Only recorded here - the stream is built from it the next time one is built. Switching what
+/// is already playing comes next.
+#[tauri::command]
+pub fn audio_set_output(name: String) {
+    if let Ok(mut g) = PREFERRED_OUTPUT.lock() {
+        *g = name;
+        eprintln!("[Audio] output preference set to '{}'", if g.is_empty() { "system default" } else { &g });
+    }
 }

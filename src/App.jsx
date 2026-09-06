@@ -3456,6 +3456,14 @@ export default function App() {
   const [downloadingIds, setDownloadingIds] = useState(new Set());
   const [premiumSongIds, setPremiumSongIds] = useState(new Set());
   const [offlineMode, setOfflineMode] = usePersistedState("kiyoshi-offline", false);
+  // Output device by name; empty means "follow the system". Told to the audio core on every
+  // change AND on mount, so a saved choice survives a restart.
+  const [audioOutput, setAudioOutput] = usePersistedState("kiyoshi-audio-output", "");
+  useEffect(() => {
+    import("@tauri-apps/api/core")
+      .then(({ invoke }) => invoke("audio_set_output", { name: audioOutput || "" }))
+      .catch(() => {});
+  }, [audioOutput]);
   const [isActuallyOffline, setIsActuallyOffline] = useState(() => !navigator.onLine);
   const [debugFloat, setDebugFloat] = useState(false);
   const [downloadQueue, setDownloadQueue] = useState([]); // [{videoId, title, artists, thumbnail, status, progress}]
@@ -6236,6 +6244,8 @@ export default function App() {
             animations={animations}
             onAnimationsChange={setAnimations}
             autoDownloadUpdates={autoDownloadUpdates}
+            audioOutput={audioOutput}
+            onAudioOutputChange={setAudioOutput}
             updateSize={updateSize}
             onAutoDownloadUpdatesChange={setAutoDownloadUpdates}
             lyricsFontSize={lyricsFontSize}
