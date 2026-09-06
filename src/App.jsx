@@ -595,7 +595,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
   const [query, setQuery] = useState("");
   // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
   const [suggestions, setSuggestions] = useState([]);
@@ -1152,14 +1152,30 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         <div className="mt-auto px-2 pb-2.5">
           <hr className="mb-2 mx-2 border-t border-border" />
           {updateInfo && (
-            <div onClick={onOpenUpdateTab}
-              className="flex items-center gap-2 py-1.5 px-3 mb-1 rounded-xl text-[length:var(--t12)] font-medium text-accent transition-all duration-150"
+            // Three states, in the order they happen: found, fetching, ready. Only the last
+            // one acts on a click, because it is the only one with something to act on; the
+            // other two open the update page, where the details are.
+            <div onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
+              className="flex items-center gap-2 py-1.5 px-3 mb-1 rounded-xl text-[length:var(--t12)] font-medium text-accent transition-all duration-150 relative overflow-hidden"
               style={{ background: "rgba(224,64,251,0.08)" }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(224,64,251,0.15)"}
               onMouseLeave={e => e.currentTarget.style.background = "rgba(224,64,251,0.08)"}
             >
-              <ArrowCircleUp size={15} />
-              {t("updateAvailable")}
+              {/* The progress fills the pill itself rather than adding a bar beside it. */}
+              {updateDownloading && (
+                <span className="absolute inset-y-0 left-0 pointer-events-none transition-[width] duration-300 ease-out"
+                  style={{ width: `${updateDownloadProgress ?? 0}%`, background: "rgba(224,64,251,0.16)" }} />
+              )}
+              {updateDownloaded
+                ? <ArrowClockwise size={15} className="relative" />
+                : updateDownloading
+                  ? <DownloadSimple size={15} className="relative" />
+                  : <ArrowCircleUp size={15} className="relative" />}
+              <span className="relative truncate">
+                {updateDownloaded ? t("restartNow")
+                  : updateDownloading ? t("downloadingUpdate")
+                  : t("updateAvailable")}
+              </span>
             </div>
           )}
           <div className="flex items-center gap-1">
@@ -1226,11 +1242,19 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               <div
                 className="w-9 h-9 rounded flex items-center justify-center text-accent"
                 style={{ background: "rgba(224,64,251,0.08)" }}
-                onClick={onOpenUpdateTab}
-                onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ text: t("updateAvailable"), x: r.right + 10, y: r.top + r.height / 2 }); }}
+                onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
+                onMouseEnter={e => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const text = updateDownloaded ? t("restartNow")
+                    : updateDownloading ? `${t("downloadingUpdate")} ${updateDownloadProgress ?? 0}%`
+                    : t("updateAvailable");
+                  setTooltip({ text, x: r.right + 10, y: r.top + r.height / 2 });
+                }}
                 onMouseLeave={() => setTooltip(null)}
               >
-                <ArrowCircleUp size={16} />
+                {updateDownloaded ? <ArrowClockwise size={16} />
+                  : updateDownloading ? <DownloadSimple size={16} />
+                  : <ArrowCircleUp size={16} />}
               </div>
             )}
             {(offlineMode || isActuallyOffline) && (
@@ -3437,10 +3461,16 @@ export default function App() {
   const [pendingDownloadQueue, setPendingDownloadQueue] = useState([]); // tracks waiting for a free slot
   const [downloadQueueMin, setDownloadQueueMin] = useState(false); // download queue card minimized
   const [updateInfo, setUpdateInfo] = useState(null);     // { version, changelog, releasedAt, _update }
+  // Off by default: an update is well over a hundred megabytes, which is not something to
+  // fetch on someone's connection without being asked.
+  const [autoDownloadUpdates, setAutoDownloadUpdates] = usePersistedState("kiyoshi-auto-download-updates", false);
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateDownloadProgress, setUpdateDownloadProgress] = useState(null);
   const [updateDownloaded, setUpdateDownloaded] = useState(false);
   const updateDownloadAbortRef = useRef(null);
+  // The version a check last reported, so the next one can tell a new release from the same
+  // one being found again.
+  const updateVersionRef = useRef(null);
   const mutePrevVolumeRef = useRef(0.5);
 
   // ─── Toast Notifications (HeroUI toast system) ───────────────────────────────
@@ -3460,6 +3490,15 @@ export default function App() {
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
       if (update?.available) {
+        // A check that turns up a DIFFERENT version invalidates anything already fetched:
+        // otherwise the sidebar would keep offering a restart for a file that is no longer the
+        // update on offer. Read from a ref rather than a state updater, which is no place for
+        // a side effect - React is free to run one twice.
+        if (updateVersionRef.current && updateVersionRef.current !== update.version) {
+          setUpdateDownloaded(false);
+          setUpdateDownloadProgress(null);
+        }
+        updateVersionRef.current = update.version;
         setUpdateInfo({
           version: update.version,
           changelog: update.body || "",
@@ -3467,6 +3506,7 @@ export default function App() {
           _update: update,
         });
       } else {
+        updateVersionRef.current = null;
         setUpdateInfo(null);
         if (showFeedback) addToast(translate(lang, "upToDate"), "info");
       }
@@ -3504,6 +3544,16 @@ export default function App() {
       setUpdateDownloading(false);
     }
   }, [updateInfo, addToast]);
+
+  // Fetch it as soon as it is found, when the setting says so. Guarded on all three states so
+  // a re-render, a second check or a finished download cannot start it again, and it stays out
+  // of the way of a download the user started by hand.
+  useEffect(() => {
+    if (!autoDownloadUpdates) return;
+    if (!updateInfo?._update) return;
+    if (updateDownloading || updateDownloaded) return;
+    downloadUpdate();
+  }, [autoDownloadUpdates, updateInfo, updateDownloading, updateDownloaded, downloadUpdate]);
 
   const installUpdate = useCallback(async () => {
     if (!updateInfo?._update) return;
@@ -5728,6 +5778,10 @@ export default function App() {
             }}
             onCreatePlaylist={() => setCreatePlaylistOpen(true)}
             updateInfo={demoMode ? null : updateInfo}
+            updateDownloading={updateDownloading}
+            updateDownloadProgress={updateDownloadProgress}
+            updateDownloaded={updateDownloaded}
+            onInstallUpdate={installUpdate}
             offlineMode={offlineMode}
             isActuallyOffline={isActuallyOffline}
             onToggleOffline={handleToggleOffline}
@@ -6163,6 +6217,8 @@ export default function App() {
             onThemeChange={handleThemeChange}
             animations={animations}
             onAnimationsChange={setAnimations}
+            autoDownloadUpdates={autoDownloadUpdates}
+            onAutoDownloadUpdatesChange={setAutoDownloadUpdates}
             lyricsFontSize={lyricsFontSize}
             onLyricsFontSizeChange={setLyricsFontSize}
             lyricsTranslationFontSize={lyricsTranslationFontSize}

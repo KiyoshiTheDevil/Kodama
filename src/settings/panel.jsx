@@ -262,6 +262,7 @@ function LastfmRow() {
 
 export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
+  autoDownloadUpdates, onAutoDownloadUpdatesChange,
   theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
@@ -1676,6 +1677,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     <div className="text-[length:var(--t13)] font-medium text-secondary text-center">{t("upToDate")}</div>
                   </div>
                 )}
+
+                <SettingRow label={t("autoDownloadUpdates")} description={t("autoDownloadUpdatesDesc")} icon={<DownloadSimple />}>
+                  <Toggle value={autoDownloadUpdates} onChange={onAutoDownloadUpdatesChange} />
+                </SettingRow>
 
                 {/* Check for updates button */}
                 <Button variant="ghost" fullWidth className="mt-1.5" isDisabled={checkingUpdate}
