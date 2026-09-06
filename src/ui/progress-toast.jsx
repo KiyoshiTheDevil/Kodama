@@ -29,6 +29,11 @@ export function ProgressToast({ label, percent }) {
         position: "fixed", left: "auto", right: "auto",
         bottom: 120, insetInlineEnd: 24, zIndex: 99999,
         width: 280, pointerEvents: "none",
+        // A little more room than .toast's own gap-1.5. A toast puts an icon next to a
+        // line of text; here a spinner sits beside two stacked rows, and at six pixels
+        // it crowds them. Inline rather than a utility class, which would be a coin
+        // toss against the gap .toast already sets.
+        columnGap: 12,
       }}
     >
       {/* .toast aligns to the top, which is right for a title over a description but not
