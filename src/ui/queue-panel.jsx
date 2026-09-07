@@ -453,7 +453,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
             {/* Drop indicator: a line in the gap the track would land in, rather than an
                 outline on a neighbouring row — that never said which side it meant. */}
             {dropOffset != null && (
-              <div className="absolute left-1 right-1 h-0.5 -mt-px rounded-full bg-accent pointer-events-none z-10"
+              <div className="absolute left-1 right-1 h-0.5 -mt-px rounded-[var(--r-full)] bg-accent pointer-events-none z-10"
                 style={{ top: dropOffset }} />
             )}
           </div>
@@ -465,14 +465,14 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       {visible && panelTab === "queue" && showScrollTop && fabPos && createPortal(
         <div style={{ position: "fixed", left: fabPos.left, width: fabPos.width, bottom: fabPos.bottom + 16, display: "flex", justifyContent: "center", zIndex: 200, pointerEvents: "none" }}
           className="animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]">
-          <div className="relative pointer-events-auto rounded-full shadow-[0_6px_22px_rgba(0,0,0,0.45)]">
+          <div className="relative pointer-events-auto rounded-[var(--r-full)] shadow-[0_6px_22px_rgba(0,0,0,0.45)]">
             {/* Dedicated frosted backdrop layer — a plain div (no transform/isolation/clip
                 ancestors here), so backdrop-filter actually samples the list behind it. */}
-            <div className="absolute inset-0 rounded-full bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
+            <div className="absolute inset-0 rounded-[var(--r-full)] bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
             <Button
               variant="ghost" size="sm"
               onPress={() => listRef.current?.scrollTo({ top: Math.max(0, nowPlayingOffsetRef.current - 4), behavior: "smooth" })}
-              className="relative gap-2 h-9! px-4 rounded-full text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
+              className="relative gap-2 h-9! px-4 rounded-[var(--r-full)] text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
             ><CaretLineUp size={15} weight="bold" className="text-accent" /> {t("scrollToTop")}</Button>
           </div>
         </div>,

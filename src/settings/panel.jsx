@@ -310,7 +310,7 @@ function AudioOutputRow({ t, value, onChange }) {
       icon={<SpeakerHigh />}
     >
       <Dropdown onOpenChange={(open) => { if (open) load(); }}>
-        <DropdownTrigger className="max-w-[260px] flex items-center gap-2 py-1.5 px-3 rounded-full bg-hover text-[length:var(--t12)] text-secondary hover:text-primary">
+        <DropdownTrigger className="max-w-[260px] flex items-center gap-2 py-1.5 px-3 rounded-[var(--r-full)] bg-hover text-[length:var(--t12)] text-secondary hover:text-primary">
           <span className="truncate">{value || systemLabel}</span>
           <CaretDown size={12} className="shrink-0" />
         </DropdownTrigger>
@@ -896,7 +896,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         : <div className="flex items-center justify-center h-full text-[length:var(--t13)] text-muted">{t("visualizerPreviewHint") || "Play a song to preview the visualizer"}</div>}
                     </div>
                     <button onClick={toggleVizPreview} title={t("hidePreview") || "Vorschau einklappen"}
-                      className="absolute top-2 right-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 text-[length:var(--t12)] text-white"
+                      className="absolute top-2 right-2 z-20 flex items-center gap-1 rounded-[var(--r-full)] px-2.5 py-1 text-[length:var(--t12)] text-white"
                       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
                       <EyeSlash size={14} /><CaretUp size={12} />
                     </button>

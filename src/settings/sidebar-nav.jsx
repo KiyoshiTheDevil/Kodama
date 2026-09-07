@@ -168,7 +168,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={item.id}
                 textValue={item.label}
                 className={cn(
-                  "text-[length:var(--t13)] min-h-10 rounded-full",
+                  "text-[length:var(--t13)] min-h-10 rounded-[var(--r-full)]",
                   tab === item.id && "bg-accent-dim text-accent",
                   collapsed && "justify-center"
                 )}
@@ -199,7 +199,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={"sec:" + sec.id}
                 textValue={sec.label}
                 className={cn(
-                  "text-[length:var(--t12)] min-h-8 rounded-full pl-9 relative",
+                  "text-[length:var(--t12)] min-h-8 rounded-[var(--r-full)] pl-9 relative",
                   activeSection === sec.id ? "text-accent font-medium" : "text-secondary"
                 )}
                 style={anim ? { animation: `unfoldDown 0.22s cubic-bezier(0.4,0,0.2,1) both`, animationDelay: `${i * 30}ms`, transformOrigin: "top" } : undefined}

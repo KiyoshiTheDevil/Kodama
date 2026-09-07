@@ -238,10 +238,10 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {topTracks.length > 0 && (
               <>
-                <Button color="accent" variant="solid" className="rounded-full gap-1.5 px-5 font-semibold" onPress={() => onPlay(topTracks[0], topTracks)}>
+                <Button color="accent" variant="solid" className="rounded-[var(--r-full)] gap-1.5 px-5 font-semibold" onPress={() => onPlay(topTracks[0], topTracks)}>
                   <Play size={15} weight="fill" /> {t("playAll")}
                 </Button>
-                <Button variant="secondary" className="rounded-full gap-1.5 backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
+                <Button variant="secondary" className="rounded-[var(--r-full)] gap-1.5 backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
                   onPress={() => { const sh = [...topTracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}>
                   <Shuffle size={15} /> {t("shuffle")}
                 </Button>
@@ -250,13 +250,13 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
             {subscribed !== null && (
               <Tooltip text={subscribed ? t("unsubscribe") : t("subscribe")}>
                 <Button variant={subscribed ? "secondary" : "solid"} color={subscribed ? "default" : "accent"} isDisabled={subLoading}
-                  className="rounded-full gap-1.5 font-semibold" onPress={doSubscribe}>
+                  className="rounded-[var(--r-full)] gap-1.5 font-semibold" onPress={doSubscribe}>
                   {subscribed ? <><UserCheck size={13} /> {t("subscribed")}</> : <><UserPlus size={13} /> {t("subscribe")}</>}
                 </Button>
               </Tooltip>
             )}
             {artist.radioId && (
-              <Button variant="ghost" color="accent" isDisabled={radioLoading} className="rounded-full gap-1.5 font-semibold" onPress={doRadio}>
+              <Button variant="ghost" color="accent" isDisabled={radioLoading} className="rounded-[var(--r-full)] gap-1.5 font-semibold" onPress={doRadio}>
                 <Radio size={13} /> {radioLoading ? "…" : "Radio"}
               </Button>
             )}

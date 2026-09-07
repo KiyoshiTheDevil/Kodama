@@ -820,7 +820,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           id={item.id}
           textValue={item.label}
           className={cn(
-            "text-[length:var(--t13)] min-h-10 rounded-full",
+            "text-[length:var(--t13)] min-h-10 rounded-[var(--r-full)]",
             // activeNavId, not view: Liked Songs opens as a collection, so the entry has to
             // stay lit even though `view` says "collection".
             (activeNavId || view) === item.id && "bg-accent-dim text-accent",
@@ -977,7 +977,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <DropdownItem id="news" textValue={t("news") || "Neuigkeiten"}>
             <span className="w-4 flex justify-center shrink-0"><Megaphone size={16} /></span>
             <span className="flex items-center gap-2">{t("news") || "Neuigkeiten"}
-              {newsUnread > 0 && <span className="text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent)", color: "#fff" }}>{newsUnread}</span>}
+              {newsUnread > 0 && <span className="text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-[var(--r-full)]" style={{ background: "var(--accent)", color: "#fff" }}>{newsUnread}</span>}
             </span>
           </DropdownItem>
           <DropdownItem id="feedback" textValue={t("reportBug") || "Fehler melden"}>
@@ -1051,7 +1051,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
               onFocus={sugFocus} onBlur={sugBlur}>
               <SearchFieldRoot aria-label={t("search")} value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
-                <SearchFieldGroup className="rounded-full!">
+                <SearchFieldGroup className="rounded-[var(--r-full)]!">
                   <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
                   <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
                   <SearchFieldClearButton />
@@ -1100,7 +1100,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             onSubmit={handleSubmit}
             className="w-full"
           >
-            <SearchFieldGroup className="rounded-full!">
+            <SearchFieldGroup className="rounded-[var(--r-full)]!">
               <SearchFieldSearchIcon>
                 <MagnifyingGlass size={16} />
               </SearchFieldSearchIcon>
@@ -1213,7 +1213,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                 <Bell size={16} />
               </Button>
               {newsUnread > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold leading-none pointer-events-none"
+                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-[var(--r-full)] text-[9px] font-bold leading-none pointer-events-none"
                   style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 0 0 2px var(--bg-surface)" }}>{newsUnread > 9 ? "9+" : newsUnread}</span>
               )}
             </div>

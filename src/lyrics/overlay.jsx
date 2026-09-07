@@ -910,12 +910,12 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       {userScrolling && (
         <div style={{ position: "absolute", bottom: 64 + chipBottomLift, left: "50%", transform: "translateX(-50%)", zIndex: 2, transition: "bottom 0.4s ease" }}
           className="animate-[pillRiseIn_0.26s_cubic-bezier(0.22,1,0.36,1)]">
-          <div className="relative rounded-full shadow-[0_6px_22px_rgba(0,0,0,0.45)]">
-            <div className="absolute inset-0 rounded-full bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
+          <div className="relative rounded-[var(--r-full)] shadow-[0_6px_22px_rgba(0,0,0,0.45)]">
+            <div className="absolute inset-0 rounded-[var(--r-full)] bg-[rgba(255,255,255,0.13)] backdrop-blur-2xl" />
             <Button
               variant="ghost" size="sm"
               onPress={resumeAutoscroll}
-              className="relative gap-2 h-9! px-4 rounded-full text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
+              className="relative gap-2 h-9! px-4 rounded-[var(--r-full)] text-[length:var(--t13)] font-semibold text-primary! border-none! bg-transparent! hover:bg-[rgba(255,255,255,0.09)]!"
             >
               <CaretDown size={13} weight="bold" />
               {t("resumeAutoscroll") || "Resume autoscroll"}

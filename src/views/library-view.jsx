@@ -174,7 +174,7 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
             transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
           }}>
             <SearchFieldRoot value={searchQuery} onChange={setSearchQuery} aria-label={t("search")} className="w-[200px]">
-              <SearchFieldGroup className="rounded-full!">
+              <SearchFieldGroup className="rounded-[var(--r-full)]!">
                 <SearchFieldInput ref={searchRef} placeholder={t("search")}
                   onKeyDown={e => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }} />
                 <SearchFieldClearButton />

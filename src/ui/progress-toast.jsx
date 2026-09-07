@@ -59,9 +59,9 @@ export function ProgressToast({ label, percent }) {
           )}
         </div>
         {pct !== null && (
-          <div className="w-full mt-2 h-[3px] rounded-full overflow-hidden" style={{ background: "var(--bg-base)" }}>
+          <div className="w-full mt-2 h-[3px] rounded-[var(--r-full)] overflow-hidden" style={{ background: "var(--bg-base)" }}>
             <div
-              className="h-full rounded-full"
+              className="h-full rounded-[var(--r-full)]"
               style={{
                 width: `${pct}%`,
                 background: "linear-gradient(90deg,var(--accent),#c020e0)",
