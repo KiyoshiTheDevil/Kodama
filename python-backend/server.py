@@ -959,6 +959,12 @@ def _refresh_ytm_psidts(force=False):
         # *PSIDCC / SIDCC tokens also rotate and a stale one alone will kill the session.
         fresh = {c.name: c.value for c in sess.cookies
                  if c.name in _SHORT_LIVED_COOKIES}
+        # Recorded here, not after the merge below. A session Google has stopped accepting is
+        # exactly the one with nothing left to rotate, so the "no rotating cookies" return took
+        # the verdict down with it - the one case the whole flag exists for was the one it
+        # could never report, and the app stayed quiet about a dead login.
+        if authed is not None:
+            _LAST_AUTHED = authed
         if authed is False:
             _logging.warning(f"[cookies] refresh ping is LOGGED OUT (statuses: {', '.join(statuses)}) — "
                   f"the stored cookies are no longer valid; re-login required.")
@@ -993,8 +999,6 @@ def _refresh_ytm_psidts(force=False):
         except Exception:
             pass
         _psidts_last_refresh = now
-        if authed is not None:
-            _LAST_AUTHED = authed
         _logging.info(f"[cookies] session refreshed (authed={authed}): {', '.join(sorted(fresh.keys()))} | {', '.join(statuses)}")
     except Exception as e:
         _logging.warning(f"[cookies] PSIDTS refresh failed (non-fatal): {e}")

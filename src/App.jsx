@@ -5058,6 +5058,7 @@ export default function App() {
   // Views that come up empty because of it can say so instead of showing a blank page.
   const [sessionExpired, setSessionExpired] = useState(false);
   const sessionExpiredToastKeyRef = useRef(null); // key of the currently-shown toast, so it can be closed once the session recovers on its own
+  const lastProfilesPayloadRef = useRef(null);    // last /profiles answer, so an unchanged poll costs no render
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem("kiyoshi-lang"));
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
@@ -5071,8 +5072,15 @@ export default function App() {
       const r = await fetch(`${API}/profiles`);
       const d = await r.json();
       // Persist for offline fallback
-      try { localStorage.setItem("kiyoshi-profiles-cache", JSON.stringify({ profiles: d.profiles || [], current: d.current || null })); } catch {}
-      setProfiles(d.profiles || []);
+      const payload = JSON.stringify({ profiles: d.profiles || [], current: d.current || null });
+      try { localStorage.setItem("kiyoshi-profiles-cache", payload); } catch {}
+      // Handing setProfiles a fresh array re-renders the whole app. That is nothing when this
+      // runs after a login, but it is polled now, so an unchanged answer keeps the old array
+      // and the poll costs a render only when something actually moved.
+      if (payload !== lastProfilesPayloadRef.current) {
+        lastProfilesPayloadRef.current = payload;
+        setProfiles(d.profiles || []);
+      }
       setCurrentProfile(d.current || null);
       setHasProfile((d.profiles || []).length > 0 && d.current);
       if (d.current) {
@@ -5159,6 +5167,20 @@ export default function App() {
       import("@tauri-apps/api/core").then(({ invoke }) => invoke("stop_session_keeper")).catch(() => {});
     };
   }, [currentProfile]);
+
+  // Ask the backend how the session is doing, on a timer.
+  //
+  // Without this the question was only ever asked at startup, twice, both times inside the
+  // 25-second grace period that deliberately says nothing while the keeper is still trying.
+  // When the keeper could not save the session, nothing asked again for the rest of the run:
+  // the login was dead and the app never mentioned it. A session that dies hours in was
+  // equally invisible. /profiles is a read of a few local files, and an unchanged answer no
+  // longer costs a render, so a minute is a comfortable interval.
+  useEffect(() => {
+    if (!currentProfile) return;
+    const id = setInterval(() => { fetchProfiles(); }, 60 * 1000);
+    return () => clearInterval(id);
+  }, [currentProfile, fetchProfiles]);
 
   // ── Account/profile actions — shared by the Sidebar quick-switcher dropdown
   //    and the Account settings tab. Single source of truth for the app-wide
