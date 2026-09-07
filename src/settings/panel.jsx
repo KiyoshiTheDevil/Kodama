@@ -890,7 +890,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </>)}
                     <div style={{ position: "absolute", inset: 0 }}>
                       {vizPreviewTrack
-                        ? <CoverView track={vizPreviewTrack} isPlaying={vizPreviewPlaying} onClose={() => {}} ambientVisualizer coverSize={vizPreviewCover}
+                        ? <CoverView track={vizPreviewTrack} isPlaying={vizPreviewPlaying} onClose={() => {}} ambientVisualizer coverSize={vizPreviewCover} scale={vizScale}
                             vizConfig={{ ...vizConfig, barLength: (vizConfig.barLength ?? 90) * vizScale, gap: (vizConfig.gap ?? 8) * vizScale, barThickness: Math.max(1, (vizConfig.barThickness ?? 3) * vizScale) }} />
                         : <div className="flex items-center justify-center h-full text-[length:var(--t13)] text-muted">{t("visualizerPreviewHint") || "Play a song to preview the visualizer"}</div>}
                     </div>

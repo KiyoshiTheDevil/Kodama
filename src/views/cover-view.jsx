@@ -11,7 +11,14 @@ function vizToRGB(c) {
 }
 function vizLerp(a, b, t) { const A = vizToRGB(a), B = vizToRGB(b); return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`; }
 
-export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false }) {
+// `scale` shrinks everything the settings preview cannot express through coverSize and the
+// config: the spacing, the title and the artist line. Without it the miniature drew its cover
+// and bars at a third of their size around a full-size title, which is the one part of the
+// preview that then did not match what it is previewing.
+export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false, scale = 1 }) {
+  // Font sizes come from tokens, so they are scaled in CSS rather than in JS. Left untouched
+  // at 1 so the full-size view renders the exact same declaration it always did.
+  const scaled = (v) => (scale === 1 ? v : `calc(${v} * ${scale})`);
   const hq = hiResThumb(track.thumbnail, 800);
   const specRef = useRef(null);
   const coverRef = useRef(null);
@@ -231,12 +238,12 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
       )}
 
       {/* Content — shifted up when a bottom linear spectrum would otherwise overlap it */}
-      <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: compact ? 32 : 64,
-        marginBottom: (ambientVisualizer && vizConfig?.shape === "linear" && (vizConfig?.linearPos || "bottom") === "bottom") ? (compact ? 56 : 96) : 0,
+      <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: (compact ? 32 : 64) * scale,
+        marginBottom: (ambientVisualizer && vizConfig?.shape === "linear" && (vizConfig?.linearPos || "bottom") === "bottom") ? (compact ? 56 : 96) * scale : 0,
         transition: "margin-bottom 0.3s ease" }}>
         {/* Album cover */}
         <div ref={coverRef} style={{
-          width: coverSize, height: coverSize, borderRadius: compact ? 12 : 16, overflow: "hidden",
+          width: coverSize, height: coverSize, borderRadius: (compact ? 12 : 16) * scale, overflow: "hidden",
           boxShadow: "var(--elevation-5)",
           transform: isPlaying ? "scale(1.03)" : "scale(0.97)",
           transition: ambientVisualizer ? "none" : "transform 0.6s cubic-bezier(0.4,0,0.2,1)",
@@ -248,12 +255,15 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         </div>
 
         {/* Track info */}
-        <div style={{ textAlign: "center", maxWidth: compact ? 360 : 520 }}>
-          <div style={{ fontSize: compact ? 17 : "var(--t22)", fontWeight: 700, color: "#fff", marginBottom: compact ? 3 : 6, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8, lineHeight: 1.3 }}>
+        <div style={{ textAlign: "center", maxWidth: (compact ? 360 : 520) * scale }}>
+          <div style={{ fontSize: compact ? 17 * scale : scaled("var(--t22)"), fontWeight: 700, color: "#fff", marginBottom: (compact ? 3 : 6) * scale, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 * scale, lineHeight: 1.3 }}>
             <span style={{ overflowWrap: "anywhere" }}>{track.title}</span>
-            {track.isExplicit && <ExplicitBadge />}
+            {/* The badge is a shared component with its own fixed size. Shrunk from the outside
+                rather than threading a scale through every place that uses it; zoom, not
+                transform, so it still takes up the room it draws in. */}
+            {track.isExplicit && (scale === 1 ? <ExplicitBadge /> : <span style={{ zoom: scale, display: "inline-flex" }}><ExplicitBadge /></span>)}
           </div>
-          <div style={{ fontSize: compact ? 12 : "var(--t14)", color: "rgba(255,255,255,0.6)", overflowWrap: "anywhere" }}>{track.artists}</div>
+          <div style={{ fontSize: compact ? 12 * scale : scaled("var(--t14)"), color: "rgba(255,255,255,0.6)", overflowWrap: "anywhere" }}>{track.artists}</div>
         </div>
       </div>
     </div>
