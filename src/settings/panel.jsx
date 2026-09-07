@@ -908,37 +908,43 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     <Eye size={16} />{t("showPreview") || "Vorschau anzeigen"}<CaretDown size={13} />
                   </button>
                 )}
-                {/* Presets — save / apply / import / export named visualizer configs. */}
+                {/* Presets — save / apply / import / export named visualizer configs.
+                    The rows carry .setting-row like every other settings group, so the surface,
+                    the 16px radius, the fusing of neighbours and the inset hairline between
+                    them all come from the one place in index.css that defines them. Built by
+                    hand before, it was the only group in Settings on its own set of values.
+                    The rows have to stay immediate siblings for that CSS to see them - the file
+                    input lives inside the first row rather than between rows for that reason. */}
                 <div className="mb-5">
-                  <div className="text-[length:var(--t13)] font-semibold mb-2.5" style={{ color: "var(--text-secondary)" }}>{t("visualizerPresets") || "Presets"}</div>
-                  <div className="flex gap-2 items-center mb-2">
+                  <SectionLabel style={{ marginTop: 0 }}>{t("visualizerPresets") || "Presets"}</SectionLabel>
+                  <div className="setting-row flex gap-2 items-center px-[18px] py-3">
+                    {/* The field's own token is --bg-elevated, the same colour as the card it
+                        now sits on, so it would have disappeared into it. The hover tint is a
+                        wash of the text colour and therefore reads as a well on any surface and
+                        in any theme, instead of needing a value picked per theme. */}
                     <input value={vizPresetName} onChange={(e) => setVizPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }}
                       placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
-                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: "var(--r-lg)", fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "0.5px solid var(--border)", outline: "none" }} />
+                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: "var(--r-lg)", fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-hover-overlay)", border: "0.5px solid var(--border)", outline: "none" }} />
                     <Button variant="secondary" size="sm" className="shrink-0" onPress={saveVizPreset}>{t("save") || "Speichern"}</Button>
                     <Button variant="ghost" size="sm" className="gap-1.5 shrink-0" onPress={() => vizImportRef.current?.click()}>
                       <DownloadSimple size={13} className="rotate-180" />{t("import") || "Importieren"}
                     </Button>
                     <input ref={vizImportRef} type="file" accept=".json" multiple className="hidden" onChange={handleVizImport} />
                   </div>
-                  {vizPresets.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      {vizPresets.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                          <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
-                          <Tooltip text={t("vizPresetOverwrite")}>
-                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} aria-label={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
-                          </Tooltip>
-                          <Tooltip text={t("export")}>
-                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} aria-label={t("export")}><DownloadSimple size={13} /></Button>
-                          </Tooltip>
-                          <Tooltip text={t("delete")}>
-                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} aria-label={t("delete")}><Trash size={13} /></Button>
-                          </Tooltip>
-                        </div>
-                      ))}
+                  {vizPresets.map((p) => (
+                    <div key={p.id} className="setting-row flex items-center gap-1 pl-[18px] pr-2.5 py-2.5">
+                      <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
+                      <Tooltip text={t("vizPresetOverwrite")}>
+                        <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} aria-label={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
+                      </Tooltip>
+                      <Tooltip text={t("export")}>
+                        <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} aria-label={t("export")}><DownloadSimple size={13} /></Button>
+                      </Tooltip>
+                      <Tooltip text={t("delete")}>
+                        <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} aria-label={t("delete")}><Trash size={13} /></Button>
+                      </Tooltip>
                     </div>
-                  )}
+                  ))}
                 </div>
                 <SectionAnchor id="viz-general" />
                 <SectionLabel>{t("vizSecGeneral")}</SectionLabel>
