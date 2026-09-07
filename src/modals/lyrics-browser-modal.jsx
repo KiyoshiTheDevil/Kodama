@@ -213,7 +213,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                             <span className={cn("font-semibold shrink-0", isSelected && "text-accent")} style={{ fontSize: "var(--t12)" }}>{r.source}</span>
                             {r.submitterName ? <span className="text-muted truncate min-w-0" style={{ fontSize: "var(--t11)" }}>· {r.submitterName}</span> : null}
                             {sync ? (
-                              <span className="ml-auto px-1.5 py-0.5 rounded shrink-0" style={{ color: sync.color, background: sync.bg, fontSize: "var(--t10)" }}>{sync.label}</span>
+                              <span className="ml-auto px-1.5 py-0.5 rounded-sm shrink-0" style={{ color: sync.color, background: sync.bg, fontSize: "var(--t10)" }}>{sync.label}</span>
                             ) : <span className="ml-auto" />}
                           </div>
                           {preview ? <div className="text-muted leading-relaxed line-clamp-2 break-words w-full" style={{ fontSize: "var(--t11)" }}>{preview}</div> : null}

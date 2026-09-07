@@ -183,7 +183,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 <span className="shrink-0 w-5 flex items-center justify-center">{item.iconEl}</span>
                 {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                 {!collapsed && item.badge && (
-                  <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-accent text-white uppercase">{item.badge}</span>
+                  <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-accent text-white uppercase">{item.badge}</span>
                 )}
                 {!collapsed && item.id === "update" && updateInfo && !item.badge && (
                   <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-full bg-accent" />

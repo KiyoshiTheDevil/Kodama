@@ -269,13 +269,13 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
     <div style={{ padding: 28 }}>
       {[1,2,3].map(i => (
         <div key={i} style={{ marginBottom: 36 }}>
-          <Skeleton className="h-3.5 w-40 rounded mb-4" />
+          <Skeleton className="h-3.5 w-40 rounded-sm mb-4" />
           <div style={{ display: "flex", gap: 16 }}>
             {[1,2,3,4,5].map(j => (
               <div key={j} style={{ flexShrink: 0, width: 160 }}>
                 <Skeleton className="w-40 h-40 rounded-[10px] mb-2.5" />
-                <Skeleton className="h-3 w-[80%] rounded mb-1.5" />
-                <Skeleton className="h-2.5 w-[55%] rounded" />
+                <Skeleton className="h-3 w-[80%] rounded-sm mb-1.5" />
+                <Skeleton className="h-2.5 w-[55%] rounded-sm" />
               </div>
             ))}
           </div>
@@ -508,7 +508,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                       {[1,2,3,4].map(i => (
                         <div key={i} style={{ flexShrink: 0, width: 148 }}>
                           <Skeleton className="w-[148px] h-[148px] rounded-[10px]" />
-                          <Skeleton className="h-[11px] w-[72%] rounded mt-2.5" />
+                          <Skeleton className="h-[11px] w-[72%] rounded-sm mt-2.5" />
                         </div>
                       ))}
                     </div>

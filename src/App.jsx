@@ -1241,7 +1241,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             </Dropdown>
             {updateInfo && (
               <div
-                className="w-9 h-9 rounded flex items-center justify-center text-accent"
+                className="w-9 h-9 rounded-sm flex items-center justify-center text-accent"
                 style={{ background: "rgba(224,64,251,0.08)" }}
                 onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
                 onMouseEnter={e => {
@@ -1261,7 +1261,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             )}
             {(offlineMode || isActuallyOffline) && (
               <div
-                className="w-9 h-9 rounded flex items-center justify-center transition-all duration-150"
+                className="w-9 h-9 rounded-sm flex items-center justify-center transition-all duration-150"
                 style={{
                   color: isActuallyOffline ? "var(--status-warning)" : "var(--text-muted)",
                   opacity: isActuallyOffline ? 1 : 0.45,

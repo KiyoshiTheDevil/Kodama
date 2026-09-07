@@ -16,7 +16,7 @@ function renderInline(text, kp) {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[2] != null) out.push(<strong key={`${kp}-${i}`}>{m[2]}</strong>);
     else if (m[3] != null) out.push(<em key={`${kp}-${i}`}>{m[3]}</em>);
-    else if (m[4] != null) out.push(<code key={`${kp}-${i}`} className="px-1 py-0.5 rounded bg-elevated" style={{ fontSize: "0.92em" }}>{m[4]}</code>);
+    else if (m[4] != null) out.push(<code key={`${kp}-${i}`} className="px-1 py-0.5 rounded-sm bg-elevated" style={{ fontSize: "0.92em" }}>{m[4]}</code>);
     else if (m[5] != null) { const url = m[6]; out.push(<span key={`${kp}-${i}`} onClick={() => openUrl(url).catch(() => {})} className="text-accent cursor-pointer hover:underline">{m[5]}</span>); }
     last = m.index + m[0].length; i++;
   }
@@ -93,7 +93,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                             : <div className="w-11 h-11 rounded-lg shrink-0 flex items-center justify-center" style={{ background: b.bg }}><Megaphone size={16} style={{ color: b.fg }} /></div>}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
                               {n.important && <Star size={10} weight="fill" className="text-accent shrink-0" />}
                               {unread && <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: "var(--accent)" }} />}
                             </div>
