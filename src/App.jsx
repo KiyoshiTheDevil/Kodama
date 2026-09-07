@@ -4087,20 +4087,47 @@ export default function App() {
   // remembers whether *we* made the switch, so a manual toggle isn't overridden afterwards.
   const autoCoverRef = useRef(false);
   const lastInstSwitchRef = useRef(0); // cooldown so the auto-switch can't rapidly flip
-  const setShowLyricsManual = useCallback((v) => { autoCoverRef.current = false; setShowLyrics(v); }, []);
-  // Instrumental segment toggles the cover view in/out (only if the feature is on and we
-  // aren't overriding a manual choice). Reuses the existing 0.35s showLyrics crossfade.
-  // A short cooldown guards against any rapid back-and-forth flicker.
-  const handleInstrumentalChange = useCallback((inst) => {
-    if (!instrumentalVizRef.current || splitViewRef.current) return;
+  const instPendingRef = useRef(null); // a change that arrived during the cooldown
+  const instTimerRef = useRef(null);
+  const clearPendingInst = () => {
+    instPendingRef.current = null;
+    if (instTimerRef.current) { clearTimeout(instTimerRef.current); instTimerRef.current = null; }
+  };
+  // A manual choice also cancels a queued automatic one, which would otherwise pull the view
+  // back out from under the user a moment after they picked it.
+  const setShowLyricsManual = useCallback((v) => { autoCoverRef.current = false; clearPendingInst(); setShowLyrics(v); }, []);
+  const applyInstrumental = useCallback((inst) => {
     const now = performance.now();
-    if (now - lastInstSwitchRef.current < 1500) return;
     if (inst) {
       if (showLyricsRef.current) { autoCoverRef.current = true; lastInstSwitchRef.current = now; setShowLyrics(false); }
     } else if (autoCoverRef.current) {
       autoCoverRef.current = false; lastInstSwitchRef.current = now; setShowLyrics(true);
     }
   }, []);
+  // Instrumental segment toggles the cover view in/out (only if the feature is on and we
+  // aren't overriding a manual choice). Reuses the existing 0.35s showLyrics crossfade.
+  // A short cooldown guards against any rapid back-and-forth flicker.
+  const handleInstrumentalChange = useCallback((inst) => {
+    if (!instrumentalVizRef.current || splitViewRef.current) return;
+    const wait = 1500 - (performance.now() - lastInstSwitchRef.current);
+    if (wait > 0) {
+      // Held until the cooldown is up, not discarded. The overlay reports only changes, so a
+      // dropped one never comes again: a segment ending inside the cooldown - a gap of three
+      // to three and a half seconds, since the cover clears two seconds before the vocals -
+      // used to leave the cover up until the next segment came along to correct it.
+      instPendingRef.current = inst;
+      if (!instTimerRef.current) {
+        instTimerRef.current = setTimeout(() => {
+          instTimerRef.current = null;
+          const pending = instPendingRef.current;
+          instPendingRef.current = null;
+          if (pending !== null) applyInstrumental(pending);
+        }, wait);
+      }
+      return;
+    }
+    applyInstrumental(inst);
+  }, [applyInstrumental]);
   const [queueOpen, setQueueOpen] = useState(false);
   // True only once the queue panel has finished sliding in — used to defer the expensive
   // ambient backdrop-blur until the slide settles, so the animation stays on the compositor.

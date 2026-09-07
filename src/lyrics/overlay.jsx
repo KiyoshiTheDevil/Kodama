@@ -19,6 +19,17 @@ import { useLyricsPrefs } from "../preferences.jsx";
 // aligned to the growing edge has to be pulled back by exactly this amount.
 const LYRIC_ZOOM = 1.06;
 
+// How far ahead of the next sung line an instrumental segment is called over, so the vocals
+// are back before the cover clears.
+const INSTR_LEAD = 2;
+// When the next sung line starts, from t. Infinity once the last one has passed.
+// Shared, because two places have to agree on where a segment ends: the rAF loop below and
+// the off-screen watcher that takes over from it while the cover is up.
+function nextVocalAfter(lyr, t) {
+  for (let i = 0; i < lyr.length; i++) if (lyr[i].time > t) return lyr[i].time;
+  return Infinity;
+}
+
 export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
   // them are per-instance, they were just settings threaded down from App(). Rendered outside
@@ -286,9 +297,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       // lyrics have time -1 and never resolve to displayIdx -1.
       let inst = false;
       if (displayIdx === -1 && lyr && lyr.length) {
-        let nextStart = Infinity;
-        for (let i = 0; i < lyr.length; i++) { if (lyr[i].time > t) { nextStart = lyr[i].time; break; } }
-        if (nextStart - t > 2) inst = true; // 2s lead so vocals are back before the cover clears
+        if (nextVocalAfter(lyr, t) - t > INSTR_LEAD) inst = true;
       }
       if (inst !== instVizRef.current) {
         instVizRef.current = inst;
@@ -321,6 +330,33 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
   }, [audioRef, active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Watch for the instrumental segment ending while this pane is off screen.
+  //
+  // The loop above is the only thing that reports the segment's end, and it is switched off
+  // whenever the pane is not on screen. Which is precisely where the instrumental-cover
+  // feature puts it: it hides the lyrics, the watcher goes with them, and the end of the
+  // segment is never announced - so the cover stayed up for the rest of the song and the
+  // lyrics could only be brought back by hand. Reported by PatoSinPico.
+  //
+  // A timer rather than reviving the loop: the loop paints words, measures scroll and rebuilds
+  // a mask gradient every frame, none of which is worth doing for a pane nobody is looking at
+  // (that is what switching it off was for). This does the one calculation the switch back
+  // needs, five times a second, and touches no DOM. It exists only for the length of a
+  // segment - once the lyrics are back, `active` is true again and the loop takes over.
+  useEffect(() => {
+    if (active || !instVizRef.current) return;
+    const id = setInterval(() => {
+      const lyr = lyricsDataRef.current;
+      if (!lyr || !lyr.length) return;
+      const { ct, pt, playing } = audioSnapRef.current;
+      const t = (playing ? ct + (performance.now() - pt) / 1000 : ct) - offsetRef.current;
+      if (nextVocalAfter(lyr, t) - t > INSTR_LEAD) return; // still instrumental
+      instVizRef.current = false;
+      onInstChangeRef.current?.(false);
+    }, 200);
+    return () => clearInterval(id);
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // After React renders, cache word span elements and bg-vocals container for the active line
   useLayoutEffect(() => {
