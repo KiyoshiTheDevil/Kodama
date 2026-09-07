@@ -5048,8 +5048,6 @@ export default function App() {
 
   // ── Profile / Auth ──
   const [profiles, setProfiles] = useState([]);
-  const profilesRef = useRef(profiles);
-  useEffect(() => { profilesRef.current = profiles; }, [profiles]);
   const [hasProfile, setHasProfile] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const sessionWarnedRef = useRef(null);
@@ -5094,6 +5092,7 @@ export default function App() {
       // stopped accepting, which is the case this warning was built for and the only one it
       // used to miss entirely. Both need the same thing from the user: sign in again.
       const expired = !!(active && active.type !== "local" && active.sessionExpired);
+      const wasExpired = sessionExpiredRef.current;
       sessionExpiredRef.current = expired;
       setSessionExpired(expired);
       // The session keeper rotates roughly twelve seconds after launch and repairs most
@@ -5126,6 +5125,12 @@ export default function App() {
           toast.close(sessionExpiredToastKeyRef.current);
           sessionExpiredToastKeyRef.current = null;
         }
+        // Whatever is on screen loaded against the dead session and is still showing its empty
+        // state; nothing else refetches it. The startup rotation already did this for the case
+        // it repairs, but a session renewed by hand, or repaired by the keeper hours later, was
+        // left with a page that stayed empty until the user navigated away and back. Only on
+        // the change, or every poll would remount the page the user is reading.
+        if (wasExpired) setViewRefreshKey(k => k + 1);
       }
     } catch {}
   }, []);
@@ -5143,21 +5148,19 @@ export default function App() {
       try { await invoke("ensure_session_keeper", { profileName: currentProfile }); }
       catch { return; }
       if (cancelled) return;
-      const rotate = () => invoke("rotate_session_cookies", { profileName: currentProfile }).catch(() => {});
+      // Ask how it went afterwards. A rotation that brought the session back should be visible
+      // immediately rather than at the next minute's poll, and fetchProfiles is the one place
+      // that notices the recovery - it closes the warning and reloads the page the dead session
+      // left empty. Keeping that judgement in one place is also what stops a repair at startup
+      // from reloading the page twice, once here and again on the first poll.
+      const rotate = () => invoke("rotate_session_cookies", { profileName: currentProfile })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) fetchProfiles(); });
       // Rotate right at startup rather than after a grace period. A session that has gone stale
       // overnight cannot be told apart from a healthy one until something fails, and waiting
       // meant the user either refreshed by hand or sat out the 20-minute interval. Two seconds
       // of delay keeps the (real-browser) navigation out of the first paint's way.
-      firstTimer = setTimeout(() => {
-        if (cancelled) return;
-        const wasBroken = !!profilesRef.current.find(p => p.name === currentProfile)?.loggedOut || sessionExpiredRef.current;
-        rotate().then(() => {
-          // Views that loaded against the dead session are still showing their empty state,
-          // and nothing else would refetch them. Only when it was actually broken: otherwise
-          // this would remount whatever the user is already looking at, every start.
-          if (!cancelled && wasBroken) setViewRefreshKey(k => k + 1);
-        });
-      }, 2000);
+      firstTimer = setTimeout(() => { if (!cancelled) rotate(); }, 2000);
       interval = setInterval(() => { if (!cancelled) rotate(); }, 20 * 60 * 1000);
     })();
     return () => {
@@ -5166,7 +5169,7 @@ export default function App() {
       if (firstTimer) clearTimeout(firstTimer);
       import("@tauri-apps/api/core").then(({ invoke }) => invoke("stop_session_keeper")).catch(() => {});
     };
-  }, [currentProfile]);
+  }, [currentProfile, fetchProfiles]);
 
   // Ask the backend how the session is doing, on a timer.
   //
