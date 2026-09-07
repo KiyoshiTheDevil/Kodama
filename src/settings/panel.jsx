@@ -918,13 +918,16 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <div className="mb-5">
                   <SectionLabel style={{ marginTop: 0 }}>{t("visualizerPresets") || "Presets"}</SectionLabel>
                   <div className="setting-row flex gap-2 items-center px-[18px] py-3">
-                    {/* The field's own token is --bg-elevated, the same colour as the card it
-                        now sits on, so it would have disappeared into it. The hover tint is a
-                        wash of the text colour and therefore reads as a well on any surface and
-                        in any theme, instead of needing a value picked per theme. */}
-                    <input value={vizPresetName} onChange={(e) => setVizPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }}
-                      placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
-                      style={{ flex: 1, minWidth: 0, height: 34, padding: "0 12px", borderRadius: "var(--r-lg)", fontSize: "var(--t13)", color: "var(--text-primary)", background: "var(--bg-hover-overlay)", border: "0.5px solid var(--border)", outline: "none" }} />
+                    {/* The app's own text field, as everywhere else. This was a bare <input>
+                        with hand-picked height, radius, border and fill, which is why it did
+                        not match - and it set outline:none without putting anything in its
+                        place, so it had no focus ring at all. */}
+                    <TextFieldRoot value={vizPresetName} onChange={setVizPresetName}
+                      aria-label={t("presetNamePlaceholder") || "Preset benennen…"} className="flex-1 min-w-0">
+                      <InputRoot className="text-[length:var(--t13)]!"
+                        placeholder={t("presetNamePlaceholder") || "Preset benennen…"}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveVizPreset(); }} />
+                    </TextFieldRoot>
                     <Button variant="secondary" size="sm" className="shrink-0" onPress={saveVizPreset}>{t("save") || "Speichern"}</Button>
                     <Button variant="ghost" size="sm" className="gap-1.5 shrink-0" onPress={() => vizImportRef.current?.click()}>
                       <DownloadSimple size={13} className="rotate-180" />{t("import") || "Importieren"}
