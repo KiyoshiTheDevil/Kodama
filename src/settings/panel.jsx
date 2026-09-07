@@ -371,9 +371,20 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   const [winH, setWinH] = useState(() => window.innerHeight);
   const [winW, setWinW] = useState(() => window.innerWidth);
   useEffect(() => {
-    const onResize = () => { setWinH(window.innerHeight); setWinW(window.innerWidth); };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const sync = () => { setWinH(window.innerHeight); setWinW(window.innerWidth); };
+    // An observer rather than the resize event, because it also reports the size the moment it
+    // starts watching. The event alone loses anything that happens between the first render
+    // (where the state above is seeded) and this effect subscribing, and nothing came along
+    // afterwards to correct it: leaving fullscreen and opening this panel straight away left
+    // the width stuck at the full screen's, and since the preview is scaled by preview width
+    // over window width, its bars stayed too thin for as long as the panel was open.
+    // Reported by PairyDise.
+    // The entry's own size is ignored - innerWidth counts the scrollbar and clientWidth does
+    // not, and the numbers below were written against innerWidth.
+    const ro = new ResizeObserver(sync);
+    ro.observe(document.documentElement);
+    sync();
+    return () => ro.disconnect();
   }, []);
   const vizPreviewH = Math.round(Math.max(260, Math.min(620, winH * 0.48)));
   const vizCoverSize = Math.round(Math.max(130, Math.min(260, vizPreviewH * 0.42)));
@@ -393,8 +404,15 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     setVizPreviewW(el.clientWidth);
     return () => ro.disconnect();
   }, [vizPreviewOpen]);
-  const vizScale = (vizPreviewW > 0 && winW > 0) ? vizPreviewW / winW : (vizCoverSize / 260);
-  const vizPreviewHReplica = (vizPreviewW > 0 && winW > 0) ? Math.round(vizPreviewW * winH / winW) : vizPreviewH;
+  // The two measurements are in different units and have to be brought together before they
+  // can be divided. clientWidth, inside the zoomed app shell, is in local units; innerWidth is
+  // real screen pixels. What the preview is a miniature of is the fullscreen canvas, and that
+  // canvas measures itself with clientWidth too - so the thing being compared against is
+  // winW / uiZoom, not winW. Left as it was, every zoom level other than 100% scaled the
+  // preview's bars by exactly the zoom factor: a third too thin at 150%.
+  const vizWinW = winW / (uiZoom || 1);
+  const vizScale = (vizPreviewW > 0 && vizWinW > 0) ? vizPreviewW / vizWinW : (vizCoverSize / 260);
+  const vizPreviewHReplica = (vizPreviewW > 0 && vizWinW > 0) ? Math.round(vizPreviewW * winH / winW) : vizPreviewH;
   const vizPreviewCover = Math.max(60, Math.round(260 * vizScale));
 
   // Visualizer presets — save/apply/import/export named snapshots of the config (same pattern as
