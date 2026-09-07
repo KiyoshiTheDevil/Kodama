@@ -884,7 +884,11 @@ def make_ytmusic(name):
     return YTMusic(path, user=_brand_user_id(name))
 
 def load_profile(name):
-    global _ytm, _current_profile, _playlist_cache
+    global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
+    # The last verdict was about the cookies being replaced here, so it says nothing about the
+    # ones coming in. Back to unknown until the refresh below reports; carrying a stale False
+    # over kept the "session expired" warning up after the session had been renewed.
+    _LAST_AUTHED = None
     # Local profile: use unauthenticated YTMusic instance
     if is_local_profile(name):
         _ytm = YTMusic()
@@ -1530,10 +1534,14 @@ def setup_auth():
     try:
         ytm_temp = YTMusic(path)
         ytm_temp.get_liked_songs(limit=1)
-        global _ytm, _current_profile, _playlist_cache
+        global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
         _ytm = ytm_temp
         _current_profile = profile_name
         _playlist_cache.clear()
+        # That call just came back with real data, which is the session working. Recorded, or
+        # the stale verdict from the dead session would keep the warning up until the next
+        # refresh ping - a warning still on screen after signing back in.
+        _LAST_AUTHED = True
         threading.Thread(target=fetch_account_info, args=(profile_name,), daemon=True).start()
         return jsonify({"ok": True, "profile": profile_name})
     except Exception as e:
@@ -1606,10 +1614,13 @@ def cookie_login():
         ytm_temp = YTMusic(path, user=delegated or None)
         # Quick test
         ytm_temp.get_liked_songs(limit=1)
-        global _ytm, _current_profile, _playlist_cache
+        global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
         _ytm = ytm_temp
         _current_profile = profile_name
         _playlist_cache.clear()
+        # The test call above is proof the new cookies work; say so, so the "session expired"
+        # warning goes away by itself instead of having to be dismissed by hand.
+        _LAST_AUTHED = True
 
         # Save meta — merge with any existing meta so a re-login into a logged-out
         # profile keeps its data and drops the logged_out flag.
