@@ -410,14 +410,22 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   };
   const applyVizPreset = (p) => onUpdateViz({ ...VIZ_DEFAULTS, ...p.config });
   const deleteVizPreset = (id) => persistVizPresets(vizPresets.filter(p => p.id !== id));
-  const exportVizPreset = (p) => {
-    const blob = new Blob([JSON.stringify({ name: p.name, savedAt: p.savedAt, config: p.config }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(p.name || "visualizer").replace(/[^\w\s-]/g, "").trim() || "visualizer"}.kodama-visualizer.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Asks where to put it, like the identity export next door. The <a download> trick this used
+  // to do is a web page's only option, but in a desktop app it hands the file to the browser
+  // engine, which drops it in Downloads without a word - the button looked like it had done
+  // nothing, while Import right beside it opened a proper dialog.
+  const exportVizPreset = async (p) => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const base = (p.name || "visualizer").replace(/[^\w\s-]/g, "").trim() || "visualizer";
+      const path = await save({
+        defaultPath: `${base}.kodama-visualizer.json`,
+        filters: [{ name: "Visualizer preset", extensions: ["json"] }],
+      });
+      if (!path) return;
+      await writeTextFile(path, JSON.stringify({ name: p.name, savedAt: p.savedAt, config: p.config }, null, 2));
+    } catch {}
   };
   const handleVizImport = (e) => {
     const files = Array.from(e.target.files || []);

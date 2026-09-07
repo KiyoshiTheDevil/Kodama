@@ -1560,14 +1560,20 @@ export default function OverlayEditor({
     persistProfiles(next);
   }, [profiles, persistProfiles, t]);
 
-  const exportProfile = useCallback((prof) => {
-    const blob = new Blob([JSON.stringify(prof, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${prof.name.replace(/[^\w\s-]/g, "").trim() || "design"}.kiyoshi-overlay.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Asks where to put it. The <a download> this used to do hands the file to the browser
+  // engine, which drops it in Downloads silently - no dialog, no hint it worked.
+  const exportProfile = useCallback(async (prof) => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const base = prof.name.replace(/[^\w\s-]/g, "").trim() || "design";
+      const path = await save({
+        defaultPath: `${base}.kiyoshi-overlay.json`,
+        filters: [{ name: "Overlay design", extensions: ["json"] }],
+      });
+      if (!path) return;
+      await writeTextFile(path, JSON.stringify(prof, null, 2));
+    } catch {}
   }, []);
 
   const handleImportFiles = useCallback((e) => {

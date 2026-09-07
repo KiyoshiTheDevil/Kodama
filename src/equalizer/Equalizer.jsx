@@ -274,14 +274,20 @@ export default function Equalizer({ t }) {
     }));
   };
 
-  const exportPresets = () => {
-    const payload = { kind: "kodama-eq", version: 1, bands: BANDS, presets: state.custom };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "kodama-eq-presets.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
+  // Asks where to put it. The <a download> this used to do hands the file to the browser
+  // engine, which drops it in Downloads silently - no dialog, no hint it worked.
+  const exportPresets = async () => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const path = await save({
+        defaultPath: "kodama-eq-presets.json",
+        filters: [{ name: "Equalizer presets", extensions: ["json"] }],
+      });
+      if (!path) return;
+      const payload = { kind: "kodama-eq", version: 1, bands: BANDS, presets: state.custom };
+      await writeTextFile(path, JSON.stringify(payload, null, 2));
+    } catch {}
   };
 
   const importPresets = async (file) => {
