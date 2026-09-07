@@ -22,7 +22,26 @@ export function applyTheme(theme) {
   const root = document.documentElement;
   root.setAttribute("data-theme", t);
   root.classList.toggle("dark", t !== "light");
+  // Applied from here so it reaches every window without a second thing to remember, the way
+  // the `dark` class above does. The corner shape is deliberately not a theme name: it has to
+  // combine with whichever colours are in use, or it could not be tested in them.
+  applyShape();
   return t;
+}
+
+/** Whether corners are squared off. An experiment, see the block in index.css. */
+export function readShape() {
+  try {
+    return localStorage.getItem("kiyoshi-sharp-corners") === "true" ? "sharp" : "round";
+  } catch {
+    return "round";
+  }
+}
+
+export function applyShape(shape) {
+  const s = shape || readShape();
+  document.documentElement.setAttribute("data-shape", s);
+  return s;
 }
 
 /** The stored theme, for windows that only read it. */

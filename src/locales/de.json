@@ -983,6 +983,8 @@
   "libraryNoMatches": "Nichts gefunden.",
   "rtlLayout": "Layout von rechts nach links",
   "rtlLayoutDesc": "Dreht die Oberfläche für Sprachen wie Hebräisch oder Arabisch. Kodama ist dafür noch nicht ausgelegt, vieles wird verrutschen. Zum Ausprobieren und Melden gedacht.",
+  "sharpCorners": "Eckige Ecken",
+  "sharpCornersDesc": "Macht alle Ecken der App eckig. Ein Test für die Theme-Arbeit: Was rund bleibt, folgt dem Theme noch nicht.",
   "ovlEditorTitle": "Overlay Editor",
   "ovlMenuPrefs": "Einstellungen",
   "ovlPlaceImage": "Bild platzieren",

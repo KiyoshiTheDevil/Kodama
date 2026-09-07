@@ -22,7 +22,7 @@ import { parseDurationToSeconds } from "./lyrics/parse.js";
 import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMeta, setOverride } from "./lastfm/scrobble-rules.js";
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
-import { applyTheme } from "./theme.js";
+import { applyTheme, applyShape } from "./theme.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
@@ -3752,6 +3752,22 @@ export default function App() {
     document.documentElement.setAttribute("dir", on ? "rtl" : "ltr");
   }, []);
 
+  // Square every corner. A measuring instrument for the theme work rather than a look: themes
+  // are supposed to be able to change the shape of the interface, and the only way to see what
+  // still will not move is to move it all at once. What stays round under it is the report -
+  // see the [data-shape="sharp"] block in index.css. Its own attribute, so it combines with
+  // whichever colour theme is on instead of replacing it.
+  const [sharpCorners, setSharpCorners] = useState(() => {
+    const on = localStorage.getItem("kiyoshi-sharp-corners") === "true";
+    applyShape(on ? "sharp" : "round");
+    return on;
+  });
+  const handleSharpCornersChange = useCallback((on) => {
+    setSharpCorners(on);
+    localStorage.setItem("kiyoshi-sharp-corners", String(on));
+    applyShape(on ? "sharp" : "round");
+  }, []);
+
   const [appFont, setAppFont] = useState(() => {
     const saved = localStorage.getItem("kiyoshi-app-font") || "default";
     if (saved === "dyslexic") document.documentElement.style.setProperty("--font", "'OpenDyslexic', system-ui, sans-serif");
@@ -6385,6 +6401,8 @@ export default function App() {
             }}
             rtlLayout={rtlLayout}
             onToggleRtlLayout={() => handleRtlLayoutChange(!rtlLayout)}
+            sharpCorners={sharpCorners}
+            onToggleSharpCorners={() => handleSharpCornersChange(!sharpCorners)}
             appFont={appFont}
             onAppFontChange={handleAppFontChange}
             ambientVisualizer={ambientVisualizer}

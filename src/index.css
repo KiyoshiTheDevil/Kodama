@@ -288,6 +288,26 @@
 }
 
 /* â”€â”€â”€ OLED Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── "Sharp": every corner square ─────────────────────────────────────────────
+   A measuring instrument, not a design. Themes are meant to be able to change the
+   SHAPE of the interface, not only its colours, and the only way to find out what
+   still refuses to move is to move everything at once and look.
+
+   Its own attribute rather than a data-theme value, so it composes with whichever
+   colour theme is in use - you test it in your own theme instead of giving that up.
+
+   Setting the scale is enough to reach almost everything: inline styles read these
+   tokens directly, and Tailwind's whole rounded-* scale compiles to
+   calc(var(--radius) * n), with --radius being --r-lg. What stays round is exactly
+   the report this switch exists to produce: `rounded-full` compiles to a literal
+   (82 uses, pills and circles), and a couple of dozen `rounded-[10px]`-style
+   arbitrary values. --r-full is squared here too, deliberately - a sharp theme that
+   left pills alone would hide half of them.  */
+[data-shape="sharp"] {
+  --r-xs: 0; --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-2xl: 0; --r-full: 0;
+  --radius: 0; --radius-lg: 0;
+}
+
 [data-theme="oled"] {
   --bg-base:    #000000;
   --bg-surface: #080808;
