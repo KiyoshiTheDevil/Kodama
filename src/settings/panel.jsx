@@ -427,6 +427,12 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     setVizPresetName("");
   };
   const applyVizPreset = (p) => onUpdateViz({ ...VIZ_DEFAULTS, ...p.config });
+  // Save into an existing preset instead of beside it. Tuning a saved look meant saving a
+  // second one under the same name and deleting the first. Keeps the id, so the row stays
+  // where it is rather than jumping to the top the way a new one does.
+  const overwriteVizPreset = (id) => persistVizPresets(vizPresets.map(p =>
+    p.id === id ? { ...p, savedAt: new Date().toISOString(), config: { ...vizConfig } } : p
+  ));
   const deleteVizPreset = (id) => persistVizPresets(vizPresets.filter(p => p.id !== id));
   // Asks where to put it, like the identity export next door. The <a download> trick this used
   // to do is a web page's only option, but in a desktop app it hands the file to the browser
@@ -919,6 +925,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       {vizPresets.map((p) => (
                         <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
                           <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
+                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} title={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
                           <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} title={t("export") || "Exportieren"}><DownloadSimple size={13} /></Button>
                           <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
                         </div>

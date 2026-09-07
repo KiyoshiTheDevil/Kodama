@@ -235,6 +235,7 @@
   "visualizerBlobs": "Ambient blobs",
   "resetToDefault": "Reset to default",
   "visualizerPresets": "Presets",
+  "vizPresetOverwrite": "Overwrite with current settings",
   "presetNamePlaceholder": "Name this preset…",
   "preset": "Preset",
   "showPreview": "Show preview",

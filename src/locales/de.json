@@ -237,6 +237,7 @@
   "visualizerBlobs": "Ambient-Blobs",
   "resetToDefault": "Auf Standard zurücksetzen",
   "visualizerPresets": "Presets",
+  "vizPresetOverwrite": "Mit aktuellen Einstellungen überschreiben",
   "presetNamePlaceholder": "Preset benennen…",
   "preset": "Preset",
   "showPreview": "Vorschau anzeigen",
