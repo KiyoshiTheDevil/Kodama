@@ -11,6 +11,7 @@ import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel, SettingsSectionDesc } from "../ui/settings-controls.jsx";
+import { Tooltip } from "../ui/tooltip.jsx";
 import { fmtBytes } from "../format.js";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { CoverView } from "../views/cover-view.jsx";
@@ -925,9 +926,15 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       {vizPresets.map((p) => (
                         <div key={p.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
                           <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
-                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} title={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
-                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} title={t("export") || "Exportieren"}><DownloadSimple size={13} /></Button>
-                          <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} title={t("delete") || "Löschen"}><Trash size={13} /></Button>
+                          <Tooltip text={t("vizPresetOverwrite")}>
+                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} aria-label={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
+                          </Tooltip>
+                          <Tooltip text={t("export")}>
+                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => exportVizPreset(p)} aria-label={t("export")}><DownloadSimple size={13} /></Button>
+                          </Tooltip>
+                          <Tooltip text={t("delete")}>
+                            <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} aria-label={t("delete")}><Trash size={13} /></Button>
+                          </Tooltip>
                         </div>
                       ))}
                     </div>
