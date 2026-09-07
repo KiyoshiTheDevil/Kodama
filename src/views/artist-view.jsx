@@ -130,6 +130,10 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
   const [allAlbumsLoading, setAllAlbumsLoading] = useState(false);
   const [allSingles, setAllSingles] = useState(null);
   const [allSinglesLoading, setAllSinglesLoading] = useState(false);
+  const [allVideos, setAllVideos] = useState(null);
+  const [allVideosLoading, setAllVideosLoading] = useState(false);
+  const [allPlaylists, setAllPlaylists] = useState(null);
+  const [allPlaylistsLoading, setAllPlaylistsLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(null);     // null = unknown (not loaded yet)
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState(null);
@@ -140,6 +144,9 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
   useEffect(() => {
     setLoading(true);
     setError(null);
+    // An expanded shelf belongs to the page it was expanded on. Without this, opening a
+    // second artist while one of them is unfolded shows that one's albums under the new name.
+    setAllAlbums(null); setAllSingles(null); setAllVideos(null); setAllPlaylists(null);
     fetch(`${API}/artist/${browseId}`)
       .then(r => r.json())
       .then(d => {
@@ -387,23 +394,87 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
         })()}
 
         {/* Videos */}
-        {artist.videos?.length > 0 && (
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: "var(--t16)", fontWeight: 600, marginBottom: 12 }}>{t("videos")}</div>
-            <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
-              {artist.videos.map((v, i) => {
-                const playVideo = () => onPlay(
-                  { videoId: v.videoId, title: v.title, artists: v.artists, thumbnail: v.thumbnail, duration: "" },
-                  artist.videos.map(x => ({ videoId: x.videoId, title: x.title, artists: x.artists, thumbnail: x.thumbnail, duration: "" }))
-                );
-                return (
-                  <MediaTile key={i} shape="video" thumbnail={v.thumbnail} title={v.title} subtitle={v.views || null}
-                    onOpen={playVideo} onPlay={playVideo} />
-                );
-              })}
+        {artist.videos?.length > 0 && (() => {
+          const displayVideos = allVideos ?? artist.videos;
+          // Two shapes of "more", see _shelf_more in the backend: a channel unfolds here, an
+          // artist's video playlist opens in the playlist view the way Top songs does.
+          const canExpand = !allVideos && artist.videosBrowseId && artist.videosParams;
+          const canShowAll = canExpand || !!artist.videosPlaylistId;
+          // Playing one queues the shelf as it currently stands - the ten on the carousel
+          // before "Show all", everything the channel has after it.
+          const asTrack = (x) => ({ videoId: x.videoId, title: x.title, artists: x.artists, thumbnail: x.thumbnail, duration: "" });
+          const queue = displayVideos.map(asTrack);
+          const tiles = displayVideos.map((v, i) => (
+            <MediaTile key={i} shape="video" thumbnail={v.thumbnail} title={v.title} subtitle={v.views || null}
+              onOpen={() => onPlay(asTrack(v), queue)} onPlay={() => onPlay(asTrack(v), queue)} />
+          ));
+          return (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("videos")}</div>
+                {canShowAll && (
+                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allVideosLoading}
+                    onPress={() => {
+                      if (!canExpand) {
+                        onOpenPlaylist({ playlistId: artist.videosPlaylistId, title: `${artist.name} – ${t("videos")}`, forcedTitle: `${artist.name} – ${t("videos")}`, thumbnail: artist.thumbnail });
+                        return;
+                      }
+                      setAllVideosLoading(true);
+                      fetch(`${API}/artist_videos?channelId=${encodeURIComponent(artist.videosBrowseId)}&params=${encodeURIComponent(artist.videosParams)}`)
+                        .then(r => r.json())
+                        .then(d => { if (!d.error) setAllVideos(d.videos); })
+                        .catch(() => {})
+                        .finally(() => setAllVideosLoading(false));
+                    }}>
+                    {allVideosLoading ? "…" : t("showAll")}
+                  </Button>
+                )}
+              </div>
+              {allVideos
+                ? <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>{tiles}</div>
+                : <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>{tiles}</div>}
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* Playlists */}
+        {artist.playlists?.length > 0 && (() => {
+          const displayPlaylists = allPlaylists ?? artist.playlists;
+          const canExpand = !allPlaylists && artist.playlistsBrowseId && artist.playlistsParams;
+          const canShowAll = canExpand || !!artist.playlistsPlaylistId;
+          const tiles = displayPlaylists.map((p, i) => (
+            <MediaTile key={i} thumbnail={p.thumbnail} title={p.title} subtitle={p.count ? `${p.count} ${t("songs")}` : null}
+              onOpen={() => onOpenPlaylist({ playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail })}
+              onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail, type: "playlist" }); }} />
+          ));
+          return (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("playlists")}</div>
+                {canShowAll && (
+                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allPlaylistsLoading}
+                    onPress={() => {
+                      if (!canExpand) {
+                        onOpenPlaylist({ playlistId: artist.playlistsPlaylistId, title: `${artist.name} – ${t("playlists")}`, forcedTitle: `${artist.name} – ${t("playlists")}`, thumbnail: artist.thumbnail });
+                        return;
+                      }
+                      setAllPlaylistsLoading(true);
+                      fetch(`${API}/artist_playlists?channelId=${encodeURIComponent(artist.playlistsBrowseId)}&params=${encodeURIComponent(artist.playlistsParams)}`)
+                        .then(r => r.json())
+                        .then(d => { if (!d.error) setAllPlaylists(d.playlists); })
+                        .catch(() => {})
+                        .finally(() => setAllPlaylistsLoading(false));
+                    }}>
+                    {allPlaylistsLoading ? "…" : t("showAll")}
+                  </Button>
+                )}
+              </div>
+              {allPlaylists
+                ? <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>{tiles}</div>
+                : <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>{tiles}</div>}
+            </div>
+          );
+        })()}
 
         {/* Related Artists */}
         {artist.related?.length > 0 && (

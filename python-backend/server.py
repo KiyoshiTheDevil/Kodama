@@ -3850,6 +3850,22 @@ def _extract_artist_desc_url(browse_id):
     return None
 
 
+def _shelf_more(artist, key):
+    """Where a shelf's "more" heading leads, in the two shapes it comes in.
+
+    An artist page sends the videos heading to a playlist of them (a VL... browseId), while a
+    channel sends it to a grid on the channel itself. They need different handling - one opens
+    the playlist view, the other is fetched and unfolded in place - so which one it is gets
+    decided here rather than by the frontend sniffing a prefix. Both fields empty means the
+    heading was not a link at all and there is nothing more to show. Part of issue #28.
+    """
+    shelf = artist.get(key) or {}
+    browse_id = shelf.get("browseId", "") or ""
+    params = shelf.get("params", "") or ""
+    if browse_id.startswith("VL"):
+        return {f"{key}PlaylistId": browse_id[2:], f"{key}BrowseId": "", f"{key}Params": ""}
+    return {f"{key}PlaylistId": "", f"{key}BrowseId": browse_id, f"{key}Params": params}
+
 @app.route("/artist/<browse_id>")
 def get_artist(browse_id):
     try:
@@ -3932,6 +3948,18 @@ def get_artist(browse_id):
                 "thumbnail": _pick_thumb(thumbs),
             })
 
+        # Playlists. Artist pages carry a shelf of these too, but it is on a channel that they
+        # matter: that is often all such a page has. Reported as issue #28.
+        playlists = []
+        for p in (artist.get("playlists", {}).get("results", [])):
+            thumbs = p.get("thumbnails", [])
+            playlists.append({
+                "playlistId": p.get("playlistId", ""),
+                "title":      p.get("title", "") or "",
+                "count":      p.get("count", "") or "",
+                "thumbnail":  _pick_thumb(thumbs),
+            })
+
         # Related artists ("Fans might also like")
         related = []
         for r in (artist.get("related", {}).get("results", [])):
@@ -3960,11 +3988,17 @@ def get_artist(browse_id):
             "albumsParams":   artist.get("albums", {}).get("params", "") or "",
             "singlesBrowseId": artist.get("singles", {}).get("browseId", "") or "",
             "singlesParams":   artist.get("singles", {}).get("params", "") or "",
-            "tracks":  tracks,
-            "albums":  albums,
-            "singles": singles,
-            "videos":  videos,
-            "related": related,
+            # A shelf only carries these when its heading is a link, which is what "more of
+            # this" means on the page itself - so an empty pair is the honest answer that
+            # there is nothing further to fetch, and the frontend hides the button.
+            **_shelf_more(artist, "videos"),
+            **_shelf_more(artist, "playlists"),
+            "tracks":    tracks,
+            "albums":    albums,
+            "singles":   singles,
+            "videos":    videos,
+            "playlists": playlists,
+            "related":   related,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -4145,6 +4179,54 @@ def get_artist_albums_route():
                 "type":      a.get("type", ""),
             })
         return jsonify({"albums": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# The other two shelves behind "Show all". Albums and singles go through get_artist_albums
+# above; videos and playlists have their own calls, because their full pages come back as a
+# grid of a different item type. Both work for artist pages and channels alike - the params
+# come from the shelf heading either way. Part of issue #28.
+@app.route("/artist_videos")
+def get_artist_videos_route():
+    channel_id = request.args.get("channelId", "")
+    params = request.args.get("params", "")
+    if not channel_id or not params:
+        return jsonify({"error": "channelId and params are required"}), 400
+    try:
+        items = get_ytmusic().get_user_videos(channel_id, params)
+        result = []
+        for v in (items or []):
+            if not v.get("videoId"):
+                continue
+            v_artists = v.get("artists") or []
+            result.append({
+                "videoId":   v.get("videoId", ""),
+                "title":     v.get("title", ""),
+                "artists":   ", ".join(a.get("name", "") for a in v_artists),
+                "views":     v.get("views", ""),
+                "thumbnail": _pick_thumb(v.get("thumbnails", [])),
+            })
+        return jsonify({"videos": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/artist_playlists")
+def get_artist_playlists_route():
+    channel_id = request.args.get("channelId", "")
+    params = request.args.get("params", "")
+    if not channel_id or not params:
+        return jsonify({"error": "channelId and params are required"}), 400
+    try:
+        items = get_ytmusic().get_user_playlists(channel_id, params)
+        result = []
+        for p in (items or []):
+            result.append({
+                "playlistId": p.get("playlistId", ""),
+                "title":      p.get("title", "") or "",
+                "count":      p.get("count", "") or "",
+                "thumbnail":  _pick_thumb(p.get("thumbnails", [])),
+            })
+        return jsonify({"playlists": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
