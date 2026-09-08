@@ -6,6 +6,7 @@ import { cn, Button, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, Moda
 import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Megaphone, Star, ArrowClockwise } from "../icons.jsx";
+import { thumb } from "../context.jsx";
 
 // Tiny inline markdown: **bold**, *italic*, `code`, [text](url). Links open externally.
 function renderInline(text, kp) {
@@ -89,7 +90,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                           className={cn("w-full text-left flex gap-2.5 px-3 py-2.5 border-b border-border transition-colors duration-100",
                             active ? "bg-accent-dim" : "hover:bg-hover")}>
                           {n.image
-                            ? <img src={n.image} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
+                            ? <img src={thumb(n.image)} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
                             : <div className="w-11 h-11 rounded-lg shrink-0 flex items-center justify-center" style={{ background: b.bg }}><Megaphone size={16} style={{ color: b.fg }} /></div>}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
@@ -108,7 +109,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                   <div className="flex-1 min-w-0 overflow-y-auto">
                     {selected && (
                       <>
-                        {selected.image && <img src={selected.image} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: "cover" }} />}
+                        {selected.image && <img src={thumb(selected.image)} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: "cover" }} />}
                         <div className="px-6 py-5">
                           <div className="flex items-center gap-2 mb-2.5 flex-wrap">
                             <span className="text-[length:var(--t10)] font-bold px-2 py-0.5 rounded-md" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span>

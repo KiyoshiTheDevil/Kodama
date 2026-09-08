@@ -377,7 +377,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
               {/* Song card */}
               <CardRoot className="flex items-center gap-3 mb-5 px-3.5 py-3">
                 {currentTrack.thumbnail && (
-                  <img src={currentTrack.thumbnail} alt="" className="w-[52px] h-[52px] rounded-[var(--r-md)] object-cover shrink-0" />
+                  <img src={thumb(currentTrack.thumbnail)} alt="" className="w-[52px] h-[52px] rounded-[var(--r-md)] object-cover shrink-0" />
                 )}
                 <div className="min-w-0">
                   <div className="text-[length:var(--t13)] font-semibold text-primary truncate">{currentTrack.title}</div>
