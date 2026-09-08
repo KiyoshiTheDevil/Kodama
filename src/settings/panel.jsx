@@ -1077,6 +1077,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     { id: "dark",  label: t("themeDark"),  bg: "#0d0d0d", surface: "#141414", elevated: "#1c1c1c", text: "#f0f0f0" },
                     { id: "oled",  label: t("themeOled"),  bg: "#000000", surface: "#080808", elevated: "#0f0f0f", text: "#ffffff" },
                     { id: "light", label: t("themeLight"), bg: "#f0f0f0", surface: "#ffffff", elevated: "#e4e4e4", text: "#111111" },
+                    { id: "grove", label: t("themeGrove"), bg: "#0e1410", surface: "#141c17", elevated: "#1b241e", text: "#e6efe8" },
                   ].map(th => (
                     <CardRoot key={th.id} onClick={() => onThemeChange(th.id)} variant="transparent"
                       className={cn(

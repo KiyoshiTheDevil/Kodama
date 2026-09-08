@@ -329,6 +329,33 @@
   --radius: 0; --radius-lg: 0;
 }
 
+/* ── Grove ───────────────────────────────────────────────────────────────────
+   The first theme that is a look rather than a brightness. Kodama is a tree spirit, so the
+   ground is moss rather than neutral grey.
+
+   Deliberately short: only the surfaces, the two things measured against them, and nothing
+   else. The strokes, the fill states and the whole text ladder are white at fixed opacities,
+   so they sit correctly on any ground of roughly this darkness and are simply inherited - if
+   this block had to restate them, the ladder would not be doing its job. The status colours
+   and the accent wash come along for the same reason.
+
+   What does need saying is anything that was picked to sit ON the old grey: the slider track
+   and the three scrollbar weights are tinted to match, or they read as foreign objects. */
+[data-theme="grove"] {
+  --bg-base:     #0e1410;
+  --bg-surface:  #141c17;
+  --bg-elevated: #1b241e;
+  --bg-hover:    #222d25;
+  --surface-1:   #1b241e;
+  --surface-2:   #2a352d;
+  --surface-3:   #35423a;
+  --acrylic:     rgba(14, 20, 16, 0.84);
+  --slider-track:       #2a352d;
+  --scroll-thumb:       #2f3b33;
+  --scroll-thumb-dim:   #232e27;
+  --scroll-thumb-hover: #5d6f64;
+}
+
 [data-theme="oled"] {
   --bg-base:    #000000;
   --bg-surface: #080808;
