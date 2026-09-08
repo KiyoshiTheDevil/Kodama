@@ -264,7 +264,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                 <div className="flex items-center justify-between px-4 pt-4 pb-2.5 shrink-0">
                   <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("lyricsPreview")}</span>
                   <button onClick={close} title={t("close") || "Close"}
-                    className="flex items-center justify-center size-7 rounded-full hover:bg-hover text-muted hover:text-primary transition-colors">
+                    className="flex items-center justify-center size-7 rounded-[var(--r-full)] hover:bg-hover text-muted hover:text-primary transition-colors">
                     <X size={13} weight="bold" />
                   </button>
                 </div>

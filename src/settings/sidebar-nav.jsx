@@ -126,7 +126,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
         justifyContent: collapsed ? "center" : "flex-start",
         flexShrink: 0,
       }}>
-        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} title={t("back") || "Back"} className="rounded-full shrink-0">
+        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} title={t("back") || "Back"} className="rounded-[var(--r-full)] shrink-0">
           <ArrowLeft size={16} weight="bold" />
         </Button>
         {!collapsed && (

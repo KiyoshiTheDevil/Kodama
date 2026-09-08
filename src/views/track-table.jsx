@@ -146,7 +146,7 @@ function RowIconButton({ title, onClick, className = "", children }) {
         // Pressed state. Deliberately stronger than HeroUI's scale(.97): at 32px that amount is
         // barely perceptible, and these buttons are small targets. A CSS rule suffices here —
         // unlike the header buttons, nothing writes to this element's inline style.
-        className={`shrink-0 w-8 h-8 rounded-full border-0 bg-transparent flex items-center justify-center cursor-default transition-[background-color,opacity,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
+        className={`shrink-0 w-8 h-8 rounded-[var(--r-full)] border-0 bg-transparent flex items-center justify-center cursor-default transition-[background-color,opacity,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
       >
         {children}
       </button>

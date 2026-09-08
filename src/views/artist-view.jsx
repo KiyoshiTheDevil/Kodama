@@ -209,7 +209,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.55) 75%, var(--bg-base) 100%)" }} />
 
         {/* Back button */}
-        <Button isIconOnly variant="secondary" className="absolute top-11 left-4 z-10 size-9 rounded-full backdrop-blur-md"
+        <Button isIconOnly variant="secondary" className="absolute top-11 left-4 z-10 size-9 rounded-[var(--r-full)] backdrop-blur-md"
           style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }} onPress={onBack}>
           <ArrowLeft size={18} />
         </Button>
@@ -221,7 +221,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
             <h1 style={{ fontSize: 46, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1.05, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{artist.name}</h1>
             {onTogglePin && (
               <Tooltip text={t(isPinned ? "removeFromSidebar" : "pinToSidebar")}>
-                <Button isIconOnly size="sm" className="size-8 rounded-full shrink-0 backdrop-blur-md"
+                <Button isIconOnly size="sm" className="size-8 rounded-[var(--r-full)] shrink-0 backdrop-blur-md"
                   style={{ background: isPinned ? "var(--accent)" : "rgba(255,255,255,0.18)", color: "#fff" }}
                   onPress={() => onTogglePin({ browseId, title: artist.name, thumbnail: artist.thumbnail, type: "artist" })}>
                   <PushPin size={15} weight={isPinned ? "fill" : "regular"} />

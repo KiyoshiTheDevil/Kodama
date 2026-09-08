@@ -176,7 +176,7 @@ export function DebugFloatingWindow({ onClose }) {
         <Button variant="ghost" size="sm" className="text-[length:var(--t11)] px-2.5!"
           onPress={() => window.dispatchEvent(new Event("kodama-open-diagnostics"))}>Live</Button>
         <div className="w-px h-3 bg-border mx-0.5" />
-        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[var(--status-danger)]! rounded-full"><X size={12} weight="bold" /></Button>
+        <Button variant="ghost" size="sm" isIconOnly onPress={onClose} className="text-[var(--status-danger)]! rounded-[var(--r-full)]"><X size={12} weight="bold" /></Button>
       </div>
 
       {/* Body */}

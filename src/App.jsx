@@ -900,7 +900,12 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     // equal at every type scale. Collapsed, this group is shorter than the buttons and the
     // browser scales the corners down to half its height by itself, which makes the closed
     // group a true pill; open, it keeps the buttons' radius.
-    <div className="bg-white/5 hover:bg-white/10 rounded-[1.25rem] w-full mb-1.5 overflow-hidden transition-colors duration-150">
+    <div className="bg-white/5 hover:bg-white/10 w-full mb-1.5 overflow-hidden transition-colors duration-150"
+      // Not --r-full on its own: open, this group is far taller than a button, and a pill
+      // radius would round it into a giant capsule instead of matching the buttons. min()
+      // keeps the 1.25rem the comment above explains and still lets a theme flatten it,
+      // since a squared --r-full wins the min.
+      style={{ borderRadius: "min(1.25rem, var(--r-full))" }}>
     <Disclosure
       isExpanded={collapsedGroupOpen[titleKey] ?? false}
       onExpandedChange={(v) => setCollapsedGroupExpanded(titleKey, v)}
@@ -1032,7 +1037,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <Button
             variant="ghost" size="sm" isIconOnly
             onPress={onToggleCollapse}
-            className="shrink-0 relative z-[201] rounded-full"
+            className="shrink-0 relative z-[201] rounded-[var(--r-full)]"
             style={{ visibility: settingsOpen ? "hidden" : "visible", contain: "layout style" }}
             onMouseEnter={e => {
               if (collapsed) {
@@ -1059,10 +1064,10 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               </SearchFieldRoot>
               {suggestionsBox}
             </div>
-            <Button variant="ghost" size="sm" isIconOnly onPress={onRefreshView} className="shrink-0 rounded-full" title={t("refresh")} style={{ contain: "layout style" }}>
+            <Button variant="ghost" size="sm" isIconOnly onPress={onRefreshView} className="shrink-0 rounded-[var(--r-full)]" title={t("refresh")} style={{ contain: "layout style" }}>
               <ArrowClockwise size={14} />
             </Button>
-            <Button variant="ghost" size="sm" isIconOnly onPress={onToggleCollapse} className="shrink-0 rounded-full" title={t("collapse") || "Collapse"} style={{ contain: "layout style" }}>
+            <Button variant="ghost" size="sm" isIconOnly onPress={onToggleCollapse} className="shrink-0 rounded-[var(--r-full)]" title={t("collapse") || "Collapse"} style={{ contain: "layout style" }}>
               <CaretLineLeft size={16} />
             </Button>
           </>
@@ -1074,7 +1079,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               <Button
                 variant="ghost" size="sm" isIconOnly
                 onPress={onRefreshView}
-                className="shrink-0 rounded-full"
+                className="shrink-0 rounded-[var(--r-full)]"
                 title={t("refresh")}
                 style={{ contain: "layout style" }}
               >
@@ -1206,7 +1211,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               <Button
                 variant="ghost" size="sm" isIconOnly
                 onPress={onOpenNews}
-                className="shrink-0 rounded-full"
+                className="shrink-0 rounded-[var(--r-full)]"
                 title={t("news") || "Neuigkeiten"}
                 style={{ contain: "layout style" }}
               >
@@ -2229,7 +2234,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       <Button
         variant="ghost" isIconOnly
         onPress={onClick}
-        className={cn("rounded-full", active ? "text-accent" : "text-secondary hover:text-primary")}
+        className={cn("rounded-[var(--r-full)]", active ? "text-accent" : "text-secondary hover:text-primary")}
         style={{ contain: "layout style" }}
       >
         {children}
@@ -2400,7 +2405,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 const newVol = volume > 0 ? 0 : prevVolumeRef.current;
                 a.volume = volCurve(newVol);
               }}
-              className={cn("rounded-full", volume === 0 ? "text-muted hover:text-primary" : "text-secondary hover:text-primary")}
+              className={cn("rounded-[var(--r-full)]", volume === 0 ? "text-muted hover:text-primary" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               {volume === 0
                 ? <SpeakerX size={15} />
@@ -2431,7 +2436,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           <Dropdown>
             <DropdownTrigger
               title={sleepRemaining !== null ? `${t("sleepTimer")}: ${formatSleepRemaining(sleepRemaining)}` : t("sleepTimer")}
-              className={cn("shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative transition-colors duration-150 hover:bg-hover", sleepRemaining !== null ? "text-accent" : "text-secondary hover:text-primary")}
+              className={cn("shrink-0 w-9 h-9 rounded-[var(--r-full)] flex items-center justify-center relative transition-colors duration-150 hover:bg-hover", sleepRemaining !== null ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}
             >
               <Moon size={15} weight={sleepRemaining !== null ? "fill" : "regular"} />
@@ -2483,7 +2488,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             return (
               <Dropdown onOpenChange={(open) => { if (open) fetchMoreBrowseIds(); }}>
                 <DropdownTrigger
-                  className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-150 text-secondary hover:text-primary hover:bg-hover"
+                  className="shrink-0 w-9 h-9 rounded-[var(--r-full)] flex items-center justify-center transition-colors duration-150 text-secondary hover:text-primary hover:bg-hover"
                   style={{ contain: "layout style" }}
                 >
                   <DotsThreeVertical size={18} />
@@ -2654,7 +2659,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Queue toggle */}
           <Tooltip text={t("queueTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleQueue}
-              className={cn("rounded-full", queueOpen ? "text-accent" : "text-secondary hover:text-primary")}
+              className={cn("rounded-[var(--r-full)]", queueOpen ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               <Queue size={16} />
             </Button>
@@ -2662,7 +2667,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Mini player — opens the small always-on-top window */}
           <Tooltip text={t("miniPlayerTooltip")}>
             <Button variant="ghost" isIconOnly onPress={() => { openMiniPlayer().catch(() => {}); }}
-              className="rounded-full text-secondary hover:text-primary"
+              className="rounded-[var(--r-full)] text-secondary hover:text-primary"
               style={{ contain: "layout style" }}>
               <MiniPlayerEnter size={16} />
             </Button>
@@ -2670,7 +2675,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Lyrics toggle */}
           <Tooltip text={t("lyricsTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleLyrics}
-              className={cn("rounded-full", (expanded && showLyrics) ? "text-accent" : "text-secondary hover:text-primary")}
+              className={cn("rounded-[var(--r-full)]", (expanded && showLyrics) ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               <ChatText size={16} />
             </Button>
@@ -2704,7 +2709,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Expand toggle — hidden in fullscreen (overlay is always open there) */}
           {!fullscreen && (
             <Button variant="ghost" isIconOnly onPress={onExpandToggle}
-              className={cn("rounded-full", expanded ? "text-accent" : "text-secondary hover:text-primary")}
+              className={cn("rounded-[var(--r-full)]", expanded ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               <CaretUp size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" }} />
             </Button>
@@ -2712,7 +2717,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           {/* Fullscreen toggle */}
           <Tooltip text={t("fullscreenTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleFullscreen}
-              className={cn("rounded-full", fullscreen ? "text-accent" : "text-secondary hover:text-primary")}
+              className={cn("rounded-[var(--r-full)]", fullscreen ? "text-accent" : "text-secondary hover:text-primary")}
               style={{ contain: "layout style" }}>
               {fullscreen ? <ArrowsIn size={18} /> : <ArrowsOut size={18} />}
             </Button>
@@ -2834,7 +2839,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
       <CardRoot variant="secondary" className="relative gap-0!"
         style={{ width: 420, maxWidth: "92vw", padding: 36, boxShadow: "var(--elevation-4)" }}>
         {onCancel && step !== "waiting" && (
-          <Button isIconOnly size="sm" variant="ghost" className="absolute top-3.5 right-3.5 size-7 min-w-0 rounded-full text-muted hover:text-primary" onPress={onCancel}>
+          <Button isIconOnly size="sm" variant="ghost" className="absolute top-3.5 right-3.5 size-7 min-w-0 rounded-[var(--r-full)] text-muted hover:text-primary" onPress={onCancel}>
             <X size={16} />
           </Button>
         )}
@@ -3233,10 +3238,10 @@ function FfmpegUpdateBanner({ installed, latest, onClose }) {
         </div>
         {phase === "offer" && (<>
           <Button color="accent" variant="solid" size="sm" className="shrink-0" onPress={startUpdate}>{t("ffmpegUpdate")}</Button>
-          <Button variant="ghost" size="sm" isIconOnly className="shrink-0 rounded-full text-muted" onPress={dismiss}><X size={14} weight="bold" /></Button>
+          <Button variant="ghost" size="sm" isIconOnly className="shrink-0 rounded-[var(--r-full)] text-muted" onPress={dismiss}><X size={14} weight="bold" /></Button>
         </>)}
         {phase === "error" && (
-          <Button variant="ghost" size="sm" isIconOnly className="shrink-0 rounded-full text-muted" onPress={onClose}><X size={14} weight="bold" /></Button>
+          <Button variant="ghost" size="sm" isIconOnly className="shrink-0 rounded-[var(--r-full)] text-muted" onPress={onClose}><X size={14} weight="bold" /></Button>
         )}
       </div>
     </div>,

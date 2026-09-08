@@ -41,7 +41,7 @@ function QueueIconButton({ label, onClick, className = "", children }) {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`w-8 h-8 rounded-full border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
+      className={`w-8 h-8 rounded-[var(--r-full)] border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.90] ${className}`}
     >
       {children}
     </button>
@@ -362,7 +362,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
           <Tooltip text={t("clearQueue")}>
             <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue([])}
               style={{ height: TAB_H, width: TAB_H }}
-              className={`shrink-0 rounded-full text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+              className={`shrink-0 rounded-[var(--r-full)] text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
             ><Trash size={13} /></Button>
           </Tooltip>
         </div>

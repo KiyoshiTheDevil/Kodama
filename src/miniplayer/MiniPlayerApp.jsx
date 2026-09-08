@@ -161,14 +161,14 @@ export default function MiniPlayerApp() {
           <Button
             variant="ghost" isIconOnly aria-label={t("miniPlayerOpenMain")}
             onPress={async () => { await requestShowMain(); await closeSelf(); }}
-            className="rounded-full text-white/70 hover:text-white"
+            className="rounded-[var(--r-full)] text-white/70 hover:text-white"
           >
             <MiniPlayerExit size={14} />
           </Button>
           <Button
             variant="ghost" isIconOnly aria-label={t("miniPlayerClose")}
             onPress={closeSelf}
-            className="rounded-full text-white/70 hover:text-white"
+            className="rounded-[var(--r-full)] text-white/70 hover:text-white"
           >
             <X size={14} />
           </Button>
@@ -190,7 +190,7 @@ export default function MiniPlayerApp() {
             variant="primary" isDisabled={!np.hasTrack}
             onPress={() => sendToMain("toggle")}
             aria-label={t("miniPlayerPlayPause")}
-            className="w-14 h-9 rounded-full shrink-0"
+            className="w-14 h-9 rounded-[var(--r-full)] shrink-0"
           >
             {np.isPlaying ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
           </Button>

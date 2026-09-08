@@ -2071,7 +2071,7 @@ function FfmpegUpdateRow() {
         ) : (!loading && info && !info.installed) ? (
           <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegDownload")}</Button>
         ) : (
-          <Button variant="ghost" size="sm" isIconOnly className="rounded-full text-muted" isDisabled={loading} onPress={check}>
+          <Button variant="ghost" size="sm" isIconOnly className="rounded-[var(--r-full)] text-muted" isDisabled={loading} onPress={check}>
             <ArrowClockwise size={14} style={loading ? { animation: "spin2 0.8s linear infinite" } : undefined} />
           </Button>
         )}
@@ -2130,7 +2130,7 @@ function YtDlpUpdateRow() {
       ) : info?.updateAvailable ? (
         <Button color="accent" variant="solid" size="sm" onPress={startUpdate}>{t("ffmpegUpdate") || "Update"}</Button>
       ) : (
-        <Button variant="ghost" size="sm" isIconOnly className="rounded-full text-muted" isDisabled={loading} onPress={check}>
+        <Button variant="ghost" size="sm" isIconOnly className="rounded-[var(--r-full)] text-muted" isDisabled={loading} onPress={check}>
           <ArrowClockwise size={14} style={loading ? { animation: "spin2 0.8s linear infinite" } : undefined} />
         </Button>
       )}
