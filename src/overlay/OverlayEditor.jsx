@@ -2157,13 +2157,13 @@ export default function OverlayEditor({
                     onChange={(v) => updateCanvas({ corners: uniformCorners(v, doc.canvas.corners?.typeTL || "r") })} />
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    <PillNum prefix="TL" value={doc.canvas.corners?.TL ?? 0} min={0} max={400}
+                    <PillNum prefix={CORNER_GLYPH.TL} ariaLabel="Top left" value={doc.canvas.corners?.TL ?? 0} min={0} max={400}
                       onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TL: v } })} />
-                    <PillNum prefix="TR" value={doc.canvas.corners?.TR ?? 0} min={0} max={400}
+                    <PillNum prefix={CORNER_GLYPH.TR} ariaLabel="Top right" value={doc.canvas.corners?.TR ?? 0} min={0} max={400}
                       onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), TR: v } })} />
-                    <PillNum prefix="BL" value={doc.canvas.corners?.BL ?? 0} min={0} max={400}
+                    <PillNum prefix={CORNER_GLYPH.BL} ariaLabel="Bottom left" value={doc.canvas.corners?.BL ?? 0} min={0} max={400}
                       onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BL: v } })} />
-                    <PillNum prefix="BR" value={doc.canvas.corners?.BR ?? 0} min={0} max={400}
+                    <PillNum prefix={CORNER_GLYPH.BR} ariaLabel="Bottom right" value={doc.canvas.corners?.BR ?? 0} min={0} max={400}
                       onChange={(v) => updateCanvas({ corners: { ...(doc.canvas.corners ?? uniformCorners(0, "r")), BR: v } })} />
                   </div>
                 )}
