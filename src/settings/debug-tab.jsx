@@ -239,7 +239,7 @@ export function DebugFloatingWindow({ onClose }) {
                   }}>
                     <span style={{ color: "var(--t3)", flexShrink: 0, userSelect: "none" }}>{_debugFmtTs(entry.ts)}</span>
                     <span style={{ color: _debugLevelColor(entry.level), flexShrink: 0, minWidth: 36, fontWeight: 700, userSelect: "none" }}>{entry.level}</span>
-                    <span style={{ color: entry.source === "frontend" ? "rgba(224,64,251,0.7)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 50, userSelect: "none" }}>[{entry.source}]</span>
+                    <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 50, userSelect: "none" }}>[{entry.source}]</span>
                     <span style={{ color: "var(--t2)", wordBreak: "break-all", lineHeight: 1.4 }}>{entry.msg}</span>
                   </div>
                 ))
@@ -377,7 +377,7 @@ export function DebugTab({ t }) {
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "2px 6px", borderRadius: "var(--r-xs)", marginBottom: 1, background: _debugLevelBg(entry.level) }}>
                 <span style={{ color: "var(--t3)", flexShrink: 0, userSelect: "none" }}>{_debugFmtTs(entry.ts)}</span>
                 <span style={{ color: _debugLevelColor(entry.level), flexShrink: 0, minWidth: 38, fontWeight: 700, userSelect: "none" }}>{entry.level}</span>
-                <span style={{ color: entry.source === "frontend" ? "rgba(224,64,251,0.7)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 52, userSelect: "none" }}>[{entry.source}]</span>
+                <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 52, userSelect: "none" }}>[{entry.source}]</span>
                 <span style={{ color: "var(--t2)", wordBreak: "break-all", lineHeight: 1.45 }}>{entry.msg}</span>
               </div>
             ))

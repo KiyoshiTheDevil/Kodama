@@ -238,7 +238,14 @@
 
   /* â”€â”€ Accent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   --accent:     #e040fb;
-  --accent-dim: rgba(224,64,251,0.08);
+  /* A wash of the accent, for the surface behind an active nav row or a selected chip.
+     Was the default accent written out as numbers, so it did NOT follow the accent: pick a
+     custom one, or let it be derived from the cover art, and twenty-eight places across the app
+     stayed magenta. Mixed from the token now, so it follows whatever the accent currently is.
+     High contrast still replaces it with a neutral wash further down, deliberately - an accent
+     tint is exactly the low-contrast surface that mode exists to avoid. */
+  --accent-dim:       color-mix(in srgb, var(--accent) 8%, transparent);
+  --accent-dim-hover: color-mix(in srgb, var(--accent) 15%, transparent);
 
   /* â”€â”€ Radius scale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   --r-xs:  3px;

@@ -98,7 +98,7 @@ export function SidebarTooltip({ tooltip }) {
         padding: "4px 10px", borderRadius: "var(--r-md)",
         fontSize: "var(--t12)", whiteSpace: "nowrap",
         border: "1px solid var(--border)",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+        boxShadow: "var(--elevation-2)",
       }}>{tooltip.text}</div>
     </div>,
     document.body

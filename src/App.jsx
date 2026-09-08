@@ -1164,14 +1164,14 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             // other two open the update page, where the details are.
             <div onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
               className="flex items-center gap-2 py-1.5 px-3 mb-1 rounded-xl text-[length:var(--t12)] font-medium text-accent transition-all duration-150 relative overflow-hidden"
-              style={{ background: "rgba(224,64,251,0.08)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(224,64,251,0.15)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(224,64,251,0.08)"}
+              style={{ background: "var(--accent-dim)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--accent-dim-hover)"}
+              onMouseLeave={e => e.currentTarget.style.background = "var(--accent-dim)"}
             >
               {/* The progress fills the pill itself rather than adding a bar beside it. */}
               {updateDownloading && (
                 <span className="absolute inset-y-0 left-0 pointer-events-none transition-[width] duration-300 ease-out"
-                  style={{ width: `${updateDownloadProgress ?? 0}%`, background: "rgba(224,64,251,0.16)" }} />
+                  style={{ width: `${updateDownloadProgress ?? 0}%`, background: "var(--accent-dim-hover)" }} />
               )}
               {updateDownloaded
                 ? <ArrowClockwise size={15} className="relative" />
@@ -1248,7 +1248,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             {updateInfo && (
               <div
                 className="w-9 h-9 rounded-sm flex items-center justify-center text-accent"
-                style={{ background: "rgba(224,64,251,0.08)" }}
+                style={{ background: "var(--accent-dim)" }}
                 onClick={updateDownloaded ? onInstallUpdate : onOpenUpdateTab}
                 onMouseEnter={e => {
                   const r = e.currentTarget.getBoundingClientRect();

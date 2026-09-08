@@ -2022,7 +2022,7 @@ export default function OverlayEditor({
           {drawRect && (
             <div style={{
               position: "absolute", left: drawRect.x, top: drawRect.y, width: drawRect.w, height: drawRect.h,
-              border: `${1 / zoom}px dashed var(--accent)`, background: "rgba(224,64,251,0.10)", pointerEvents: "none",
+              border: `${1 / zoom}px dashed var(--accent)`, background: "color-mix(in srgb, var(--accent) 10%, transparent)", pointerEvents: "none",
             }} />
           )}
           {/* Selection marquee (left-drag on empty canvas) */}
