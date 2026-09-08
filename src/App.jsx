@@ -3726,6 +3726,10 @@ export default function App() {
     setSettingsClosing(true);
     setTimeout(() => { setSettingsOpen(false); setSettingsClosing(false); }, 240);
   }, []);
+  // Whether the listener has ever picked an accent themselves. The stored key IS that answer:
+  // absent means untouched, and untouched has to stay untouched in the DOM, because a theme can
+  // now propose one and an inline style would silently outrank it forever.
+  const [accentCustom, setAccentCustom] = useState(() => localStorage.getItem("kiyoshi-accent") !== null);
   const [accent, setAccent] = useState(() => {
     const saved = localStorage.getItem("kiyoshi-accent");
     if (saved) document.documentElement.style.setProperty("--accent", saved);
@@ -3807,9 +3811,19 @@ export default function App() {
 
   const handleAccentChange = useCallback((color) => {
     setAccent(color);
+    setAccentCustom(true);
     if (!accentDynamic) document.documentElement.style.setProperty("--accent", color);
     localStorage.setItem("kiyoshi-accent", color);
   }, [accentDynamic]);
+
+  // Hand the choice back to the theme. Only the flag and the stored value are cleared here; the
+  // effect below owns the DOM, so it does the removing and the sync effect re-reads what the
+  // theme says. Without this there would be no way back: one visit to the picker and the
+  // theme's proposal would be overruled for good.
+  const handleAccentReset = useCallback(() => {
+    localStorage.removeItem("kiyoshi-accent");
+    setAccentCustom(false);
+  }, []);
 
   const handleThemeChange = useCallback((t) => {
     setTheme(t);
@@ -3834,6 +3848,15 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, []);
+
+  // Keep the picker showing what is actually on screen while the theme is the one choosing.
+  // Runs after the effect above (declaration order) and on every theme change, so the swatch
+  // follows along instead of still displaying the previous theme's proposal.
+  useEffect(() => {
+    if (accentCustom) return;
+    const v = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    if (v) setAccent(v);
+  }, [theme, accentCustom]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -3853,7 +3876,14 @@ export default function App() {
   // Dynamic accent: when enabled, derive --accent live from the current cover; otherwise
   // fall back to the fixed accent. Re-runs whenever the track or the mode changes.
   useEffect(() => {
-    if (!accentDynamic) { document.documentElement.style.setProperty("--accent", accent); return; }
+    if (!accentDynamic) {
+      // No pick of their own: take the inline value away entirely so the theme's own --accent
+      // applies. Setting it to the state's fallback would look identical on the default themes
+      // and quietly defeat every theme that proposes one.
+      if (accentCustom) document.documentElement.style.setProperty("--accent", accent);
+      else document.documentElement.style.removeProperty("--accent");
+      return;
+    }
     const url = currentTrack?.thumbnail ? thumb(currentTrack.thumbnail) : null;
     if (!url) { document.documentElement.style.setProperty("--accent", accent); return; }
     let cancelled = false;
@@ -3878,7 +3908,7 @@ export default function App() {
     };
     img.src = url;
     return () => { cancelled = true; };
-  }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight]);
+  }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight, accentCustom]);
 
   // ─── Usage stats: total app usage time + total song playtime (persisted, global) ───
   const usageSecRef = useRef(Number(localStorage.getItem("kiyoshi-total-usage") || 0));
@@ -6307,6 +6337,8 @@ export default function App() {
             onAccountRename={handleAccountRename} onAccountLogout={handleAccountLogout} onAccountAvatarChange={handleAccountAvatarChange}
             accent={accent}
             onAccentChange={handleAccentChange}
+            accentCustom={accentCustom}
+            onAccentReset={handleAccentReset}
             accentDynamic={accentDynamic}
             onAccentDynamicChange={setAccentDynamic}
             accentSat={accentSat}

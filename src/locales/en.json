@@ -183,6 +183,7 @@
   "visualizerCover": "Cover",
   "visualizerGapBottom": "Gap from bottom",
   "accentCustom": "Custom",
+  "accentUseTheme": "Use the theme's colour",
   "accentDynamicDesc": "The accent colour is derived live from the current track's cover art.",
   "accentVibrancy": "Vibrancy",
   "accentBrightness": "Brightness",

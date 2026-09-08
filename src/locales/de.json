@@ -185,6 +185,7 @@
   "visualizerCover": "Cover",
   "visualizerGapBottom": "Abstand von unten",
   "accentCustom": "Eigene",
+  "accentUseTheme": "Farbe des Themes verwenden",
   "accentDynamicDesc": "Die Akzentfarbe wird live aus dem Cover des aktuellen Songs abgeleitet.",
   "accentVibrancy": "Lebendigkeit",
   "accentBrightness": "Helligkeit",

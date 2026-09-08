@@ -354,6 +354,11 @@
   --scroll-thumb:       #2f3b33;
   --scroll-thumb-dim:   #232e27;
   --scroll-thumb-hover: #5d6f64;
+  /* The theme's own proposal, not a decree: App only leaves --accent to the stylesheet while
+     the listener has never picked one, so a single visit to the colour picker outranks this
+     and "Use the theme's colour" hands it back. Warm gold against moss - light through leaves,
+     and far enough from green to stay legible as the thing that marks what is active. */
+  --accent: #d8a657;
 }
 
 [data-theme="oled"] {

@@ -330,7 +330,7 @@ function AudioOutputRow({ t, value, onChange }) {
   );
 }
 
-export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
+export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentCustom, onAccentReset, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
   autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
   audioOutput, onAudioOutputChange,
@@ -1173,7 +1173,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </SettingRow>
                   </>
                 ) : (
-                  <AccentColorPicker value={accent} onChange={onAccentChange} />
+                  <>
+                    <AccentColorPicker value={accent} onChange={onAccentChange} />
+                    {/* Only once they have actually chosen: while the theme is doing the
+                        choosing there is nothing to hand back. */}
+                    {accentCustom && (
+                      <Button variant="ghost" size="sm" className="mt-2 gap-1.5 text-secondary"
+                        onPress={onAccentReset}>
+                        <ArrowClockwise size={13} /> {t("accentUseTheme")}
+                      </Button>
+                    )}
+                  </>
                 )}
                 </div>
 
