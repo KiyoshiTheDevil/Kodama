@@ -1006,12 +1006,24 @@ button:not([class]) {
   /* The accent around the thumb is a ring on the THUMB, not an extension of the fill. Carried
      by the fill it had to reach half a thumb past the value, which at the minimum was the only
      thing on the track and formed a magenta disc around the handle. On the thumb it is the
-     same at every value, including zero. */
+     same at every value, including zero.
+
+     Drawn INSIDE one box the size of the track, not as a spread around a smaller one. The
+     arithmetic was never wrong - measured across nine type sizes, core + 2x ring equals the
+     track height exactly every time - but exact in CSS pixels is not exact on screen: the
+     track, the core and the spread are three boxes, each rounded to device pixels on its own,
+     and at 1.625rem/1.375rem/0.125rem none of them lands whole. A fractional UI zoom on top
+     puts them further out of step. That is the hairline earlier attempts kept chasing by
+     adjusting numbers, and the pixel of ring that stood proud of the track.
+     An inset shadow is clipped to its own box, so the ring cannot paint outside it however the
+     rounding falls, and there is one box left to line up with the track instead of three. The
+     painted result is unchanged: the core is still --slider-h minus two rings, which is
+     --slider-thumb. */
   .slider__thumb::after {
-    width: var(--slider-thumb);
-    height: var(--slider-thumb);
+    width: var(--slider-h);
+    height: var(--slider-h);
     border-radius: var(--r-full);
-    box-shadow: 0 0 0 var(--slider-ring) var(--accent);
+    box-shadow: inset 0 0 0 var(--slider-ring) var(--accent);
   }
 }
 
