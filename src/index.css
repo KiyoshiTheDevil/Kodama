@@ -870,13 +870,16 @@ button:not([class]) {
      switch pinned to px would shrink inside its own row as soon as they did. */
   .switch__control {
     width: 2.75rem;
-    height: 1.625rem;
+    /* Whole even pixels, matching the slider's --slider-h exactly. The two are meant to stay
+       identical (see the slider block below, which takes its numbers from here), so they have
+       to be rounded the same way or they drift apart by a fraction at most type sizes. */
+    height: round(1.625rem, 2px);
     border-radius: var(--r-full);
   }
 
   .switch__thumb {
-    width: 1.375rem;
-    height: 1.375rem;
+    width: round(1.375rem, 2px);
+    height: round(1.375rem, 2px);
     border-radius: var(--r-full);
     /* Fixed on both sides: the travel is the transform's job now. */
     margin-inline-start: 2px;
@@ -973,19 +976,27 @@ button:not([class]) {
   /* Every dimension below derives from these two, which are .switch__control and
      .switch__thumb verbatim so a slider and a switch cannot drift apart. rem throughout,
      because the app lets the user scale the type. */
-  --slider-h: 1.625rem;
-  --slider-thumb: 1.375rem;
+  /* Rounded to an EVEN number of whole pixels, which is the whole point: the room reserved for
+     the thumb at the ends is a border, and a browser floors a fractional border width to whole
+     pixels while it does not floor the thumb's radius. At 1.625rem the reservation asked for
+     12.375px, got 12, and left the thumb's circle sitting 0.625px inside the track's end cap -
+     two nearly identical circles a fraction out of register, which is what read as the handle
+     bulging out of the track and sitting off centre. The fraction was thrown away at every type
+     size, which is why it showed at every size and at 100% zoom.
+     Rounding to a multiple of two keeps the halves whole as well, so the reservation, the
+     radius and the ring are all exact. Still in rem underneath, so it follows the type scale. */
+  --slider-h: round(1.625rem, 2px);
+  --slider-thumb: round(1.375rem, 2px);
   /* The accent around the thumb. Derived, so it lands exactly on the track's edge above and
      below instead of overshooting by a fraction — that fraction is the hairline that several
-     earlier attempts kept producing. */
+     earlier attempts kept producing. Whole pixels now, since both sides are. */
   --slider-ring: calc((var(--slider-h) - var(--slider-thumb)) / 2);
   /* Transparent border either side, reserving room for the thumb at the extremes; react-aria
-     and the fill both position against the box it leaves. Half the track height, so at 0% and
-     100% the thumb's ring is tangent to the track's rounded end, plus a pixel: the browser
-     rounds a fractional border width when it renders but does not round the ring's radius, and
-     dead-on tangency left the ring a third of a pixel outside. HeroUI's own value is a flat
-     0.75rem, narrower still than the ring's outer radius. */
-  --slider-edge: calc(var(--slider-h) / 2 + 1px);
+     and the fill both position against the box it leaves. Exactly half the track height, so at
+     0% and 100% the thumb is tangent to the track's rounded end. The "+1px" that used to sit
+     here was covering for the flooring described above; with whole pixels there is nothing left
+     to cover, and the extra pixel was itself half of the misregistration. */
+  --slider-edge: calc(var(--slider-h) / 2);
 
   .slider__track {
     height: var(--slider-h);
