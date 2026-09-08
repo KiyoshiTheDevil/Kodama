@@ -8,11 +8,12 @@
 // This module just fetches that data once per track and keeps the <video> element's own position
 // corrected against ordinary clock drift against whatever audio is currently loaded.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@heroui/react";
 import { API } from "./context.jsx";
 import { fetchLyrics } from "./lyrics/fetch.js";
 import { DEFAULT_LYRICS_PROVIDERS } from "./lyrics/providers.js";
 import { parseDurationToSeconds } from "./lyrics/parse.js";
-import { isRtlLang, hasJapaneseText } from "./i18n.js";
+import { isRtlLang, hasJapaneseText, translate } from "./i18n.js";
 import { LyricsToolChips, OffsetChips, SourceChip } from "./lyrics/tool-chips.jsx";
 import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
 import { DEFAULT_LYRICS_PROVIDERS as BROWSER_PROVIDERS } from "./lyrics/providers.js";
@@ -24,14 +25,49 @@ import { paintLineWords } from "./lyrics/paint.js";
 // (matched a completely unrelated video). 3 was far too permissive; 7 sits with real margin
 // above the observed false positive while still under the strongest confirmed match.
 const CONFIDENCE_THRESHOLD = 7; // below this the computed offset is untrustworthy — skip video mode
+
+// Songs the listener has vouched for themselves.
+//
+// The threshold is one number for every song in the world, calibrated from three observations,
+// and the notes above say what that costs: the second confirmed match scored 5.2, so a correct
+// pairing below 7 is not hypothetical - it is the case this exists for. Reported by PatoSinPico,
+// who kept seeing the right video refused.
+//
+// Overriding is safe to offer because the listener can see what the threshold cannot: whether
+// the video on screen is the right one. What a bad offset costs is bounded too - the audio is
+// switched over to the video's own track, so the two can never drift apart; a wrong offset
+// only means playback jumps to the wrong point in the song, which the seek bar undoes.
+const FORCED_KEY = "kodama-video-sync-forced";
+const FORCED_MAX = 200;
+
+function readForced() {
+  try {
+    const v = JSON.parse(localStorage.getItem(FORCED_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+
+function addForced(videoId) {
+  if (!videoId) return;
+  try {
+    const next = readForced().filter(id => id !== videoId);
+    next.push(videoId);
+    localStorage.setItem(FORCED_KEY, JSON.stringify(next.slice(-FORCED_MAX)));
+  } catch {}
+}
 const DRIFT_CORRECTION_S = 0.35; // only re-seek the video once it has drifted this far from target
 
 // maxHeight: null/0 = best available; otherwise caps resolution (e.g. for a weak/metered connection).
 export function useVideoSync(videoId, enabled, maxHeight) {
-  const [state, setState] = useState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false, selfVideo: false });
+  const BLANK = { videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false, selfVideo: false, uncertain: false };
+  const [state, setState] = useState(BLANK);
+  // Bumped by "use anyway", which re-runs the effect below with the song now on the vouched-for
+  // list. Simpler than threading the decision through the fetch, and it re-reads the offset the
+  // same way every other path does.
+  const [forceTick, setForceTick] = useState(0);
 
   useEffect(() => {
-    setState({ videoUrl: null, offsetSeconds: 0, counterpartVideoId: null, ready: false, selfVideo: false });
+    setState(BLANK);
     if (!enabled || !videoId) return;
     let cancelled = false;
     fetch(`${API}/video-sync/offset/${videoId}`)
@@ -39,20 +75,32 @@ export function useVideoSync(videoId, enabled, maxHeight) {
       .then(d => {
         // selfVideo: the track IS a video (no separate counterpart), shown at offset 0 against
         // its own audio. Otherwise it's an ATV↔OMV pair gated on the cross-correlation confidence.
-        if (cancelled || !d.available || !d.counterpartVideoId || !(d.confidence >= CONFIDENCE_THRESHOLD)) return;
+        if (cancelled || !d.available || !d.counterpartVideoId) return;
+        // Below the threshold the pairing is only a guess - but a guess with a video behind it,
+        // which the listener can judge at a glance. Say so instead of giving up silently, unless
+        // they have already vouched for this song.
+        if (!(d.confidence >= CONFIDENCE_THRESHOLD) && !readForced().includes(videoId)) {
+          setState({ ...BLANK, uncertain: true });
+          return;
+        }
         const q = maxHeight ? `?maxHeight=${maxHeight}` : "";
         return fetch(`${API}/video-sync/stream/${d.counterpartVideoId}${q}`)
           .then(r => r.json())
           .then(sd => {
             if (cancelled || !sd.url) return;
-            setState({ videoUrl: sd.url, offsetSeconds: d.offsetSeconds, counterpartVideoId: d.counterpartVideoId, ready: true, selfVideo: !!d.selfVideo });
+            setState({ videoUrl: sd.url, offsetSeconds: d.offsetSeconds, counterpartVideoId: d.counterpartVideoId, ready: true, selfVideo: !!d.selfVideo, uncertain: false });
           });
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [videoId, enabled, maxHeight]);
+  }, [videoId, enabled, maxHeight, forceTick]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  return state;
+  const useAnyway = useCallback(() => {
+    addForced(videoId);
+    setForceTick(n => n + 1);
+  }, [videoId]);
+
+  return { ...state, useAnyway };
 }
 
 export function VideoSyncVideo({ src, offsetSeconds, audioRef, isPlaying, style }) {
@@ -510,6 +558,25 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
         // audio share one timeline (same source), so the only remaining drift to correct for is
         // ordinary clock drift between the two independent decoders, not a content offset.
         <VideoSyncVideo src={videoSync.videoUrl} offsetSeconds={0} audioRef={audioRef} isPlaying={isPlaying} style={{ objectFit: "contain" }} />
+      )}
+      {/* A candidate was found but scored below the threshold. Rather than an empty view, say so
+          and let the listener decide - they can tell whether a video belongs to a song, which is
+          the one judgement the correlation cannot make. Remembered for this song only. */}
+      {!videoSync.ready && videoSync.uncertain && (
+        <div style={{
+          maxWidth: 420, padding: "0 24px", textAlign: "center",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+        }}>
+          <div style={{ fontSize: "var(--t14)", fontWeight: 600, color: "var(--text-primary)" }}>
+            {translate(language, "videoSyncUncertain")}
+          </div>
+          <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            {translate(language, "videoSyncUncertainHint")}
+          </div>
+          <Button variant="secondary" size="sm" className="mt-1" onPress={() => videoSync.useAnyway?.()}>
+            {translate(language, "videoSyncUseAnyway")}
+          </Button>
+        </div>
       )}
       {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef}
         onSourceChange={(name, submitter) => setCapSource({ name, submitter })} />}
