@@ -133,7 +133,7 @@ function CacheTab({ t }) {
 
       {/* ── Summary card ── */}
       <CardRoot variant="secondary" className="px-[18px] py-4 gap-0! transition-colors"
-        style={{ background: overLimit ? "color-mix(in srgb, #ff4444 8%, var(--surface-1))" : "var(--surface-1)" }}>
+        style={{ background: overLimit ? "color-mix(in srgb, var(--status-danger) 8%, var(--surface-1))" : "var(--surface-1)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>
             {t("totalCacheUsage")}

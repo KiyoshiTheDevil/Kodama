@@ -53,9 +53,9 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
     try { await onRefresh?.(); } finally { setRefreshing(false); }
   };
   const badgeFor = (type) => {
-    if (type === "beta")   return { label: t("newsBeta")   || "Closed Beta", bg: "color-mix(in srgb, #f4a020 20%, transparent)", fg: "#f4b840" };
+    if (type === "beta")   return { label: t("newsBeta")   || "Closed Beta", bg: "color-mix(in srgb, var(--status-warning) 20%, transparent)", fg: "var(--status-warning)" };
     if (type === "note")   return { label: t("newsNote")   || "Hinweis",     bg: "rgba(255,255,255,0.08)",                       fg: "var(--text-secondary)" };
-    if (type === "fix")    return { label: t("newsFix")    || "Fix",         bg: "color-mix(in srgb, #1d9e75 22%, transparent)", fg: "#3ec79a" };
+    if (type === "fix")    return { label: t("newsFix")    || "Fix",         bg: "color-mix(in srgb, var(--status-success) 22%, transparent)", fg: "var(--status-success)" };
     return { label: t("newsUpdate") || "Update", bg: "color-mix(in srgb, var(--accent) 20%, transparent)", fg: "var(--accent)" };
   };
   const list = news || [];

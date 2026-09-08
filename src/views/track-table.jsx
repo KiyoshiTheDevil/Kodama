@@ -79,7 +79,7 @@ export function SelActionBtn({ icon, label, onClick, danger, iconOnly, horizonta
       size="sm"
       isIconOnly={iconOnly}
       onPress={onClick}
-      className={`rounded-xl shrink-0 ${danger ? "text-[var(--status-danger)]! hover:text-white! hover:bg-[rgba(239,68,68,0.85)]!" : ""} ${horizontal ? "gap-2 px-4.5!" : ""}`}
+      className={`rounded-xl shrink-0 ${danger ? "text-[var(--status-danger)]! hover:text-white! hover:bg-[color-mix(in_srgb,var(--status-danger)_85%,transparent)]!" : ""} ${horizontal ? "gap-2 px-4.5!" : ""}`}
     >
       {icon}
       {!iconOnly && <span className="text-[length:var(--t13)] font-medium whitespace-nowrap">{label}</span>}

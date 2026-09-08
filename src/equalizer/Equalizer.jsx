@@ -325,7 +325,7 @@ export default function Equalizer({ t }) {
             className="ml-4 w-[46px] h-[30px] rounded-[var(--r-full)] flex items-center justify-center border-0 cursor-pointer transition-colors"
             style={{
               background: state.enabled ? "rgba(62,199,154,0.16)" : "var(--surface-2)",
-              color: state.enabled ? "#3ec79a" : "var(--text-muted)",
+              color: state.enabled ? "var(--status-success)" : "var(--text-muted)",
             }}>
             <Power size={15} weight="bold" />
           </button>

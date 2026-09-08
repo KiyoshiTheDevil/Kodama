@@ -277,6 +277,11 @@
   --status-warning:       #f0b429;
   --status-warning-soft:  color-mix(in srgb, var(--status-warning) 12%, transparent);
   --status-warning-line:  color-mix(in srgb, var(--status-warning) 30%, transparent);
+  /* The fourth role: neutral information, as opposed to something being wrong. Only the debug
+     log used it and it carried its own blue, which is why it was missing here. */
+  --status-info:          #64b5f6;
+  --status-info-soft:     color-mix(in srgb, var(--status-info) 12%, transparent);
+  --status-info-line:     color-mix(in srgb, var(--status-info) 30%, transparent);
 
   /* Elevation ----------------------------------------------------------------
      No shadow tokens existed at all; every shadow was written out by hand. Keep the
@@ -377,6 +382,7 @@
   --status-danger:   #d32f2f;
   --status-success:  #2e7d32;
   --status-warning:  #b26a00;
+  --status-info:     #1565c0;
   --elevation-1: 0 2px 8px rgba(0,0,0,0.10);
   --elevation-2: 0 4px 14px rgba(0,0,0,0.14);
   --elevation-3: 0 10px 24px rgba(0,0,0,0.20);

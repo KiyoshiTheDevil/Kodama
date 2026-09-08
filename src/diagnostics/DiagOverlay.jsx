@@ -94,7 +94,7 @@ export function DiagOverlay({ onClose }) {
       <div onPointerDown={startDrag}
         className="flex items-center gap-2 px-3 h-9 shrink-0 border-b border-border select-none"
         style={{ cursor: "move" }}>
-        <span className="w-1.5 h-1.5 rounded-[var(--r-full)] bg-[var(--status-success,#3ec79a)]" />
+        <span className="w-1.5 h-1.5 rounded-[var(--r-full)] bg-[var(--status-success)]" />
         <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t12)" }}>Diagnostics</span>
         <button type="button" data-no-drag aria-label="Copy"
           onClick={() => {
@@ -113,7 +113,7 @@ export function DiagOverlay({ onClose }) {
       </div>
 
       <div className="overflow-y-auto p-3 flex flex-col gap-3">
-        {copied && <div className="text-[var(--status-success,#3ec79a)]" style={{ fontSize: "var(--t11)" }}>Copied to clipboard</div>}
+        {copied && <div className="text-[var(--status-success)]" style={{ fontSize: "var(--t11)" }}>Copied to clipboard</div>}
         {sections.length === 0 && (
           <div className="text-muted" style={{ fontSize: "var(--t11)" }}>
             Nothing to measure yet. Open a playlist and scroll.

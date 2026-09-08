@@ -3223,7 +3223,7 @@ function FfmpegUpdateBanner({ installed, latest, onClose }) {
     <div style={{ position: "fixed", left: "50%", bottom: 124, transform: "translateX(-50%)", zIndex: 9990 }}
       className="animate-[pillRiseIn_0.3s_cubic-bezier(0.22,1,0.36,1)]">
       <div className="flex items-center gap-3 pl-4 pr-2.5 py-2.5 rounded-2xl bg-elevated border-[0.5px] border-border shadow-[0_10px_40px_rgba(0,0,0,0.55)] w-[400px] max-w-[calc(100vw-32px)]">
-        <div className={`shrink-0 w-8 h-8 rounded-[var(--r-full)] flex items-center justify-center ${phase === "error" ? "bg-[rgba(255,112,112,0.16)] text-[var(--status-danger)]" : "bg-accent-dim text-accent"}`}>
+        <div className={`shrink-0 w-8 h-8 rounded-[var(--r-full)] flex items-center justify-center ${phase === "error" ? "bg-[var(--status-danger-soft)] text-[var(--status-danger)]" : "bg-accent-dim text-accent"}`}>
           {phase === "done" ? <CheckCircle size={18} weight="fill" /> : <ArrowClockwise size={16} weight="bold" />}
         </div>
         <div className="min-w-0 flex-1">

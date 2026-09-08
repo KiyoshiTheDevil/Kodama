@@ -7,15 +7,15 @@ import { APP_VERSION } from "../version.js";
 import { frontendLogs as _frontendLogs } from "../debug/console-log.js";
 
 const _debugLevelColor = (level) => {
-  if (level === "ERROR") return "#ff6b6b";
+  if (level === "ERROR") return "var(--status-danger)";
   if (level === "WARN")  return "var(--status-warning)";
-  if (level === "INFO")  return "#64b5f6";
+  if (level === "INFO")  return "var(--status-info)";
   return "var(--text-muted)";
 };
 const _debugLevelBg = (level) => {
   if (level === "ERROR") return "var(--status-danger-soft)";
   if (level === "WARN")  return "var(--status-warning-soft)";
-  if (level === "INFO")  return "rgba(100,181,246,0.08)";
+  if (level === "INFO")  return "var(--status-info-soft)";
   return "transparent";
 };
 const _debugFmtTs = (ts) => new Date(ts * 1000).toTimeString().slice(0, 8);
@@ -239,7 +239,7 @@ export function DebugFloatingWindow({ onClose }) {
                   }}>
                     <span style={{ color: "var(--t3)", flexShrink: 0, userSelect: "none" }}>{_debugFmtTs(entry.ts)}</span>
                     <span style={{ color: _debugLevelColor(entry.level), flexShrink: 0, minWidth: 36, fontWeight: 700, userSelect: "none" }}>{entry.level}</span>
-                    <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 50, userSelect: "none" }}>[{entry.source}]</span>
+                    <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "color-mix(in srgb, var(--status-info) 60%, transparent)", flexShrink: 0, minWidth: 50, userSelect: "none" }}>[{entry.source}]</span>
                     <span style={{ color: "var(--t2)", wordBreak: "break-all", lineHeight: 1.4 }}>{entry.msg}</span>
                   </div>
                 ))
@@ -377,7 +377,7 @@ export function DebugTab({ t }) {
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "2px 6px", borderRadius: "var(--r-xs)", marginBottom: 1, background: _debugLevelBg(entry.level) }}>
                 <span style={{ color: "var(--t3)", flexShrink: 0, userSelect: "none" }}>{_debugFmtTs(entry.ts)}</span>
                 <span style={{ color: _debugLevelColor(entry.level), flexShrink: 0, minWidth: 38, fontWeight: 700, userSelect: "none" }}>{entry.level}</span>
-                <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "rgba(100,181,246,0.6)", flexShrink: 0, minWidth: 52, userSelect: "none" }}>[{entry.source}]</span>
+                <span style={{ color: entry.source === "frontend" ? "color-mix(in srgb, var(--accent) 70%, transparent)" : "color-mix(in srgb, var(--status-info) 60%, transparent)", flexShrink: 0, minWidth: 52, userSelect: "none" }}>[{entry.source}]</span>
                 <span style={{ color: "var(--t2)", wordBreak: "break-all", lineHeight: 1.45 }}>{entry.msg}</span>
               </div>
             ))
