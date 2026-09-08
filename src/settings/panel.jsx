@@ -1017,6 +1017,12 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     <Button variant={vizConfig.render === "curve" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ render: "curve" })}>{t("visualizerCurve") || "Curve"}</Button>
                   </div>
                 </SettingRow>
+                <SettingRow label={t("visualizerBarCap")} icon={<WaveformLines />}>
+                  <div className="flex gap-1.5">
+                    <Button variant={(vizConfig.barCap || "round") === "round" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ barCap: "round" })}>{t("visualizerBarCapRound")}</Button>
+                    <Button variant={vizConfig.barCap === "square" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ barCap: "square" })}>{t("visualizerBarCapSquare")}</Button>
+                  </div>
+                </SettingRow>
                 <SettingRow label={t("visualizerPeakHold") || "Peak hold"} icon={<WaveformLines />}>
                   <Toggle value={!!vizConfig.peakHold} onChange={(v) => onUpdateViz({ peakHold: v })} />
                 </SettingRow>

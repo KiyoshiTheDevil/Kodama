@@ -14,6 +14,10 @@ export const VIZ_DEFAULTS = {
   tilt: 0,                 // 0..1 — high-frequency boost
   smoothBands: 0,          // 0..1 — gaussian smoothing across bands
   render: "bars",          // "bars" | "curve"
+  // Canvas draws the bars, so no corner token reaches them - they need a setting of
+  // their own. "square" is the counterpart to "round" rather than "butt": both extend
+  // the stroke by half its width at each end, so switching does not shorten every bar.
+  barCap: "round",         // "round" | "square"
   peakHold: false,         // hold peaks + slow decay
   gradient: false,         // colour by bar height (base → gradColor)
   gradColor: "#ffffff",

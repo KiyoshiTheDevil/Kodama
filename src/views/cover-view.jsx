@@ -118,7 +118,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
       const grad = !!cfg.gradient, topCol = cfg.gradColor || "#ffffff";
       const colAt = (v) => grad ? vizLerp(baseCol, topCol, Math.min(1, v)) : baseCol;
       const maxLen = cfg.barLength, gap = cfg.gap, curve = cfg.render === "curve";
-      ctx.lineCap = "round"; ctx.lineWidth = cfg.barThickness;
+      ctx.lineCap = cfg.barCap === "square" ? "square" : "round"; ctx.lineWidth = cfg.barThickness;
 
       let bx = (w - 260) / 2, by = (h - 260) / 2, bw = 260, bh = 260;
       const cover = coverRef.current;
