@@ -1840,12 +1840,15 @@ export default function OverlayEditor({
                     className={[
                       "flex-1 min-w-0 flex items-center gap-2 px-4 cursor-default select-none",
                       "transition-[background-color,border-radius] duration-150",
-                      // 15px is half of LAYER_ROW_H, i.e. the pill value. It has to be a literal:
-                      // Tailwind only sees class names it can read in the source.
-                      "rounded-s-[15px]",
+                      // --r-full clamps to half of LAYER_ROW_H, which is the 15 this used to spell
+                      // out, so the row looks the same and follows a theme that flattens corners.
+                      // Still written out in full: Tailwind only sees class names it can read in
+                      // the source, so the name may not be built at runtime - but an arbitrary
+                      // value holding a variable reads fine.
+                      "rounded-s-[var(--r-full)]",
                       // The notch appears exactly when a neighbour does, so the pill is whole
                       // whenever it stands alone -- including on the selected row.
-                      chipsShown ? "rounded-e-[6px]" : "rounded-e-[15px] group-hover:rounded-e-[6px]",
+                      chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]",
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
                     ].filter(Boolean).join(" ")}
                     style={{ height: LAYER_ROW_H }}>
@@ -1867,7 +1870,7 @@ export default function OverlayEditor({
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { locked: !l.locked }); }}
                       aria-label={t("ovlLocked")} aria-pressed={!!l.locked}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[6px] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[6px]" : "rounded-e-[15px] group-hover:rounded-e-[6px]"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
                     </button>
@@ -1876,7 +1879,7 @@ export default function OverlayEditor({
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { visible: l.visible === false }); }}
                       aria-label={t("ovlVisible")} aria-pressed={l.visible !== false}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[6px] rounded-e-[15px] ${l.visible === false ? "text-primary" : "text-secondary"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[var(--r-full)] ${l.visible === false ? "text-primary" : "text-secondary"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
                     </button>
@@ -1891,7 +1894,7 @@ export default function OverlayEditor({
       <div className="flex-1 flex flex-col min-h-0 mx-2.5 mb-2.5">
       <div
         ref={viewportRef}
-        className="relative flex-1 min-h-0 overflow-hidden rounded-[18px]"
+        className="relative flex-1 min-h-0 overflow-hidden rounded-[var(--r-2xl)]"
         style={{ background: CANVAS_BG }}
         onWheel={onWheel}
         onPointerDown={(e) => {
@@ -1960,7 +1963,7 @@ export default function OverlayEditor({
                       onPointerDown={(e) => startGesture(e, "rotate", null, l)}
                       style={{
                         position: "absolute", left: "50%", top: -22 / zoom,
-                        width: HANDLE_PX, height: HANDLE_PX, borderRadius: "50%",
+                        width: HANDLE_PX, height: HANDLE_PX, borderRadius: "var(--r-full)",
                         background: "var(--accent)", border: "1.5px solid #fff", cursor: "grab",
                         ...unscale(" translate(-50%, -50%)"),
                       }}
@@ -1972,7 +1975,7 @@ export default function OverlayEditor({
                         background: rotAngle.snapped ? "var(--accent)" : "rgba(0,0,0,0.72)",
                         color: "#fff",
                         padding: "2px 5px",
-                        borderRadius: 4,
+                        borderRadius: "var(--r-sm)",
                         fontSize: 11,
                         ...unscale(" translate(-50%, 0)"),
                         lineHeight: 1.4,
@@ -1992,7 +1995,7 @@ export default function OverlayEditor({
                         style={{
                           position: "absolute", left: `${h.x * 100}%`, top: `${h.y * 100}%`,
                           width: HANDLE_PX, height: HANDLE_PX,
-                          background: "#fff", border: "1.5px solid var(--accent)", borderRadius: 2,
+                          background: "#fff", border: "1.5px solid var(--accent)", borderRadius: "var(--r-xs)",
                           cursor: `${h.cur}-resize`,
                           ...unscale(" translate(-50%, -50%)"),
                         }}
@@ -2004,7 +2007,7 @@ export default function OverlayEditor({
                       ...unscale(" translate(-50%, 8px)"),
                       background: "var(--accent)", color: "#fff",
                       padding: "2px 7px",
-                      borderRadius: 4, fontSize: 11, lineHeight: 1.4, fontWeight: 600,
+                      borderRadius: "var(--r-sm)", fontSize: 11, lineHeight: 1.4, fontWeight: 600,
                       fontFamily: "var(--font)", whiteSpace: "nowrap",
                       pointerEvents: "none", userSelect: "none", fontVariantNumeric: "tabular-nums",
                     }}>
