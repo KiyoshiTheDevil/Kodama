@@ -456,7 +456,7 @@ html, body, #root {
 }
 ::-webkit-scrollbar-thumb {
   background-color: #333;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   border: 2.5px solid transparent;
   background-clip: content-box;
   transition: background-color 0.2s, border-width 0.2s;
@@ -543,7 +543,7 @@ html, body, #root {
 .modal__backdrop[data-exiting="true"]  { --tw-duration: 0.2s; }
 
 .gcard-thumb {
-  position: relative; border-radius: 16px; overflow: hidden;
+  position: relative; border-radius: var(--r-2xl); overflow: hidden;
   /* Kept tight (blur stays within the view's ~24px content padding) so the leftmost column's
      shadow doesn't spill to the scroll container's edge and draw a visible seam by the sidebar. */
   box-shadow: var(--elevation-2);
@@ -554,7 +554,7 @@ html, body, #root {
 .gcard:hover .gcard-img { transform: scale(1.05); }
 .gcard-badge {
   position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; color: #fff; pointer-events: none;
+  padding: 4px 9px; border-radius: var(--r-full); font-size: 11px; font-weight: 650; color: #fff; pointer-events: none;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2);
   box-shadow: var(--elevation-1);
 }
@@ -696,7 +696,7 @@ html, body, #root {
   width: 3px;
   height: 0;
   background: var(--accent);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
   transition: height 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
@@ -773,7 +773,7 @@ button.icon-btn, button[class="icon-btn"] {
   padding: 0;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   display: flex;
   align-items: center;
   justify-content: center;
