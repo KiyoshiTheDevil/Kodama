@@ -105,22 +105,30 @@ export async function fetchThemeCatalogue(url = CATALOGUE_URL) {
   if (!data || Number(data.schema) > CATALOGUE_SCHEMA || !Array.isArray(data.themes)) {
     return { ok: false, themes: [] };
   }
+  return { ok: true, themes: annotateThemes(data.themes.map(normalizeEntry).filter(Boolean)) };
+}
+
+/**
+ * What this build can say about each entry, recomputed from what is installed right now.
+ *
+ * Separate from the fetch so it can be repeated after installing or removing one. Doing that by
+ * fetching again would work and would also mean a network round trip to answer a question the
+ * app already knows the answer to - and would leave the button reading "Install" until it came
+ * back.
+ */
+export function annotateThemes(entries) {
   const installed = readInstalledThemes();
-  const themes = data.themes
-    .map(normalizeEntry)
-    .filter(Boolean)
-    .map(e => {
-      const local = installed.find(i => i.id === e.id);
-      return {
-        ...e,
-        builtin: BUILTIN_THEMES.some(b => b.id === e.id),
-        installed: !!local,
-        installedVersion: local?.version || null,
-        updatable: !!local && compareVersions(e.version, local.version || "0.0.0") > 0,
-        supported: meetsMinVersion(e),
-      };
-    });
-  return { ok: true, themes };
+  return entries.map(e => {
+    const local = installed.find(i => i.id === e.id);
+    return {
+      ...e,
+      builtin: BUILTIN_THEMES.some(b => b.id === e.id),
+      installed: !!local,
+      installedVersion: local?.version || null,
+      updatable: !!local && compareVersions(e.version, local.version || "0.0.0") > 0,
+      supported: meetsMinVersion(e),
+    };
+  });
 }
 
 // ─── Installing ──────────────────────────────────────────────────────────────

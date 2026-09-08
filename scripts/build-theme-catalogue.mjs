@@ -8,7 +8,7 @@
 // a theme IS, and the app never reads them for a built-in theme.
 //
 //   node scripts/build-theme-catalogue.mjs
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readdirSync, readFileSync, existsSync } from "node:fs";
 import { BUILTIN_THEMES } from "../src/themes.js";
 
 // The build in which a theme first became installable. Written out rather than read from
@@ -26,12 +26,37 @@ const COPY = {
   grove: { description: "Moss instead of neutral grey, and warm gold against it.", tags: ["dark", "green"] },
 };
 
+// Themes that are published but not built into the app.
+//
+// This is what keeps the catalogue independent of Kodama's release cycle: one JSON file per
+// theme in themes/, and adding one is a file plus a commit. No build, no tag, no CI - the app
+// reads the catalogue from master, the same way it reads news.json.
+//
+// A file here whose id matches a built-in overrides that entry, which is how a shipped theme
+// gets corrected without a release.
+function readSourceThemes() {
+  const dir = new URL("../themes/", import.meta.url);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter(f => f.endsWith(".json"))
+    .map(f => {
+      const t = JSON.parse(readFileSync(new URL(f, dir), "utf8"));
+      if (!t.id) throw new Error(`themes/${f}: no id`);
+      if (!t.tokens || !Object.keys(t.tokens).length) throw new Error(`themes/${f}: no tokens`);
+      return t;
+    });
+}
+
+const source = readSourceThemes();
+const sourceIds = new Set(source.map(t => t.id));
+
 const catalogue = {
   schema: 1,
   generated: new Date().toISOString().slice(0, 10),
   // dark is left out: it is :root itself, so there is nothing to install and its entry
   // would carry an empty token map that every consumer would have to special-case.
-  themes: BUILTIN_THEMES.filter(t => t.id !== "dark").map(t => ({
+  themes: [
+    ...BUILTIN_THEMES.filter(t => t.id !== "dark" && !sourceIds.has(t.id)).map(t => ({
     id: t.id,
     title: t.id.charAt(0).toUpperCase() + t.id.slice(1),
     description: COPY[t.id]?.description || "",
@@ -51,9 +76,30 @@ const catalogue = {
       accent:   t.tokens["--accent"]      || "#e040fb",
     },
     tokens: t.tokens,
-  })),
+    })),
+    // Written out as they stand: these files ARE the published entry, so the generator only
+    // fills in what it can be sure of and never invents copy for a theme it did not write.
+    ...source.map(t => ({
+      id: t.id,
+      title: t.title || t.id,
+      description: t.description || "",
+      creators: t.creators || ["KiyoshiTheDevil"],
+      version: t.version || "1.0.0",
+      minVersion: t.minVersion || THEMES_AS_DATA_SINCE,
+      mode: t.mode === "light" ? "light" : "dark",
+      tags: t.tags || [],
+      preview: t.preview || {
+        bg:       t.tokens["--bg-base"]     || "#0d0d0d",
+        surface:  t.tokens["--bg-surface"]  || "#141414",
+        elevated: t.tokens["--bg-elevated"] || "#1c1c1c",
+        text:     t.tokens["--t1"]          || "rgba(255,255,255,0.886)",
+        accent:   t.tokens["--accent"]      || "#e040fb",
+      },
+      tokens: t.tokens,
+    })),
+  ],
 };
 
 const out = new URL("../updates/themes.json", import.meta.url);
 writeFileSync(out, JSON.stringify(catalogue, null, 2) + "\n", "utf8");
-console.log(`updates/themes.json: ${catalogue.themes.length} themes, minVersion ${THEMES_AS_DATA_SINCE}`);
+console.log(`updates/themes.json: ${catalogue.themes.length} themes (${catalogue.themes.length - source.length} built in, ${source.length} from themes/)`);
