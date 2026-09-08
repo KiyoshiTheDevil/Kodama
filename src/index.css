@@ -291,6 +291,15 @@
   --placeholder-gradient: linear-gradient(135deg, #2a1535, #1a0a25);
 
   --slider-track: #333333;
+  /* Scrollbar thumb, in three weights: resting, resting inside a container that dims its own
+     bar until hovered, and hovered. Were five literals spread over the rules below plus a set
+     of per-theme copies, and the dim one had no light copy at all - so a light theme drew a
+     near-black thumb on a white page. One place per theme now. */
+  /* NOT --scrollbar-thumb: HeroUI ships one of its own under that exact name and would have
+     been silently overwritten by ours, the same collision --status-* exists to avoid. */
+  --scroll-thumb:       #333333;
+  --scroll-thumb-dim:   #2a2a2a;
+  --scroll-thumb-hover: #666666;
   --font: 'MiSans Latin', system-ui, sans-serif;
 }
 
@@ -418,13 +427,17 @@
   --slider-track: #888888;
 }
 /* Stronger scrollbar thumb in high contrast */
-[data-highcontrast="true"] ::-webkit-scrollbar-thumb { background-color: #666; }
-[data-highcontrast="true"] ::-webkit-scrollbar-thumb:hover { background-color: #999; }
+[data-highcontrast="true"] {
+  --scroll-thumb:       #666666;
+  --scroll-thumb-dim:   #666666;   /* no dimmed state in high contrast, on purpose */
+  --scroll-thumb-hover: #999999;
+}
 
-[data-theme="light"] ::-webkit-scrollbar-thumb { background: #bbb; }
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #888; }
-[data-theme="light"] .scrollable:hover::-webkit-scrollbar-thumb { background: #888; }
-[data-theme="light"] .carousel:hover::-webkit-scrollbar-thumb { background: #888; }
+[data-theme="light"] {
+  --scroll-thumb:       #bbbbbb;
+  --scroll-thumb-dim:   #d4d4d4;   /* the dim step had no light value at all before */
+  --scroll-thumb-hover: #888888;
+}
 
 html, body, #root {
   height: 100%;
@@ -462,14 +475,14 @@ html, body, #root {
   scrollbar-color: auto;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #333;
+  background-color: var(--scroll-thumb);
   border-radius: var(--r-sm);
   border: 2.5px solid transparent;
   background-clip: content-box;
   transition: background-color 0.2s, border-width 0.2s;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #666;
+  background-color: var(--scroll-thumb-hover);
   border-width: 1px;
 }
 ::-webkit-scrollbar-track:hover   { background: rgba(255,255,255,0.03); }
@@ -521,8 +534,8 @@ html, body, #root {
 }
 
 /* Scrollable containers â€” dimmer thumb until container is hovered */
-.scrollable::-webkit-scrollbar-thumb         { background-color: #2a2a2a; }
-.scrollable:hover::-webkit-scrollbar-thumb   { background-color: #666; border-width: 1px; }
+.scrollable::-webkit-scrollbar-thumb         { background-color: var(--scroll-thumb-dim); }
+.scrollable:hover::-webkit-scrollbar-thumb   { background-color: var(--scroll-thumb-hover); border-width: 1px; }
 /* Reserve the scrollbar's track width up front, so content (e.g. centered headers) doesn't
    shift sideways the moment a view grows tall enough to actually need the scrollbar. */
 .scrollable { scrollbar-gutter: stable; }
@@ -606,8 +619,8 @@ html, body, #root {
 .home-card-play-btn:active { transform: scale(1.04); }
 
 /* Horizontal carousels â€” same treatment, vertical size stays 8px */
-.carousel::-webkit-scrollbar-thumb           { background-color: #2a2a2a; }
-.carousel:hover::-webkit-scrollbar-thumb     { background-color: #666; border-width: 1px; }
+.carousel::-webkit-scrollbar-thumb           { background-color: var(--scroll-thumb-dim); }
+.carousel:hover::-webkit-scrollbar-thumb     { background-color: var(--scroll-thumb-hover); border-width: 1px; }
 
 /* â”€â”€â”€ Ambient Visualizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    CSS-only effect â€” transform + opacity only for GPU compositing, zero reflow.

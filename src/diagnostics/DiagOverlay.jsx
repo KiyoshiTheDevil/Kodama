@@ -89,7 +89,7 @@ export function DiagOverlay({ onClose }) {
     <div
       ref={panelRef}
       className="fixed z-[9998] max-h-[60vh] flex flex-col rounded-xl border border-border shadow-2xl"
-      style={{ left: pos.left, top: pos.top, width: W, background: "rgba(20,20,20,0.96)", backdropFilter: "blur(10px)" }}
+      style={{ left: pos.left, top: pos.top, width: W, background: "color-mix(in srgb, var(--bg-surface) 96%, transparent)", backdropFilter: "blur(10px)" }}
     >
       <div onPointerDown={startDrag}
         className="flex items-center gap-2 px-3 h-9 shrink-0 border-b border-border select-none"

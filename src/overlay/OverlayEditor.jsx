@@ -2415,7 +2415,7 @@ export default function OverlayEditor({
               top: fontPickerPos.top, left: fontPickerPos.left, maxHeight: "68vh",
               // The same shell the colour picker uses, so the two floating panels of the editor
               // are recognisably the same kind of thing.
-              background: "#1c1c1c", border: "0.5px solid rgba(255,255,255,0.12)",
+              background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
               borderRadius: "var(--r-xl)", boxShadow: "var(--elevation-4)",
             }}
             onKeyDown={(e) => { if (e.key === "Escape") closePicker(); }}

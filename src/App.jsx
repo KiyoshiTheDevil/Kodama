@@ -328,9 +328,6 @@ const GLOBAL_KEYFRAMES = `
     0%, 100% { transform: translateY(0px) scale(1); }
     50%       { transform: translateY(-14px) scale(1.08); }
   }
-  .grid-card:hover .grid-card-footer {
-    background: rgb(32,32,36) !important;
-  }
   .view-tab-btn:not(.active):hover {
     background: color-mix(in srgb, var(--accent) 10%, transparent) !important;
     color: var(--text-primary) !important;
@@ -2245,7 +2242,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   };
 
   return (
-    <div style={{ background: fullscreen ? "rgba(13,13,13,0.6)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
+    <div style={{ background: fullscreen ? "color-mix(in srgb, var(--bg-base) 60%, transparent)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
       {/* Seek slider — HeroUI Slider, sits between the content view and the player controls */}
       {/* Left-to-right regardless of layout direction: this is a time axis, and time runs the
           same way for everyone. Elapsed belongs on the left, remaining on the right. */}
@@ -3121,7 +3118,7 @@ function FfmpegSetupScreen({ onDone }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: phase === "checking" ? 9997 : 9998,
-      background: "#0d0d0d",
+      background: "var(--bg-base)",
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       opacity: fadeOut ? 0 : 1, transition: "opacity 0.4s ease",
       fontFamily: "var(--font)",
@@ -3254,7 +3251,7 @@ function SplashScreen({ fading }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
-      background: "#0d0d0d",
+      background: "var(--bg-base)",
       display: "flex", alignItems: "center", justifyContent: "center",
       animation: fading ? "splashFadeOut 0.45s ease forwards" : "none",
       pointerEvents: "none",
@@ -6129,7 +6126,7 @@ export default function App() {
         }}>
           {/* Shared static background — stays fixed during crossfade */}
           {currentTrack && !ambientBackground && (<>
-            <div style={{ position: "absolute", inset: 0, background: "#0d0d0d", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", inset: 0, background: "var(--bg-base)", pointerEvents: "none" }} />
             <div style={{
               position: "absolute", inset: 0, pointerEvents: "none",
               backgroundImage: currentTrack.thumbnail ? `url(${hiResThumb(currentTrack.thumbnail, 800)})` : "none",
@@ -6228,7 +6225,9 @@ export default function App() {
           willChange: (queueOpen && queueSettled) ? "auto" : "transform",
           // Keep the panel near-opaque while moving; only switch to the costly ambient
           // backdrop-blur once it has settled, so the slide never repaints the blur.
-          background: ambientBackground ? (queueSettled ? "rgba(18,18,18,0.5)" : "rgba(18,18,18,0.92)") : "var(--bg-surface)",
+          background: ambientBackground
+            ? (queueSettled ? "color-mix(in srgb, var(--bg-surface) 50%, transparent)" : "color-mix(in srgb, var(--bg-surface) 92%, transparent)")
+            : "var(--bg-surface)",
           backdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
           WebkitBackdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
           border: ambientBackground ? "0.5px solid rgba(255,255,255,0.08)" : "none",
@@ -6464,7 +6463,7 @@ export default function App() {
             survives the forced re-render while the new profile loads. */}
         {switchingTo && (
           <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center gap-4"
-            style={{ background: "rgba(13,13,13,0.72)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "fadeIn 0.15s ease" }}>
+            style={{ background: "color-mix(in srgb, var(--bg-base) 72%, transparent)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "fadeIn 0.15s ease" }}>
             <div className="w-16 h-16 rounded-[var(--r-full)] overflow-hidden flex items-center justify-center bg-accent text-white font-semibold text-xl shadow-lg">
               {switchingTo.avatar
                 ? <img src={thumb(switchingTo.avatar)} alt="" className="w-full h-full object-cover" />

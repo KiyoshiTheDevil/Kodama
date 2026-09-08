@@ -232,7 +232,7 @@ export function ColorPicker({ value, onChange, swatch }) {
         <div ref={popoverRef} style={{
           position: "fixed", top: popPos.top, left: popPos.left, zIndex: 9999,
           width: 244, padding: 12, borderRadius: "var(--r-xl)",
-          background: "#1c1c1c", border: "0.5px solid rgba(255,255,255,0.12)",
+          background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
           boxShadow: "var(--elevation-4)",
           userSelect: "none",
         }}>
@@ -313,7 +313,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               {fmtOpen && (
                 <div style={{
                   position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4, borderRadius: "var(--r-lg)",
-                  background: "#242424", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-3)",
+                  background: "var(--bg-hover)", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-3)",
                 }}>
                   {["hex", "rgb", "hsl"].map((f) => (
                     <button key={f} onClick={() => { setMode(f); setFmtOpen(false); }}

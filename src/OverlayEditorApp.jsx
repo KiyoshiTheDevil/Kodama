@@ -38,7 +38,7 @@ export default function OverlayEditorApp() {
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
-      <div style={{ height: "100vh", background: "#0d0d0d", overflow: "hidden" }}>
+      <div style={{ height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
         <OverlayEditor
           t={t}
           apiBase={API}
