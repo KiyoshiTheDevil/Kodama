@@ -144,14 +144,50 @@ export function readInstalledThemes() {
         id: t.id,
         label: typeof t.label === "string" ? t.label.slice(0, 40) : t.id,
         mode: t.mode === "light" ? "light" : "dark",
+        // Kept so the catalogue can tell an installed copy from a newer published one.
+        version: typeof t.version === "string" ? t.version.slice(0, 24) : "",
         tokens: sanitizeTokens(t.tokens),
       }));
   } catch { return []; }
 }
 
-/** Every theme that can be chosen right now, built in or installed. */
+/**
+ * Replace the installed set. Written through the same shape the reader expects, so a value that
+ * would not survive being read back never gets stored in the first place.
+ */
+export function writeInstalledThemes(list) {
+  try {
+    const safe = (Array.isArray(list) ? list : [])
+      .filter(t => t && typeof t.id === "string" && /^[\w-]{1,64}$/.test(t.id))
+      .map(t => ({
+        id: t.id,
+        label: typeof t.label === "string" ? t.label.slice(0, 40) : t.id,
+        mode: t.mode === "light" ? "light" : "dark",
+        version: typeof t.version === "string" ? t.version.slice(0, 24) : "",
+        tokens: sanitizeTokens(t.tokens),
+      }));
+    localStorage.setItem(INSTALLED_KEY, JSON.stringify(safe));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Every theme that can be chosen right now, built in or installed, each id appearing once.
+ *
+ * An installed copy REPLACES a built-in one of the same id rather than sitting beside it. That
+ * is not only tidiness: it is how a theme gets fixed without a release. If a shipped theme turns
+ * out to have a bad value, the catalogue can publish a higher version of it and the app takes
+ * that one. The built-in order is kept so the picker does not reshuffle itself, and installed
+ * themes with no built-in counterpart follow at the end.
+ */
 export function allThemes() {
-  return [...BUILTIN_THEMES, ...readInstalledThemes()];
+  const installed = readInstalledThemes();
+  const byId = new Map(installed.map(t => [t.id, t]));
+  const merged = BUILTIN_THEMES.map(b => byId.get(b.id) || b);
+  const builtinIds = new Set(BUILTIN_THEMES.map(b => b.id));
+  return [...merged, ...installed.filter(t => !builtinIds.has(t.id))];
 }
 
 export function findTheme(id) {
