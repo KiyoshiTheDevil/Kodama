@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "themes:catalogue": "node scripts/build-theme-catalogue.mjs",
     "lint": "eslint src",
     "tauri": "tauri"
   },

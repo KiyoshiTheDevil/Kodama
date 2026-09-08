@@ -1,17 +1,25 @@
-// The published theme catalogue.
+// The published catalogue, from the store repo.
 //
-// One file rather than a folder per theme, on purpose: a theme is between thirteen and
-// thirty-five values, so the whole catalogue is a few kilobytes and costs one request instead of
-// one per entry. That holds while these are Kodama's own themes. If it ever carries submitted
-// ones, with screenshots and stylesheets, it wants splitting - which is what `schema` is for.
+// Themes and presets live in KiyoshiTheDevil/kodama-store rather than in this repo. They are
+// content, not code: a theme is a list of colours, with no way to execute anything, so it has no
+// business sharing a release cycle or a licence with the app. Publishing one is a file and a
+// commit over there, and every installed copy of Kodama sees it the next time it looks - no tag,
+// no CI run, no release.
 //
-// It lives beside news.json in the same repo, so it needs no host that connect-src does not
-// already allow and is published the same way: edit the file, commit, done.
+// Built-in themes are deliberately NOT published. Their entries could only ever be offered to a
+// build that already has them, so they would be an Install button that does nothing.
+//
+// One file rather than a folder per entry: a theme is between thirteen and thirty-five values, so
+// the whole catalogue is a few kilobytes and costs one request instead of one per entry. If it
+// ever carries screenshots and stylesheets it wants splitting, which is what `schema` is for.
+//
+// It sits on raw.githubusercontent.com, the same host as news.json, so connect-src already allows
+// it. Note that raw caches for a few minutes: a fresh commit is not visible the same second.
 import { APP_VERSION } from "./version.js";
 import { BUILTIN_THEMES, sanitizeTokens, readInstalledThemes, writeInstalledThemes } from "./themes.js";
 
 export const CATALOGUE_URL =
-  "https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/updates/themes.json";
+  "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/main/index.json";
 
 /** The schema this build understands. An entry declaring a higher one is skipped, not guessed at. */
 export const CATALOGUE_SCHEMA = 1;
