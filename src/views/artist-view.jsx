@@ -7,6 +7,7 @@ import { TrackRow } from "../ui/rows.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
 import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
+import { shuffled } from "../shuffle.js";
 
 function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square", size = 148, onOpen, onPlay, onContextMenu }) {
   const isVideo = shape === "video";
@@ -242,7 +243,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
                   <Play size={15} weight="fill" /> {t("playAll")}
                 </Button>
                 <Button variant="secondary" className="rounded-[var(--r-full)] gap-1.5 backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
-                  onPress={() => { const sh = [...topTracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}>
+                  onPress={() => { const sh = shuffled(topTracks); onPlay(sh[0], sh); }}>
                   <Shuffle size={15} /> {t("shuffle")}
                 </Button>
               </>

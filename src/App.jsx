@@ -11,7 +11,7 @@ import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
 import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle } from "./icons.jsx";
 
-import { API, thumb, hiResThumb, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
+import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
 import { NewsModal } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
@@ -60,6 +60,7 @@ import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
 import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
+import { shuffled } from "./shuffle.js";
 
 
 
@@ -6802,6 +6803,11 @@ export default function App() {
           const showAlbumNav = pl?.browseId && pl?.type !== "artist";
           const showArtistNav = !!pl?.artistBrowseId;
           const isUserPlaylist = pl?.playlistId && pl?.type !== "album" && pl?.owned !== false;
+          // What to shuffle: an album by its browseId, a playlist by its list id. Artists have
+          // no one collection, so they get no entry.
+          const shuffleId = pl?.type === "artist" ? null
+            : pl?.type === "album" ? (pl.browseId || null)
+            : ((pl?.playlistId || pl?.browseId || "").replace(/^VL/, "") || null);
           // Playlists are shareable (not albums/artists). The raw list id is the
           // playlistId, or the search browseId with its "VL" prefix stripped.
           const isPlaylistShare = pl && pl.type !== "album" && pl.type !== "artist" && (pl.playlistId || pl.browseId);
@@ -6819,6 +6825,18 @@ export default function App() {
                     else if (pl?.type === "artist") openArtist(pl, view);
                     else openPlaylist(pl, view);
                   }} />
+                {/* Shuffle straight from the menu, so a playlist can be started shuffled without
+                    opening it first. Only where there is a track list to shuffle: an artist
+                    entry has no single collection behind it. */}
+                {shuffleId && (
+                  <CtxItem id="shuffle" icon={<Shuffle size={15} />} label={translate(language, "shuffle")}
+                    onSelect={async () => {
+                      const list = await fetchCollectionTracks(pl.type === "album" ? "album" : "playlist", shuffleId);
+                      if (!list.length) return;
+                      const sh = shuffled(list);
+                      handlePlay(sh[0], sh);
+                    }} />
+                )}
               </DropdownSection>
               {isPlaylistShare && plShareId ? (
                 <DropdownSection className="w-full border-t border-border mt-1 pt-1">

@@ -30,6 +30,22 @@ export function hiResThumb(url, size = 512) {
 }
 export const thumbHi = (url, size) => thumb(hiResThumb(url, size));
 
+// The playable tracks of a playlist or album, for callers that only hold its id.
+//
+// Lives here rather than in a view because two places need it from opposite ends of the app:
+// the library's grid cards, which have the collection in hand, and the context menu in App,
+// which can be raised over a card anywhere - home, search, the sidebar. Returns an empty list
+// on any failure, so a caller can simply do nothing when there is nothing to play.
+export async function fetchCollectionTracks(kind, id) {
+  try {
+    const url = kind === "album" ? `${API}/album/${id}` : `${API}/playlist/${id}`;
+    const d = await fetch(url).then(r => r.json());
+    return (d.tracks || []).filter(tr => tr.videoId);
+  } catch {
+    return [];
+  }
+}
+
 // Open Boidu's Composer (community-lyrics editor) in its own Kodama window, pre-filled
 // with the current track and pre-configured to use Kodama as its audio bridge. Window
 // creation + the settings-seeding init script run in Rust (open_composer_window).

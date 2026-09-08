@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, SearchFieldRoot, SearchFieldGroup, SearchFieldInput, SearchFieldClearButton, TabsRoot, TabListContainer, TabList, Tab, TabIndicator, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
 import { SharedElementTransition } from "react-aria-components";
-import { API, useLang } from "../context.jsx";
+import { API, fetchCollectionTracks, useLang } from "../context.jsx";
 import { SEGMENTED_BUTTON, SEGMENTED_GROUP, SEGMENTED_STYLE, segmentedCorners } from "../ui/settings-controls.jsx";
 import { MagnifyingGlass, Microphone, Playlist, Sliders, VinylRecord, WarningCircle } from "../icons.jsx";
 import { GridCard } from "../ui/rows.jsx";
+import { shuffled } from "../shuffle.js";
 
 export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, sessionExpired, onReauth }) {
   const [tab, setTab] = useState("playlists");
@@ -96,14 +97,10 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
   // Play (or shuffle) a whole collection straight from its card, without opening it first —
   // fetch its tracks (same endpoints the detail views use) and hand them to the player.
   const playCollection = async (kind, id, shuffle) => {
-    try {
-      const url = kind === "album" ? `${API}/album/${id}` : `${API}/playlist/${id}`;
-      const d = await fetch(url).then(r => r.json());
-      let tracks = (d.tracks || []).filter(tr => tr.videoId);
-      if (!tracks.length) return;
-      if (shuffle) tracks = [...tracks].sort(() => Math.random() - 0.5);
-      onPlay(tracks[0], tracks);
-    } catch {}
+    const list = await fetchCollectionTracks(kind, id);
+    if (!list.length) return;
+    const tracks = shuffle ? shuffled(list) : list;
+    onPlay(tracks[0], tracks);
   };
 
   const sortOptions = [

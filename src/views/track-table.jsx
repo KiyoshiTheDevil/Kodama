@@ -12,6 +12,7 @@ import { parseDurationToSeconds } from "../lyrics/parse.js";
 import { logDiag } from "../bug-diagnostics.js";
 import { publishDiag, clearDiag } from "../diagnostics/live.js";
 import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClockwise, Crown, DotsThreeVertical, DownloadSimple, Heart, MagnifyingGlass, Minus, Pause, Play, Shuffle, Sort, SortDown, SortUp, Trash } from "../icons.jsx";
+import { shuffled } from "../shuffle.js";
 
 // Collapsing-header geometry. CARD_H is the height the pinned card reserves in the flow;
 // the poster is pulled up under it by exactly that much, so the header's total height is
@@ -627,7 +628,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
 
         <Tooltip text={t("shuffle")}><button
           {...press}
-          onClick={() => { if (!visibleTracks.length) return; const sh = [...visibleTracks].sort(() => Math.random() - 0.5); onPlay(sh[0], sh); }}
+          onClick={() => { if (!visibleTracks.length) return; const sh = shuffled(visibleTracks); onPlay(sh[0], sh); }}
           style={compact
             ? { ...roundBtn(px), color: "#fff" }
             : { ...pill, padding: "0 22px", background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", fontWeight: 600 }}
