@@ -68,7 +68,9 @@ export async function openComposer(videoId) {
     put("--color-composer-accent-text", accent);
     put("--color-composer-link", accent);
     // The composer is dark-only — only theme its surfaces/text when Kodama is on a dark theme.
-    if (document.documentElement.getAttribute("data-theme") !== "light") {
+    // Keyed on the mode, not the name: a theme installed rather than shipped is not called
+    // "light" even when it is one, and would have had a dark composer painted over it.
+    if (document.documentElement.getAttribute("data-mode") !== "light") {
       put("--color-composer-bg", read("--bg-base"));
       put("--color-composer-bg-dark", read("--bg-base"));
       put("--color-composer-bg-elevated", read("--bg-elevated"));

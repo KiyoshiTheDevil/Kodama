@@ -16,6 +16,7 @@ import { fmtBytes } from "../format.js";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { CoverView } from "../views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
+import { allThemes } from "../themes.js";
 import { APP_VERSION } from "../version.js";
 import { ZOOM_STEPS, ZOOM_LABELS, FONT_STEPS, FONT_LABELS } from "./scale.js";
 import { DEFAULT_SHORTCUTS } from "./shortcuts.js";
@@ -706,6 +707,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   ];
 
 
+  // Built-in themes are translated; an installed one carries its own name, which nobody
+  // translates because nobody here knows it.
+  const THEME_LABELS = { dark: "themeDark", oled: "themeOled", light: "themeLight", grove: "themeGrove" };
   const SectionLabel = SettingsSectionLabel;
   const SectionDesc = SettingsSectionDesc;
 
@@ -1072,13 +1076,19 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               <>
                 <div id="set-sec-ap-theme" data-settings-section="ap-theme" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>{t("theme")}</SectionLabel>
-                <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-                  {[
-                    { id: "dark",  label: t("themeDark"),  bg: "#0d0d0d", surface: "#141414", elevated: "#1c1c1c", text: "#f0f0f0" },
-                    { id: "oled",  label: t("themeOled"),  bg: "#000000", surface: "#080808", elevated: "#0f0f0f", text: "#ffffff" },
-                    { id: "light", label: t("themeLight"), bg: "#f0f0f0", surface: "#ffffff", elevated: "#e4e4e4", text: "#111111" },
-                    { id: "grove", label: t("themeGrove"), bg: "#0e1410", surface: "#141c17", elevated: "#1b241e", text: "#e6efe8" },
-                  ].map(th => (
+                <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                  {/* Read from the catalogue rather than written out here, so a theme that was
+                      installed rather than shipped appears without this file knowing about it.
+                      The swatches come from the theme's own tokens; anything it does not set is
+                      inherited from :root, which is exactly what the dark defaults below are. */}
+                  {allThemes().map(th => ({
+                    id: th.id,
+                    label: THEME_LABELS[th.id] ? t(THEME_LABELS[th.id]) : (th.label || th.id),
+                    bg:       th.tokens["--bg-base"]     || "#0d0d0d",
+                    surface:  th.tokens["--bg-surface"]  || "#141414",
+                    elevated: th.tokens["--bg-elevated"] || "#1c1c1c",
+                    text:     th.tokens["--t1"]          || "#f0f0f0",
+                  })).map(th => (
                     <CardRoot key={th.id} onClick={() => onThemeChange(th.id)} variant="transparent"
                       className={cn(
                         "relative flex-1 p-0 gap-0 rounded-[var(--r-lg)] overflow-hidden cursor-default border-2",

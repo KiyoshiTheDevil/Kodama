@@ -329,102 +329,12 @@
   --radius: 0; --radius-lg: 0;
 }
 
-/* ── Grove ───────────────────────────────────────────────────────────────────
-   The first theme that is a look rather than a brightness. Kodama is a tree spirit, so the
-   ground is moss rather than neutral grey.
 
-   Deliberately short: only the surfaces, the two things measured against them, and nothing
-   else. The strokes, the fill states and the whole text ladder are white at fixed opacities,
-   so they sit correctly on any ground of roughly this darkness and are simply inherited - if
-   this block had to restate them, the ladder would not be doing its job. The status colours
-   and the accent wash come along for the same reason.
 
-   What does need saying is anything that was picked to sit ON the old grey: the slider track
-   and the three scrollbar weights are tinted to match, or they read as foreign objects. */
-[data-theme="grove"] {
-  --bg-base:     #0e1410;
-  --bg-surface:  #141c17;
-  --bg-elevated: #1b241e;
-  --bg-hover:    #222d25;
-  --surface-1:   #1b241e;
-  --surface-2:   #2a352d;
-  --surface-3:   #35423a;
-  --acrylic:     rgba(14, 20, 16, 0.84);
-  --slider-track:       #2a352d;
-  --scroll-thumb:       #2f3b33;
-  --scroll-thumb-dim:   #232e27;
-  --scroll-thumb-hover: #5d6f64;
-  /* The theme's own proposal, not a decree: App only leaves --accent to the stylesheet while
-     the listener has never picked one, so a single visit to the colour picker outranks this
-     and "Use the theme's colour" hands it back. Warm gold against moss - light through leaves,
-     and far enough from green to stay legible as the thing that marks what is active. */
-  --accent: #d8a657;
-}
-
-[data-theme="oled"] {
-  --bg-base:    #000000;
-  --bg-surface: #080808;
-  --bg-elevated: #0f0f0f;
-  --bg-hover:   #141414;
-  --surface-1:  #0f0f0f;
-  --surface-2:  #181818;
-  --surface-3:  #212121;
-  --acrylic:    rgba(0, 0, 0, 0.88);
-  --stroke:     rgba(255,255,255,0.060);
-  --stroke-dim: rgba(255,255,255,0.036);
-  --stroke-med: rgba(255,255,255,0.110);
-  --border:     var(--stroke);
-  --t1: rgba(255,255,255,1.000);
-  --t2: rgba(255,255,255,0.500);
-  --t3: rgba(255,255,255,0.330);
-  --t4: rgba(255,255,255,0.160);
-  --text-primary:   var(--t1);
-  --text-secondary: var(--t2);
-  --text-muted:     var(--t3);
-  --slider-track: #282828;
-}
-
-/* â”€â”€â”€ Light Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-[data-theme="light"] {
-  --bg-base:    #f0f0f0;
-  --bg-surface: #ffffff;
-  --bg-elevated: #e8e8e8;
-  --bg-hover:   #dcdcdc;
-  --surface-1:  #f7f7f7;
-  --surface-2:  #ededed;
-  --surface-3:  #e2e2e2;
-  --acrylic:    rgba(240, 240, 240, 0.88);
-  --stroke:     rgba(0,0,0,0.09);
-  --stroke-dim: rgba(0,0,0,0.055);
-  --stroke-med: rgba(0,0,0,0.150);
-  --border:     var(--stroke);
-  --fill-subtle: rgba(0,0,0,0.040);
-  --fill-mod:    rgba(0,0,0,0.070);
-  --fill-strong: rgba(0,0,0,0.110);
-  --t1: rgba(0,0,0,0.900);
-  --t2: rgba(0,0,0,0.560);
-  --t3: rgba(0,0,0,0.380);
-  --t4: rgba(0,0,0,0.200);
-  --text-primary:   var(--t1);
-  --text-secondary: var(--t2);
-  --text-muted:     var(--t3);
-  --slider-track: #b8b8b8;
-  /* Darker so they stay legible on light surfaces — the dark-theme values sit around
-     3:1 against white, which is below the 4.5:1 needed for body text. */
-  --status-danger:   #d32f2f;
-  --status-success:  #2e7d32;
-  --status-warning:  #b26a00;
-  --status-info:     #1565c0;
-  --elevation-1: 0 2px 8px rgba(0,0,0,0.10);
-  --elevation-2: 0 4px 14px rgba(0,0,0,0.14);
-  --elevation-3: 0 10px 24px rgba(0,0,0,0.20);
-  --elevation-4: 0 18px 48px rgba(0,0,0,0.26);
-  --elevation-5: 0 28px 70px rgba(0,0,0,0.32);
-}
 
 /* â”€â”€â”€ High Contrast Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Works on top of any theme. Maximises contrast for accessibility. */
-[data-highcontrast="true"] {
+:root[data-highcontrast="true"] {
   --t2: rgba(255,255,255,0.850);
   --t3: rgba(255,255,255,0.630);
   --text-secondary: var(--t2);
@@ -435,7 +345,7 @@
   --slider-track:   #505050;
   --accent-dim:     rgba(255,255,255,0.12);
 }
-[data-highcontrast="true"]:not([data-theme="light"]) {
+:root[data-highcontrast="true"]:not([data-mode="light"]) {
   --bg-base:      #000000;
   --bg-surface:   #0a0a0a;
   --bg-elevated:  #141414;
@@ -446,7 +356,7 @@
   --t1: rgba(255,255,255,1.000);
   --text-primary: var(--t1);
 }
-[data-theme="light"][data-highcontrast="true"] {
+:root[data-mode="light"][data-highcontrast="true"] {
   --bg-base:      #ffffff;
   --bg-surface:   #ffffff;
   --bg-elevated:  #f0f0f0;
@@ -465,17 +375,12 @@
   --slider-track: #888888;
 }
 /* Stronger scrollbar thumb in high contrast */
-[data-highcontrast="true"] {
+:root[data-highcontrast="true"] {
   --scroll-thumb:       #666666;
   --scroll-thumb-dim:   #666666;   /* no dimmed state in high contrast, on purpose */
   --scroll-thumb-hover: #999999;
 }
 
-[data-theme="light"] {
-  --scroll-thumb:       #bbbbbb;
-  --scroll-thumb-dim:   #d4d4d4;   /* the dim step had no light value at all before */
-  --scroll-thumb-hover: #888888;
-}
 
 html, body, #root {
   height: 100%;
@@ -564,10 +469,10 @@ html, body, #root {
   background-color: rgba(255, 255, 255, 0.13) !important;
 }
 /* Light theme: a translucent dark tint instead (white would vanish on a light surface). */
-[data-theme="light"] [data-slot="search-field-group"] {
+[data-mode="light"] [data-slot="search-field-group"] {
   background-color: rgba(0, 0, 0, 0.05) !important;
 }
-[data-theme="light"] [data-slot="search-field-group"]:focus-within {
+[data-mode="light"] [data-slot="search-field-group"]:focus-within {
   background-color: rgba(0, 0, 0, 0.08) !important;
 }
 
