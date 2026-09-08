@@ -59,7 +59,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
       onMouseEnter={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--accent)"}
       onMouseLeave={e => e.currentTarget.querySelector(".sr-title").style.color = "var(--text-primary)"}
     >
-      <div style={{ width: 100, height: 100, borderRadius: "50%", overflow: "hidden", background: "var(--bg-elevated)", margin: "0 auto 10px" }}>
+      <div style={{ width: 100, height: 100, borderRadius: "var(--r-full)", overflow: "hidden", background: "var(--bg-elevated)", margin: "0 auto 10px" }}>
         {a.thumbnail
           ? <img src={thumb(a.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}

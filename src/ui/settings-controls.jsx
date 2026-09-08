@@ -2,6 +2,7 @@
 // the many existing call sites ({value,onChange} etc.) stay unchanged.
 import React, { Children, cloneElement, isValidElement, useId } from "react";
 import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb } from "@heroui/react";
+import { groupCorners } from "./corners.js";
 
 export function Slider({
   min, max, step = 1, value, onChange, onChangeCommit, width = 120,
@@ -149,5 +150,5 @@ export function segmentedCorners(index, count, height = 30) {
   const notch = 6;
   const l = index === 0 ? pill : notch;
   const r = index === count - 1 ? pill : notch;
-  return `${l}px ${r}px ${r}px ${l}px`;
+  return groupCorners(l, r);
 }

@@ -60,15 +60,18 @@ export function PlayPauseButton({ isPlaying, isDisabled, onPress, label }) {
       isDisabled={isDisabled}
       onPress={onPress}
       aria-label={label}
-      className="play-pill w-16 h-10 rounded-full shrink-0"
+      className="play-pill w-16 h-10 rounded-[var(--r-full)] shrink-0"
       style={{ contain: "layout style" }}
     >
       {fontReady ? (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
           <defs>
             <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
-              {/* Luminance mask: white keeps the pill, black is the hole. */}
-              <rect width={W} height={H} rx={H / 2} fill="#fff" />
+              {/* Luminance mask: white keeps the pill, black is the hole. Its corners have to
+                  match the fill's exactly - a rounder mask would clip the fill's edges away,
+                  a squarer one would leave the fill's corners unpainted - so both carry the
+                  same class and are rounded from the same rule. */}
+              <rect className="play-pill__shape" width={W} height={H} rx={H / 2} fill="#fff" />
               <text
                 className="fa-solid"
                 x={W / 2}
@@ -82,7 +85,7 @@ export function PlayPauseButton({ isPlaying, isDisabled, onPress, label }) {
               </text>
             </mask>
           </defs>
-          <rect className="play-pill__fill" width={W} height={H} rx={H / 2} mask={`url(#${maskId})`} />
+          <rect className="play-pill__shape play-pill__fill" width={W} height={H} rx={H / 2} mask={`url(#${maskId})`} />
         </svg>
       ) : (
         // Until the font is there, the button it always was. Nothing jumps: same pill, same

@@ -502,7 +502,7 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
   const applyRef = useRef(null);
   return (
     <div onMouseMove={wakeTools} onMouseLeave={() => setToolsVisible(false)}
-      style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : 16 }}>
+      style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : "var(--r-2xl)" }}>
       {videoSync.ready && (
         // offsetSeconds is 0 here, not videoSync.offsetSeconds — App.jsx's audio-switching effect
         // already applies that offset ONCE, as the seek target when swapping the Rust audio source

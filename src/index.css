@@ -560,7 +560,7 @@ html, body, #root {
 }
 .gcard-actions { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .gcard-btn {
-  border: none; padding: 0; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  border: none; padding: 0; width: 40px; height: 40px; border-radius: var(--r-full); display: grid; place-items: center;
   color: #fff; cursor: default; opacity: 0; transform: translateY(8px) scale(0.9);
   transition: opacity .22s ease, transform .22s cubic-bezier(0.22,1,0.36,1), background .15s ease;
 }
@@ -829,8 +829,8 @@ button:not([class]) {
    Collapse HeroUI's label/output grid to a single track row so the track (and thus the
    thumb) sits centered in the band instead of being pushed off-center by the grid gap. */
 .player-seek, .player-vol { grid-template-areas: "track"; grid-template-columns: 1fr; grid-template-rows: auto; gap: 0; }
-.player-seek .slider__track, .player-vol .slider__track { height: 8px !important; border-left-width: 0; border-right-width: 0; border-radius: 9999px !important; }
-.player-seek .slider__fill, .player-vol .slider__fill { border-radius: 9999px !important; position: relative; }
+.player-seek .slider__track, .player-vol .slider__track { height: 8px !important; border-left-width: 0; border-right-width: 0; border-radius: var(--r-full) !important; }
+.player-seek .slider__fill, .player-vol .slider__fill { border-radius: var(--r-full) !important; position: relative; }
 /* Smooth progress (seek only): interpolate between the 250ms-throttled updates.
    During drag the .seeking class disables it so the fill follows the cursor instantly. */
 .player-seek .slider__fill { transition: width 0.25s linear; }
@@ -877,7 +877,7 @@ button:not([class]) {
   .switch__thumb {
     width: 1.375rem;
     height: 1.375rem;
-    border-radius: 50%;
+    border-radius: var(--r-full);
     /* Fixed on both sides: the travel is the transform's job now. */
     margin-inline-start: 2px;
     transform: translateX(0);
@@ -926,7 +926,7 @@ button:not([class]) {
   .switch__thumb {
     width: 26px;
     height: 26px;
-    border-radius: 50%;
+    border-radius: var(--r-full);
     margin-inline-start: 2px;
     transform: translateX(0);
     /* The icon is centred by the thumb itself; HeroUI only sets `display: flex` on it. */
@@ -1010,7 +1010,7 @@ button:not([class]) {
   .slider__thumb::after {
     width: var(--slider-thumb);
     height: var(--slider-thumb);
-    border-radius: 50%;
+    border-radius: var(--r-full);
     box-shadow: 0 0 0 var(--slider-ring) var(--accent);
   }
 }
@@ -1148,6 +1148,16 @@ button:not([class]) {
   height: 2.5rem !important;
   margin: 0 !important;
 }
+
+/* The pill's own corners, so a theme can flatten them like everything else. The button draws
+   its shape in SVG, where the radius is a `rx` attribute rather than a border-radius, and no
+   token can reach an attribute. `rx` is also a CSS property though (measured in Chromium 148:
+   supported, accepts min() with a var, and beats the presentation attribute), so the attribute
+   on the elements stays as the fallback and this drives it.
+   min(), not the token alone: --r-full is 999px, which on a 64x40 rect would still clamp to a
+   pill, but stating the 20 keeps it honest about what the shape is - and a squared token wins
+   the min. Both rects, mask and fill, or their corners would stop matching. */
+.play-pill .play-pill__shape { rx: min(20px, var(--r-full)); }
 
 .play-pill .play-pill__fill {
   fill: var(--button-bg);

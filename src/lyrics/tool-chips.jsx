@@ -8,6 +8,7 @@ import { Minus, Plus, Romanization, TranslateLyrics } from "../icons.jsx";
 import { useLyricsPrefs } from "../preferences.jsx";
 import { OFFSET_STEP } from "./offset.js";
 import { Tooltip } from "../ui/tooltip.jsx";
+import { groupCorners } from "../ui/corners.js";
 
 // Chip geometry. The pill radius MUST stay exactly half the height: when the two radii on a
 // side add up to more than the side is long, the browser scales all four corners by the same
@@ -20,7 +21,7 @@ export const CHIP_NOTCH = 8;
 export function chipCorners(left, right) {
   const l = left ? CHIP_NOTCH : CHIP_R;
   const r = right ? CHIP_NOTCH : CHIP_R;
-  return `${l}px ${r}px ${r}px ${l}px`;
+  return groupCorners(l, r);
 }
 
 /**
@@ -28,7 +29,7 @@ export function chipCorners(left, right) {
  * button, and its width is fixed so counting up and down never shifts the row.
  */
 export function OffsetChips({ language, offset, adjustOffset, neighbourRight = false }) {
-  const btn = "border-0 bg-transparent cursor-default rounded-full self-stretch flex items-center justify-center transition-[background-color,transform] duration-150 hover:bg-white/15 active:bg-white/25 active:scale-90";
+  const btn = "border-0 bg-transparent cursor-default rounded-[var(--r-full)] self-stretch flex items-center justify-center transition-[background-color,transform] duration-150 hover:bg-white/15 active:bg-white/25 active:scale-90";
   return (
     <div className="flex items-center" style={{
       height: CHIP_H,
@@ -44,7 +45,7 @@ export function OffsetChips({ language, offset, adjustOffset, neighbourRight = f
       </Tooltip>
       <Tooltip text={translate(language, "lyricsOffsetReset")}>
         <button onClick={() => adjustOffset(null)}
-          className="border-0 bg-transparent cursor-default self-stretch rounded-full tabular-nums text-center transition-[background-color,transform] duration-150 hover:bg-white/12 active:bg-white/22 active:scale-90"
+          className="border-0 bg-transparent cursor-default self-stretch rounded-[var(--r-full)] tabular-nums text-center transition-[background-color,transform] duration-150 hover:bg-white/12 active:bg-white/22 active:scale-90"
           style={{ color: offset ? "var(--accent)" : "rgba(255,255,255,0.9)", fontSize: "var(--t12)", fontWeight: 600, width: 58 }}>
           {offset > 0 ? "+" : ""}{String(Number(offset.toFixed(2)))}s
         </button>

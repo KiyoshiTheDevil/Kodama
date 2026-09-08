@@ -221,7 +221,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
           : ctx ? (e) => { e.preventDefault(); onContextMenu?.(e, ctx); } : undefined}
         style={{ flexShrink: 0, width: size, cursor: "default" }}
       >
-        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "50%" : 10, overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
+        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "var(--r-full)" : "var(--r-lg)", overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
           <div style={{ width: size, height: size, background: "var(--bg-elevated)" }}>
             {item.thumbnail
               /* Twice the card's own size: the default thumb() keeps whatever small variant the
@@ -239,7 +239,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
               <div
                 className="home-card-play-btn"
                 onClick={(e) => handleCardPlayDirect(e, item, section)}
-                style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "var(--elevation-2)" }}
+                style={{ width: 40, height: 40, borderRadius: "var(--r-full)", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "default", boxShadow: "var(--elevation-2)" }}
               >
                 {isLoading
                   ? <Spinner size="sm" classNames={{ circle1: "border-white", circle2: "border-white" }} />
@@ -286,7 +286,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
 
   if (!allSections.length) return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 14, height: "100%", minHeight: 360, padding: 28 }}>
-      <div style={{ width: 56, height: 56, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-elevated)" }}>
+      <div style={{ width: 56, height: 56, borderRadius: "var(--r-full)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-elevated)" }}>
         <MusicNote size={24} className="text-muted" />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, maxWidth: 360 }}>
@@ -431,7 +431,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                           <div style={{ fontSize: "var(--t10)", color: "rgba(255,255,255,0.78)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1, textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{item.artists}</div>
                         </div>
                         <div className="home-card-play" style={{ position: "absolute", inset: 0, opacity: 0, transition: "opacity 0.2s", background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "var(--r-full)", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
                           </div>
                         </div>

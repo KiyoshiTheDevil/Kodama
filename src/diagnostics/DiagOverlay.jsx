@@ -94,7 +94,7 @@ export function DiagOverlay({ onClose }) {
       <div onPointerDown={startDrag}
         className="flex items-center gap-2 px-3 h-9 shrink-0 border-b border-border select-none"
         style={{ cursor: "move" }}>
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success,#3ec79a)]" />
+        <span className="w-1.5 h-1.5 rounded-[var(--r-full)] bg-[var(--status-success,#3ec79a)]" />
         <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t12)" }}>Diagnostics</span>
         <button type="button" data-no-drag aria-label="Copy"
           onClick={() => {

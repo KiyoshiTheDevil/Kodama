@@ -3,6 +3,7 @@
 // in the same visual language needs the same pieces, and a copy would have drifted.
 import { useState, useEffect } from "react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { groupCorners } from "./corners.js";
 
 // Resolves per document, so this is the main window in the main window and the tool window
 // in each tool window — which is what lets one set of controls serve all of them.
@@ -53,7 +54,7 @@ export const hdrCorners = (left, right, height = HDR_H) => {
   const pill = height / 2;
   const l = left ? HDR_NOTCH : pill;
   const r = right ? HDR_NOTCH : pill;
-  return `${l}px ${r}px ${r}px ${l}px`;
+  return groupCorners(l, r);
 };
 
 // The three glyphs, drawn here rather than taken from the icon set.

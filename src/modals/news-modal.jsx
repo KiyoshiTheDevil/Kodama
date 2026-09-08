@@ -95,7 +95,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
                               {n.important && <Star size={10} weight="fill" className="text-accent shrink-0" />}
-                              {unread && <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: "var(--accent)" }} />}
+                              {unread && <span className="w-1.5 h-1.5 rounded-[var(--r-full)] ml-auto shrink-0" style={{ background: "var(--accent)" }} />}
                             </div>
                             <div className="text-[length:var(--t13)] font-semibold truncate" style={{ color: active ? "var(--accent)" : "var(--text-primary)" }}>{n.title || "—"}</div>
                             <div className="text-[length:var(--t10)] text-muted truncate">{n.date}{n.min_version ? ` · ab ${n.min_version}` : ""}</div>

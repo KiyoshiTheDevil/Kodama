@@ -36,7 +36,7 @@ export function RemotePairModal({ isOpen, onClose, info, devices, onDevice, onRe
             <ModalBody>
               {dev ? (
                 <div className="flex flex-col items-center gap-4 py-2">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center bg-accent-dim">
+                  <div className="w-16 h-16 rounded-[var(--r-full)] flex items-center justify-center bg-accent-dim">
                     <DeviceMobile size={28} className="text-accent" />
                   </div>
                   <div className="text-center">
@@ -100,7 +100,7 @@ export function RemoteControlPanel({ devices, onDevice, onPair, trustedIds, onRe
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {approved.map(d => (
             <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: d.online ? "#3ddc84" : "var(--text-muted)" }} />
+              <span style={{ width: 7, height: 7, borderRadius: "var(--r-full)", flexShrink: 0, background: d.online ? "#3ddc84" : "var(--text-muted)" }} />
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--t12)", color: "var(--text-primary)" }}>
                 {d.name} <span style={{ color: "var(--text-muted)" }}>· {d.online ? t("remoteConnected") : t("remoteOffline")}</span>
               </span>

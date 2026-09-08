@@ -9,7 +9,7 @@ export function ProfileSwitcherModal({ isOpen, onOpenChange, accounts, onSwitch,
   const list = accounts || [];
 
   const Avatar = ({ a }) => (
-    <div className={cn("w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold text-[length:var(--t12)]",
+    <div className={cn("w-9 h-9 rounded-[var(--r-full)] overflow-hidden shrink-0 flex items-center justify-center font-semibold text-[length:var(--t12)]",
       a.type === "local" ? "bg-elevated text-secondary border border-border" : "bg-accent text-white")}>
       {a.avatar
         ? <img src={thumb(a.avatar)} alt="" className="w-full h-full object-cover" />

@@ -257,7 +257,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               position: "absolute",
               left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`,
               transform: "translate(-50%, -50%)",
-              width: 14, height: 14, borderRadius: "50%",
+              width: 14, height: 14, borderRadius: "var(--r-full)",
               border: "2px solid #fff", boxShadow: "var(--elevation-1)",
               background: currentHex, pointerEvents: "none",
             }} />
@@ -273,7 +273,7 @@ export function ColorPicker({ value, onChange, swatch }) {
             <div style={{
               position: "absolute", left: `${(hsv.h / 360) * 100}%`, top: "50%",
               transform: "translate(-50%, -50%)",
-              width: 18, height: 18, borderRadius: "50%",
+              width: 18, height: 18, borderRadius: "var(--r-full)",
               border: "2.5px solid #fff", boxShadow: "var(--elevation-1)",
               background: hueColor, pointerEvents: "none",
             }} />

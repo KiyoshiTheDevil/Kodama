@@ -51,7 +51,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
 
   const Avatar = ({ a, size }) => (
     <div
-      className={cn("rounded-full overflow-hidden shrink-0 flex items-center justify-center font-semibold",
+      className={cn("rounded-[var(--r-full)] overflow-hidden shrink-0 flex items-center justify-center font-semibold",
         a.type === "local" ? "bg-elevated text-secondary border border-border" : "bg-accent text-white")}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
     >
@@ -107,9 +107,9 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
       {active && (
         <CardRoot variant="secondary" className="bg-surface-1 flex flex-col items-center text-center gap-4 px-[18px] py-4">
           {active.type === "local" ? (
-            <button onClick={pickAvatar} title={t("changeAvatar")} className="relative group shrink-0 rounded-full cursor-default">
+            <button onClick={pickAvatar} title={t("changeAvatar")} className="relative group shrink-0 rounded-[var(--r-full)] cursor-default">
               <Avatar a={active} size={56} />
-              <span className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+              <span className="absolute inset-0 rounded-[var(--r-full)] bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                 <ImageSquare size={18} />
               </span>
             </button>

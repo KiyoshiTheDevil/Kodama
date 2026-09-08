@@ -616,7 +616,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   const PinDots = ({ count, filled }) => (
     <div className="flex gap-3.5 justify-center">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className={cn("w-3.5 h-3.5 rounded-full border-2 transition-colors",
+        <div key={i} className={cn("w-3.5 h-3.5 rounded-[var(--r-full)] border-2 transition-colors",
           i < filled ? "bg-primary border-primary" : "border-secondary")} />
       ))}
     </div>
@@ -1082,7 +1082,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       )}
                     >
                       {theme === th.id && (
-                        <div className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full bg-accent flex items-center justify-center shadow-md">
+                        <div className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-[var(--r-full)] bg-accent flex items-center justify-center shadow-md">
                           <Check size={12} weight="bold" className="text-white" />
                         </div>
                       )}
@@ -1131,7 +1131,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                             )}>
                             <img src={`/App-Icons/${encodeURIComponent(ic.file)}`} alt={ic.label} draggable={false} className="w-full h-full object-cover block" />
                             {selected && (
-                              <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-accent flex items-center justify-center shadow-md">
+                              <div className="absolute top-1 right-1 w-4 h-4 rounded-[var(--r-full)] bg-accent flex items-center justify-center shadow-md">
                                 <Check size={10} weight="bold" className="text-white" />
                               </div>
                             )}
@@ -1155,7 +1155,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         became one fused, borderless group this notice was the only thing left in
                         the column still drawing an outline around itself. */}
                     <div className="flex items-center gap-3 mb-1.5 rounded-[var(--r-2xl)] px-[18px] py-4" style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)" }}>
-                      <span className="w-8 h-8 rounded-full shrink-0" style={{ background: "var(--accent)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" }} />
+                      <span className="w-8 h-8 rounded-[var(--r-full)] shrink-0" style={{ background: "var(--accent)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" }} />
                       <span style={{ fontSize: "var(--t13)", color: "var(--text-secondary)" }}>{t("accentDynamicDesc") || "The accent colour is derived live from the current track's cover art."}</span>
                     </div>
                     <SettingRow label={t("accentVibrancy") || "Vibrancy"} icon={<PaintBrushBroad />}>
@@ -1932,9 +1932,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   ].map(c => (
                     <CardRoot key={c.name} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-3.5 px-4 py-3">
                       {c.avatar ? (
-                        <img src={`/${c.avatar}`} alt={c.name} className="w-9 h-9 rounded-full shrink-0 object-cover" />
+                        <img src={`/${c.avatar}`} alt={c.name} className="w-9 h-9 rounded-[var(--r-full)] shrink-0 object-cover" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-[length:var(--t13)] font-bold text-white"
+                        <div className="w-9 h-9 rounded-[var(--r-full)] shrink-0 flex items-center justify-center text-[length:var(--t13)] font-bold text-white"
                           style={{ background: "linear-gradient(135deg, var(--accent), #FF008C)" }}>
                           {c.name[0].toUpperCase()}
                         </div>

@@ -12,6 +12,7 @@ import { ContextMenu, CtxItem } from "./context-menu.jsx";
 import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
+import { groupCorners } from "./corners.js";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -24,7 +25,7 @@ const TAB_GAP = 6;
 function tabCorners(left, right) {
   const l = left ? 6 : TAB_H / 2;
   const r = right ? 6 : TAB_H / 2;
-  return `${l}px ${r}px ${r}px ${l}px`;
+  return groupCorners(l, r);
 }
 
 const QUEUE_ROW_H = 50;

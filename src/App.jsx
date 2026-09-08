@@ -871,7 +871,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <div className={cn(
             "shrink-0 overflow-hidden bg-elevated flex items-center justify-center",
             collapsed ? "w-9 h-9" : "w-10 h-10",
-            pl.type === "artist" ? "rounded-full" : "rounded-md"
+            pl.type === "artist" ? "rounded-[var(--r-full)]" : "rounded-md"
           )}>
             {pl.thumbnail
               ? <img src={thumb(pl.thumbnail)} alt="" className="w-full h-full object-cover" />
@@ -1191,7 +1191,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                   className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-secondary hover:bg-hover hover:text-primary transition-colors duration-150"
                   style={{ contain: "layout style" }}
                 >
-                  <div className="w-7 h-7 shrink-0 rounded-full bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden">
+                  <div className="w-7 h-7 shrink-0 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden">
                     {currentProfileData?.avatar
                       ? <img src={thumb(currentProfileData.avatar)} alt="" className="w-full h-full object-cover" />
                       : (currentProfileData?.displayName || "?")[0].toUpperCase()}
@@ -1233,7 +1233,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           <div className="flex flex-col items-center gap-1 py-2">
             <Dropdown>
               <DropdownTrigger
-                className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
+                className="w-9 h-9 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
                 style={{ contain: "layout style" }}
                 onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ text: currentProfileData?.displayName || "Kiyoshi", x: r.right + 10, y: r.top + r.height / 2 }); }}
                 onMouseLeave={() => setTooltip(null)}
@@ -3127,7 +3127,7 @@ function FfmpegSetupScreen({ onDone }) {
     }}>
       {/* Ambient glow */}
       <div style={{
-        position: "absolute", width: 320, height: 320, borderRadius: "50%",
+        position: "absolute", width: 320, height: 320, borderRadius: "var(--r-full)",
         background: "radial-gradient(circle, rgba(238,168,255,0.12) 0%, rgba(255,0,140,0.06) 55%, transparent 72%)",
         pointerEvents: "none",
       }} />
@@ -3225,7 +3225,7 @@ function FfmpegUpdateBanner({ installed, latest, onClose }) {
     <div style={{ position: "fixed", left: "50%", bottom: 124, transform: "translateX(-50%)", zIndex: 9990 }}
       className="animate-[pillRiseIn_0.3s_cubic-bezier(0.22,1,0.36,1)]">
       <div className="flex items-center gap-3 pl-4 pr-2.5 py-2.5 rounded-2xl bg-elevated border-[0.5px] border-border shadow-[0_10px_40px_rgba(0,0,0,0.55)] w-[400px] max-w-[calc(100vw-32px)]">
-        <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${phase === "error" ? "bg-[rgba(255,112,112,0.16)] text-[var(--status-danger)]" : "bg-accent-dim text-accent"}`}>
+        <div className={`shrink-0 w-8 h-8 rounded-[var(--r-full)] flex items-center justify-center ${phase === "error" ? "bg-[rgba(255,112,112,0.16)] text-[var(--status-danger)]" : "bg-accent-dim text-accent"}`}>
           {phase === "done" ? <CheckCircle size={18} weight="fill" /> : <ArrowClockwise size={16} weight="bold" />}
         </div>
         <div className="min-w-0 flex-1">
@@ -6464,7 +6464,7 @@ export default function App() {
         {switchingTo && (
           <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center gap-4"
             style={{ background: "rgba(13,13,13,0.72)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "fadeIn 0.15s ease" }}>
-            <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-accent text-white font-semibold text-xl shadow-lg">
+            <div className="w-16 h-16 rounded-[var(--r-full)] overflow-hidden flex items-center justify-center bg-accent text-white font-semibold text-xl shadow-lg">
               {switchingTo.avatar
                 ? <img src={thumb(switchingTo.avatar)} alt="" className="w-full h-full object-cover" />
                 : (switchingTo.displayName || switchingTo.name || "?")[0].toUpperCase()}

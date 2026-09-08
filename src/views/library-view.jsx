@@ -184,7 +184,7 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
           <button
             onClick={() => { setSearchOpen(v => !v); if (searchOpen) setSearchQuery(""); }}
             style={{
-              width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+              width: 28, height: 28, borderRadius: "var(--r-full)", flexShrink: 0,
               background: searchOpen ? "color-mix(in srgb, var(--accent) 18%, transparent)" : "var(--bg-elevated)",
               border: "0.5px solid var(--border)",
               color: searchOpen ? "var(--accent)" : "var(--text-secondary)",

@@ -186,7 +186,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                   <span className="ml-auto shrink-0 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-accent text-white uppercase">{item.badge}</span>
                 )}
                 {!collapsed && item.id === "update" && updateInfo && !item.badge && (
-                  <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-full bg-accent" />
+                  <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-[var(--r-full)] bg-accent" />
                 )}
               </ListBoxItem>
             );

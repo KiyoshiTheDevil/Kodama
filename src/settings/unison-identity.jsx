@@ -120,7 +120,7 @@ export function UnisonIdentitySection() {
         ) : (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-accent-dim text-accent flex items-center justify-center shrink-0"><UserCircle size={20} /></div>
+              <div className="w-9 h-9 rounded-[var(--r-full)] bg-accent-dim text-accent flex items-center justify-center shrink-0"><UserCircle size={20} /></div>
               <div className="flex-1 min-w-0">
                 <div className="text-[length:var(--t13)] font-semibold truncate">{serverName || identity.displayName || t("unisonAnonymous")}</div>
                 <button onClick={() => navigator.clipboard.writeText(identity.keyId).catch(() => {})} title={t("copy")}
