@@ -1,7 +1,7 @@
 // Shared leaf row/card primitives used across the library/playlist/search views.
 // Extracted from App.jsx — depend only on context (thumb/animations) + icons.
 import React from "react";
-import { thumb, useAnimations } from "../context.jsx";
+import { thumb, thumbHi, useAnimations } from "../context.jsx";
 import { Pause, Play, Shuffle, MusicNote } from "../icons.jsx";
 
 export function ExplicitBadge() {
@@ -110,10 +110,14 @@ export function GridCard({ thumbnail, title, subtitle, count, onClick, onPlay, o
   const act = (fn) => (e) => { e.stopPropagation(); fn?.(); };
   return (
     <div data-card-id={cardId} className="gcard cursor-default" onContextMenu={onContextMenu}>
-      {/* Cover */}
+      {/* Cover. The image asks for a size rather than taking whatever the backend picked:
+          artist avatars often only come at 60 or 120px, a quarter of this card, and Google's
+          image host carries the size in the URL, so a bigger one can simply be requested.
+          480 and no more - on i.ytimg that resolves to hqdefault, which always exists, while
+          the step above is maxresdefault, which frequently does not. */}
       <div className="gcard-thumb aspect-square bg-elevated" onClick={onClick}>
         {thumbnail
-          ? <img src={thumb(thumbnail)} alt="" className="gcard-img" />
+          ? <img src={thumbHi(thumbnail, 480)} alt="" className="gcard-img" />
           : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
         {(count != null && count !== "") && (
           <span className="gcard-badge"><MusicNote size={11} weight="fill" />{count}</span>

@@ -409,7 +409,12 @@ def _pick_thumb(thumbs, min_size=226):
     if not thumbs:
         return ""
     candidates = [t for t in thumbs if isinstance(t, dict) and t.get("width", 0) >= min_size]
-    chosen = min(candidates, key=lambda t: t["width"]) if candidates else thumbs[0]
+    # Nothing big enough: take the biggest there is, not the first. YouTube lists thumbnails
+    # smallest first, so "the first" was "the smallest" - which is how an artist offering only
+    # 60 and 120px ended up sending the 60 to a card four times that wide.
+    chosen = (min(candidates, key=lambda t: t["width"]) if candidates
+              else max((t for t in thumbs if isinstance(t, dict)),
+                       key=lambda t: t.get("width", 0), default=thumbs[0]))
     return chosen.get("url", "") if isinstance(chosen, dict) else ""
 
 def _upscale_thumbnail_url(url: str) -> str:
