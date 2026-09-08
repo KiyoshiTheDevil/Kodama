@@ -4,13 +4,13 @@
 // and a translation key. None of those can be delivered by anything but a new build, which is
 // the whole reason this file exists - Grove turned out to be thirteen values, and thirteen
 // values are data, not code. That puts a theme on the same side of the line as a visualizer or
-// equalizer preset: something the app reads and applies, with no way to execute anything.
+// equalizer preset: something the app reads and applies, with no way to execute anything. Grove
+// itself now arrives from the store rather than from here, which is the same point made twice.
 //
 // Each entry lists only what it CHANGES. :root in index.css is the ground everything stands on,
-// which is why "dark" is empty - dark IS :root - and why Grove needs thirteen lines rather than
-// eighty-two. The strokes, the fill states and the text ladder are white at fixed opacities and
-// sit correctly on any ground of roughly the same darkness, so a theme that does not mention
-// them inherits them and stays short.
+// which is why "dark" is empty: dark IS :root. The strokes, the fill states and the text ladder
+// are white at fixed opacities and sit correctly on any ground of roughly the same darkness, so
+// a theme that does not mention them inherits them and stays short.
 //
 // `mode` says light or dark, and it has to be said rather than guessed from the name. HeroUI
 // ships its own token set scoped to `.dark` / `[data-theme=dark]` and falls back to its LIGHT
@@ -83,24 +83,6 @@ export const BUILTIN_THEMES = [
       "--scroll-thumb":       "#bbbbbb",
       "--scroll-thumb-dim":   "#d4d4d4",
       "--scroll-thumb-hover": "#888888",
-    },
-  },
-
-  {
-    id: "grove", mode: "dark", tokens: {
-      "--bg-base":            "#0e1410",
-      "--bg-surface":         "#141c17",
-      "--bg-elevated":        "#1b241e",
-      "--bg-hover":           "#222d25",
-      "--surface-1":          "#1b241e",
-      "--surface-2":          "#2a352d",
-      "--surface-3":          "#35423a",
-      "--acrylic":            "rgba(14, 20, 16, 0.84)",
-      "--slider-track":       "#2a352d",
-      "--scroll-thumb":       "#2f3b33",
-      "--scroll-thumb-dim":   "#232e27",
-      "--scroll-thumb-hover": "#5d6f64",
-      "--accent":             "#d8a657",
     },
   },
 

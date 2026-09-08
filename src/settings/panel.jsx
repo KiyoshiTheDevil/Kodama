@@ -730,7 +730,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
       .finally(() => setThemeCatBusy(false));
   }, [tab, themeCat, themeCatBusy]);
 
-  const THEME_LABELS = { dark: "themeDark", oled: "themeOled", light: "themeLight", grove: "themeGrove" };
+  const THEME_LABELS = { dark: "themeDark", oled: "themeOled", light: "themeLight" };
   const SectionLabel = SettingsSectionLabel;
   const SectionDesc = SettingsSectionDesc;
 
