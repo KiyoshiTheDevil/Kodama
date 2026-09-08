@@ -78,7 +78,7 @@ export function TrackRow({ track, isPlaying, onPlay, onOpenArtist, onContextMenu
               ? [1, 2, 3].map(b => (
                   <div
                     key={b}
-                    className="w-[3px] rounded-[2px] bg-accent"
+                    className="w-[3px] rounded-[var(--r-full)] bg-accent"
                     style={{ animation: `eqBar${b} ${0.6 + b * 0.15}s ease-in-out infinite`, animationDelay: `${b * 0.1}s` }}
                   />
                 ))

@@ -23,8 +23,11 @@ const THUMB_W = 20;
 // which is what makes a row of sliders readable as a curve.
 const SCALE = [12, 8, 4, 0, -4, -8, -12];
 // The preset list is the Overlay Editor's layer list: same row height, same three-part chip
-// group, same moving radius. 15 is half the row height and has to be written as a literal —
-// Tailwind only generates classes it can read in the source.
+// group, same moving radius. The pill ends are --r-full, which on a 30px row clamps to the
+// same 15 that used to be written out, and the notches are --r-md, which is 6 exactly - so the
+// group follows a theme without changing at the default one. Still spelled out in full in the
+// class: Tailwind only generates classes it can read in the source, so the name may not be
+// assembled at runtime, but an arbitrary value holding a variable reads fine.
 const ROW_H = 30;
 
 const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -410,8 +413,8 @@ export default function Equalizer({ t }) {
                     className={[
                       "flex-1 min-w-0 flex items-center gap-2 px-4 cursor-default select-none",
                       "transition-[background-color,border-radius] duration-150",
-                      "rounded-s-[15px]",
-                      removable ? "rounded-e-[15px] group-hover:rounded-e-[6px]" : "rounded-e-[15px]",
+                      "rounded-s-[var(--r-full)]",
+                      removable ? "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)]",
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
                     ].join(" ")}
                     style={{ height: ROW_H }}>
@@ -430,7 +433,7 @@ export default function Equalizer({ t }) {
                       <button type="button"
                         onClick={(e) => { e.stopPropagation(); deletePreset(p); }}
                         aria-label={t("eqDeletePreset")}
-                        className="ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--status-danger)] transition-colors duration-150 rounded-s-[6px] rounded-e-[15px] cursor-default"
+                        className="ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--status-danger)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[var(--r-full)] cursor-default"
                         style={{ width: ROW_H, height: ROW_H }}>
                         <Trash size={13} />
                       </button>
@@ -443,7 +446,7 @@ export default function Equalizer({ t }) {
         </div>
 
         {/* ── Faders ──────────────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 mr-2.5 mb-2.5 rounded-[18px] overflow-auto"
+        <div className="flex-1 min-w-0 mr-2.5 mb-2.5 rounded-[var(--r-2xl)] overflow-auto"
           style={{ background: "var(--bg-elevated)" }}>
           <div className="min-w-max h-full flex items-center justify-center gap-6 px-12 py-10"
             style={{ opacity: state.enabled ? 1 : 0.4, transition: "opacity .18s" }}>

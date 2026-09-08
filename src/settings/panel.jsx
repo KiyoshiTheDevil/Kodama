@@ -1074,7 +1074,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   ].map(th => (
                     <CardRoot key={th.id} onClick={() => onThemeChange(th.id)} variant="transparent"
                       className={cn(
-                        "relative flex-1 p-0 gap-0 rounded-[10px] overflow-hidden cursor-default border-2",
+                        "relative flex-1 p-0 gap-0 rounded-[var(--r-lg)] overflow-hidden cursor-default border-2",
                         anim && "transition-transform",
                         theme === th.id ? "border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-border",
                         theme === th.id && anim && "scale-[1.02]",
@@ -1125,7 +1125,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         return (
                           <button key={ic.file} onClick={() => onAppIconChange?.(ic.file)} title={ic.label}
                             className={cn(
-                              "relative p-0 rounded-[14px] overflow-hidden cursor-default border-2 aspect-square bg-transparent",
+                              "relative p-0 rounded-[var(--r-xl)] overflow-hidden cursor-default border-2 aspect-square bg-transparent",
                               anim && "transition-transform hover:scale-[1.05]",
                               selected ? "border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-transparent"
                             )}>

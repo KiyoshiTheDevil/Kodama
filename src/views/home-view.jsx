@@ -273,7 +273,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
           <div style={{ display: "flex", gap: 16 }}>
             {[1,2,3,4,5].map(j => (
               <div key={j} style={{ flexShrink: 0, width: 160 }}>
-                <Skeleton className="w-40 h-40 rounded-[10px] mb-2.5" />
+                <Skeleton className="w-40 h-40 rounded-[var(--r-lg)] mb-2.5" />
                 <Skeleton className="h-3 w-[80%] rounded-sm mb-1.5" />
                 <Skeleton className="h-2.5 w-[55%] rounded-sm" />
               </div>
@@ -507,7 +507,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                   ? <div style={{ display: "flex", gap: 14 }}>
                       {[1,2,3,4].map(i => (
                         <div key={i} style={{ flexShrink: 0, width: 148 }}>
-                          <Skeleton className="w-[148px] h-[148px] rounded-[10px]" />
+                          <Skeleton className="w-[148px] h-[148px] rounded-[var(--r-lg)]" />
                           <Skeleton className="h-[11px] w-[72%] rounded-sm mt-2.5" />
                         </div>
                       ))}

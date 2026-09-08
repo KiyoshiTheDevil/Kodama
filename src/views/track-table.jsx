@@ -192,7 +192,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           {isPlaying && (
             <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-black/50">
               {anim ? [1, 2, 3].map(b => (
-                <div key={b} className="w-[3px] rounded-[2px] bg-accent" style={{ animation: `eqBar${b} ${0.6 + b * 0.15}s ease-in-out infinite`, animationDelay: `${b * 0.1}s` }} />
+                <div key={b} className="w-[3px] rounded-[var(--r-full)] bg-accent" style={{ animation: `eqBar${b} ${0.6 + b * 0.15}s ease-in-out infinite`, animationDelay: `${b * 0.1}s` }} />
               )) : <Pause size={12} className="text-accent" />}
             </div>
           )}
