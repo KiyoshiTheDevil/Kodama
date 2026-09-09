@@ -23,6 +23,7 @@ import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMe
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { applyTheme, applyShape } from "./theme.js";
+import { takeRescueRecord } from "./theme-rescue.js";
 import { allThemes } from "./themes.js";
 import { onThemesChanged, onThemeSelected } from "./store/sync.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -4670,6 +4671,19 @@ export default function App() {
   }, [cachedSongIds]);
 
   const [language, setLanguage] = useState(() => getInitialLang());
+
+  // A rescue happens on a screen that could not be read, quite possibly in another window, so it
+  // says nothing at the time. This is the first moment the message can actually be seen. Named
+  // rather than described, because "a theme" is not something anyone can act on.
+  //
+  // Sits here rather than beside the other theme effects because `language` is declared here and
+  // App has no `t` of its own: it PROVIDES the language context that everything below it reads.
+  useEffect(() => {
+    const rescued = takeRescueRecord();
+    if (rescued) addToast(translate(language, "themeRescued", { name: rescued }), "info");
+    // Once, on start. The language may change later; the message is already gone by then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleExportSong = useCallback(async (track, format) => {
     if (!track?.videoId) return;

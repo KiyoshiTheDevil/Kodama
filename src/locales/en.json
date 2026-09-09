@@ -149,6 +149,8 @@
   "storeApply": "Use",
   "storeNoMatches": "Nothing matches that.",
   "storeNothingInstalled": "Nothing installed yet.",
+  "themeRescued": "Switched back to Dark. The theme %name is still installed.",
+  "themeRescueHint": "If a theme leaves Kodama unreadable, press %keys to switch back to Dark. It works in every window, and the theme stays installed.",
   "themeNeedsNewer": "Needs a newer Kodama",
   "accentColor": "Accent Color",
   "customColor": "Custom Color",

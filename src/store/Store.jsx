@@ -15,6 +15,7 @@ import { PresetCard, PresetDetail } from "./preset-views.jsx";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
 import { applyTheme, readTheme } from "../theme.js";
+import { RESCUE_COMBO } from "../theme-rescue.js";
 import { WindowControls, HDR_H } from "../ui/window-chrome.jsx";
 
 const BUILTIN_IDS = new Set(["dark", "oled", "light"]);
@@ -248,6 +249,12 @@ function ThemeDetail({ entry, active, t, onBack, onInstall, onRemove, onApply })
         <Meta label={t("storeVersion")}>{entry.version || "1.0.0"}</Meta>
         <Meta label={t("storeMode")}>{entry.mode === "light" ? t("themeLight") : t("themeDark")}</Meta>
         <Meta label={t("storeMinVersion")}>{entry.minVersion || "—"}</Meta>
+      </div>
+
+      {/* Said where the risk is taken. The value check stops a theme from doing anything; it
+          cannot stop one from being unreadable, and that is the moment this is worth knowing. */}
+      <div className="rounded-[var(--r-md)] border border-border px-3 py-2 text-[length:var(--t11)] leading-relaxed text-muted">
+        {t("themeRescueHint", { keys: RESCUE_COMBO })}
       </div>
 
       {entry.tags?.length > 0 && (

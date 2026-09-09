@@ -149,6 +149,8 @@
   "storeApply": "Verwenden",
   "storeNoMatches": "Dazu passt nichts.",
   "storeNothingInstalled": "Noch nichts installiert.",
+  "themeRescued": "Zurück auf Dark. Das Theme %name ist weiterhin installiert.",
+  "themeRescueHint": "Wenn ein Theme Kodama unlesbar macht, schaltet %keys zurück auf Dark. Das geht in jedem Fenster, und das Theme bleibt installiert.",
   "themeNeedsNewer": "Braucht ein neueres Kodama",
   "accentColor": "Akzentfarbe",
   "customColor": "Eigene Farbe",
