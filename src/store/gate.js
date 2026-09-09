@@ -8,7 +8,7 @@
 // can turn on by accident and then report a half-built shop as broken. Kodama's own version is the
 // one fact that cannot be got wrong here.
 import { APP_VERSION } from "../version.js";
-import { compareVersions } from "../theme-catalogue.js";
+import { compareVersions } from "./catalogue.js";
 
 /** The release that opens the store. compareVersions already ranks alpha below beta below none. */
 export const STORE_OPENS_AT = "1.0.0-beta.1";

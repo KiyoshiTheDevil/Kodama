@@ -20,6 +20,7 @@ import { allThemes } from "../themes.js";
 import { openStoreWindow } from "../store/window.js";
 import { storeIsOpen } from "../store/gate.js";
 import { onThemesChanged } from "../store/sync.js";
+import { onPresetsChanged } from "../store/presets.js";
 import { APP_VERSION } from "../version.js";
 import { ZOOM_STEPS, ZOOM_LABELS, FONT_STEPS, FONT_LABELS } from "./scale.js";
 import { DEFAULT_SHORTCUTS } from "./shortcuts.js";
@@ -424,6 +425,11 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   // the Overlay Editor's design profiles). Stored locally as { id, name, savedAt, config }.
   const [vizPresets, setVizPresets] = useState(() => { try { return JSON.parse(localStorage.getItem("kodama-visualizer-presets") || "[]"); } catch { return []; } });
   const persistVizPresets = (next) => { setVizPresets(next); try { localStorage.setItem("kodama-visualizer-presets", JSON.stringify(next)); } catch {} };
+  // Same story as the equaliser: a visualizer preset can arrive from the store window, and this
+  // list would otherwise write its stale copy back on the next save.
+  useEffect(() => onPresetsChanged(() => {
+    try { setVizPresets(JSON.parse(localStorage.getItem("kodama-visualizer-presets") || "[]")); } catch { /* keep what we have */ }
+  }), []);
   const [vizPresetName, setVizPresetName] = useState("");
   const vizImportRef = useRef(null);
   const saveVizPreset = () => {

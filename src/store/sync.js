@@ -6,7 +6,7 @@
 // already learned once that a bridge which works inside one window does not automatically work
 // across two (see the mini player). A Tauri event does reach every webview, so that is what
 // carries the news, and each window reads localStorage afresh when it arrives.
-import { installTheme, uninstallTheme } from "../theme-catalogue.js";
+import { installTheme, uninstallTheme } from "./catalogue.js";
 
 export const THEMES_CHANGED = "kodama://themes-changed";
 /** A theme was CHOSEN in another window. Separate from the above: installing is not selecting. */

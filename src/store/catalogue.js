@@ -15,8 +15,9 @@
 //
 // It sits on raw.githubusercontent.com, the same host as news.json, so connect-src already allows
 // it. Note that raw caches for a few minutes: a fresh commit is not visible the same second.
-import { APP_VERSION } from "./version.js";
-import { BUILTIN_THEMES, sanitizeTokens, readInstalledThemes, writeInstalledThemes } from "./themes.js";
+import { APP_VERSION } from "../version.js";
+import { BUILTIN_THEMES, sanitizeTokens, readInstalledThemes, writeInstalledThemes } from "../themes.js";
+import { installedPresets, PRESET_KINDS } from "./presets.js";
 
 export const CATALOGUE_URL =
   "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/main/index.json";
@@ -75,12 +76,7 @@ const STRING = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
  * so it is the same kind of input as any other, and a typo should drop one entry rather than
  * break the list. Returns null for anything unusable.
  */
-export function normalizeEntry(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  if (!/^[\w-]{1,64}$/.test(raw.id || "")) return null;
-  if (Number(raw.schema || CATALOGUE_SCHEMA) > CATALOGUE_SCHEMA) return null;
-  const tokens = sanitizeTokens(raw.tokens);
-  if (!Object.keys(tokens).length) return null;        // nothing to apply
+function common(raw) {
   return {
     id: raw.id,
     title: STRING(raw.title, 40) || raw.id,
@@ -88,10 +84,31 @@ export function normalizeEntry(raw) {
     creators: Array.isArray(raw.creators) ? raw.creators.filter(c => typeof c === "string").slice(0, 8) : [],
     version: STRING(raw.version, 24) || "1.0.0",
     minVersion: STRING(raw.minVersion, 24),
-    mode: raw.mode === "light" ? "light" : "dark",
     tags: Array.isArray(raw.tags) ? raw.tags.filter(t => typeof t === "string").slice(0, 8) : [],
-    tokens,
   };
+}
+
+const ID_OK = (id) => /^[\w-]{1,64}$/.test(id || "");
+const KNOWN_SCHEMA = (raw) => Number(raw.schema || CATALOGUE_SCHEMA) <= CATALOGUE_SCHEMA;
+
+export function normalizeTheme(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  if (!ID_OK(raw.id) || !KNOWN_SCHEMA(raw)) return null;
+  const tokens = sanitizeTokens(raw.tokens);
+  if (!Object.keys(tokens).length) return null;        // nothing to apply
+  return { ...common(raw), mode: raw.mode === "light" ? "light" : "dark", tokens };
+}
+
+/**
+ * One preset entry. The config is carried through rather than checked here: the equaliser has its
+ * own normalizer that clamps every band, and the visualizer's is filtered down to known keys at
+ * the moment of installing. Checking it twice, differently, is how two checks drift apart.
+ */
+export function normalizePresetEntry(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  if (!ID_OK(raw.id) || !KNOWN_SCHEMA(raw)) return null;
+  if (!raw.config || typeof raw.config !== "object") return null;
+  return { ...common(raw), config: raw.config };
 }
 
 /**
@@ -101,7 +118,7 @@ export function normalizeEntry(raw) {
  * one truth: a theme that ships with this build needs no installing, and one already installed
  * needs an update only when the published version is newer.
  */
-export async function fetchThemeCatalogue(url = CATALOGUE_URL) {
+export async function fetchCatalogue(url = CATALOGUE_URL) {
   let data;
   try {
     const r = await fetch(url, { cache: "no-cache" });
@@ -113,7 +130,13 @@ export async function fetchThemeCatalogue(url = CATALOGUE_URL) {
   if (!data || Number(data.schema) > CATALOGUE_SCHEMA || !Array.isArray(data.themes)) {
     return { ok: false, themes: [] };
   }
-  return { ok: true, themes: annotateThemes(data.themes.map(normalizeEntry).filter(Boolean)) };
+  const themes = annotateThemes(data.themes.map(normalizeTheme).filter(Boolean));
+  const out = { ok: true, themes };
+  for (const kind of PRESET_KINDS) {
+    const list = Array.isArray(data[kind]) ? data[kind] : [];
+    out[kind] = annotatePresets(kind, list.map(normalizePresetEntry).filter(Boolean));
+  }
+  return out;
 }
 
 /**
@@ -124,6 +147,29 @@ export async function fetchThemeCatalogue(url = CATALOGUE_URL) {
  * app already knows the answer to - and would leave the button reading "Install" until it came
  * back.
  */
+/**
+ * What this build can say about each preset, recomputed from what is installed right now.
+ *
+ * An equaliser preset carries its version inside its id, which is why an update can be offered at
+ * all: the normalizer that rebuilds it keeps the id and drops everything else. A preset installed
+ * before that encoding existed reports no version and is left alone rather than being offered an
+ * update forever.
+ */
+export function annotatePresets(kind, entries) {
+  const installed = installedPresets(kind);
+  return entries.map(e => {
+    const local = installed.find(i => i.id === e.id);
+    return {
+      ...e,
+      kind,
+      installed: !!local,
+      installedVersion: local?.version || null,
+      updatable: !!local?.version && compareVersions(e.version, local.version) > 0,
+      supported: meetsMinVersion(e),
+    };
+  });
+}
+
 export function annotateThemes(entries) {
   const installed = readInstalledThemes();
   return entries.map(e => {
@@ -142,7 +188,7 @@ export function annotateThemes(entries) {
 // ─── Installing ──────────────────────────────────────────────────────────────
 
 export function installTheme(entry) {
-  const e = normalizeEntry(entry);
+  const e = normalizeTheme(entry);
   if (!e || !meetsMinVersion(e)) return false;
   const next = readInstalledThemes().filter(t => t.id !== e.id);
   next.push({ id: e.id, label: e.title, mode: e.mode, version: e.version, tokens: e.tokens });

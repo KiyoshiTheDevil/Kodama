@@ -11,6 +11,7 @@ import {
 import {
   BANDS, BUILTIN, RANGE_DB, applyToCore, isBuiltin, loadState, normalizePreset, saveState,
 } from "./presets.js";
+import { onPresetsChanged } from "../store/presets.js";
 
 const HDR_H = 52;
 // From the concept: a tall, narrow track with a lozenge thumb, and the whole column reading as
@@ -183,6 +184,16 @@ export default function Equalizer({ t }) {
 
   // The core and localStorage both follow the state, so nothing has to remember to call them.
   useEffect(() => { saveState(state); applyToCore(state); }, [state]);
+
+  // A preset can be installed or removed in the store, which is a window of its own. This window
+  // holds the same state in memory and writes it back on the next change, so without being told it
+  // would quietly undo the install. Only the list and the selection are taken: the sliders may be
+  // mid-drag, and that is this window's business. Not through commit(), because someone else's
+  // install is not a step this window's undo should walk back through.
+  useEffect(() => onPresetsChanged(() => {
+    const fresh = loadState();
+    setState((prev) => ({ ...prev, custom: fresh.custom, presetId: fresh.presetId }));
+  }), []);
 
   // Every change that is worth undoing goes through here.
   const commit = useCallback((next) => {

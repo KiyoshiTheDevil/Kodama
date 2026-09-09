@@ -9,7 +9,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, Button } from "@heroui/react";
 import { ArrowsClockwise, CaretLeft, Check, House, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
   GridTwo, DownloadSimple, MagnifyingGlass } from "../icons.jsx";
-import { fetchThemeCatalogue, annotateThemes } from "../theme-catalogue.js";
+import { fetchCatalogue, annotateThemes, annotatePresets } from "./catalogue.js";
+import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPresetsChanged } from "./presets.js";
+import { PresetCard, PresetDetail } from "./preset-views.jsx";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
 import { applyTheme, readTheme } from "../theme.js";
@@ -26,8 +28,8 @@ const CATEGORIES = [
   { id: "start",      icon: House,         label: "storeStart" },
   { id: "themes",     icon: Palette,       label: "storeThemes" },
   { id: "extensions", icon: PuzzlePiece,   label: "storeExtensions", soon: "storeSoonExtensions" },
-  { id: "visualizer", icon: WaveformLines, label: "storeVisualizer", soon: "storeSoonPresets" },
-  { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer",  soon: "storeSoonPresets" },
+  { id: "visualizer", icon: WaveformLines, label: "storeVisualizer", kind: "visualizer" },
+  { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer",  kind: "equalizer" },
   { id: "widgets",    icon: GridTwo,       label: "storeWidgets",    soon: "storeSoonWidgets" },
 ];
 
@@ -302,17 +304,23 @@ export default function Store({ t }) {
 
   const load = useCallback(() => {
     setBusy(true);
-    fetchThemeCatalogue().then(setCat).finally(() => setBusy(false));
+    fetchCatalogue().then(setCat).finally(() => setBusy(false));
   }, []);
   useEffect(load, [load]);
 
   const refresh = useCallback(() => {
-    setCat(c => (c ? { ...c, themes: annotateThemes(c.themes) } : c));
+    setCat(c => {
+      if (!c) return c;
+      const next = { ...c, themes: annotateThemes(c.themes) };
+      for (const k of PRESET_KINDS) next[k] = annotatePresets(k, c[k] || []);
+      return next;
+    });
     setTick(n => n + 1);
   }, []);
 
-  // The main window can install or remove one too, from the picker in Settings.
+  // Another window can install or remove one too: Settings for a theme, the equaliser for a preset.
   useEffect(() => onThemesChanged(refresh), [refresh]);
+  useEffect(() => onPresetsChanged(refresh), [refresh]);
 
   const apply = (id) => {
     localStorage.setItem("kiyoshi-theme", id);
@@ -334,6 +342,13 @@ export default function Store({ t }) {
     refresh();
   };
 
+  const installP = async (e) => { await installPresetEverywhere(e.kind, e); refresh(); };
+  const removeP = async (e) => {
+    await uninstallPresetEverywhere(e.kind, e.id);
+    if (section === "mine" && detailId === e.id) setDetailId(null);
+    refresh();
+  };
+
   const published = cat?.themes || [];
   // Everything this installation has that did not ship with it. Read through allThemes() rather
   // than through the catalogue, so a theme stays listed here even when the catalogue is
@@ -346,28 +361,38 @@ export default function Store({ t }) {
 
   const openSection = (id) => { setSection(id); setDetailId(null); };
   const current = CATEGORIES.find(c => c.id === section);
-  // Start and Themes show the same thing while themes are the only thing published. Start is not
-  // a duplicate for long: it is where anything else lands the moment a second category fills.
-  const showsThemes = section === "start" || section === "themes" || section === "mine";
-
-  const cards = section === "mine"
-    ? published.filter(e => mine.some(m => m.id === e.id)).filter(match)
-    : showsThemes ? published.filter(match) : [];
 
   // A theme installed from a catalogue that has since dropped it has no published entry to draw,
   // but it is still installed and still needs a way out.
-  const orphans = section === "mine"
-    ? mine
-      .filter(m => !published.some(e => e.id === m.id))
-      .map(m => ({
-        id: m.id, title: m.label || m.id, tokens: m.tokens, version: m.version,
-        creators: [], installed: true, supported: true, updatable: false,
-      }))
-      .filter(match)
-    : [];
+  const orphanThemes = mine
+    .filter(m => !(cat?.themes || []).some(e => e.id === m.id))
+    .map(m => ({
+      id: m.id, title: m.label || m.id, tokens: m.tokens, version: m.version,
+      creators: [], installed: true, supported: true, updatable: false,
+    }));
 
-  const shown = [...cards, ...orphans];
-  const detail = detailId ? shown.find(e => e.id === detailId) : null;
+  /**
+   * What this shelf holds, as one or more groups.
+   *
+   * Written as groups rather than as one list because Start and Installed carry more than one
+   * kind, and a heap of themes and presets with no heading between them is a worse answer than
+   * either shelf on its own. A shelf with a single group draws no heading: the rail already
+   * named it.
+   */
+  const groups = (() => {
+    const themes = { key: "themes", label: t("storeThemes"), kind: "theme", items: [...(cat?.themes || []), ...orphanThemes] };
+    const presets = PRESET_KINDS.map(k => ({
+      key: k, label: t(k === "visualizer" ? "storeVisualizer" : "storeEqualizer"), kind: "preset", items: cat?.[k] || [],
+    }));
+    const all = [themes, ...presets];
+    if (section === "start") return all;
+    if (section === "mine") return all.map(g => ({ ...g, items: g.items.filter(i => i.installed) }));
+    if (section === "themes") return [themes];
+    return all.filter(g => g.key === section);
+  })().map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length > 0);
+
+  const everything = groups.flatMap(g => g.items.map(i => ({ ...i, _group: g.kind })));
+  const detail = detailId ? everything.find(e => e.id === detailId) : null;
 
   const RailItem = ({ id, icon: Icon, label, count }) => (
     <button onClick={() => openSection(id)}
@@ -416,13 +441,17 @@ export default function Store({ t }) {
 
         {/* ── Content ─────────────────────────────────────────────────────── */}
         <div className="scrollable min-w-0 flex-1 overflow-y-auto p-5">
-          {!showsThemes ? (
+          {current?.soon ? (
             <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
-          ) : detail ? (
+          ) : detail ? (detail._group === "theme" ? (
             <ThemeDetail entry={detail} active={theme === detail.id} t={t}
               onBack={() => setDetailId(null)}
               onInstall={install} onRemove={remove} onApply={apply} />
           ) : (
+            <PresetDetail entry={detail} t={t} CaretLeft={CaretLeft}
+              onBack={() => setDetailId(null)}
+              onInstall={installP} onRemove={removeP} />
+          )) : (
           <>
           <div className="mb-4 flex items-center gap-2">
             <div className="relative w-full max-w-[320px]">
@@ -441,24 +470,31 @@ export default function Store({ t }) {
               <Button size="sm" variant="secondary" onPress={load}>{t("retry")}</Button>
             </div>
           )}
-          {cat && cat.ok && !shown.length && (
+          {cat && cat.ok && !everything.length && (
             <div className="text-[length:var(--t12)] text-muted">
               {q ? t("storeNoMatches") : t("storeNothingInstalled")}
             </div>
           )}
 
-          {/* Start is the only view that names what it is showing: on Themes the rail already
-              says it, and repeating it there would be a heading for the whole page. */}
-          {section === "start" && shown.length > 0 && (
-            <div className="mb-2 text-[length:var(--t13)] font-medium text-primary">{t("storeThemes")}</div>
-          )}
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
-            {shown.map(e => (
-              <ThemeCard key={e.id} entry={e} active={theme === e.id} t={t}
-                onOpen={setDetailId}
-                onInstall={install} onRemove={remove} onApply={apply} />
-            ))}
-          </div>
+          {/* A heading only where there is more than one kind on the shelf. On Themes the rail
+              already says it, and repeating it would be a heading for the whole page. */}
+          {groups.map(g => (
+            <div key={g.key} className="mb-6 last:mb-0">
+              {groups.length > 1 && (
+                <div className="mb-2 text-[length:var(--t13)] font-medium text-primary">{g.label}</div>
+              )}
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+                {g.items.map(e => (g.kind === "theme" ? (
+                  <ThemeCard key={e.id} entry={e} active={theme === e.id} t={t}
+                    onOpen={setDetailId}
+                    onInstall={install} onRemove={remove} onApply={apply} />
+                ) : (
+                  <PresetCard key={e.id} entry={e} t={t}
+                    onOpen={setDetailId} onInstall={installP} onRemove={removeP} />
+                )))}
+              </div>
+            </div>
+          ))}
           </>
           )}
         </div>
