@@ -76,8 +76,31 @@ const STRING = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
  * so it is the same kind of input as any other, and a typo should drop one entry rather than
  * break the list. Returns null for anything unusable.
  */
+// Screenshots may only come from the store repo itself.
+//
+// The backend's image proxy fetches whatever it is handed, which is what makes a screenshot
+// possible without touching the content policy. It also means a wrong URL in the catalogue would
+// have the app fetching an arbitrary host on every visit to a page. The catalogue is ours, so this
+// is not a defence against an attacker so much as against a typo and against the day it is not
+// only ours: an entry can point at pictures of itself, and at nothing else.
+const SHOT_PREFIX = "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/";
+
+function screenshots(raw) {
+  if (!Array.isArray(raw.screenshots)) return [];
+  return raw.screenshots
+    .filter(u => typeof u === "string" && u.startsWith(SHOT_PREFIX) && u.length < 400)
+    .slice(0, 6);
+}
+
 function common(raw) {
   return {
+    // What the entry costs, measured rather than declared: a published number would be one more
+    // thing to keep in step with the file it describes, and it is the file that is downloaded.
+    size: new TextEncoder().encode(JSON.stringify(raw)).length,
+    // Kodama's own, rather than merely curated. Everything here is reviewed; this says who wrote
+    // it, which is a different promise and the one a badge should make.
+    official: raw.official !== false && (raw.creators || []).includes("KiyoshiTheDevil"),
+    screenshots: screenshots(raw),
     id: raw.id,
     title: STRING(raw.title, 40) || raw.id,
     description: STRING(raw.description, 300),

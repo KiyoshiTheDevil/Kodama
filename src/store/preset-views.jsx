@@ -7,6 +7,7 @@
  * side should look different in the way they actually differ.
  */
 import { Button } from "@heroui/react";
+import DetailPage from "./detail.jsx";
 import { BANDS, RANGE_DB } from "../equalizer/presets.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 
@@ -126,69 +127,33 @@ export function PresetCard({ entry, t, onOpen, onInstall, onRemove }) {
   );
 }
 
-export function PresetDetail({ entry, t, onBack, onInstall, onRemove, CaretLeft }) {
+export function PresetDetail({ entry, t, onBack, onInstall, onRemove }) {
   const c = entry.config || {};
-  const rows = entry.kind === "equalizer"
+  const values = entry.kind === "equalizer"
     // The bands, named. "+3 dB at 1 kHz" is the sentence someone can act on; "gains[5] = 3" is not.
     ? BANDS.map((hz, i) => [
         hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`,
         `${(Number(c.gains?.[i]) || 0) > 0 ? "+" : ""}${Number(c.gains?.[i]) || 0} dB`,
-      ]).concat([[t("eqPreamp") || "Preamp", `${Number(c.preamp) || 0} dB`]])
-    // Only what the preset CHANGES. Everything absent is Kodama's own default, and saying that is
+      ]).concat([["Preamp", `${Number(c.preamp) || 0} dB`]])
+    // Only what the preset CHANGES. Everything absent is Kodama's own default, and saying so is
     // what stops a three-line preset from looking unfinished.
     : Object.keys(c).map(k => [k, String(c[k])]);
 
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-5">
-      <Button size="sm" variant="ghost" className="w-fit text-muted" onPress={onBack}>
-        <CaretLeft size={12} /> <span className="ml-1.5">{t("storeBack")}</span>
-      </Button>
-
-      <div className="overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface py-4">
-        <PresetPreview kind={entry.kind} config={c} height={150} />
-      </div>
-
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[length:var(--t20)] font-semibold text-primary">{entry.title}</h2>
-          {entry.description && (
-            <p className="mt-1 text-[length:var(--t13)] leading-relaxed text-muted">{entry.description}</p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 pt-1">
-          <PresetActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 rounded-[var(--r-lg)] border border-border p-4 sm:grid-cols-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[length:var(--t11)] text-muted">{t("storeAuthor")}</span>
-          <span className="text-[length:var(--t12)] text-primary">{(entry.creators || []).join(", ") || "—"}</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[length:var(--t11)] text-muted">{t("storeVersion")}</span>
-          <span className="text-[length:var(--t12)] text-primary">{entry.version || "1.0.0"}</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[length:var(--t11)] text-muted">{t("storeMinVersion")}</span>
-          <span className="text-[length:var(--t12)] text-primary">{entry.minVersion || "—"}</span>
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-1 text-[length:var(--t13)] font-medium text-primary">{t("storeValues")}</div>
-        {entry.kind !== "equalizer" && (
-          <div className="mb-3 text-[length:var(--t11)] text-muted">{t("storeChanges", { n: rows.length })}</div>
-        )}
-        <div className="grid gap-x-6 gap-y-1 rounded-[var(--r-md)] border border-border p-3 sm:grid-cols-2">
-          {rows.map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-3 font-mono text-[length:var(--t11)]">
-              <span className="truncate text-muted">{k}</span>
-              <span className="shrink-0 text-primary">{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <DetailPage entry={entry} t={t} onBack={onBack}
+      icon={<div className="flex h-full w-full items-center justify-center" style={{ background: "var(--bg-elevated)" }}>
+        <PresetPreview kind={entry.kind} config={c} height={64} />
+      </div>}
+      stages={[
+        <div key="a" className="flex h-full w-full items-center" style={{ background: "var(--bg-surface)" }}>
+          <PresetPreview kind={entry.kind} config={c} height={140} />
+        </div>,
+      ]}
+      values={values}
+      valuesLabel={entry.kind === "equalizer"
+        ? t("storeValues")
+        : `${t("storeValues")} · ${t("storeChanges", { n: values.length })}`}
+      actions={<PresetActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />}
+    />
   );
 }

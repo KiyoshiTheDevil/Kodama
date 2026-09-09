@@ -89,6 +89,7 @@ export const House              = fa("house");
 export const Books              = fa("books");
 export const MagnifyingGlass    = fa("magnifying-glass");
 export const ArrowLeft          = fa("arrow-left");
+export const ArrowRight         = fa("arrow-right");
 export const CaretLeft          = fa("caret-left");
 export const CaretRight         = fa("caret-right");
 export const CaretLineLeft      = fa("angles-left");
