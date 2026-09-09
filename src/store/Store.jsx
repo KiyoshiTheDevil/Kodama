@@ -194,6 +194,11 @@ export default function Store({ t }) {
         <span data-tauri-drag-region className="text-[length:var(--t13)] font-medium text-primary">
           {t("store")}
         </span>
+        {/* The shop opens at Beta, and says so. It is reachable earlier only in a dev build or
+            with the debug tools unlocked, which is exactly when the label is worth having. */}
+        <span data-tauri-drag-region
+          className="rounded-[var(--r-sm)] px-1 py-px text-[9px] font-bold leading-[1.4] tracking-[0.04em] text-white"
+          style={{ background: "var(--accent)" }}>BETA</span>
         <div data-tauri-drag-region className="flex-1" />
         <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!"
           onPress={load} aria-label={t("refresh")}>

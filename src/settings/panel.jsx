@@ -18,6 +18,7 @@ import { CoverView } from "../views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 import { allThemes } from "../themes.js";
 import { openStoreWindow } from "../store/window.js";
+import { storeIsOpen } from "../store/gate.js";
 import { onThemesChanged } from "../store/sync.js";
 import { APP_VERSION } from "../version.js";
 import { ZOOM_STEPS, ZOOM_LABELS, FONT_STEPS, FONT_LABELS } from "./scale.js";
@@ -1144,12 +1145,14 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {/* The store is its own window. It used to be a list here, which put a shop
                     inside a settings page and had nowhere to grow: presets and, one day,
                     extensions do not belong under "Appearance". */}
-                <div className="mt-4 flex items-center gap-3">
-                  <Button variant="secondary" size="sm" onPress={openStoreWindow}>
-                    {t("storeGetMore")}
-                  </Button>
-                  <span className="text-[length:var(--t11)] text-muted">{t("themeStoreDesc")}</span>
-                </div>
+                {storeIsOpen() && (
+                  <div className="mt-4 flex items-center gap-3">
+                    <Button variant="secondary" size="sm" onPress={openStoreWindow}>
+                      {t("storeGetMore")}
+                    </Button>
+                    <span className="text-[length:var(--t11)] text-muted">{t("themeStoreDesc")}</span>
+                  </div>
+                )}
                 </div>
 
                 <div id="set-sec-ap-icon" data-settings-section="ap-icon" style={{ scrollMarginTop: 8 }}>

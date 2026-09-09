@@ -1,4 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { storeIsOpen } from "./gate.js";
 
 /**
  * Open the store, or focus it if it is already up.
@@ -9,6 +10,9 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
  * twice already.
  */
 export async function openStoreWindow() {
+  // Checked here as well as at the button. The button is the only way in today, but a gate that
+  // lives only in the caller is one refactor away from being gone.
+  if (!storeIsOpen()) return;
   try {
     const existing = await WebviewWindow.getByLabel("store");
     if (existing) { await existing.setFocus(); return; }
