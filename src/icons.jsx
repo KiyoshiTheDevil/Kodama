@@ -106,6 +106,8 @@ export const ArrowsOut          = fa("expand");
 // ── Settings & tools ─────────────────────────────────────────────────────────
 export const Gear               = fa("gear");
 export const Palette            = fa("palette");
+export const PuzzlePiece        = fa("puzzle-piece");
+export const GridTwo            = fa("grid-2");
 export const Key                = fa("key");
 export const Keyboard           = fa("keyboard");
 export const PaintBrushBroad    = fa("paintbrush-fine");

@@ -7,7 +7,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, Button } from "@heroui/react";
-import { ArrowsClockwise, Check, Palette, DownloadSimple, MagnifyingGlass } from "../icons.jsx";
+import { ArrowsClockwise, Check, House, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
+  GridTwo, DownloadSimple, MagnifyingGlass } from "../icons.jsx";
 import { fetchThemeCatalogue, annotateThemes } from "../theme-catalogue.js";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
@@ -15,6 +16,31 @@ import { applyTheme, readTheme } from "../theme.js";
 import { WindowControls, HDR_H } from "../ui/window-chrome.jsx";
 
 const BUILTIN_IDS = new Set(["dark", "oled", "light"]);
+
+// The whole shape of the shop, including the shelves that are still empty.
+//
+// An empty shelf is a promise, and a promise has to say what it is waiting for. Each category
+// that carries nothing yet names what will live there and why it is not there, rather than
+// showing a blank pane that reads as a broken page.
+const CATEGORIES = [
+  { id: "start",      icon: House,         label: "storeStart" },
+  { id: "themes",     icon: Palette,       label: "storeThemes" },
+  { id: "extensions", icon: PuzzlePiece,   label: "storeExtensions", soon: "storeSoonExtensions" },
+  { id: "visualizer", icon: WaveformLines, label: "storeVisualizer", soon: "storeSoonPresets" },
+  { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer",  soon: "storeSoonPresets" },
+  { id: "widgets",    icon: GridTwo,       label: "storeWidgets",    soon: "storeSoonWidgets" },
+];
+
+/** A shelf with nothing on it yet: what belongs here, and what it is waiting for. */
+function ComingSoon({ icon: Icon, title, line }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 py-16 text-center">
+      <Icon size={30} className="text-muted opacity-40" />
+      <div className="text-[length:var(--t14)] font-medium text-primary">{title}</div>
+      <div className="max-w-[380px] text-[length:var(--t12)] leading-relaxed text-muted">{line}</div>
+    </div>
+  );
+}
 
 /** A theme drawn as the app would draw it: ground, a panel, a line of text, three tiles. */
 function ThemePreview({ tokens }) {
@@ -123,14 +149,14 @@ export default function Store({ t }) {
   const q = query.trim().toLowerCase();
   const match = (e) => !q || `${e.title} ${e.description || ""} ${(e.tags || []).join(" ")}`.toLowerCase().includes(q);
 
-  const sections = [
-    { id: "themes", label: t("storeThemes"), icon: <Palette size={16} /> },
-    { id: "mine", label: t("storeInstalled"), icon: <DownloadSimple size={16} />, count: mine.length },
-  ];
+  const current = CATEGORIES.find(c => c.id === section);
+  // Start and Themes show the same thing while themes are the only thing published. Start is not
+  // a duplicate for long: it is where anything else lands the moment a second category fills.
+  const showsThemes = section === "start" || section === "themes" || section === "mine";
 
-  const cards = section === "themes"
-    ? published.filter(match)
-    : published.filter(e => mine.some(m => m.id === e.id)).filter(match);
+  const cards = section === "mine"
+    ? published.filter(e => mine.some(m => m.id === e.id)).filter(match)
+    : showsThemes ? published.filter(match) : [];
 
   // A theme installed from a catalogue that has since dropped it has no published entry to draw,
   // but it is still installed and still needs a way out.
@@ -145,6 +171,19 @@ export default function Store({ t }) {
     : [];
 
   const shown = [...cards, ...orphans];
+
+  const RailItem = ({ id, icon: Icon, label, count }) => (
+    <button onClick={() => setSection(id)}
+      style={section === id ? { background: "var(--fill-mod)" } : undefined}
+      className={cn(
+        "flex items-center gap-2.5 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[length:var(--t13)]",
+        section === id ? "text-primary" : "text-muted hover:bg-hover"
+      )}>
+      <span className="flex w-4 shrink-0 justify-center"><Icon size={15} /></span>
+      <span className="flex-1 truncate">{label}</span>
+      {count > 0 && <span className="shrink-0 text-[length:var(--t11)] text-muted">{count}</span>}
+    </button>
+  );
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
@@ -165,23 +204,20 @@ export default function Store({ t }) {
 
       <div className="flex min-h-0 flex-1">
         {/* ── Rail ────────────────────────────────────────────────────────── */}
-        <div className="flex w-[184px] shrink-0 flex-col gap-0.5 border-r border-border p-2">
-          {sections.map(s => (
-            <button key={s.id} onClick={() => setSection(s.id)}
-              style={section === s.id ? { background: "var(--fill-mod)" } : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[length:var(--t13)]",
-                section === s.id ? "text-primary" : "text-muted hover:bg-hover"
-              )}>
-              <span className="shrink-0">{s.icon}</span>
-              <span className="flex-1 truncate">{s.label}</span>
-              {s.count > 0 && <span className="shrink-0 text-[length:var(--t11)] text-muted">{s.count}</span>}
-            </button>
-          ))}
+        <div className="flex w-[196px] shrink-0 flex-col gap-0.5 border-r border-border p-2">
+          {CATEGORIES.map(c => <RailItem key={c.id} id={c.id} icon={c.icon} label={t(c.label)} />)}
+          {/* What this installation has, rather than what is on offer. It is a different question
+              from the ones above, so it sits apart from them. */}
+          <div className="my-2 h-px shrink-0 bg-[var(--stroke-dim)]" />
+          <RailItem id="mine" icon={DownloadSimple} label={t("storeInstalled")} count={mine.length} />
         </div>
 
         {/* ── Content ─────────────────────────────────────────────────────── */}
         <div className="scrollable min-w-0 flex-1 overflow-y-auto p-5">
+          {!showsThemes ? (
+            <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
+          ) : (
+          <>
           <div className="mb-4 flex items-center gap-2">
             <div className="relative w-full max-w-[320px]">
               <MagnifyingGlass size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -205,12 +241,19 @@ export default function Store({ t }) {
             </div>
           )}
 
+          {/* Start is the only view that names what it is showing: on Themes the rail already
+              says it, and repeating it there would be a heading for the whole page. */}
+          {section === "start" && shown.length > 0 && (
+            <div className="mb-2 text-[length:var(--t13)] font-medium text-primary">{t("storeThemes")}</div>
+          )}
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
             {shown.map(e => (
               <ThemeCard key={e.id} entry={e} active={theme === e.id} t={t}
                 onInstall={install} onRemove={remove} onApply={apply} />
             ))}
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
