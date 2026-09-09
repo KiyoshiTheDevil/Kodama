@@ -134,6 +134,10 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
   const isDiscover        = (s) => tl(s).includes("discover");
   const isListenAgain     = (s) => tl(s).includes("listen again") || tl(s).includes("erneut anhören") || tl(s).includes("nochmal");
   const isQuickPicks      = (s) => tl(s).includes("quick pick") || tl(s).includes("speed dial") || tl(s).includes("schnellzugriff");
+  // A video carries a videoId and arrives typed as a song, because to everything that plays it
+  // that is what it is. It is still not a song, and the panel that promises songs has to be able
+  // to tell, which is what the backend's isVideo answers.
+  const isSong           = (x) => x.type === "song" && !x.isVideo;
   const isAllSongsSection = (s) => s.items.length > 0 && s.items.every(x => x.type === "song");
 
   const allSections = sections.map(s => ({
@@ -143,14 +147,28 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
 
   const discoverSection   = allSections.find(isDiscover);
   const listenAgainSection = allSections.find(isListenAgain);
-  // Speed Dial source = "Quick picks" (YTMusic's recommendations grid). Fall back to
-  // the first all-songs section that isn't Discover/Listen again.
-  const speedDialSection  = allSections.find(isQuickPicks)
-                            || allSections.find(s => isAllSongsSection(s) && !isDiscover(s) && !isListenAgain(s));
+  // Speed Dial source = "Quick picks" (YTMusic's recommendations grid). Fall back to the first
+  // all-songs section that isn't Discover/Listen again.
+  //
+  // A shelf has to hold enough actual songs to be worth the panel.
+  //
+  // Observed feed, 2026-09-09: there is no Quick picks shelf at all any more, so the fallback
+  // ran and took "Keep listening", which was three YouTube videos. They arrive typed as songs
+  // because they are playable, so nothing downstream could tell, and a panel that promises "the
+  // songs you would have reached for" filled up with news clips.
+  //
+  // Enough, not all: shelves like "Covers and remixes" carry the odd live video among twenty
+  // songs, and demanding purity would have thrown those out too and left no panel at all.
+  const songsIn = (s) => (s?.items || []).filter(isSong);
+  const ENOUGH = 3;                       // one full row of the three-wide grid
+  const speedDialSection  = [
+    allSections.find(isQuickPicks),
+    ...allSections.filter(s => isAllSongsSection(s) && !isDiscover(s) && !isListenAgain(s)),
+  ].find(s => songsIn(s).length >= ENOUGH);
   // Switched off, the items are simply empty and every "no speed dial" branch below — the
   // single-column layout, the hidden pager — takes over on its own. The section stays out of
   // `regularSections` either way, so hiding the panel does not make it reappear as a carousel.
-  const speedDialItems    = showSpeedDial ? (speedDialSection?.items || []) : [];
+  const speedDialItems    = showSpeedDial ? songsIn(speedDialSection) : [];
 
   // Left column: up to 2 carousel sections. Prefer Listen again + Daily Discover,
   // then fill from remaining (non-song-grid) sections so the column reliably

@@ -417,6 +417,29 @@ def _pick_thumb(thumbs, min_size=226):
                        key=lambda t: t.get("width", 0), default=thumbs[0]))
     return chosen.get("url", "") if isinstance(chosen, dict) else ""
 
+def _looks_like_video(item, thumbs):
+    """Whether a home-shelf entry with a videoId is a video rather than a music track.
+
+    get_home does not carry videoType: ytmusicapi only parses that for flat list rows, not for
+    the carousel items the home feed is made of. So this reads the two things it does carry.
+
+    The first is structural and therefore language independent, which matters because the shelf
+    titles arrive in the listener's own language: album art is square, a video still is 16:9.
+
+    The second is the subtitle. ytmusicapi turns "Artist - Album" into `album` and
+    "Artist - 1.2M views" into `views`, so an entry that counts views instead of naming a record
+    is a video. Checked second, because a shelf can omit the subtitle entirely.
+    """
+    sized = [t for t in (thumbs or []) if isinstance(t, dict) and t.get("width") and t.get("height")]
+    if sized:
+        big = max(sized, key=lambda t: t["width"])
+        if big["width"] >= big["height"] * 1.3:
+            return True
+    album = item.get("album")
+    album_name = album.get("name") if isinstance(album, dict) else album
+    return bool(item.get("views")) and not album_name
+
+
 def _upscale_thumbnail_url(url: str) -> str:
     """Return a higher-resolution variant of a YouTube/Google image URL.
     - lh3.googleusercontent.com / yt3.ggpht.com: replace =wNNN-hNNN… with =w0-h0
@@ -4402,6 +4425,9 @@ def get_home():
                     thumb = _pick_thumb(thumbs)
                     items.append({
                         "type": "song",
+                        # A video is still playable and still belongs on the home page, but it is
+                        # not a song, and a shelf meant for songs has to be able to tell.
+                        "isVideo": _looks_like_video(item, thumbs),
                         "videoId": item.get("videoId", ""),
                         "title": item.get("title", ""),
                         "artists": artists,
