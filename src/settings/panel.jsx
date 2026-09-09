@@ -17,7 +17,8 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { CoverView } from "../views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 import { allThemes } from "../themes.js";
-import { fetchThemeCatalogue, annotateThemes, installTheme, uninstallTheme } from "../theme-catalogue.js";
+import { openStoreWindow } from "../store/window.js";
+import { onThemesChanged } from "../store/sync.js";
 import { APP_VERSION } from "../version.js";
 import { ZOOM_STEPS, ZOOM_LABELS, FONT_STEPS, FONT_LABELS } from "./scale.js";
 import { DEFAULT_SHORTCUTS } from "./shortcuts.js";
@@ -710,25 +711,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
   // Built-in themes are translated; an installed one carries its own name, which nobody
   // translates because nobody here knows it.
-  // The published catalogue. Fetched when the Appearance tab is first looked at rather than on
-  // mount: it is a network call for something most visits never scroll to.
-  const [themeCat, setThemeCat] = useState(null);      // null = not asked yet
-  const [themeCatBusy, setThemeCatBusy] = useState(false);
-  // Bumped after installing or removing. Nothing reads it: it exists so that the state change
-  // re-renders, and allThemes() below is called during render and therefore reads afresh.
+  // The catalogue itself lives in the store window. All this panel needs is to redraw the picker
+  // when something is installed or removed over there, because allThemes() is read during render.
   const [, setThemeTick] = useState(0);
-  // Re-reads what is installed and re-renders both the picker and the list below.
-  const refreshThemeState = () => {
-    setThemeCat(c => (c ? { ...c, themes: annotateThemes(c.themes) } : c));
-    setThemeTick(n => n + 1);
-  };
-  useEffect(() => {
-    if (tab !== "darstellung" || themeCat !== null || themeCatBusy) return;
-    setThemeCatBusy(true);
-    fetchThemeCatalogue()
-      .then(r => setThemeCat(r))
-      .finally(() => setThemeCatBusy(false));
-  }, [tab, themeCat, themeCatBusy]);
+  useEffect(() => onThemesChanged(() => setThemeTick(n => n + 1)), []);
 
   const THEME_LABELS = { dark: "themeDark", oled: "themeOled", light: "themeLight" };
   const SectionLabel = SettingsSectionLabel;
@@ -1145,71 +1131,15 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   ))}
                 </div>
 
-                {/* Themes published outside the app. Entries already built into this build are
-                    left out: they are in the picker above, and offering to install what is
-                    already there would only be confusing. */}
-                {(() => {
-                  const offers = (themeCat?.themes || []).filter(e => !e.builtin);
-                  if (themeCat === null && themeCatBusy) return (
-                    <div className="mt-4 text-[length:var(--t12)] text-muted">{t("themeStoreLoading")}</div>
-                  );
-                  if (themeCat && !themeCat.ok) return (
-                    <div className="mt-4 text-[length:var(--t12)] text-muted">{t("themeStoreFailed")}</div>
-                  );
-                  if (!offers.length) return null;
-                  return (
-                    <div className="mt-5">
-                      <SectionLabel style={{ marginTop: 0 }}>{t("themeStore")}</SectionLabel>
-                      <SectionDesc style={{ marginTop: 0, marginBottom: 10 }}>{t("themeStoreDesc")}</SectionDesc>
-                      <div className="flex flex-col">
-                        {offers.map(e => (
-                          <div key={e.id} className="setting-row flex items-center gap-3 px-[18px] py-3">
-                            {/* The card's swatches, in miniature: ground, panel, accent. */}
-                            <div className="shrink-0 flex rounded-[var(--r-md)] overflow-hidden" style={{ width: 44, height: 30 }}>
-                              <div style={{ flex: 2, background: e.tokens["--bg-base"] || "var(--bg-base)" }} />
-                              <div style={{ flex: 2, background: e.tokens["--bg-surface"] || "var(--bg-surface)" }} />
-                              <div style={{ flex: 1, background: e.tokens["--accent"] || "var(--accent)" }} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[length:var(--t13)] font-medium text-primary truncate">{e.title}</div>
-                              {e.description && (
-                                <div className="text-[length:var(--t11)] text-muted mt-0.5 leading-snug">{e.description}</div>
-                              )}
-                            </div>
-                            {!e.supported ? (
-                              <span className="shrink-0 text-[length:var(--t11)] text-muted">{t("themeNeedsNewer")}</span>
-                            ) : e.installed ? (
-                              <div className="shrink-0 flex items-center gap-1.5">
-                                {e.updatable && (
-                                  <Button variant="secondary" size="sm"
-                                    onPress={() => { installTheme(e); refreshThemeState(); }}>
-                                    {t("themeUpdate")}
-                                  </Button>
-                                )}
-                                <Button variant="ghost" size="sm" className="text-muted"
-                                  onPress={() => {
-                                    uninstallTheme(e.id);
-                                    // Removing the theme that is on would leave the app pointing at
-                                    // something that no longer exists; findTheme would fall back to
-                                    // dark on the next apply anyway, so go there deliberately.
-                                    if (theme === e.id) onThemeChange("dark");
-                                    refreshThemeState();
-                                  }}>
-                                  {t("themeRemove")}
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button variant="secondary" size="sm" className="shrink-0"
-                                onPress={() => { installTheme(e); refreshThemeState(); }}>
-                                {t("themeInstall")}
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
+                {/* The store is its own window. It used to be a list here, which put a shop
+                    inside a settings page and had nowhere to grow: presets and, one day,
+                    extensions do not belong under "Appearance". */}
+                <div className="mt-4 flex items-center gap-3">
+                  <Button variant="secondary" size="sm" onPress={openStoreWindow}>
+                    {t("storeGetMore")}
+                  </Button>
+                  <span className="text-[length:var(--t11)] text-muted">{t("themeStoreDesc")}</span>
+                </div>
                 </div>
 
                 <div id="set-sec-ap-icon" data-settings-section="ap-icon" style={{ scrollMarginTop: 8 }}>

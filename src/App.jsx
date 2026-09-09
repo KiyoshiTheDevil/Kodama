@@ -23,6 +23,8 @@ import { loadOverrides, loadPrimaryArtistOnly, removeOverride, resolveScrobbleMe
 import { ScrobbleEditModal } from "./lastfm/ScrobbleEditModal.jsx";
 import { useVideoSync, VideoSyncView } from "./video-sync.jsx";
 import { applyTheme, applyShape } from "./theme.js";
+import { allThemes } from "./themes.js";
+import { onThemesChanged, onThemeSelected } from "./store/sync.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
@@ -3848,6 +3850,22 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, []);
+
+  // The store is a window of its own, so a theme can be installed, updated, removed or chosen
+  // without this document being involved. localStorage is shared between the two windows, but
+  // nothing here would notice it changing, so the store says so and this reads it back.
+  useEffect(() => onThemeSelected(id => {
+    if (typeof id === "string" && id) handleThemeChange(id);
+  }), [handleThemeChange]);
+
+  useEffect(() => onThemesChanged(() => {
+    // An update to the theme that is on has to be re-applied to be seen, and a theme that was
+    // removed no longer exists - findTheme falls back to dark, so follow it deliberately rather
+    // than leaving the picker pointing at a name that is gone.
+    const exists = allThemes().some(th => th.id === theme);
+    if (exists) applyTheme(theme);
+    else handleThemeChange("dark");
+  }), [theme, handleThemeChange]);
 
   // Keep the picker showing what is actually on screen while the theme is the one choosing.
   // Runs after the effect above (declaration order) and on every theme change, so the swatch
