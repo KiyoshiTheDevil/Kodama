@@ -1083,7 +1083,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               <>
                 <div id="set-sec-ap-theme" data-settings-section="ap-theme" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>{t("theme")}</SectionLabel>
-                <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                {/* Four across at most, fewer when the panel is narrow, and rows below that.
+                    The cap is arithmetic rather than a breakpoint: at 756px a fifth 150px column
+                    would need 798px including gaps, so four is the most that can ever fit, and a
+                    narrow panel drops to three or two on its own. The maxWidth is what holds the
+                    cap; without it the count would silently follow the 760px content width and
+                    become five the day that changes. */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: 12, marginBottom: 8, maxWidth: 756,
+                }}>
                   {/* Read from the catalogue rather than written out here, so a theme that was
                       installed rather than shipped appears without this file knowing about it.
                       The swatches come from the theme's own tokens; anything it does not set is
@@ -1098,7 +1108,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   })).map(th => (
                     <CardRoot key={th.id} onClick={() => onThemeChange(th.id)} variant="transparent"
                       className={cn(
-                        "relative flex-1 p-0 gap-0 rounded-[var(--r-lg)] overflow-hidden cursor-default border-2",
+                        "relative p-0 gap-0 rounded-[var(--r-lg)] overflow-hidden cursor-default border-2",
                         anim && "transition-transform",
                         theme === th.id ? "border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-border",
                         theme === th.id && anim && "scale-[1.02]",
