@@ -108,6 +108,7 @@ export const ArrowsOut          = fa("expand");
 export const Gear               = fa("gear");
 export const Palette            = fa("palette");
 export const PuzzlePiece        = fa("puzzle-piece");
+export const Storefront         = fa("shop");
 export const GridTwo            = fa("grid-2");
 export const Key                = fa("key");
 export const Keyboard           = fa("keyboard");

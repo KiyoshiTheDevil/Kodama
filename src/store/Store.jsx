@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, Button } from "@heroui/react";
 import { ArrowsClockwise, ArrowLeft, ArrowRight, Check, House, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
-  GridTwo, DownloadSimple, MagnifyingGlass } from "../icons.jsx";
+  GridTwo, Storefront, MagnifyingGlass } from "../icons.jsx";
 import { fetchCatalogue, annotateThemes, annotatePresets } from "./catalogue.js";
 import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPresetsChanged } from "./presets.js";
 import { PresetCard, PresetDetail } from "./preset-views.jsx";
@@ -17,9 +17,11 @@ import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
 import { applyTheme, readTheme } from "../theme.js";
 import { RESCUE_COMBO } from "../theme-rescue.js";
-import { WindowControls, HDR_H } from "../ui/window-chrome.jsx";
+import { WindowControls, HDR_ICON_BTN, hdrCorners } from "../ui/window-chrome.jsx";
+import { Tooltip } from "../ui/tooltip.jsx";
 
 const BUILTIN_IDS = new Set(["dark", "oled", "light"]);
+const ROW_H = 30;   // the equaliser preset row, so the two windows read as one application
 
 // The whole shape of the shop, including the shelves that are still empty.
 //
@@ -353,76 +355,114 @@ export default function Store({ t }) {
     const all = [themes, ...presets];
     if (section === "start") return all;
     if (section === "mine") return all.map(g => ({ ...g, items: g.items.filter(i => i.installed) }));
+    if (section === "updates") return all.map(g => ({ ...g, items: g.items.filter(i => i.updatable) }));
     if (section === "themes") return [themes];
     return all.filter(g => g.key === section);
   })().map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length > 0);
 
   const everything = groups.flatMap(g => g.items.map(i => ({ ...i, _group: g.kind })));
+
+  // Counted across every shelf, not just the one being looked at, because the number on the button
+  // is a claim about the whole shop. Read from the catalogue rather than from `groups`, which is
+  // filtered by the current shelf and by whatever is typed in the search box.
+  const pending = [
+    ...(cat?.themes || []).filter(e => e.updatable).map(e => ({ ...e, _group: "theme" })),
+    ...PRESET_KINDS.flatMap(k => (cat?.[k] || []).filter(e => e.updatable).map(e => ({ ...e, _group: "preset" }))),
+  ];
+  const updateAll = async () => {
+    for (const e of pending) {
+      if (e._group === "theme") await installThemeEverywhere(e);
+      else await installPresetEverywhere(e.kind, e);
+    }
+    refresh();
+  };
   const detail = detailId ? everything.find(e => e.id === detailId) : null;
 
+  // The equaliser's preset rows, to the pixel: 30px tall, a 14px glyph, --t13, and the selected
+  // one filled with the accent. These are the same kind of window and they were reading as two
+  // different applications.
   const RailItem = ({ id, icon: Icon, label, count }) => {
     const on = section === id;
     return (
-      <button onClick={() => openSection(id)}
-        style={on ? { background: "var(--accent)" } : undefined}
+      <div onClick={() => openSection(id)} style={{ height: ROW_H }}
         className={cn(
-          "flex items-center gap-3 rounded-[var(--r-full)] px-3.5 py-2.5 text-left text-[length:var(--t14)]",
-          on ? "font-medium text-white" : "text-primary hover:bg-hover"
+          "flex cursor-default select-none items-center gap-2 rounded-[var(--r-full)] px-4",
+          "transition-colors duration-150",
+          on ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]"
         )}>
-        <span className="flex w-4 shrink-0 justify-center"><Icon size={16} /></span>
-        <span className="flex-1 truncate">{label}</span>
-        {count > 0 && <span className={cn("shrink-0 text-[length:var(--t11)]", on ? "text-white/70" : "text-muted")}>{count}</span>}
-      </button>
+        <Icon size={14} className="shrink-0" />
+        <span className="flex-1 truncate" style={{ fontSize: "var(--t13)" }}>{label}</span>
+        {count > 0 && (
+          <span className={cn("shrink-0", on ? "text-white/70" : "text-muted")} style={{ fontSize: "var(--t10)" }}>{count}</span>
+        )}
+      </div>
     );
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
-      {/* ── Title bar ──────────────────────────────────────────── */}
-      <div data-tauri-drag-region className="flex shrink-0 items-center gap-2 px-4" style={{ height: 52 }}>
-        <span data-tauri-drag-region className="text-[length:var(--t15)] font-semibold text-primary">
-          {t("store")}
-        </span>
-        {/* The shop opens at Beta, and says so. It is reachable earlier only in a dev build or
-            with the debug tools unlocked, which is exactly when the label is worth having. */}
-        <span data-tauri-drag-region
-          className="self-start pt-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-muted">BETA</span>
-
-        {/* Two arrows are a promise that this is somewhere you walk through. Disabled at the ends
-            rather than hidden: a control that comes and goes is harder to aim at than a grey one. */}
-        <div className="ml-6 flex items-center gap-2">
-          <Button isIconOnly size="sm" variant="secondary" className="h-8! w-11! min-w-0! rounded-[var(--r-full)]"
-            isDisabled={!canBack} onPress={() => setAt(n => n - 1)} aria-label={t("storeBack")}>
-            <ArrowLeft size={14} weight="bold" />
-          </Button>
-          <Button isIconOnly size="sm" variant="secondary" className="h-8! w-11! min-w-0! rounded-[var(--r-full)]"
-            isDisabled={!canFwd} onPress={() => setAt(n => n + 1)} aria-label={t("storeForward")}>
-            <ArrowRight size={14} weight="bold" />
-          </Button>
+    <div className="flex h-full w-full select-none flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
+      {/* ── Header ───────────────────────────────────────────────
+          Same grammar as the equaliser and the overlay editor: a 52px bar, the title with its
+          badge on the baseline, and every control a 46x30 surface rather than a bare glyph. */}
+      <div className="flex shrink-0 items-center gap-1 pl-[22px] pr-3" style={{ height: 52 }}
+        data-tauri-drag-region>
+        <div className="pointer-events-none flex shrink-0 items-baseline gap-1.5">
+          <Storefront size={16} className="self-center text-primary" />
+          <span className="ml-1 font-semibold text-primary" style={{ fontSize: "var(--t15)" }}>{t("store")}</span>
+          {/* Opens at Beta, and says so. Reachable earlier only in a dev build or with the debug
+              tools unlocked, which is exactly when the label is worth having. */}
+          <span className="font-bold text-accent" style={{ fontSize: "var(--t10)" }}>BETA</span>
         </div>
 
-        <div data-tauri-drag-region className="flex-1" />
+        {/* Two arrows are a promise that this is somewhere you walk through. A group, so the free
+            ends keep the pill and the touching ends notch, like every other pair in the app. */}
+        <div className="ml-4 flex shrink-0 items-center">
+          <Tooltip text={t("storeBack")}>
+            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={hdrCorners(false, true)}
+              isDisabled={!canBack} onPress={() => setAt(n => n - 1)} aria-label={t("storeBack")}>
+              <ArrowLeft size={14} weight="bold" />
+            </Button>
+          </Tooltip>
+          <Tooltip text={t("storeForward")}>
+            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={hdrCorners(true, false)}
+              isDisabled={!canFwd} onPress={() => setAt(n => n + 1)} aria-label={t("storeForward")}>
+              <ArrowRight size={14} weight="bold" />
+            </Button>
+          </Tooltip>
+        </div>
 
-        <Button isIconOnly size="sm" variant="secondary" className="h-8! w-11! min-w-0! rounded-[var(--r-full)]"
-          onPress={load} aria-label={t("refresh")}>
-          <ArrowsClockwise size={14} className={busy ? "animate-spin" : undefined} />
-        </Button>
+        <div className="flex-1" data-tauri-drag-region />
+
+        {/* The number is the point: without it this is a button that asks you to go and look. */}
+        <Tooltip text={t("storeUpdates")}>
+          <Button isIconOnly size="sm" variant="ghost" className={cn(HDR_ICON_BTN, "relative")}
+            style={hdrCorners(false, true)} onPress={() => openSection("updates")} aria-label={t("storeUpdates")}>
+            <ArrowsClockwise size={14} className={busy ? "animate-spin" : undefined} />
+            {pending.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-[var(--r-full)] px-1 font-bold text-white"
+                style={{ background: "var(--accent)", fontSize: 9 }}>{pending.length}</span>
+            )}
+          </Button>
+        </Tooltip>
         {/* What this installation has, rather than what is on offer: a different question from the
-            shelves, so it is a different control rather than one more of them. */}
-        <Button size="sm" variant={section === "mine" ? "primary" : "secondary"}
-          className="ml-1 h-8! rounded-[var(--r-full)]" onPress={() => openSection("mine")}>
-          <GridTwo size={13} /> <span className="ml-1.5">{t("storeLibrary")}</span>
+            shelves, so a different control rather than one more of them. */}
+        <Button size="sm" variant="ghost"
+          className={cn(HDR_ICON_BTN, "w-auto! px-3!", section === "mine" && "bg-accent! text-white!")}
+          style={hdrCorners(true, false)} onPress={() => openSection("mine")}>
+          <GridTwo size={13} /> <span className="ml-1.5" style={{ fontSize: "var(--t12)" }}>{t("storeLibrary")}</span>
         </Button>
-        <div className="ml-2"><WindowControls height={HDR_H} /></div>
+
+        <div className="ml-2"><WindowControls /></div>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-0 pb-4 pl-1 pr-4">
+      <div className="flex min-h-0 flex-1 gap-0 pb-3 pl-2 pr-3">
         {/* ── Rail ────────────────────────────────────────── */}
-        <div className="flex w-[220px] shrink-0 flex-col gap-1 px-3">
-          <div className="relative mb-3 mt-1">
+        <div className="flex w-[196px] shrink-0 flex-col gap-0.5 px-2">
+          <div className="relative mb-2">
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("search")}
-              className="h-9 w-full bg-transparent pr-7 text-[length:var(--t15)] text-primary outline-none placeholder:text-primary" />
-            <MagnifyingGlass size={15} className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-primary" />
+              className="h-[30px] w-full rounded-[var(--r-full)] bg-[var(--surface-2)] pl-3.5 pr-8 text-primary outline-none placeholder:text-muted"
+              style={{ fontSize: "var(--t13)" }} />
+            <MagnifyingGlass size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" />
           </div>
           {CATEGORIES.map(c => <RailItem key={c.id} id={c.id} icon={c.icon} label={t(c.label)} />)}
         </div>
@@ -430,7 +470,37 @@ export default function Store({ t }) {
         {/* ── Content ─────────────────────────────────────────────────────── */}
         <div className="scrollable min-w-0 flex-1 overflow-y-auto rounded-[var(--r-xl)] p-7"
           style={{ background: "var(--bg-surface)" }}>
-          {current?.soon ? (
+          {section === "updates" ? (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="text-[length:var(--t18)] font-semibold text-primary">{t("storeUpdates")}</div>
+                  <div className="mt-0.5 text-[length:var(--t12)] text-muted">
+                    {pending.length ? t("storeUpdatesCount", { n: pending.length }) : t("storeUpToDate")}
+                  </div>
+                </div>
+                <Button size="sm" variant="secondary" onPress={load} isDisabled={busy}>{t("storeCheck")}</Button>
+                {pending.length > 0 && (
+                  <Button size="sm" variant="primary" onPress={updateAll}>{t("storeUpdateAll")}</Button>
+                )}
+              </div>
+              {pending.length === 0 && (
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  <Check size={30} weight="bold" className="text-muted opacity-40" />
+                  <div className="text-[length:var(--t12)] text-muted">{t("storeUpToDate")}</div>
+                </div>
+              )}
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+                {pending.map(e => (e._group === "theme" ? (
+                  <ThemeCard key={e.id} entry={e} active={theme === e.id} t={t}
+                    onOpen={setDetailId} onInstall={install} onRemove={remove} onApply={apply} />
+                ) : (
+                  <PresetCard key={e.id} entry={e} t={t}
+                    onOpen={setDetailId} onInstall={installP} onRemove={removeP} />
+                )))}
+              </div>
+            </div>
+          ) : current?.soon ? (
             <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
           ) : detail ? (detail._group === "theme" ? (
             <ThemeDetail entry={detail} active={theme === detail.id} t={t}
