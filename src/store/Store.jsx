@@ -418,13 +418,13 @@ export default function Store({ t }) {
             ends keep the pill and the touching ends notch, like every other pair in the app. */}
         <div className="ml-4 flex shrink-0 items-center">
           <Tooltip text={t("storeBack")}>
-            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={hdrCorners(false, true)}
+            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(false, true) }}
               isDisabled={!canBack} onPress={() => setAt(n => n - 1)} aria-label={t("storeBack")}>
               <ArrowLeft size={14} weight="bold" />
             </Button>
           </Tooltip>
           <Tooltip text={t("storeForward")}>
-            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={hdrCorners(true, false)}
+            <Button isIconOnly size="sm" variant="ghost" className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, false) }}
               isDisabled={!canFwd} onPress={() => setAt(n => n + 1)} aria-label={t("storeForward")}>
               <ArrowRight size={14} weight="bold" />
             </Button>
@@ -436,7 +436,7 @@ export default function Store({ t }) {
         {/* The number is the point: without it this is a button that asks you to go and look. */}
         <Tooltip text={t("storeUpdates")}>
           <Button isIconOnly size="sm" variant="ghost" className={cn(HDR_ICON_BTN, "relative")}
-            style={hdrCorners(false, true)} onPress={() => openSection("updates")} aria-label={t("storeUpdates")}>
+            style={{ borderRadius: hdrCorners(false, true) }} onPress={() => openSection("updates")} aria-label={t("storeUpdates")}>
             <ArrowsClockwise size={14} className={busy ? "animate-spin" : undefined} />
             {pending.length > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-[var(--r-full)] px-1 font-bold text-white"
@@ -448,7 +448,7 @@ export default function Store({ t }) {
             shelves, so a different control rather than one more of them. */}
         <Button size="sm" variant="ghost"
           className={cn(HDR_ICON_BTN, "w-auto! px-3!", section === "mine" && "bg-accent! text-white!")}
-          style={hdrCorners(true, false)} onPress={() => openSection("mine")}>
+          style={{ borderRadius: hdrCorners(true, false) }} onPress={() => openSection("mine")}>
           <GridTwo size={13} /> <span className="ml-1.5" style={{ fontSize: "var(--t12)" }}>{t("storeLibrary")}</span>
         </Button>
 
