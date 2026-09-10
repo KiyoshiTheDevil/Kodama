@@ -4290,19 +4290,6 @@ export default function App() {
   const audioRef = useRef(null);
   if (!audioRef.current) audioRef.current = new IpcAudio();
 
-  // Pause Kodama's own playback when the Composer window opens, so the user isn't
-  // hearing the main player and the Composer's editor audio at the same time.
-  // openComposer() (module-level) fires this event; we pause here to keep React state in sync.
-  useEffect(() => {
-    const onPause = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    };
-    window.addEventListener("kodama-pause-playback", onPause);
-    return () => window.removeEventListener("kodama-pause-playback", onPause);
-  }, []);
 
   // Update native window title (= taskbar) whenever the playing track or state changes.
   // When paused for >30 s, revert to "Kodama".

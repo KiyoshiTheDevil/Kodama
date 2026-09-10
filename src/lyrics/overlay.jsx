@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { Button, ChipRoot, ChipLabel } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { API, thumb, useLang, openComposer } from "../context.jsx";
+import { API, thumb, useLang } from "../context.jsx";
 import { translate, isRtlLang, isRtlText, hasJapaneseText } from "../i18n.js";
 import { CaretDown, Minus, Plus, UploadSimple } from "../icons.jsx";
 import { readLyricsCache, writeLyricsCache, dropLyricsCache } from "./cache.js";
@@ -963,22 +963,6 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               >
                 <img src="/Akari's LRC Icon.svg" style={{ width: 26, height: 26 }} alt="" />
                 {"Akari's LRC Maker"}
-              </button>
-              {/* Boidu's Composer — embedded in a Kodama window */}
-              <button
-                onClick={() => openComposer(track?.videoId).catch(console.error)}
-                style={{
-                  background: "rgba(255,255,255,0.08)", border: "none",
-                  borderRadius: "var(--r-xl)", padding: "8px 16px", cursor: "default",
-                  color: "#fff", fontSize: "var(--t13)", fontFamily: "var(--font)",
-                  display: "flex", alignItems: "center", gap: 8,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-              >
-                <img src="/Boidu Composer Icon.svg" style={{ width: 26, height: 26 }} alt="" />
-                {"Boidu's Composer"}
               </button>
             </div>
             <button

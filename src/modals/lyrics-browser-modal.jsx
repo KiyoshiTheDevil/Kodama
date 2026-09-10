@@ -8,7 +8,7 @@ import { useAnimatedClose } from "./use-animated-close.js";
 import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
 import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy } from "../icons.jsx";
-import { API, useLang, openComposer } from "../context.jsx";
+import { API, useLang} from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
 import { parseTtml, parseLrc, parseDurationToSeconds } from "../lyrics/parse.js";
@@ -247,12 +247,6 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                     );
                   })
                 )}
-              </div>
-              <div className="px-4 pt-3 shrink-0">
-                <Button variant="ghost" fullWidth className="justify-center gap-2"
-                  onPress={() => { openComposer(track?.videoId).catch(console.error); close(); }}>
-                  <img src="/Boidu Composer Icon.svg" style={{ width: 16, height: 16 }} alt="" />{t("openComposerBtn")}
-                </Button>
               </div>
             </div>
 

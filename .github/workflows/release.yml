@@ -37,12 +37,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build vendored Composer
-        working-directory: composer
-        run: |
-          npm install -g pnpm@9
-          pnpm install --frozen-lockfile
-          pnpm build
       - name: Create build directories
         run: |
           New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
@@ -142,12 +136,6 @@ jobs:
       # would break on machines without Homebrew. It has to stay a static build.
       - name: Install autotools for the Opus decoder
         run: brew install autoconf automake libtool
-      - name: Build vendored Composer
-        working-directory: composer
-        run: |
-          npm install -g pnpm@9
-          pnpm install --frozen-lockfile
-          pnpm build
       - name: Create build directories
         run: mkdir -p src-tauri/binaries src-tauri/resources
       - name: Install Python dependencies

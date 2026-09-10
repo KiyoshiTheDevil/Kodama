@@ -12,11 +12,14 @@
 // shape a stranger's extension can take, because everything it can reach is something the host
 // hands it.
 //
-// An "app" is a whole web application on an origin of its own, framed inside Kodama. The Composer
-// is this shape: a bundle of scripts and fonts served over HTTP, not a script that can be poured
-// into a srcdoc. It is NOT sandboxed from its own origin, and cannot be: being an app on an origin
-// is precisely what it means to have that origin's access. What the manifest does is make that
-// plain and reviewable, and the tier keeps the shape first-party until there is a reason not to.
+// An "app" is a whole web application on an origin of its own, framed inside Kodama: a bundle of
+// scripts and fonts served over HTTP, not a script that can be poured into a srcdoc. The Composer
+// was measured against this shape and is the reason it exists; it has since been taken out of
+// Kodama entirely and will come back through here rather than as a vendored copy.
+//
+// It is NOT sandboxed from its own origin, and cannot be: being an app on an origin is precisely
+// what it means to have that origin's access. What the manifest does is make that plain and
+// reviewable, and the tier keeps the shape first-party until there is a reason not to.
 //
 // It buys one real property over a window, though, and it is the reason to prefer it: a framed app
 // has a REAL origin, so messages from it can be checked on the origin as well as on the window
