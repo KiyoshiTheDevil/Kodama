@@ -116,6 +116,8 @@
   "shortcuts": "Tastenkürzel",
   "language": "Sprache",
   "theme": "Theme",
+  "extensionUnknown": "Keine Extension namens %id.",
+  "openComposerBtn": "Composer öffnen",
   "themeDark": "Dunkel",
   "themeOled": "OLED",
   "themeLight": "Hell",

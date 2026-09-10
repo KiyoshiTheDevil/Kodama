@@ -2258,6 +2258,7 @@ def unison_displayname(key_id):
 # KODAMA_COMPOSER_ORIGINS lets a self-hosted copy be added without a release: comma separated,
 # full origins.
 _COMPOSER_ORIGINS = [
+    "https://composer.kiyoshi.dev",        # Kodama's own deployment, framed as an extension
     "https://composer.betterlyrics.org",
     "https://composer.boidu.dev",          # the old address, still redirecting
 ] + [o.strip() for o in os.environ.get("KODAMA_COMPOSER_ORIGINS", "").split(",") if o.strip()]

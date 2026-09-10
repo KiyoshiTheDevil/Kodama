@@ -5,9 +5,10 @@
 // Extracted from App.jsx.
 import { useState, useEffect, useMemo } from "react";
 import { useAnimatedClose } from "./use-animated-close.js";
+import { openExtensionWindow } from "../extensions/window.js";
 import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
 import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
-import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy } from "../icons.jsx";
+import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy, PencilSimple } from "../icons.jsx";
 import { API, useLang} from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
@@ -247,6 +248,14 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                     );
                   })
                 )}
+              </div>
+              {/* The Composer, now an extension rather than a copy of one. Its window is opened
+                  by the extension host, so this knows an id and nothing else about it. */}
+              <div className="shrink-0 px-4 pt-3">
+                <Button variant="ghost" fullWidth className="justify-center gap-2"
+                  onPress={() => { openExtensionWindow("unison-composer"); close(); }}>
+                  <PencilSimple size={14} />{t("openComposerBtn")}
+                </Button>
               </div>
             </div>
 

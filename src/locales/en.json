@@ -116,6 +116,8 @@
   "shortcuts": "Shortcuts",
   "language": "Language",
   "theme": "Theme",
+  "extensionUnknown": "No extension called %id.",
+  "openComposerBtn": "Open Composer",
   "themeDark": "Dark",
   "themeOled": "OLED",
   "themeLight": "Light",

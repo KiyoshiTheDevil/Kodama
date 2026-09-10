@@ -5,6 +5,7 @@ import OverlayEditorApp from "./OverlayEditorApp.jsx";
 import MiniPlayerApp from "./miniplayer/MiniPlayerApp.jsx";
 import EqualizerApp from "./equalizer/EqualizerApp.jsx";
 import StoreApp from "./store/StoreApp.jsx";
+import ExtensionApp from "./extensions/ExtensionApp.jsx";
 // Big Picture mode — still early/WIP (see src/bigpicture/), reachable only through the
 // "Launch" button in Settings > Experimental, and mounted only once that is pressed. The gamepad test spike (GamepadTest.jsx)
 // stays out — it was only ever a throwaway harness for verifying the Gamepad API, not
@@ -46,10 +47,15 @@ const isMiniPlayer = params.get("miniPlayer") === "1";
 const isEqualizer = params.get("equalizer") === "1";
 // Same reasoning again: the store is its own window and needs none of the player.
 const isStore = params.get("store") === "1";
+// An extension in a window of its own. Named rather than a flag: one label hosts whichever
+// extension was asked for.
+const extensionId = params.get("extension") || "";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   isMiniPlayer ? (
     <MiniPlayerApp />
+  ) : extensionId ? (
+    <ExtensionApp id={extensionId} />
   ) : isStore ? (
     <StoreApp />
   ) : isEqualizer ? (
