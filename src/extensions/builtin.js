@@ -25,7 +25,7 @@ const RAW = [
     description: "Write and time lyrics against the audio Kodama extracts.",
     // appearance:read is what the deployment's bootstrap actually calls, and the only open
     // permission of the three. The other two are the reason this shape is first-party.
-    permissions: ["app:frame", "backend:composer", "appearance:read"],
+    permissions: ["app:frame", "backend:composer", "appearance:read", "window:drag"],
   },
 ];
 
