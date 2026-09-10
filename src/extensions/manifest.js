@@ -67,24 +67,29 @@ export const SLOTS = {
  * Backend permissions name a ROUTE GROUP rather than "the backend". "May talk to Kodama's
  * backend" is not a sentence anyone can weigh; "may write your overlay's configuration" is.
  */
+//
+// Each carries a short LABEL and a longer sentence. The label is what someone reads while
+// deciding, the way a system permission dialog names a thing in two or three words; the sentence
+// is there for the one they stop on. A page of full sentences is a page nobody finishes, and a
+// page of bare labels says "Network access" without saying to where.
 export const PERMISSIONS = {
   // ── Open: everything here is handed over by the host, one call at a time ──
-  "storage":         { tier: "open", grants: "A store of its own. It cannot see Kodama's, or another extension's." },
-  "appearance:read": { tier: "open", grants: "The current theme, text size and language, so it can match the app." },
-  "player:read":     { tier: "open", grants: "What is playing, and whether it is playing." },
-  "player:control":  { tier: "open", grants: "Play, pause, skip. Separate from reading on purpose." },
-  "ui:panel":        { tier: "open", grants: "A panel of its own inside Kodama." },
-  "ui:toast":        { tier: "open", grants: "Short messages, the way Kodama shows its own." },
-  "net":             { tier: "open", grants: "Requests to the hosts it lists, and to nothing else.", needsHosts: true },
+  "storage":         { tier: "open", label: "Its own storage", grants: "A store of its own. It cannot see Kodama's, or another extension's." },
+  "appearance:read": { tier: "open", label: "Appearance", grants: "The current theme, text size and language, so it can match the app." },
+  "player:read":     { tier: "open", label: "What is playing", grants: "The current track, and whether it is playing." },
+  "player:control":  { tier: "open", label: "Playback control", grants: "Play, pause, skip. Separate from reading on purpose." },
+  "ui:panel":        { tier: "open", label: "A panel in Kodama", grants: "A panel of its own inside the app." },
+  "ui:toast":        { tier: "open", label: "Notifications", grants: "Short messages, the way Kodama shows its own." },
+  "net":             { tier: "open", label: "Network access", grants: "Requests to the hosts it lists, and to nothing else.", needsHosts: true },
 
   // ── Internal: reaches past the sandbox. Kodama's own extensions only ──────
-  "window:create":   { tier: "internal", grants: "A window of its own." },
-  "files:read":      { tier: "internal", grants: "Opening a file you choose." },
-  "files:write":     { tier: "internal", grants: "Saving a file where you choose." },
-  "backend:overlay": { tier: "internal", grants: "Reading and writing the overlay configuration." },
-  "backend:fonts":   { tier: "internal", grants: "The list of fonts installed on this computer." },
-  "backend:composer": { tier: "internal", grants: "The audio Kodama extracts, for writing lyrics against." },
-  "app:frame":       { tier: "internal", grants: "Runs as a page of its own, with everything its origin can reach." },
+  "window:create":   { tier: "internal", label: "Its own window", grants: "A window of its own." },
+  "files:read":      { tier: "internal", label: "Open files", grants: "Opening a file you choose." },
+  "files:write":     { tier: "internal", label: "Save files", grants: "Saving a file where you choose." },
+  "backend:overlay": { tier: "internal", label: "Overlay configuration", grants: "Reading and writing the overlay configuration." },
+  "backend:fonts":   { tier: "internal", label: "Installed fonts", grants: "The list of fonts installed on this computer." },
+  "backend:composer": { tier: "internal", label: "Extracted audio", grants: "The audio Kodama extracts, for writing lyrics against." },
+  "app:frame":       { tier: "internal", label: "Web page access", grants: "Runs as a page of its own, with everything its origin can reach." },
 };
 
 export const isInternal = (id) => PERMISSIONS[id]?.tier === "internal";
@@ -307,12 +312,15 @@ export function actionTitle(action, language = "en") {
 export function describePermissions(manifest) {
   return (manifest?.permissions || []).map(p => {
     const def = PERMISSIONS[p];
+    const base = { id: p, internal: def.tier === "internal", label: def.label, text: def.grants };
+    // The two that carry a subject name it. "Network access" without saying to where is the kind
+    // of permission line people learn to click past.
     if (p === "app:frame" && manifest.origin) {
-      return { id: p, internal: true, text: `Runs as a page of its own, loaded from ${manifest.origin}.` };
+      return { ...base, text: `Loaded from ${manifest.origin}, with everything that origin can reach.` };
     }
     if (p === "net" && manifest.hosts?.length) {
-      return { id: p, internal: false, text: `Requests to ${manifest.hosts.join(", ")}, and to nothing else.` };
+      return { ...base, text: `Requests to ${manifest.hosts.join(", ")}, and to nothing else.` };
     }
-    return { id: p, internal: def.tier === "internal", text: def.grants };
+    return base;
   });
 }

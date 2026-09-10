@@ -109,11 +109,14 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
         <div className="flex flex-col gap-2 rounded-[var(--r-lg)] border border-border p-4">
           {perms.map(p => (
             <div key={p.id} className="flex gap-3">
-              <span className="mt-[3px] h-2 w-2 shrink-0 rounded-[var(--r-full)]"
+              <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[var(--r-full)]"
                 style={{ background: p.internal ? "var(--status-warning)" : "var(--text-muted)" }} />
               <div className="min-w-0">
-                <div className="text-[length:var(--t12)] text-primary">{p.text}</div>
-                <div className="font-mono text-[length:var(--t11)] text-muted">{p.id}</div>
+                {/* The label is what someone reads while deciding; the sentence is for the one
+                    they stop on. The raw permission id was developer noise on a page meant for
+                    whoever is about to say yes. */}
+                <div className="text-[length:var(--t13)] text-primary">{p.label}</div>
+                <div className="text-[length:var(--t11)] leading-snug text-muted">{p.text}</div>
               </div>
             </div>
           ))}
