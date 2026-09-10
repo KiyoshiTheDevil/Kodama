@@ -96,6 +96,26 @@ const API_OK = /^\d+\.\d+$/;
 // permission the reader cannot check by eye is a permission nobody checks.
 const HOST_OK = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
 
+// An extension's own icon.
+//
+// Only SVG and PNG. Both are still pictures an <img> renders; SVG cannot run script in that
+// context, which is the reason it is safe here and would not be in an <object> or inline.
+//
+// From one of two places, and both are already-declared, already-reviewed hosts: the store repo
+// the manifest itself came from, or the app's own origin, which for an "app" extension is where
+// the whole application is loaded from anyway. Anything else would mean the extension list making
+// a request to a host nobody vetted, on every visit to the shelf.
+const ICON_HOST = "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/";
+
+function iconOf(raw, origin) {
+  const url = raw.icon;
+  if (typeof url !== "string" || !url) return "";
+  if (!/\.(svg|png)(\?|$)/i.test(url)) return null;                 // null = say so, "" = none given
+  if (url.startsWith(ICON_HOST)) return url;
+  if (origin && url.startsWith(origin + "/")) return url;
+  return null;
+}
+
 // An origin, not a URL: scheme, host, optional port, nothing else. Plain http is allowed only for
 // the local machine, where there is no network to listen on.
 const ORIGIN_OK = (o) => {
@@ -224,6 +244,12 @@ export function parseManifest(raw, { trusted = false } = {}) {
     }
   }
 
+  // ── Its own icon ───────────────────────────────────────────────────────────
+  const icon = iconOf(raw, kind === "app" ? (ORIGIN_OK(raw.origin) ? new URL(raw.origin).origin : "") : "");
+  if (icon === null) {
+    fail("icon must be an .svg or .png, on the store repo or on this extension's own origin");
+  }
+
   // ── Hosts, for net ─────────────────────────────────────────────────────────
   const hosts = [];
   if (permissions.includes("net")) {
@@ -254,6 +280,7 @@ export function parseManifest(raw, { trusted = false } = {}) {
       permissions,
       hosts,
       actions,
+      icon: icon || "",
       context,
       origin,
       entry: kind === "app" ? (typeof raw.entry === "string" ? raw.entry : "/") : "",

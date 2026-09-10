@@ -4670,7 +4670,7 @@ def img_proxy():
     url_hash = hashlib.sha1(url.encode()).hexdigest()
     # Detect extension from URL (default jpeg)
     ext = "jpg"
-    for candidate in ("webp", "png", "gif"):
+    for candidate in ("webp", "png", "gif", "svg"):
         if candidate in url.lower():
             ext = candidate
             break
@@ -4680,7 +4680,10 @@ def img_proxy():
     if _cache_enabled["images"] and os.path.exists(cache_path):
         age = time.time() - os.path.getmtime(cache_path)
         if age < IMG_CACHE_TTL:
-            content_type = "image/webp" if ext == "webp" else f"image/{ext}"
+            # "image/svg" is not a type anything renders; the browser needs the full name. Left
+            # as a table because "image/" + ext is right for exactly two of the four.
+            content_type = {"webp": "image/webp", "svg": "image/svg+xml",
+                            "jpg": "image/jpeg"}.get(ext, f"image/{ext}")
             with open(cache_path, "rb") as f:
                 data = f.read()
             resp = Response(data, content_type=content_type)

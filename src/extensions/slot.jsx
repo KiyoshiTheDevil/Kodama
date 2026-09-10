@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { contributionsFor, onExtensionsChanged } from "./registry.js";
 import { openExtensionWindow } from "./window.js";
+import { thumb } from "../context.jsx";
 
 export function ExtensionSlot({ slot, language = "en", context, className, variant = "ghost", icon }) {
   const [items, setItems] = useState(() => contributionsFor(slot, language));
@@ -28,7 +29,14 @@ export function ExtensionSlot({ slot, language = "en", context, className, varia
         <Button key={`${item.extensionId}:${item.title}`} variant={variant} size="sm"
           className={className}
           onPress={() => openExtensionWindow(item.extensionId, context)}>
-          {icon}{item.title}
+          {/* The extension's own, through the backend's image proxy: the manifest may only name
+              a picture on the store repo or on its own origin, so this reaches nowhere new, and
+              the proxy is what keeps the content policy unchanged. Kodama's per-slot icon is the
+              fallback for an extension that brings none. */}
+          {item.icon
+            ? <img src={thumb(item.icon)} alt="" className="h-4 w-4 shrink-0 object-contain" />
+            : icon}
+          {item.title}
         </Button>
       ))}
     </>

@@ -8,6 +8,7 @@
 import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, CaretLeft } from "../icons.jsx";
 import { describePermissions } from "../extensions/manifest.js";
+import { thumb } from "../context.jsx";
 
 /** The same four-way state as everything else on these shelves. */
 export function ExtensionActions({ entry, t, onInstall, onRemove, size = "sm" }) {
@@ -37,7 +38,9 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
         <div className="flex items-center gap-3 p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-md)]"
             style={{ background: "var(--bg-elevated)" }}>
-            <PuzzlePiece size={17} className="text-muted" />
+            {entry.icon
+              ? <img src={thumb(entry.icon)} alt="" className="h-6 w-6 object-contain" />
+              : <PuzzlePiece size={17} className="text-muted" />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -79,7 +82,9 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
       <div className="flex items-start gap-4">
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[var(--r-lg)] border border-border"
           style={{ background: "var(--bg-elevated)" }}>
-          <PuzzlePiece size={30} className="text-muted" />
+          {entry.icon
+            ? <img src={thumb(entry.icon)} alt="" className="h-10 w-10 object-contain" />
+            : <PuzzlePiece size={30} className="text-muted" />}
         </div>
         <div className="min-w-0 flex-1 pt-1">
           <h2 className="truncate text-[length:var(--t20)] font-semibold text-primary">{entry.name}</h2>

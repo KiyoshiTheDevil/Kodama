@@ -97,7 +97,8 @@ export function contributionsFor(slot, language = "en") {
   for (const ext of installedExtensions()) {
     for (const action of ext.actions || []) {
       if (action.slot !== slot) continue;
-      out.push({ extensionId: ext.id, name: ext.name, slot, title: actionTitle(action, language) });
+      out.push({ extensionId: ext.id, name: ext.name, slot, icon: ext.icon,
+                 title: actionTitle(action, language) });
     }
   }
   return out;
