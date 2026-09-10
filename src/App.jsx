@@ -9,7 +9,7 @@ import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
-import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle } from "./icons.jsx";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
@@ -26,6 +26,8 @@ import { applyTheme, applyShape } from "./theme.js";
 import { takeRescueRecord } from "./theme-rescue.js";
 import { allThemes } from "./themes.js";
 import { onThemesChanged, onThemeSelected } from "./store/sync.js";
+import { openStoreWindow } from "./store/window.js";
+import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
 import { ExplicitBadge, ArtistLinks } from "./ui/rows.jsx";
@@ -946,6 +948,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     else if (key === "overlay") onOpenOverlaySettings?.();
     else if (key === "news") onOpenNews?.();
     else if (key === "feedback") onOpenFeedback?.();
+    else if (key === "store") openStoreWindow();
     else if (key === "settings") onOpenSettings?.();
     // "quit" is handled by press-and-hold (startQuitHold), not onAction.
   };
@@ -990,6 +993,14 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
             <span className="w-4 flex justify-center shrink-0"><Bug size={16} /></span>
             {t("reportBug") || "Fehler melden"}
           </DropdownItem>
+          {/* Only where the shop is actually open: before Beta it is reachable in a dev build or
+              with the debug tools unlocked, and an entry that leads nowhere is worse than none. */}
+          {storeIsOpen() ? (
+            <DropdownItem id="store" textValue={t("store")}>
+              <span className="w-4 flex justify-center shrink-0"><Storefront size={16} /></span>
+              {t("store")}
+            </DropdownItem>
+          ) : null}
           <DropdownItem id="settings" textValue={t("settings")}>
             <span className="w-4 flex justify-center shrink-0"><Gear size={16} /></span>
             {t("settings")}
