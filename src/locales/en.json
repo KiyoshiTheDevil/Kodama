@@ -144,7 +144,7 @@
   "storeUpdateAll": "Update all",
   "extPermissions": "Permissions",
   "extPermissionCount": "%n permissions",
-  "extInternalNote": "Highlighted groups reach past the sandbox. Only Kodama's own extensions may hold them.",
+  "extInternalNote": "Highlighted entries reach past the sandbox. Only Kodama's own extensions may hold them.",
   "extAddsTo": "What it adds",
   "storeBack": "Back",
   "storeVersion": "Version",

@@ -144,7 +144,7 @@
   "storeUpdateAll": "Alle aktualisieren",
   "extPermissions": "Berechtigungen",
   "extPermissionCount": "%n Berechtigungen",
-  "extInternalNote": "Hervorgehobene Gruppen greifen an der Sandbox vorbei. Nur Kodamas eigene Extensions dürfen sie halten.",
+  "extInternalNote": "Hervorgehobene Einträge greifen an der Sandbox vorbei. Nur Kodamas eigene Extensions dürfen sie halten.",
   "extAddsTo": "Was es hinzufügt",
   "storeBack": "Zurück",
   "storeVersion": "Version",

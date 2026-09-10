@@ -7,13 +7,13 @@
  */
 import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, CaretLeft, MusicNote, Palette, FloppyDisk, FileImport,
-  Globe, ScreencastSimple, HardDrives, Megaphone, Columns } from "../icons.jsx";
+  Globe, ScreencastSimple, TextSize, Megaphone, Columns } from "../icons.jsx";
 import { permissionGroups } from "../extensions/manifest.js";
 
 // The manifest names an icon; this is where a name becomes a component. Kept here rather than in
 // the manifest so that file stays free of anything that has to be rendered.
 const GROUP_ICONS = {
-  MusicNote, Palette, FloppyDisk, FileImport, Globe, ScreencastSimple, HardDrives, Megaphone, Columns,
+  MusicNote, Palette, FloppyDisk, FileImport, Globe, ScreencastSimple, TextSize, Megaphone, Columns,
 };
 import { thumb } from "../context.jsx";
 
@@ -115,23 +115,28 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
           from quietly becoming the path where nobody reads them. */}
       <div>
         <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("extPermissions")}</div>
-        {/* One row per group, the way a phone lists Camera once rather than every call behind it.
-            The group carries the kind of access, the sentences carry the extent, and the
-            permission's own label is left out here because for a single-item group it would say
-            the heading twice. */}
-        <div className="flex flex-col gap-4 rounded-[var(--r-lg)] border border-border p-4">
+        {/* Built the way a phone builds it: a small category heading, then the concrete things
+            under it as verb phrases finishing "this extension may ...". No explanatory second
+            line, because a noun with a sentence beneath reads like documentation and
+            documentation is what people skip.
+
+            The heading names the thing being reached, not the part of Kodama that reaches it.
+            A phone never says MediaStore, it says Music and audio. */}
+        <div className="flex flex-col gap-5 rounded-[var(--r-lg)] border border-border p-4">
           {groups.map(g => {
             const Icon = GROUP_ICONS[g.icon] || PuzzlePiece;
             return (
-              <div key={g.id} className="flex gap-3">
-                <span className="mt-[2px] flex h-5 w-5 shrink-0 items-center justify-center"
-                  style={{ color: g.sensitive ? "var(--status-warning)" : "var(--text-muted)" }}>
-                  <Icon size={16} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[length:var(--t13)] text-primary">{g.label}</div>
+              <div key={g.id}>
+                <div className="mb-2 text-[length:var(--t11)] text-accent">{g.label}</div>
+                <div className="flex flex-col gap-2">
                   {g.items.map(p => (
-                    <div key={p.id} className="text-[length:var(--t11)] leading-snug text-muted">{p.text}</div>
+                    <div key={p.id} className="flex items-start gap-3">
+                      <span className="mt-[1px] flex h-4 w-4 shrink-0 items-center justify-center"
+                        style={{ color: p.internal ? "var(--status-warning)" : "var(--text-muted)" }}>
+                        <Icon size={14} />
+                      </span>
+                      <span className="text-[length:var(--t13)] leading-snug text-primary">{p.does}</span>
+                    </div>
                   ))}
                 </div>
               </div>
