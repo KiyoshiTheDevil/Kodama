@@ -32,16 +32,30 @@ const ERROR_LIMIT = 8;
  * Kodama has learned once already that panes which are hidden rather than removed go on running.
  */
 export function mountExtension({ container, manifest, code, impl, onError }) {
+  // An app is a whole application on an origin of its own. It is framed rather than poured into a
+  // srcdoc, it keeps that origin, and it is therefore NOT sandboxed away from whatever that origin
+  // can reach. That is not a compromise, it is what having an origin means; the manifest says so
+  // in words and the tier keeps the shape first-party.
+  //
+  // In exchange it is the safer of the two to talk to. A real origin can be checked, both on the
+  // way in and on the way out, where a panel can only ever be identified by its window handle.
+  const framed = manifest.kind === "app";
   const handle = createDispatcher(manifest, impl);
   const frame = document.createElement("iframe");
   let errors = 0;
   let dead = false;
 
-  frame.setAttribute("sandbox", "allow-scripts");   // never allow-same-origin, see above
+  // allow-same-origin belongs here and nowhere else. The warning it usually carries is about a
+  // frame sharing the EMBEDDER's origin, which could then reach through to the host document.
+  // An app's origin is not Kodama's, so it reaches its own server and nothing of ours.
+  frame.setAttribute("sandbox", framed
+    ? "allow-scripts allow-same-origin allow-forms allow-popups"
+    : "allow-scripts");
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute("title", manifest.name);
   frame.style.cssText = "border:0;width:100%;height:100%;display:block;background:transparent";
-  frame.srcdoc = guestDocument(code, API_VERSION);
+  if (framed) frame.src = manifest.origin + (manifest.entry || "/");
+  else frame.srcdoc = guestDocument(code, API_VERSION);
 
   const stop = (reason) => {
     if (dead) return;
@@ -52,8 +66,10 @@ export function mountExtension({ container, manifest, code, impl, onError }) {
   };
 
   async function onMessage(e) {
-    // The identity check. Not the origin: see the note at the top of this file.
+    // The identity check. The window handle always, and for an app the origin as well: it has a
+    // real one, so there is a second answer to be had and no reason to accept only the first.
     if (dead || e.source !== frame.contentWindow) return;
+    if (framed && e.origin !== manifest.origin) return;
     const msg = e.data;
     if (!msg || typeof msg !== "object") return;
 
@@ -69,8 +85,9 @@ export function mountExtension({ container, manifest, code, impl, onError }) {
 
     const reply = await handle(msg);
     if (!reply || dead) return;                       // no id, or torn down while awaiting
-    // "*" is forced by the opaque origin. Nothing here is a secret; see the note at the top.
-    frame.contentWindow?.postMessage({ __kodama: "reply", ...reply }, "*");
+    // Addressed to the app's own origin where there is one. "*" is forced only for a panel,
+    // whose origin is "null" and cannot be named.
+    frame.contentWindow?.postMessage({ __kodama: "reply", ...reply }, framed ? manifest.origin : "*");
   }
 
   window.addEventListener("message", onMessage);

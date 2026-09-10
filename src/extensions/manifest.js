@@ -12,6 +12,16 @@
 // shape a stranger's extension can take, because everything it can reach is something the host
 // hands it.
 //
+// An "app" is a whole web application on an origin of its own, framed inside Kodama. The Composer
+// is this shape: a bundle of scripts and fonts served over HTTP, not a script that can be poured
+// into a srcdoc. It is NOT sandboxed from its own origin, and cannot be: being an app on an origin
+// is precisely what it means to have that origin's access. What the manifest does is make that
+// plain and reviewable, and the tier keeps the shape first-party until there is a reason not to.
+//
+// It buys one real property over a window, though, and it is the reason to prefer it: a framed app
+// has a REAL origin, so messages from it can be checked on the origin as well as on the window
+// handle. A panel cannot be checked that way, because every sandboxed frame reports "null".
+//
 // A "window" gets a Tauri window of its own. The Overlay Editor and the Composer are this shape,
 // and they need permissions a stranger can never be given: creating a window, touching the file
 // system, calling backend routes. Pretending otherwise would mean one of two bad things, either
@@ -25,7 +35,7 @@
 /** Bumped when the bridge changes shape. Major differences are refused, minor ones warn. */
 export const API_VERSION = "1.0";
 
-export const KINDS = ["panel", "window"];
+export const KINDS = ["panel", "window", "app"];
 
 /**
  * Every permission that exists, and who may hold it.
@@ -52,6 +62,8 @@ export const PERMISSIONS = {
   "files:write":     { tier: "internal", grants: "Saving a file where you choose." },
   "backend:overlay": { tier: "internal", grants: "Reading and writing the overlay configuration." },
   "backend:fonts":   { tier: "internal", grants: "The list of fonts installed on this computer." },
+  "backend:composer": { tier: "internal", grants: "The audio Kodama extracts, for writing lyrics against." },
+  "app:frame":       { tier: "internal", grants: "Runs as a page of its own, with everything its origin can reach." },
 };
 
 export const isInternal = (id) => PERMISSIONS[id]?.tier === "internal";
@@ -62,6 +74,17 @@ const API_OK = /^\d+\.\d+$/;
 // A host, not a URL: "example.com" or "*.example.com". No scheme, no path, no port, because a
 // permission the reader cannot check by eye is a permission nobody checks.
 const HOST_OK = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+// An origin, not a URL: scheme, host, optional port, nothing else. Plain http is allowed only for
+// the local machine, where there is no network to listen on.
+const ORIGIN_OK = (o) => {
+  if (typeof o !== "string") return false;
+  let u;
+  try { u = new URL(o); } catch { return false; }
+  if (u.pathname !== "/" || u.search || u.hash) return false;
+  if (u.protocol === "https:") return true;
+  return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+};
 
 /**
  * Read a manifest, strictly, collecting every problem rather than stopping at the first.
@@ -124,6 +147,26 @@ export function parseManifest(raw, { trusted = false } = {}) {
     fail('a "panel" extension cannot ask for window:create');
   }
 
+  // ── The origin an app is loaded from ───────────────────────────────────────
+  let origin = "";
+  if (kind === "app") {
+    if (!permissions.includes("app:frame") && !refused.includes("app:frame")) {
+      fail('an "app" extension must ask for app:frame');
+    }
+    if (!ORIGIN_OK(raw.origin)) {
+      fail(`origin "${raw.origin}" must be a bare https origin, or http on localhost`);
+    } else {
+      origin = new URL(raw.origin).origin;
+    }
+    // The page within that origin. A path, never a URL: an entry that could name its own origin
+    // would make the origin above a suggestion.
+    if (raw.entry !== undefined && (typeof raw.entry !== "string" || !raw.entry.startsWith("/") || raw.entry.includes("//"))) {
+      fail(`entry "${raw.entry}" must be a path beginning with a single /`);
+    }
+  } else if (raw.origin) {
+    fail(`only an "app" extension has an origin`);
+  }
+
   // ── Hosts, for net ─────────────────────────────────────────────────────────
   const hosts = [];
   if (permissions.includes("net")) {
@@ -153,6 +196,8 @@ export function parseManifest(raw, { trusted = false } = {}) {
       authors: Array.isArray(raw.authors) ? raw.authors.filter(a => typeof a === "string").slice(0, 8) : [],
       permissions,
       hosts,
+      origin,
+      entry: kind === "app" ? (typeof raw.entry === "string" ? raw.entry : "/") : "",
       trusted,
     },
   };
@@ -168,6 +213,9 @@ export function parseManifest(raw, { trusted = false } = {}) {
 export function describePermissions(manifest) {
   return (manifest?.permissions || []).map(p => {
     const def = PERMISSIONS[p];
+    if (p === "app:frame" && manifest.origin) {
+      return { id: p, internal: true, text: `Runs as a page of its own, loaded from ${manifest.origin}.` };
+    }
     if (p === "net" && manifest.hosts?.length) {
       return { id: p, internal: false, text: `Requests to ${manifest.hosts.join(", ")}, and to nothing else.` };
     }
