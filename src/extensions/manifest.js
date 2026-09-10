@@ -67,29 +67,56 @@ export const SLOTS = {
  * Backend permissions name a ROUTE GROUP rather than "the backend". "May talk to Kodama's
  * backend" is not a sentence anyone can weigh; "may write your overlay's configuration" is.
  */
+/**
+ * The groups a permission belongs to, the way a phone asks for Camera rather than for each of the
+ * nine things a camera can do.
+ *
+ * The grouping is what makes a list readable at a glance: an extension asking for three things
+ * shows three rows with three icons, and the reader is deciding about kinds of access rather than
+ * reading an inventory.
+ *
+ * `sensitive` is the group's own property and not a per-permission flag, because that is how it is
+ * read: nobody weighs "files:write" against "files:read", they decide whether this thing may touch
+ * their files at all.
+ */
+export const PERMISSION_GROUPS = {
+  music:        { label: "Music", icon: "MusicNote" },
+  appearance:   { label: "Appearance", icon: "Palette" },
+  storage:      { label: "Its own storage", icon: "FloppyDisk" },
+  // Named for what actually happens. The extension never browses anything: a picker opens, you
+  // choose, and it is handed that one file. Calling it "your files" would claim more than is true
+  // and would be the first thing someone stopped believing.
+  files:        { label: "Files you pick", icon: "FileImport", sensitive: true },
+  network:      { label: "Network", icon: "Globe", sensitive: true },
+  display:      { label: "Windows and pages", icon: "ScreencastSimple", sensitive: true },
+  services:     { label: "Kodama's own services", icon: "HardDrives", sensitive: true },
+  notifications:{ label: "Notifications", icon: "Megaphone" },
+  interface:    { label: "Kodama's interface", icon: "Columns" },
+};
+
 //
-// Each carries a short LABEL and a longer sentence. The label is what someone reads while
+// Each carries a GROUP, a short LABEL and a longer sentence. The label is what someone reads while
 // deciding, the way a system permission dialog names a thing in two or three words; the sentence
 // is there for the one they stop on. A page of full sentences is a page nobody finishes, and a
 // page of bare labels says "Network access" without saying to where.
 export const PERMISSIONS = {
   // ── Open: everything here is handed over by the host, one call at a time ──
-  "storage":         { tier: "open", label: "Its own storage", grants: "A store of its own. It cannot see Kodama's, or another extension's." },
-  "appearance:read": { tier: "open", label: "Appearance", grants: "The current theme, text size and language, so it can match the app." },
-  "player:read":     { tier: "open", label: "What is playing", grants: "The current track, and whether it is playing." },
-  "player:control":  { tier: "open", label: "Playback control", grants: "Play, pause, skip. Separate from reading on purpose." },
-  "ui:panel":        { tier: "open", label: "A panel in Kodama", grants: "A panel of its own inside the app." },
-  "ui:toast":        { tier: "open", label: "Notifications", grants: "Short messages, the way Kodama shows its own." },
-  "net":             { tier: "open", label: "Network access", grants: "Requests to the hosts it lists, and to nothing else.", needsHosts: true },
+  "storage":         { tier: "open", group: "storage", label: "Its own storage", grants: "A store of its own. It cannot see Kodama's, or another extension's." },
+  "appearance:read": { tier: "open", group: "appearance", label: "Appearance", grants: "The current theme, text size and language, so it can match the app." },
+  "player:read":     { tier: "open", group: "music", label: "What is playing", grants: "The current track, and whether it is playing." },
+  "player:control":  { tier: "open", group: "music", label: "Playback control", grants: "Play, pause, skip. Separate from reading on purpose." },
+  "ui:panel":        { tier: "open", group: "interface", label: "A panel in Kodama", grants: "A panel of its own inside the app." },
+  "ui:toast":        { tier: "open", group: "notifications", label: "Notifications", grants: "Short messages, the way Kodama shows its own." },
+  "net":             { tier: "open", group: "network", label: "Network access", grants: "Requests to the hosts it lists, and to nothing else.", needsHosts: true },
 
   // ── Internal: reaches past the sandbox. Kodama's own extensions only ──────
-  "window:create":   { tier: "internal", label: "Its own window", grants: "A window of its own." },
-  "files:read":      { tier: "internal", label: "Open files", grants: "Opening a file you choose." },
-  "files:write":     { tier: "internal", label: "Save files", grants: "Saving a file where you choose." },
-  "backend:overlay": { tier: "internal", label: "Overlay configuration", grants: "Reading and writing the overlay configuration." },
-  "backend:fonts":   { tier: "internal", label: "Installed fonts", grants: "The list of fonts installed on this computer." },
-  "backend:composer": { tier: "internal", label: "Extracted audio", grants: "The audio Kodama extracts, for writing lyrics against." },
-  "app:frame":       { tier: "internal", label: "Web page access", grants: "Runs as a page of its own, with everything its origin can reach." },
+  "window:create":   { tier: "internal", group: "display", label: "Its own window", grants: "A window of its own." },
+  "files:read":      { tier: "internal", group: "files", label: "Open a file you pick", grants: "Opening a file you choose." },
+  "files:write":     { tier: "internal", group: "files", label: "Save a file where you pick", grants: "Saving a file where you choose." },
+  "backend:overlay": { tier: "internal", group: "services", label: "Overlay configuration", grants: "Reading and writing the overlay configuration." },
+  "backend:fonts":   { tier: "internal", group: "services", label: "Installed fonts", grants: "The list of fonts installed on this computer." },
+  "backend:composer": { tier: "internal", group: "services", label: "Extracted audio", grants: "The audio Kodama extracts, for writing lyrics against." },
+  "app:frame":       { tier: "internal", group: "display", label: "Web page access", grants: "Runs as a page of its own, with everything its origin can reach." },
 };
 
 export const isInternal = (id) => PERMISSIONS[id]?.tier === "internal";
@@ -300,6 +327,26 @@ export function actionTitle(action, language = "en") {
   if (typeof t === "string") return t;
   if (!t || typeof t !== "object") return "";
   return t[language] || t.en || Object.values(t)[0] || "";
+}
+
+/**
+ * What an extension may do, gathered into groups.
+ *
+ * One row per group, the way a phone lists Camera once rather than every call behind it. An
+ * extension asking for three things shows three rows with three icons, and the reader is deciding
+ * about kinds of access rather than reading an inventory.
+ */
+export function permissionGroups(manifest) {
+  const seen = new Map();
+  for (const p of describePermissions(manifest)) {
+    const def = PERMISSIONS[p.id];
+    const g = PERMISSION_GROUPS[def.group];
+    if (!seen.has(def.group)) {
+      seen.set(def.group, { id: def.group, label: g.label, icon: g.icon, sensitive: !!g.sensitive, items: [] });
+    }
+    seen.get(def.group).items.push(p);
+  }
+  return [...seen.values()];
 }
 
 /**

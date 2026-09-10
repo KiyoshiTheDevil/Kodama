@@ -6,8 +6,15 @@
  * that is the one thing a listener has to weigh before saying yes.
  */
 import { Button } from "@heroui/react";
-import { PuzzlePiece, Check, CaretLeft } from "../icons.jsx";
-import { describePermissions } from "../extensions/manifest.js";
+import { PuzzlePiece, Check, CaretLeft, MusicNote, Palette, FloppyDisk, FileImport,
+  Globe, ScreencastSimple, HardDrives, Megaphone, Columns } from "../icons.jsx";
+import { permissionGroups } from "../extensions/manifest.js";
+
+// The manifest names an icon; this is where a name becomes a component. Kept here rather than in
+// the manifest so that file stays free of anything that has to be rendered.
+const GROUP_ICONS = {
+  MusicNote, Palette, FloppyDisk, FileImport, Globe, ScreencastSimple, HardDrives, Megaphone, Columns,
+};
 import { thumb } from "../context.jsx";
 
 /** The same four-way state as everything else on these shelves. */
@@ -31,7 +38,9 @@ export function ExtensionActions({ entry, t, onInstall, onRemove, size = "sm" })
 }
 
 export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
-  const perms = describePermissions(entry);
+  // Groups, not individual permissions: "three kinds of access" is the number someone weighs,
+  // and it is the same number of rows they will find on the page.
+  const groups = permissionGroups(entry);
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface">
       <button onClick={() => onOpen(entry.id)} className="block cursor-default text-left">
@@ -58,7 +67,7 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
         {/* The count, on the card. The list itself is on the page, but "four things" is the part
             that decides whether someone opens the page at all. */}
         <div className="px-3 pb-1 text-[length:var(--t11)] text-muted">
-          {t("extPermissionCount", { n: perms.length })}
+          {t("extPermissionCount", { n: groups.length })}
         </div>
       </button>
       <div className="p-3 pt-2">
@@ -71,7 +80,7 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
 }
 
 export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
-  const perms = describePermissions(entry);
+  const groups = permissionGroups(entry);
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-6">
       <button onClick={onBack}
@@ -106,20 +115,28 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
           from quietly becoming the path where nobody reads them. */}
       <div>
         <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("extPermissions")}</div>
-        <div className="flex flex-col gap-2 rounded-[var(--r-lg)] border border-border p-4">
-          {perms.map(p => (
-            <div key={p.id} className="flex gap-3">
-              <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[var(--r-full)]"
-                style={{ background: p.internal ? "var(--status-warning)" : "var(--text-muted)" }} />
-              <div className="min-w-0">
-                {/* The label is what someone reads while deciding; the sentence is for the one
-                    they stop on. The raw permission id was developer noise on a page meant for
-                    whoever is about to say yes. */}
-                <div className="text-[length:var(--t13)] text-primary">{p.label}</div>
-                <div className="text-[length:var(--t11)] leading-snug text-muted">{p.text}</div>
+        {/* One row per group, the way a phone lists Camera once rather than every call behind it.
+            The group carries the kind of access, the sentences carry the extent, and the
+            permission's own label is left out here because for a single-item group it would say
+            the heading twice. */}
+        <div className="flex flex-col gap-4 rounded-[var(--r-lg)] border border-border p-4">
+          {groups.map(g => {
+            const Icon = GROUP_ICONS[g.icon] || PuzzlePiece;
+            return (
+              <div key={g.id} className="flex gap-3">
+                <span className="mt-[2px] flex h-5 w-5 shrink-0 items-center justify-center"
+                  style={{ color: g.sensitive ? "var(--status-warning)" : "var(--text-muted)" }}>
+                  <Icon size={16} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[length:var(--t13)] text-primary">{g.label}</div>
+                  {g.items.map(p => (
+                    <div key={p.id} className="text-[length:var(--t11)] leading-snug text-muted">{p.text}</div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="mt-2 text-[length:var(--t11)] leading-relaxed text-muted">{t("extInternalNote")}</div>
       </div>
