@@ -24,7 +24,6 @@ export const METHODS = {
   "player.previous":  "player:control",
   "ui.toast":         "ui:toast",
   "net.fetch":        "net",
-  "window.drag":      "window:drag",
 };
 
 export class BridgeError extends Error {

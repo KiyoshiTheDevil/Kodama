@@ -53,19 +53,13 @@ export default function ExtensionApp({ id }) {
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
-      <div className="relative flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
-        {/* No bar of Kodama's own. The extension already draws one, and two stacked headers is
-            what a framed app looks like when the host insists on its own chrome.
-            
-            The window buttons float over the extension's header instead, in space the extension
-            reserves for them: the bootstrap sets a padding on its <header>, which is why they do
-            not land on top of anything.
-            
-            Dragging cannot work the same way. A Tauri drag region belongs to a webview and a
-            frame is not one, so the extension forwards the gesture over the bridge instead. That
-            is what window:drag is, and it is why the permission exists. */}
-        <div className="absolute right-0 top-0 z-10 flex items-center pr-3"
-          style={{ height: 52 }} data-tauri-drag-region>
+      <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
+        <div className="flex shrink-0 items-center gap-1 pl-[22px] pr-3" style={{ height: 52 }}
+          data-tauri-drag-region>
+          <span data-tauri-drag-region className="font-semibold text-primary" style={{ fontSize: "var(--t15)" }}>
+            {manifest?.name || id}
+          </span>
+          <div className="flex-1" data-tauri-drag-region />
           <WindowControls />
         </div>
 
@@ -74,8 +68,7 @@ export default function ExtensionApp({ id }) {
         ) : (
           // An id nothing answers to. Said plainly rather than left as an empty window: this is
           // reachable only from Kodama's own code, so it means a mistake in Kodama.
-          <div className="flex flex-1 items-center justify-center text-[length:var(--t12)] text-muted"
-            data-tauri-drag-region>
+          <div className="flex flex-1 items-center justify-center text-[length:var(--t12)] text-muted">
             {t("extensionUnknown", { id })}
           </div>
         )}

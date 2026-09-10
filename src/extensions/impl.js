@@ -51,23 +51,6 @@ export function appearanceImpl() {
   };
 }
 
-/**
- * Moving the window the extension is framed in.
- *
- * Handed over as an ACTION rather than as the window object, like everything else here. The
- * extension says "the listener began dragging my header" and Kodama decides what that means; it
- * never holds anything it could call setPosition or close on.
- */
-export function windowImpl() {
-  return {
-    "window.drag": async () => {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().startDragging();
-      return true;
-    },
-  };
-}
-
 /** Kodama's own toasts, for an extension that has asked to use them. */
 export function toastImpl(addToast) {
   return {
@@ -93,7 +76,6 @@ export function hostImpl({ addToast } = {}) {
       (k, v) => { try { localStorage.setItem(k, v); } catch { throw new BridgeError("storage", "storage is full"); } },
     ),
     ...appearanceImpl(),
-    ...windowImpl(),
     ...(addToast ? toastImpl(addToast) : {}),
   };
 }

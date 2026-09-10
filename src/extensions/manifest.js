@@ -67,10 +67,6 @@ export const PERMISSIONS = {
   "backend:fonts":   { tier: "internal", grants: "The list of fonts installed on this computer." },
   "backend:composer": { tier: "internal", grants: "The audio Kodama extracts, for writing lyrics against." },
   "app:frame":       { tier: "internal", grants: "Runs as a page of its own, with everything its origin can reach." },
-  // Moving the window is not something an extension can do for itself: a drag region belongs to a
-  // webview, and a frame is not one. Internal because it acts on Kodama's window, not the
-  // extension's own content, which is a different kind of reach from everything above.
-  "window:drag":     { tier: "internal", grants: "Moving the window by dragging its own header." },
 };
 
 export const isInternal = (id) => PERMISSIONS[id]?.tier === "internal";
