@@ -2250,11 +2250,28 @@ def unison_displayname(key_id):
 # {bridgeUrl}/health and {bridgeUrl}/audio/<videoId>; we serve those under
 # /composer-bridge. CORS must allow the composer origin so its JS can read the bytes
 # and the x-track-* metadata headers.
-_COMPOSER_ORIGIN = "https://composer.boidu.dev"
+# Where a Composer may be served from. A list, not a value: the project moved from
+# composer.boidu.dev to composer.betterlyrics.org, and a single pinned origin meant the public
+# Composer silently lost access to this bridge the day that happened. A self-hosted copy is the
+# same case again, so the origin is echoed back when it is one we know rather than written out.
+#
+# KODAMA_COMPOSER_ORIGINS lets a self-hosted copy be added without a release: comma separated,
+# full origins.
+_COMPOSER_ORIGINS = [
+    "https://composer.betterlyrics.org",
+    "https://composer.boidu.dev",          # the old address, still redirecting
+] + [o.strip() for o in os.environ.get("KODAMA_COMPOSER_ORIGINS", "").split(",") if o.strip()]
+
 
 def _bridge_headers(resp):
-    resp.headers["Access-Control-Allow-Origin"] = _COMPOSER_ORIGIN
-    resp.headers["Access-Control-Expose-Headers"] = "Content-Type, x-track-title, x-track-artist, x-track-album"
+    # Echoed rather than wildcarded: "*" would let any page on the internet read the audio this
+    # machine extracts, and the headers below carry the track's identity with it.
+    origin = request.headers.get("Origin", "")
+    resp.headers["Access-Control-Allow-Origin"] = origin if origin in _COMPOSER_ORIGINS else _COMPOSER_ORIGINS[0]
+    resp.headers["Vary"] = "Origin"
+    # x-track-isrc is read by Composer 1.41 and not sent by Kodama yet; listing it costs nothing
+    # and means the day it is sent, it arrives.
+    resp.headers["Access-Control-Expose-Headers"] = "Content-Type, x-track-title, x-track-artist, x-track-album, x-track-isrc"
     return resp
 
 @app.route("/composer-bridge/health")
@@ -2357,8 +2374,9 @@ def composer_bridge_thumb(video_id):
             r = req.get(f"https://i.ytimg.com/vi/{video_id}/{name}.jpg", timeout=10)
             if r.ok and len(r.content) > 1024:
                 resp = Response(r.content, content_type=r.headers.get("Content-Type", "image/jpeg"))
-                resp.headers["Access-Control-Allow-Origin"] = _COMPOSER_ORIGIN
-                return resp
+                # Through the same helper as the other two routes: this one set the header by hand
+                # and so kept the pinned origin when the list replaced it.
+                return _bridge_headers(resp)
         except Exception:
             continue
     return _bridge_headers(jsonify({"error": "no_thumb"})), 404
