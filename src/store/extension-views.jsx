@@ -9,19 +9,27 @@ import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, CaretLeft } from "../icons.jsx";
 import { describePermissions } from "../extensions/manifest.js";
 
-/** On or off, said in a word. There is nothing to download, so "Install" would be a small lie. */
-export function ExtensionActions({ entry, t, onEnable, onDisable, size = "sm" }) {
-  if (entry.enabled) {
-    return (
-      <Button size={size} variant="ghost" className="text-muted" onPress={() => onDisable(entry)}>
-        {t("extTurnOff")}
-      </Button>
-    );
+/** The same four-way state as everything else on these shelves. */
+export function ExtensionActions({ entry, t, onInstall, onRemove, size = "sm" }) {
+  if (!entry.supported) {
+    return <span className="text-[length:var(--t11)] text-muted">{t("themeNeedsNewer")}</span>;
   }
-  return <Button size={size} variant="secondary" onPress={() => onEnable(entry)}>{t("extTurnOn")}</Button>;
+  if (!entry.installed) {
+    return <Button size={size} variant="secondary" onPress={() => onInstall(entry)}>{t("themeInstall")}</Button>;
+  }
+  return (
+    <>
+      {entry.updatable && (
+        <Button size={size} variant="secondary" onPress={() => onInstall(entry)}>{t("themeUpdate")}</Button>
+      )}
+      <Button size={size} variant="ghost" className="text-muted" onPress={() => onRemove(entry)}>
+        {t("themeRemove")}
+      </Button>
+    </>
+  );
 }
 
-export function ExtensionCard({ entry, t, onOpen, onEnable, onDisable }) {
+export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
   const perms = describePermissions(entry);
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface">
@@ -34,7 +42,7 @@ export function ExtensionCard({ entry, t, onOpen, onEnable, onDisable }) {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-[length:var(--t14)] font-medium text-primary">{entry.name}</span>
-              {entry.enabled && <Check size={13} weight="bold" className="shrink-0 text-accent" />}
+              {entry.installed && <Check size={13} weight="bold" className="shrink-0 text-accent" />}
             </div>
             <div className="truncate text-[length:var(--t11)] text-muted">
               {(entry.authors || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
@@ -52,14 +60,14 @@ export function ExtensionCard({ entry, t, onOpen, onEnable, onDisable }) {
       </button>
       <div className="p-3 pt-2">
         <div className="flex items-center gap-1.5">
-          <ExtensionActions entry={entry} t={t} onEnable={onEnable} onDisable={onDisable} />
+          <ExtensionActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />
         </div>
       </div>
     </div>
   );
 }
 
-export function ExtensionDetail({ entry, t, onBack, onEnable, onDisable }) {
+export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
   const perms = describePermissions(entry);
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-6">
@@ -83,7 +91,7 @@ export function ExtensionDetail({ entry, t, onBack, onEnable, onDisable }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5 pt-1">
-          <ExtensionActions entry={entry} t={t} onEnable={onEnable} onDisable={onDisable} />
+          <ExtensionActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />
         </div>
       </div>
 

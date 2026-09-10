@@ -18,6 +18,9 @@
 import { APP_VERSION } from "../version.js";
 import { BUILTIN_THEMES, sanitizeTokens, readInstalledThemes, writeInstalledThemes } from "../themes.js";
 import { installedPresets, PRESET_KINDS } from "./presets.js";
+import { parseManifest } from "../extensions/manifest.js";
+import { isTrustedExtension } from "../extensions/trust.js";
+import { installedExtensions } from "../extensions/registry.js";
 
 export const CATALOGUE_URL =
   "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/main/index.json";
@@ -154,7 +157,7 @@ export async function fetchCatalogue(url = CATALOGUE_URL) {
     return { ok: false, themes: [] };
   }
   const themes = annotateThemes(data.themes.map(normalizeTheme).filter(Boolean));
-  const out = { ok: true, themes };
+  const out = { ok: true, themes, extensions: annotateExtensions(data.extensions) };
   for (const kind of PRESET_KINDS) {
     const list = Array.isArray(data[kind]) ? data[kind] : [];
     out[kind] = annotatePresets(kind, list.map(normalizePresetEntry).filter(Boolean));
@@ -191,6 +194,31 @@ export function annotatePresets(kind, entries) {
       supported: meetsMinVersion(e),
     };
   });
+}
+
+/**
+ * The published extensions, as this build can act on them.
+ *
+ * The manifest is parsed here rather than reshaped: an entry that this build would refuse is
+ * dropped from the shelf entirely, because offering an Install button for something that cannot
+ * load is worse than a shorter list. `entry` is kept beside the parsed result, because installing
+ * stores what was published and not what this build made of it.
+ */
+export function annotateExtensions(raw) {
+  const installed = installedExtensions();
+  return (Array.isArray(raw) ? raw : []).map(entry => {
+    const { ok, manifest } = parseManifest(entry, { trusted: isTrustedExtension(entry?.id) });
+    if (!ok) return null;
+    const local = installed.find(m => m.id === manifest.id);
+    return {
+      ...manifest,
+      entry,
+      installed: !!local,
+      installedVersion: local?.version || null,
+      updatable: !!local && compareVersions(manifest.version, local.version) > 0,
+      supported: meetsMinVersion({ minVersion: entry.minVersion }),
+    };
+  }).filter(Boolean);
 }
 
 export function annotateThemes(entries) {

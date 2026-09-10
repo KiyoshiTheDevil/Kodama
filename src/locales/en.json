@@ -143,8 +143,6 @@
   "storeUpToDate": "Everything is up to date.",
   "storeCheck": "Check again",
   "storeUpdateAll": "Update all",
-  "extTurnOn": "Turn on",
-  "extTurnOff": "Turn off",
   "extPermissions": "What it may do",
   "extPermissionCount": "%n things it may do",
   "extInternalNote": "Marked entries reach past the sandbox. Only Kodama's own extensions may hold them.",

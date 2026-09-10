@@ -16,7 +16,7 @@ import { translate } from "../i18n.js";
 import { applyFontScale, readFontScale } from "../settings/scale.js";
 import { applyTheme, readTheme } from "../theme.js";
 import { WindowControls } from "../ui/window-chrome.jsx";
-import { builtinExtension } from "./builtin.js";
+import { installedExtension } from "./registry.js";
 import { mountExtension } from "./host.js";
 import { hostImpl } from "./impl.js";
 
@@ -26,7 +26,7 @@ export default function ExtensionApp({ id, track }) {
   applyFontScale(readFontScale());
   applyTheme(readTheme());
 
-  const manifest = builtinExtension(id);
+  const manifest = installedExtension(id);
   const host = useRef(null);
   const [problem, setProblem] = useState(null);
   const [language] = useState(() => { try { return localStorage.getItem("kiyoshi-lang") || "de"; } catch { return "de"; } });

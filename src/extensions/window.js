@@ -1,5 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { builtinExtension } from "./builtin.js";
+import { installedExtension } from "./registry.js";
 
 /** One window label for every extension, see the note in ExtensionApp. */
 export const EXTENSION_LABEL = "extension";
@@ -16,7 +16,7 @@ export const EXTENSION_LABEL = "extension";
  * window that cannot be dragged or closed. That has caught this project three times.
  */
 export async function openExtensionWindow(id, context = null) {
-  const manifest = builtinExtension(id);
+  const manifest = installedExtension(id);
   if (!manifest) return;
   try {
     const existing = await WebviewWindow.getByLabel(EXTENSION_LABEL);

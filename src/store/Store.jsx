@@ -9,10 +9,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, Button } from "@heroui/react";
 import { ArrowsClockwise, ArrowLeft, ArrowRight, Check, House, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
   GridTwo, Storefront, MagnifyingGlass } from "../icons.jsx";
-import { fetchCatalogue, annotateThemes, annotatePresets } from "./catalogue.js";
+import { fetchCatalogue, annotateThemes, annotatePresets, annotateExtensions } from "./catalogue.js";
 import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPresetsChanged } from "./presets.js";
 import { PresetCard, PresetDetail } from "./preset-views.jsx";
-import { allExtensions, enableExtension, disableExtension, onExtensionsChanged } from "../extensions/registry.js";
+import { installExtension, uninstallExtension, onExtensionsChanged } from "../extensions/registry.js";
 import { ExtensionCard, ExtensionDetail } from "./extension-views.jsx";
 import DetailPage from "./detail.jsx";
 import { allThemes } from "../themes.js";
@@ -283,6 +283,7 @@ export default function Store({ t }) {
       if (!c) return c;
       const next = { ...c, themes: annotateThemes(c.themes) };
       for (const k of PRESET_KINDS) next[k] = annotatePresets(k, c[k] || []);
+      next.extensions = annotateExtensions((c.extensions || []).map(e => e.entry));
       return next;
     });
     setTick(n => n + 1);
@@ -320,9 +321,16 @@ export default function Store({ t }) {
     refresh();
   };
 
-  const enableExt = async (e) => { await enableExtension(e.id); refresh(); };
-  const disableExt = async (e) => {
-    await disableExtension(e.id);
+  const [extProblem, setExtProblem] = useState(null);
+  const installExt = async (e) => {
+    // The entry as published, not what this build made of it. Refused with a reason rather than
+    // silently: an extension that will not load should say so now, not by never appearing.
+    const r = await installExtension(e.entry);
+    setExtProblem(r.ok ? null : r.problems.join(" · "));
+    refresh();
+  };
+  const removeExt = async (e) => {
+    await uninstallExtension(e.id);
     if (section === "mine" && detailId === e.id) setDetailId(null);
     refresh();
   };
@@ -357,15 +365,9 @@ export default function Store({ t }) {
    * either shelf on its own. A shelf with a single group draws no heading: the rail already
    * named it.
    */
-  // Kodama's own extensions. They ship in the build because their permissions reach past the
-  // sandbox and only a trusted source may hold those, but nothing is on until it is asked for.
-  // Installing one is therefore a flag rather than a download, which is honest for an app whose
-  // bytes live on the web either way.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const extensions = useMemo(() => allExtensions().map(e => ({
-    ...e, kind: "extension", title: e.name, installed: e.enabled,
-    supported: true, updatable: false, creators: e.authors,
-  })), [tick]);
+  // Published like everything else on these shelves. Nothing about an extension is in Kodama's
+  // bundle except the short list of which ids may hold a permission that reaches past the sandbox.
+  const extensions = cat?.extensions || [];
 
   const groups = (() => {
     const themes = { key: "themes", label: t("storeThemes"), kind: "theme", items: [...(cat?.themes || []), ...orphanThemes] };
@@ -527,7 +529,7 @@ export default function Store({ t }) {
           ) : detail ? (detail._group === "extension" ? (
             <ExtensionDetail entry={detail} t={t}
               onBack={() => setDetailId(null)}
-              onEnable={enableExt} onDisable={disableExt} />
+              onInstall={installExt} onRemove={removeExt} />
           ) : detail._group === "theme" ? (
             <ThemeDetail entry={detail} active={theme === detail.id} t={t}
               onBack={() => setDetailId(null)}
@@ -545,6 +547,11 @@ export default function Store({ t }) {
             <div className="flex flex-col items-start gap-2">
               <div className="text-[length:var(--t12)] text-muted">{t("themeStoreFailed")}</div>
               <Button size="sm" variant="secondary" onPress={load}>{t("retry")}</Button>
+            </div>
+          )}
+          {extProblem && (
+            <div className="mb-4 rounded-[var(--r-md)] border border-border px-3 py-2 text-[length:var(--t11)] text-muted">
+              {extProblem}
             </div>
           )}
           {cat && cat.ok && !everything.length && (
@@ -567,7 +574,7 @@ export default function Store({ t }) {
                     onInstall={install} onRemove={remove} onApply={apply} />
                 ) : g.kind === "extension" ? (
                   <ExtensionCard key={e.id} entry={e} t={t}
-                    onOpen={setDetailId} onEnable={enableExt} onDisable={disableExt} />
+                    onOpen={setDetailId} onInstall={installExt} onRemove={removeExt} />
                 ) : (
                   <PresetCard key={e.id} entry={e} t={t}
                     onOpen={setDetailId} onInstall={installP} onRemove={removeP} />

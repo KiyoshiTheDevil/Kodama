@@ -1,63 +1,57 @@
-// Which extensions are on, and what they offer.
+// Which extensions are installed, and what they offer.
 //
-// An extension being present in the build is not the same as a listener wanting it. The Composer
-// shipped for months and nobody used it; the difference between that and this is that now it has
-// to be asked for. Kodama's own extensions are declared in the build because their permissions
-// reach past the sandbox and only a trusted source may hold those, but nothing is enabled until
-// someone says so.
+// Installed means downloaded: the manifest comes from the catalogue, is parsed by the same code
+// that would parse a stranger's, and is kept in this installation's own storage. Nothing about an
+// extension ships in Kodama's bundle except the short list in trust.js of which ids may hold a
+// permission that reaches past the sandbox.
 //
-// "Installing" one is therefore a flag rather than a download. That is honest for an app
-// extension, whose bytes live on the web either way, and it is the same gesture as installing a
-// theme, which is also just a value moving into localStorage.
-import { builtinExtensions } from "./builtin.js";
-import { actionTitle } from "./manifest.js";
+// That distinction is the whole of it. Before this, "installing" was a flag beside a manifest that
+// had been compiled in, and the buttons an extension contributed were already in the app waiting
+// to be shown. Now there is nothing to show until something has actually been fetched.
+import { parseManifest, actionTitle } from "./manifest.js";
+import { isTrustedExtension } from "./trust.js";
 
-const ENABLED_KEY = "kodama-enabled-extensions";
+const INSTALLED_KEY = "kodama-installed-extensions";
 export const EXTENSIONS_CHANGED = "kodama://extensions-changed";
 
-function readEnabled() {
+/**
+ * The installed manifests, re-parsed on the way out.
+ *
+ * Never trusted as stored. Anything in localStorage has been outside Kodama's hands, so it goes
+ * through the same gate as the day it arrived: an entry that was edited to award itself
+ * window:create is refused here exactly as it would have been on install.
+ */
+export function installedExtensions() {
+  return readRaw()
+    .map(entry => parseManifest(entry, { trusted: isTrustedExtension(entry?.id) }))
+    .filter(r => r.ok)
+    .map(r => r.manifest);
+}
+
+export function installedExtension(id) {
+  return installedExtensions().find(m => m.id === id) || null;
+}
+
+export function extensionInstalled(id) {
+  return !!installedExtension(id);
+}
+
+/** The stored entries exactly as they were published, before any parsing. */
+function readRaw() {
   try {
-    const raw = JSON.parse(localStorage.getItem(ENABLED_KEY) || "[]");
-    return Array.isArray(raw) ? raw.filter(x => typeof x === "string") : [];
+    const raw = JSON.parse(localStorage.getItem(INSTALLED_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
   } catch { return []; }
 }
 
-function writeEnabled(list) {
+function write(list) {
   try {
-    localStorage.setItem(ENABLED_KEY, JSON.stringify([...new Set(list)]));
+    localStorage.setItem(INSTALLED_KEY, JSON.stringify(list));
     return true;
   } catch { return false; }
 }
 
-/** Every extension this build knows, each marked with whether it is on. */
-export function allExtensions() {
-  const on = new Set(readEnabled());
-  return builtinExtensions().map(m => ({ ...m, enabled: on.has(m.id) }));
-}
-
-export function extensionEnabled(id) {
-  return readEnabled().includes(id);
-}
-
-/**
- * What the enabled extensions offer at one slot.
- *
- * Read fresh every time rather than built once at startup: enabling one has to show up without a
- * restart, and a list captured at boot is a list that lies the moment anything changes.
- */
-export function contributionsFor(slot, language = "en") {
-  const out = [];
-  for (const ext of allExtensions()) {
-    if (!ext.enabled) continue;
-    for (const action of ext.actions || []) {
-      if (action.slot !== slot) continue;
-      out.push({ extensionId: ext.id, name: ext.name, slot, title: actionTitle(action, language) });
-    }
-  }
-  return out;
-}
-
-// ─── Turning one on and off ──────────────────────────────────────────────────
+// ─── Installing ──────────────────────────────────────────────────────────────
 
 async function announce() {
   try {
@@ -66,20 +60,50 @@ async function announce() {
   } catch { /* not running in Tauri */ }
 }
 
-export async function enableExtension(id) {
-  if (!builtinExtensions().some(m => m.id === id)) return false;
-  const ok = writeEnabled([...readEnabled(), id]);
-  if (ok) await announce();
-  return ok;
+/**
+ * Take a catalogue entry and keep it.
+ *
+ * Parsed before it is stored as well as after. Refusing at install time is what lets the store say
+ * why, rather than accepting something that silently never loads.
+ */
+export async function installExtension(entry) {
+  const { ok, manifest, problems } = parseManifest(entry, { trusted: isTrustedExtension(entry?.id) });
+  if (!ok) return { ok: false, problems };
+  // The entries as published are what get stored, not the parsed results: parsing is a gate, and
+  // storing its output would quietly bake this build's idea of the format into the data. So the
+  // raw list is read here rather than installedExtensions(), which hands back parsed manifests.
+  const rest = readRaw().filter(e => e?.id !== manifest.id);
+  if (!write([...rest, entry])) return { ok: false, problems: ["storage is full"] };
+  await announce();
+  return { ok: true, manifest };
 }
 
-export async function disableExtension(id) {
-  const ok = writeEnabled(readEnabled().filter(x => x !== id));
-  if (ok) await announce();
-  return ok;
+export async function uninstallExtension(id) {
+  if (!write(readRaw().filter(e => e?.id !== id))) return false;
+  await announce();
+  return true;
 }
 
-/** Run `fn` whenever an extension is turned on or off, in any window. */
+// ─── What they offer ─────────────────────────────────────────────────────────
+
+/**
+ * What the installed extensions offer at one slot.
+ *
+ * Read fresh every time rather than built once at startup: installing one has to show up without
+ * a restart, and a list captured at boot is a list that lies the moment anything changes.
+ */
+export function contributionsFor(slot, language = "en") {
+  const out = [];
+  for (const ext of installedExtensions()) {
+    for (const action of ext.actions || []) {
+      if (action.slot !== slot) continue;
+      out.push({ extensionId: ext.id, name: ext.name, slot, title: actionTitle(action, language) });
+    }
+  }
+  return out;
+}
+
+/** Run `fn` whenever an extension is installed or removed, in any window. */
 export function onExtensionsChanged(fn) {
   let stop = () => {};
   let dead = false;
