@@ -41,6 +41,24 @@ export const API_VERSION = "1.0";
 export const KINDS = ["panel", "window", "app"];
 
 /**
+ * The places an extension may offer something, named by Kodama.
+ *
+ * This list is the contract. An extension says which slot it contributes to and Kodama draws the
+ * result without knowing whose it is; the alternative, which is what shipping the Composer looked
+ * like at first, is Kodama calling an extension by name from inside a modal. That works for
+ * exactly one extension and is the thing an extension system exists to stop.
+ *
+ * A slot is added when there is a real reason to offer something there, not in anticipation. Each
+ * one is a promise about where a stranger's button may appear in Kodama's interface.
+ */
+export const SLOTS = {
+  // The Unison lyrics browser: somewhere to send a listener who wants to write lyrics properly.
+  "lyrics.browser": "Beside the list of community lyrics.",
+  // Nothing was found for this song. The most useful moment to offer writing them.
+  "lyrics.missing": "Where Kodama says it has no lyrics for a song.",
+};
+
+/**
  * Every permission that exists, and who may hold it.
  *
  * `tier: "open"` can be granted to anyone. `tier: "internal"` is Kodama's own: it reaches past
@@ -170,6 +188,42 @@ export function parseManifest(raw, { trusted = false } = {}) {
     fail(`only an "app" extension has an origin`);
   }
 
+  // ── What it offers, and where ──────────────────────────────────────────────
+  //
+  // Titles may be a plain string or a map of language to string. A theme's title is a proper noun
+  // and stays as written; an action's title is a sentence someone reads in their own language,
+  // and an extension that cannot say it in German should not be forced to invent one.
+  const actions = [];
+  const raw_actions = raw.contributes?.actions;
+  if (raw_actions !== undefined && !Array.isArray(raw_actions)) fail("contributes.actions must be a list");
+  for (const act of Array.isArray(raw_actions) ? raw_actions : []) {
+    if (!act || typeof act !== "object") { fail("an action is not an object"); continue; }
+    if (!SLOTS[act.slot]) { fail(`unknown slot "${act.slot}"`); continue; }
+    const title = act.title;
+    const ok_title = typeof title === "string" ? title.trim()
+      : (title && typeof title === "object" && typeof title.en === "string") ? title : null;
+    if (!ok_title) { fail(`the action for "${act.slot}" needs a title, or a title with at least en`); continue; }
+    actions.push({ slot: act.slot, title: ok_title });
+  }
+
+  // ── How to hand it the thing being looked at ───────────────────────────────
+  //
+  // A slot has a subject: the song whose lyrics are missing. Kodama must not know that the
+  // Composer expects it as "?v=", so the extension names its own parameter. Without this the host
+  // would carry a table of which extension calls the track what, which is the same coupling in a
+  // tidier coat.
+  let context = null;
+  if (raw.context !== undefined) {
+    const track = raw.context?.track;
+    if (typeof track !== "string" || !/^[A-Za-z_][A-Za-z0-9_-]{0,32}$/.test(track)) {
+      fail('context.track must be the name of a query parameter');
+    } else if (kind !== "app") {
+      fail("only an \"app\" extension is given context through its URL");
+    } else {
+      context = { track };
+    }
+  }
+
   // ── Hosts, for net ─────────────────────────────────────────────────────────
   const hosts = [];
   if (permissions.includes("net")) {
@@ -199,11 +253,21 @@ export function parseManifest(raw, { trusted = false } = {}) {
       authors: Array.isArray(raw.authors) ? raw.authors.filter(a => typeof a === "string").slice(0, 8) : [],
       permissions,
       hosts,
+      actions,
+      context,
       origin,
       entry: kind === "app" ? (typeof raw.entry === "string" ? raw.entry : "/") : "",
       trusted,
     },
   };
+}
+
+/** An action's title in the reader's language, falling back to English and then to anything. */
+export function actionTitle(action, language = "en") {
+  const t = action?.title;
+  if (typeof t === "string") return t;
+  if (!t || typeof t !== "object") return "";
+  return t[language] || t.en || Object.values(t)[0] || "";
 }
 
 /**

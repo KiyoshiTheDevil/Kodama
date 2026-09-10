@@ -20,7 +20,7 @@ import { builtinExtension } from "./builtin.js";
 import { mountExtension } from "./host.js";
 import { hostImpl } from "./impl.js";
 
-export default function ExtensionApp({ id }) {
+export default function ExtensionApp({ id, track }) {
   // Own window, own document: the type scale every var(--tNN) reads is written at runtime by
   // whichever entry point mounts, and App does not mount here. The theme is the same story.
   applyFontScale(readFontScale());
@@ -44,12 +44,13 @@ export default function ExtensionApp({ id }) {
       container: host.current,
       manifest,
       impl: hostImpl(),
+      context: track ? { track } : null,
       onError: (msg) => setProblem(String(msg)),
     });
     // Torn down on unmount rather than left running. A frame that is merely hidden goes on
     // working, which this app has measured the cost of once already.
     return () => mounted.destroy();
-  }, [manifest]);
+  }, [manifest, track]);
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>

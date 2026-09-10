@@ -12,6 +12,8 @@ import { ArrowsClockwise, ArrowLeft, ArrowRight, Check, House, Palette, PuzzlePi
 import { fetchCatalogue, annotateThemes, annotatePresets } from "./catalogue.js";
 import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPresetsChanged } from "./presets.js";
 import { PresetCard, PresetDetail } from "./preset-views.jsx";
+import { allExtensions, enableExtension, disableExtension, onExtensionsChanged } from "../extensions/registry.js";
+import { ExtensionCard, ExtensionDetail } from "./extension-views.jsx";
 import DetailPage from "./detail.jsx";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
@@ -31,7 +33,7 @@ const ROW_H = 30;   // the equaliser preset row, so the two windows read as one 
 const CATEGORIES = [
   { id: "start",      icon: House,         label: "storeStart" },
   { id: "themes",     icon: Palette,       label: "storeThemes" },
-  { id: "extensions", icon: PuzzlePiece,   label: "storeExtensions", soon: "storeSoonExtensions" },
+  { id: "extensions", icon: PuzzlePiece,   label: "storeExtensions" },
   { id: "visualizer", icon: WaveformLines, label: "storeVisualizer", kind: "visualizer" },
   { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer",  kind: "equalizer" },
   { id: "widgets",    icon: GridTwo,       label: "storeWidgets",    soon: "storeSoonWidgets" },
@@ -289,6 +291,7 @@ export default function Store({ t }) {
   // Another window can install or remove one too: Settings for a theme, the equaliser for a preset.
   useEffect(() => onThemesChanged(refresh), [refresh]);
   useEffect(() => onPresetsChanged(refresh), [refresh]);
+  useEffect(() => onExtensionsChanged(refresh), [refresh]);
 
   const apply = (id) => {
     localStorage.setItem("kiyoshi-theme", id);
@@ -313,6 +316,13 @@ export default function Store({ t }) {
   const installP = async (e) => { await installPresetEverywhere(e.kind, e); refresh(); };
   const removeP = async (e) => {
     await uninstallPresetEverywhere(e.kind, e.id);
+    if (section === "mine" && detailId === e.id) setDetailId(null);
+    refresh();
+  };
+
+  const enableExt = async (e) => { await enableExtension(e.id); refresh(); };
+  const disableExt = async (e) => {
+    await disableExtension(e.id);
     if (section === "mine" && detailId === e.id) setDetailId(null);
     refresh();
   };
@@ -347,16 +357,28 @@ export default function Store({ t }) {
    * either shelf on its own. A shelf with a single group draws no heading: the rail already
    * named it.
    */
+  // Kodama's own extensions. They ship in the build because their permissions reach past the
+  // sandbox and only a trusted source may hold those, but nothing is on until it is asked for.
+  // Installing one is therefore a flag rather than a download, which is honest for an app whose
+  // bytes live on the web either way.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const extensions = useMemo(() => allExtensions().map(e => ({
+    ...e, kind: "extension", title: e.name, installed: e.enabled,
+    supported: true, updatable: false, creators: e.authors,
+  })), [tick]);
+
   const groups = (() => {
     const themes = { key: "themes", label: t("storeThemes"), kind: "theme", items: [...(cat?.themes || []), ...orphanThemes] };
     const presets = PRESET_KINDS.map(k => ({
       key: k, label: t(k === "visualizer" ? "storeVisualizer" : "storeEqualizer"), kind: "preset", items: cat?.[k] || [],
     }));
-    const all = [themes, ...presets];
+    const exts = { key: "extensions", label: t("storeExtensions"), kind: "extension", items: extensions };
+    const all = [themes, ...presets, exts];
     if (section === "start") return all;
     if (section === "mine") return all.map(g => ({ ...g, items: g.items.filter(i => i.installed) }));
     if (section === "updates") return all.map(g => ({ ...g, items: g.items.filter(i => i.updatable) }));
     if (section === "themes") return [themes];
+    if (section === "extensions") return [exts];
     return all.filter(g => g.key === section);
   })().map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length > 0);
 
@@ -502,7 +524,11 @@ export default function Store({ t }) {
             </div>
           ) : current?.soon ? (
             <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
-          ) : detail ? (detail._group === "theme" ? (
+          ) : detail ? (detail._group === "extension" ? (
+            <ExtensionDetail entry={detail} t={t}
+              onBack={() => setDetailId(null)}
+              onEnable={enableExt} onDisable={disableExt} />
+          ) : detail._group === "theme" ? (
             <ThemeDetail entry={detail} active={theme === detail.id} t={t}
               onBack={() => setDetailId(null)}
               onInstall={install} onRemove={remove} onApply={apply} />
@@ -539,6 +565,9 @@ export default function Store({ t }) {
                   <ThemeCard key={e.id} entry={e} active={theme === e.id} t={t}
                     onOpen={setDetailId}
                     onInstall={install} onRemove={remove} onApply={apply} />
+                ) : g.kind === "extension" ? (
+                  <ExtensionCard key={e.id} entry={e} t={t}
+                    onOpen={setDetailId} onEnable={enableExt} onDisable={disableExt} />
                 ) : (
                   <PresetCard key={e.id} entry={e} t={t}
                     onOpen={setDetailId} onInstall={installP} onRemove={removeP} />

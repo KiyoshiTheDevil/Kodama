@@ -36,8 +36,12 @@ const ERROR_LIMIT = 8;
  * Added as a parameter the app will not read. Anything shorter risks colliding with one it does:
  * the Composer takes ?v= for the track to open.
  */
-export function framedUrl(manifest, now = Date.now()) {
+export function framedUrl(manifest, now = Date.now(), context = null) {
   const url = new URL(manifest.entry || "/", manifest.origin);
+  // Under the name the extension chose. Kodama knows it is handing over a track and nothing about
+  // what the app on the other side calls it.
+  const param = manifest.context?.track;
+  if (param && context?.track) url.searchParams.set(param, String(context.track));
   url.searchParams.set("_kodamaOpened", String(now));
   return url.toString();
 }
@@ -52,7 +56,7 @@ export function framedUrl(manifest, now = Date.now()) {
  * Returns a handle with `destroy()`. Call it: an extension left mounted keeps a frame alive, and
  * Kodama has learned once already that panes which are hidden rather than removed go on running.
  */
-export function mountExtension({ container, manifest, code, impl, onError }) {
+export function mountExtension({ container, manifest, code, impl, onError, context }) {
   // An app is a whole application on an origin of its own. It is framed rather than poured into a
   // srcdoc, it keeps that origin, and it is therefore NOT sandboxed away from whatever that origin
   // can reach. That is not a compromise, it is what having an origin means; the manifest says so
@@ -75,7 +79,7 @@ export function mountExtension({ container, manifest, code, impl, onError }) {
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute("title", manifest.name);
   frame.style.cssText = "border:0;width:100%;height:100%;display:block;background:transparent";
-  if (framed) frame.src = framedUrl(manifest);
+  if (framed) frame.src = framedUrl(manifest, Date.now(), context);
   else frame.srcdoc = guestDocument(code, API_VERSION);
 
   const stop = (reason) => {

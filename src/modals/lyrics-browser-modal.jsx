@@ -3,13 +3,13 @@
 // Two-pane layout: left is the source list (click = preview, doesn't apply yet), right shows
 // the full text of whichever version is currently previewed; Select applies it and closes.
 // Extracted from App.jsx.
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useContext } from "react";
 import { useAnimatedClose } from "./use-animated-close.js";
-import { openExtensionWindow } from "../extensions/window.js";
+import { ExtensionSlot } from "../extensions/slot.jsx";
 import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
 import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy, PencilSimple } from "../icons.jsx";
-import { API, useLang} from "../context.jsx";
+import { API, useLang, LangContext } from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
 import { parseTtml, parseLrc, parseDurationToSeconds } from "../lyrics/parse.js";
@@ -27,6 +27,9 @@ const REPORT_POPOVER_ANIM =
 
 function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter, currentVersionId, onApply, onClose }) {
   const t = useLang();
+  // The slot below hands an extension's own title to the reader, so it needs the language
+  // itself, not the lookup built from it.
+  const language = useContext(LangContext);
   const [isOpen, close] = useAnimatedClose(onClose);
   const [results, setResults] = useState(null); // null = loading, [] = none
   const [votes, setVotes] = useState({});       // { [versionId]: { my: -1|0|1, count } }
@@ -249,13 +252,12 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                   })
                 )}
               </div>
-              {/* The Composer, now an extension rather than a copy of one. Its window is opened
-                  by the extension host, so this knows an id and nothing else about it. */}
-              <div className="shrink-0 px-4 pt-3">
-                <Button variant="ghost" fullWidth className="justify-center gap-2"
-                  onPress={() => { openExtensionWindow("unison-composer"); close(); }}>
-                  <PencilSimple size={14} />{t("openComposerBtn")}
-                </Button>
+              {/* Whatever the enabled extensions offer here. Kodama names a slot and never an
+                  extension: this used to call one by id, which works for exactly one of them. */}
+              <div className="shrink-0 px-4 pt-3 empty:hidden">
+                <ExtensionSlot slot="lyrics.browser" language={language}
+                  context={track?.videoId ? { track: track.videoId } : null}
+                  className="w-full justify-center gap-2" icon={<PencilSimple size={14} />} />
               </div>
             </div>
 

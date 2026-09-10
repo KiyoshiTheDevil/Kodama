@@ -15,14 +15,17 @@ export const EXTENSION_LABEL = "extension";
  * label, and a window missing from that list gets no permissions at all, which shows up as a
  * window that cannot be dragged or closed. That has caught this project three times.
  */
-export async function openExtensionWindow(id) {
+export async function openExtensionWindow(id, context = null) {
   const manifest = builtinExtension(id);
   if (!manifest) return;
   try {
     const existing = await WebviewWindow.getByLabel(EXTENSION_LABEL);
     if (existing) { await existing.setFocus(); return; }
+    // The subject travels in the URL of Kodama's own window, and ExtensionApp hands it to the
+    // frame. Not stored anywhere: it is true for this opening and nothing else.
+    const track = context?.track ? `&track=${encodeURIComponent(context.track)}` : "";
     new WebviewWindow(EXTENSION_LABEL, {
-      url: `/?extension=${encodeURIComponent(id)}`,
+      url: `/?extension=${encodeURIComponent(id)}${track}`,
       title: `${manifest.name} — Kodama`,
       width: 1280,
       height: 860,

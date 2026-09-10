@@ -50,12 +50,13 @@ const isStore = params.get("store") === "1";
 // An extension in a window of its own. Named rather than a flag: one label hosts whichever
 // extension was asked for.
 const extensionId = params.get("extension") || "";
+const extensionTrack = params.get("track") || "";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   isMiniPlayer ? (
     <MiniPlayerApp />
   ) : extensionId ? (
-    <ExtensionApp id={extensionId} />
+    <ExtensionApp id={extensionId} track={extensionTrack} />
   ) : isStore ? (
     <StoreApp />
   ) : isEqualizer ? (

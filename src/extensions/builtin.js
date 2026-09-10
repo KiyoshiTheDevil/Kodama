@@ -26,6 +26,16 @@ const RAW = [
     // appearance:read is what the deployment's bootstrap actually calls, and the only open
     // permission of the three. The other two are the reason this shape is first-party.
     permissions: ["app:frame", "backend:composer", "appearance:read"],
+    // What it offers, and where. Kodama draws these without knowing whose they are; before this
+    // existed, a modal called this extension by name.
+    contributes: {
+      actions: [
+        { slot: "lyrics.browser", title: { en: "Open Composer", de: "Composer öffnen" } },
+        { slot: "lyrics.missing", title: { en: "Write these lyrics", de: "Diese Lyrics schreiben" } },
+      ],
+    },
+    // The Composer takes the song as ?v=. Named here so the host never has to know that.
+    context: { track: "v" },
   },
 ];
 

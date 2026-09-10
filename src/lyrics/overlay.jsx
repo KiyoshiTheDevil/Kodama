@@ -2,8 +2,9 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { Button, ChipRoot, ChipLabel } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang } from "../context.jsx";
+import { ExtensionSlot } from "../extensions/slot.jsx";
 import { translate, isRtlLang, isRtlText, hasJapaneseText } from "../i18n.js";
-import { CaretDown, Minus, Plus, UploadSimple } from "../icons.jsx";
+import { CaretDown, Minus, Plus, UploadSimple, PencilSimple } from "../icons.jsx";
 import { readLyricsCache, writeLyricsCache, dropLyricsCache } from "./cache.js";
 import { fetchLyrics } from "./fetch.js";
 import { paintLineWords } from "./paint.js";
@@ -947,6 +948,12 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "var(--t14)" }}>{t("noLyrics")}</div>
             <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "var(--t12)" }}>{t("noLyricsHint")}</div>
+            {/* Whatever the enabled extensions offer where Kodama has no lyrics. This is the most
+                useful moment to be handed a way to write them, and the least useful moment for
+                Kodama to be the one deciding whose editor that is. */}
+            <ExtensionSlot slot="lyrics.missing" language={language}
+              context={track?.videoId ? { track: track.videoId } : null}
+              variant="secondary" className="gap-2" icon={<PencilSimple size={14} />} />
             <div style={{ display: "flex", gap: 10 }}>
               {/* Akari's LRC Maker */}
               <button
