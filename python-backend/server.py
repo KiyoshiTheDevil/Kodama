@@ -442,24 +442,24 @@ def _pick_thumb(thumbs, min_size=226):
 def _looks_like_video(item, thumbs):
     """Whether a home-shelf entry with a videoId is a video rather than a music track.
 
-    get_home does not carry videoType: ytmusicapi only parses that for flat list rows, not for
-    the carousel items the home feed is made of. So this reads the two things it does carry.
+    get_home carries no videoType: ytmusicapi parses that only for flat list rows, not for the
+    carousel items the home feed is made of. What it does carry is where the picture comes from,
+    and that split is clean: a video still is served by i.ytimg.com, while cover art comes from
+    *.googleusercontent.com. Measured across a whole live feed, that matched every shelf.
 
-    The first is structural and therefore language independent, which matters because the shelf
-    titles arrive in the listener's own language: album art is square, a video still is 16:9.
+    Two earlier tests are gone because they were wrong on real data:
 
-    The second is the subtitle. ytmusicapi turns "Artist - Album" into `album` and
-    "Artist - 1.2M views" into `views`, so an entry that counts views instead of naming a record
-    is a video. Checked second, because a shelf can omit the subtitle entirely.
+    - "the subtitle counts views instead of naming a record" marked all ten entries of
+      "Your daily discover" as videos. Personalised shelves routinely list no album, so the test
+      was really asking "is the album missing", and the answer there is yes for music too.
+    - a bare aspect-ratio test is not safe either: cover art is requested at whatever size the
+      shelf wants and is not always square.
+
+    Under-marking is the right way to be wrong. A missing badge is a badge nobody saw; a badge on
+    every recommendation is worse than none at all.
     """
-    sized = [t for t in (thumbs or []) if isinstance(t, dict) and t.get("width") and t.get("height")]
-    if sized:
-        big = max(sized, key=lambda t: t["width"])
-        if big["width"] >= big["height"] * 1.3:
-            return True
-    album = item.get("album")
-    album_name = album.get("name") if isinstance(album, dict) else album
-    return bool(item.get("views")) and not album_name
+    urls = [t.get("url", "") for t in (thumbs or []) if isinstance(t, dict)]
+    return any("ytimg.com" in (u or "") for u in urls)
 
 
 def _upscale_thumbnail_url(url: str) -> str:
