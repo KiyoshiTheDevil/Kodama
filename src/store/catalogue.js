@@ -102,7 +102,11 @@ function common(raw) {
     size: new TextEncoder().encode(JSON.stringify(raw)).length,
     // Kodama's own, rather than merely curated. Everything here is reviewed; this says who wrote
     // it, which is a different promise and the one a badge should make.
-    official: raw.official !== false && (raw.creators || []).includes("KiyoshiTheDevil"),
+    //
+    // Matched on the project rather than on a person's account name: the credit on these pages is
+    // "Kodama", and an entry the project made with someone else keeps the mark, which is why this
+    // asks whether Kodama is AMONG the makers and not whether it is the only one.
+    official: raw.official !== false && (raw.creators || []).includes("Kodama"),
     screenshots: screenshots(raw),
     id: raw.id,
     title: STRING(raw.title, 40) || raw.id,
