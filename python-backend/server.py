@@ -109,6 +109,7 @@ def submit_feedback():
     diag = data.get("diag") if isinstance(data.get("diag"), dict) else {}
     current_track = data.get("currentTrack") if isinstance(data.get("currentTrack"), dict) else {}
     console_errors = data.get("consoleErrors") if isinstance(data.get("consoleErrors"), list) else []
+    appearance = data.get("appearance") if isinstance(data.get("appearance"), dict) else {}
     if not title and not description and not steps:
         return jsonify({"error": "empty"}), 400
 
@@ -123,6 +124,27 @@ def submit_feedback():
         fields.append({"name": "Severity", "value": severity, "inline": True})
     if area:
         fields.append({"name": "Area", "value": area, "inline": True})
+    # ── What the app looks like ────────────────────────────────────────────
+    # Since themes can be installed, "the text is unreadable" may not be a Kodama bug at all. The
+    # theme is named first and every switch that moves the picture follows, but only when it has
+    # been moved: a line reading "zoom 100%, font 100%" on every report is noise in a field that
+    # is meant to catch the eye.
+    if appearance:
+        look = [str(appearance.get("theme") or "?")[:60]]
+        if appearance.get("highContrast"):
+            look.append("high contrast")
+        if appearance.get("sharpCorners"):
+            look.append("sharp corners")
+        if appearance.get("rtl"):
+            look.append("RTL")
+        try:
+            if float(appearance.get("uiZoom") or 1) != 1:
+                look.append(f"zoom {round(float(appearance['uiZoom']) * 100)}%")
+            if float(appearance.get("fontScale") or 1) != 1:
+                look.append(f"font {round(float(appearance['fontScale']) * 100)}%")
+        except (TypeError, ValueError):
+            pass
+        fields.append({"name": "Appearance", "value": " · ".join(look), "inline": False})
     # ── Auto-diagnostics: the triage-critical bits inline for a quick scan ──
     if diag:
         prof = diag.get("profile") or {}

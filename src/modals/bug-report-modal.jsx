@@ -9,6 +9,7 @@ import { Bug, CheckCircle, Info, ImageSquare, PaperPlaneTilt } from "../icons.js
 import { Toggle } from "../ui/settings-controls.jsx";
 import { API, useZoom } from "../context.jsx";
 import { getConsoleErrors } from "../bug-diagnostics.js";
+import { appearanceSnapshot, appearanceChips } from "../appearance-report.js";
 
 // Short, human-readable OS string for bug-report diagnostics.
 const OS_INFO = (() => {
@@ -81,6 +82,9 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
           diag: includeDiag ? diag : undefined,
           currentTrack: (includeDiag && currentTrack?.videoId) ? { videoId: currentTrack.videoId, title: currentTrack.title || "" } : undefined,
           consoleErrors: includeDiag ? getConsoleErrors() : undefined,
+          // Always, not only with the diagnostic snapshot. A theme can make the app unreadable,
+          // and someone reporting exactly that is the least likely person to leave the box ticked.
+          appearance: appearanceSnapshot(),
           screenshot: (includeShot && screenshot) ? screenshot : undefined,
         }),
       });
@@ -92,7 +96,7 @@ export function BugReportModal({ onClose, screenshot, t, version, currentTrack }
   };
 
   const diagChips = (() => {
-    const c = [`v${version}`, OS_INFO];
+    const c = [`v${version}`, OS_INFO, ...appearanceChips()];
     if (diag?.ytdlp) c.push(`yt-dlp ${diag.ytdlp}`);
     if (diag?.profile) c.push(!diag.profile.active ? (t("reportNoProfile") || "kein Profil")
       : `${diag.profile.type || "account"}${diag.authed != null ? (diag.authed ? " · authed" : " · nicht authed") : ""}`);
