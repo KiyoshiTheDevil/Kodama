@@ -22,6 +22,27 @@ import { API_VERSION } from "./manifest.js";
 const ERROR_LIMIT = 8;
 
 /**
+ * Where a framed app is loaded from, with the page itself made uncacheable.
+ *
+ * An app is hosted by whoever publishes it, and a static host has its own idea of how long a page
+ * may be kept. GitHub Pages, where Kodama's own are, says ten minutes and offers no way to change
+ * it. That is fine for a website and wrong here: a deployed fix would appear to have not worked,
+ * for ten minutes, with nothing to see. It cost an evening once, which is the only reason this
+ * exists.
+ *
+ * Only the PAGE is defeated. Its scripts and styles are content-hashed by every bundler worth
+ * using, so they keep their caching and this costs one small request per open.
+ *
+ * Added as a parameter the app will not read. Anything shorter risks colliding with one it does:
+ * the Composer takes ?v= for the track to open.
+ */
+export function framedUrl(manifest, now = Date.now()) {
+  const url = new URL(manifest.entry || "/", manifest.origin);
+  url.searchParams.set("_kodamaOpened", String(now));
+  return url.toString();
+}
+
+/**
  * Mount an extension into `container`.
  *
  * `impl` is the map of method implementations. It is passed in rather than imported so this file
@@ -54,7 +75,7 @@ export function mountExtension({ container, manifest, code, impl, onError }) {
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute("title", manifest.name);
   frame.style.cssText = "border:0;width:100%;height:100%;display:block;background:transparent";
-  if (framed) frame.src = manifest.origin + (manifest.entry || "/");
+  if (framed) frame.src = framedUrl(manifest);
   else frame.srcdoc = guestDocument(code, API_VERSION);
 
   const stop = (reason) => {
