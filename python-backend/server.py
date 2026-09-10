@@ -2402,11 +2402,40 @@ def _composer_dist_dir():
     # 4. bundled next to the backend executable/script.
     return os.path.join(here, "composer_dist")
 
+# Kodama's own bootstrap, running inside the composer's document.
+#
+# Injected into index.html on the way out rather than added to the vendored build: the composer is
+# a third-party AGPL app we ship a copy of, and a fork is a thing that has to be re-forked at every
+# upgrade. Served from a file next to this one so it stays readable and reviewable JavaScript
+# rather than a Python string.
+#
+# It replaces the Tauri initialization_script that used to seed the composer's settings and paint
+# it in Kodama's colours. A frame gets no init script, so what used to be Kodama reaching into
+# another document is now that document asking over the extension bridge.
+_BOOTSTRAP_TAG = '<script src="/composer-app/__kodama.js"></script>'
+
+
+@app.route("/composer-app/__kodama.js")
+def composer_bootstrap():
+    from flask import Response
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "composer_bootstrap.js")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            body = f.read()
+    except OSError:
+        # Missing means an incomplete build. Answering with valid, empty JavaScript keeps the
+        # composer working without Kodama's theming rather than failing to load a script tag.
+        body = "/* bootstrap missing */"
+    resp = Response(body, content_type="application/javascript; charset=utf-8")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/composer-app/", defaults={"subpath": ""})
 @app.route("/composer-app/<path:subpath>")
 def composer_app(subpath):
     """Serve the locally-built composer SPA (asset files, else index.html fallback)."""
-    from flask import send_from_directory
+    from flask import send_from_directory, Response
     from werkzeug.exceptions import NotFound
     root = _composer_dist_dir()
     if not os.path.isdir(root):
@@ -2416,7 +2445,24 @@ def composer_app(subpath):
             return send_from_directory(root, subpath)
         except NotFound:
             pass  # SPA route → fall through to index.html
-    return send_from_directory(root, "index.html")
+
+    # index.html, with the bootstrap put in front of the app's own scripts.
+    try:
+        with open(os.path.join(root, "index.html"), "r", encoding="utf-8") as f:
+            html = f.read()
+    except OSError:
+        return jsonify({"error": "composer_not_built"}), 404
+    if _BOOTSTRAP_TAG not in html:
+        # Before </head> where there is one, so the settings are seeded before the app reads them.
+        # Falling back to the top of <body> rather than to string-appending: a tag after </html>
+        # is parsed, but only after everything it was meant to precede.
+        if "</head>" in html:
+            html = html.replace("</head>", _BOOTSTRAP_TAG + "</head>", 1)
+        elif "<body>" in html:
+            html = html.replace("<body>", "<body>" + _BOOTSTRAP_TAG, 1)
+        else:
+            html = _BOOTSTRAP_TAG + html
+    return Response(html, content_type="text/html; charset=utf-8")
 
 @app.route("/shutdown", methods=["GET", "POST"])
 def shutdown():
