@@ -14,7 +14,7 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 Changes:
 - Choose which device sound comes out of, and playback follows a changed default live
-- Updates download in the background, the sidebar shows their progress and size
+- Updates can download in the background, the sidebar shows their progress and size
 - Shuffle a playlist or album from its context menu
 - Channels show their playlists and the full video list, fan and unofficial channels open (#28)
 - Video sync can use a video whose match Kodama is unsure about
@@ -28,7 +28,7 @@ Changes:
 - Artwork that fails to load shows a placeholder
 - Settings controls and icon buttons carry names for screen readers
 - Images load only from the app and its own backend
-- The Node runtime is kept beside the profiles and fetched again if it goes missing
+- Updates after this one are much smaller, the 81 MB Node runtime is no longer part of them
 - The Composer has been removed from Kodama, it can be added back as an extension from the store in Beta
 - Groundwork for the store, themes and extensions, which open with the Beta
 
@@ -49,6 +49,7 @@ Fixes:
 - A download filled the log with one giant entry
 - Big Picture loaded in the background and flooded the console
 - The Kimuco bridge filled the console with network errors, it has been removed
+- Updating ended every Node process on the computer, now only Kodama's own
 
 ## [1.0.0-alpha.37] - 2026-09-06
 
