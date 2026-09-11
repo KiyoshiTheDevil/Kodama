@@ -10,6 +10,10 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+Fixes:
+- With more than one login saved, Kodama started with the oldest one and appeared signed out after every restart
+- Renew Session in the library added a new login instead of renewing the current one
+
 ## [1.0.0-alpha.39] - 2026-09-11
 
 Fixes:

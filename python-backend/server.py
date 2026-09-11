@@ -937,6 +937,32 @@ def make_ytmusic(name):
             json.dump(cleaned, f, indent=2)
     return YTMusic(path, user=_brand_user_id(name))
 
+# Which profile was active last, so a restart comes back to it.
+#
+# autoload() used to take the first profile the directory listing happened to return, which is
+# alphabetical: the OLDEST account_<timestamp>. With more than one profile of the same account
+# that meant every start picked a login nobody had renewed in months, one with no WebView data
+# dir for the session keeper to rescue it from, and the listener was signed out on every launch.
+# Renewing the session did not survive the restart either, because the renewal went to a
+# different profile. Written wherever a profile becomes the active one; a name that no longer
+# loads is simply passed over.
+def _active_profile_file():
+    return os.path.join(PROFILES_DIR, ".active")
+
+def _remember_active(name):
+    try:
+        with open(_active_profile_file(), "w", encoding="utf-8") as f:
+            f.write(name)
+    except Exception as e:
+        _logging.warning(f"[profiles] could not remember active profile: {e}")
+
+def _remembered_active():
+    try:
+        with open(_active_profile_file(), encoding="utf-8") as f:
+            return f.read().strip() or None
+    except Exception:
+        return None
+
 def load_profile(name):
     global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
     # The last verdict was about the cookies being replaced here, so it says nothing about the
@@ -947,6 +973,7 @@ def load_profile(name):
     if is_local_profile(name):
         _ytm = YTMusic()
         _current_profile = name
+        _remember_active(name)
         _playlist_cache.clear()
         return True
     path = profile_path(name)
@@ -958,6 +985,7 @@ def load_profile(name):
         _logging.error(f"[auth] load_profile failed for {name}: {e}")
         return False
     _current_profile = name
+    _remember_active(name)
     _playlist_cache.clear()
     # Immediately top up the rotating anti-bot cookie so the very first hours stay valid.
     threading.Thread(target=_refresh_ytm_psidts, kwargs={"force": True}, daemon=True).start()
@@ -1332,6 +1360,18 @@ def autoload():
     # Skip logged-out profiles — they have no auth and can't be loaded. Try each in
     # order until one loads (a leftover, now-unsupported OAuth profile is skipped).
     profiles = [p for p in get_profiles() if not p.get("loggedOut")]
+    # The one in use when Kodama was last closed goes first. Behind it, the most recently written
+    # login: the session keeper persists rotated cookies into the ACTIVE profile only, so that is
+    # the best evidence of which one was in use when nothing has been remembered yet, as on the
+    # first start of a build that remembers. Only a fallback for when the remembered one no
+    # longer loads (deleted, signed out, unreadable).
+    last = _remembered_active()
+    def _written(p):
+        try:
+            return os.path.getmtime(profile_path(p["name"]))
+        except OSError:
+            return 0
+    profiles.sort(key=lambda p: (p["name"] != last, -_written(p)))
     for p in profiles:
         if load_profile(p["name"]):
             threading.Thread(target=fetch_account_info, args=(p["name"],), daemon=True).start()
@@ -1591,6 +1631,7 @@ def setup_auth():
         global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
         _ytm = ytm_temp
         _current_profile = profile_name
+        _remember_active(profile_name)
         _playlist_cache.clear()
         # That call just came back with real data, which is the session working. Recorded, or
         # the stale verdict from the dead session would keep the warning up until the next
@@ -1671,6 +1712,7 @@ def cookie_login():
         global _ytm, _current_profile, _playlist_cache, _LAST_AUTHED
         _ytm = ytm_temp
         _current_profile = profile_name
+        _remember_active(profile_name)
         _playlist_cache.clear()
         # The test call above is proof the new cookies work; say so, so the "session expired"
         # warning goes away by itself instead of having to be dismissed by hand.
