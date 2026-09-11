@@ -14,3 +14,10 @@ id = "adba41b3fa9841d4a6182c84d6355628"
 # the most scheduled work.
 [triggers]
 crons = ["10 3 * * *"]
+
+# Store ratings: one row per (entry, voter token). D1 rather than KV because a changed rating has
+# to leave the average in the same step it enters it. Schema: ratings-schema.sql
+[[d1_databases]]
+binding = "RATINGS"
+database_name = "kodama-ratings"
+database_id = "04fbcf7c-3bd4-45a7-aac9-cdddfa4b6a70"

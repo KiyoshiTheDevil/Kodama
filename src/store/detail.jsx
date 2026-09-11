@@ -5,8 +5,97 @@
  * it, who made it, will it run here, what does it look like, what does it actually contain. Only
  * the last two differ, and those arrive as `stages` and `values`.
  */
-import { Check, CaretLeft } from "../icons.jsx";
+import { createContext, useContext, useState } from "react";
+import { Check, CaretLeft, Star } from "../icons.jsx";
 import { thumb } from "../context.jsx";
+import { MIN_RATINGS, myRating } from "./ratings.js";
+
+/**
+ * How a page casts a vote: `(entry, stars) => Promise<error message | null>`. Provided by the
+ * store rather than passed down, because every kind of detail page carries the same stars and
+ * none of them has anything to add to them.
+ */
+export const RateContext = createContext(null);
+
+const fmtAvg = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/**
+ * The average, the way the stat says it. Nothing below MIN_RATINGS: the number of votes is then
+ * the only honest thing to show, because one 5 or one 1 is an opinion, not a rating.
+ */
+export function ratingText(rating, t) {
+  if (!rating) return "—";
+  if (rating.count >= MIN_RATINGS) return `${fmtAvg(rating.avg)} ★`;
+  return rating.count ? t("storeRatingsCount", { n: rating.count }) : "—";
+}
+
+/** The average on a card, only where there is one worth showing. */
+export function CardRating({ entry }) {
+  const r = entry.rating;
+  if (!r || r.count < MIN_RATINGS) return null;
+  return (
+    <span>
+      {" · "}
+      <Star size={9} className="relative -top-px" style={{ color: "var(--status-warning)" }} />
+      {" "}{fmtAvg(r.avg)}
+    </span>
+  );
+}
+
+/** Five stars to click, offered only for what is installed. */
+function YourRating({ entry, t }) {
+  const cast = useContext(RateContext);
+  const [mine, setMine] = useState(() => myRating(entry.id));
+  const [hover, setHover] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  if (!cast) return null;
+
+  const send = async (stars) => {
+    if (busy) return;
+    setBusy(true);
+    const problem = await cast(entry, stars);
+    setBusy(false);
+    setError(problem);
+    if (!problem) setMine(stars);
+  };
+
+  const shown = hover || mine;
+  return (
+    <div>
+      <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("storeYourRating")}</div>
+      {entry.installed ? (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-0.5" onMouseLeave={() => setHover(0)}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <button key={n} disabled={busy} onMouseEnter={() => setHover(n)} onClick={() => send(n)}
+                aria-label={t("storeRateStars", { n })}
+                className="flex h-7 w-7 cursor-default items-center justify-center rounded-[var(--r-sm)] hover:bg-[var(--bg-hover)]">
+                <Star size={16} style={{
+                  color: n <= shown ? "var(--status-warning)" : "var(--stroke)",
+                  transition: "color 120ms",
+                }} />
+              </button>
+            ))}
+          </div>
+          {mine > 0 && !hover && (
+            <button disabled={busy} onClick={() => send(0)}
+              className="cursor-default text-[length:var(--t11)] text-muted hover:text-primary">
+              {t("storeRatingRemove")}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="text-[length:var(--t12)] text-muted">{t("storeRateInstallFirst")}</div>
+      )}
+      {error && (
+        <div className="mt-1.5 text-[length:var(--t11)]" style={{ color: "var(--status-danger)" }}>
+          {t("storeRatingFailed")}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Bytes, said the way a shop says them. Under a kilobyte stays in bytes rather than rounding to 0. */
 export function formatSize(bytes) {
@@ -96,6 +185,8 @@ export default function DetailPage({ entry, t, onBack, actions, icon, stages = [
         <Stat label={t("storeSize")}>{formatSize(entry.size)}</Stat>
         <div style={{ width: 1, background: "var(--stroke-dim)" }} />
         <Stat label={t("storeDownloads")}>{formatCount(entry.downloads)}</Stat>
+        <div style={{ width: 1, background: "var(--stroke-dim)" }} />
+        <Stat label={t("storeRating")}>{ratingText(entry.rating, t)}</Stat>
       </div>
 
       {shots.length > 0 && (
@@ -124,6 +215,8 @@ export default function DetailPage({ entry, t, onBack, actions, icon, stages = [
           </div>
         )}
       </div>
+
+      <YourRating key={entry.id} entry={entry} t={t} />
 
       {/* What it actually contains. Not in the mockup, kept on purpose: a theme IS its values, and
           this is the only place someone can see what an entry will change before it changes it. */}

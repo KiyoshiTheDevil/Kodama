@@ -20,7 +20,7 @@
  *   Beyond that: Workers Paid ($5/mo) raises KV to 1M writes/day with NO code
  *   change, or switch to Analytics Engine for effectively unlimited writes.
  *
- * Bindings (wrangler.toml): KV namespace STATS (required).
+ * Bindings (wrangler.toml): KV namespace STATS (required), D1 database RATINGS (store ratings).
  *
  * Routes:
  *   POST /ping    body: { d, m, v?, os?, l? }   d = daily token, m = monthly token,
@@ -31,6 +31,9 @@
  *   GET  /badge?metric=mau             -> shields.io endpoint JSON (monthly)
  *   POST /store/install  body: { id }  -> counts one download of a store entry
  *   GET  /store/counts                 -> { counts: { <id>: n } }
+ *   POST /store/rate  body: { id, voter, stars }  stars 1-5, or null to withdraw
+ *                                      -> { ok, rating: { avg, count } } for that entry
+ *   GET  /store/ratings                -> { ratings: { <id>: { avg, count } } }
  */
 
 const CORS = {
@@ -214,6 +217,31 @@ async function publishedIds() {
   return catalogueIds || new Set();
 }
 
+// ─── Store ratings ───────────────────────────────────────────────────────────
+//
+// Stars, one vote per installation and entry, in D1 (binding RATINGS, ratings-schema.sql).
+//
+// `voter` is sha256(install id + ":" + entry id), made on the device. The same installation
+// always produces the same token for the same entry, so rating again replaces the old vote; a
+// different entry gives a different token, so nothing here can join one device's ratings
+// together. The install id is a random UUID, which is what makes the token impossible to reverse
+// by trying: unlike an IP, there are far too many to try.
+//
+// A listener who wipes the app's data gets a new install id and can vote again. Without accounts
+// that cannot be prevented, only dampened: the app only offers rating for installed entries,
+// shows no average below three votes, and one address may cast only a few distinct votes per
+// entry while this instance lives (in memory, never stored, as with downloads).
+const VOTERS_PER_ADDRESS = 3;
+const recentVoters = new Map();   // "address id" -> Set of voter tokens
+
+async function ratingOf(env, id) {
+  const row = await env.RATINGS
+    .prepare("SELECT AVG(stars) AS avg, COUNT(*) AS count FROM ratings WHERE entry = ?")
+    .bind(id).first();
+  const count = row ? Number(row.count) || 0 : 0;
+  return { avg: count ? Math.round(Number(row.avg) * 100) / 100 : 0, count };
+}
+
 // address + id pairs already counted by this instance. Bounded, so a flood cannot grow it
 // without limit; clearing it only means the next repeat counts again.
 const recentInstalls = new Set();
@@ -315,6 +343,53 @@ export default {
         cursor = r.list_complete ? null : r.cursor;
       } while (cursor);
       return json({ counts }, { headers: { "Cache-Control": "max-age=300" } });
+    }
+
+    // ── POST /store/rate ────────────────────────────────────────────────────
+    if (url.pathname === "/store/rate" && request.method === "POST") {
+      let b = {};
+      try { b = await request.json(); } catch { /* ignore malformed */ }
+      const { id, voter, stars } = b || {};
+      const withdraw = stars === null;
+      if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)
+        || !HEX64.test(voter || "")
+        || (!withdraw && !(Number.isInteger(stars) && stars >= 1 && stars <= 5))) {
+        return json({ ok: false }, { status: 400 });
+      }
+      if (!(await publishedIds()).has(id)) {
+        return json({ ok: false, error: "unknown id" }, { status: 404 });
+      }
+      const slot = `${request.headers.get("cf-connecting-ip") || ""} ${id}`;
+      const voters = recentVoters.get(slot) || new Set();
+      if (!voters.has(voter) && voters.size >= VOTERS_PER_ADDRESS) {
+        return json({ ok: false, error: "too many votes" }, { status: 429 });
+      }
+      if (recentVoters.size > 10_000) recentVoters.clear();
+      voters.add(voter);
+      recentVoters.set(slot, voters);
+
+      if (withdraw) {
+        await env.RATINGS.prepare("DELETE FROM ratings WHERE entry = ? AND voter = ?").bind(id, voter).run();
+      } else {
+        // One statement, so a changed vote leaves the average in the same step it enters it.
+        await env.RATINGS.prepare(
+          "INSERT INTO ratings (entry, voter, stars, updated) VALUES (?, ?, ?, ?) " +
+          "ON CONFLICT (entry, voter) DO UPDATE SET stars = excluded.stars, updated = excluded.updated"
+        ).bind(id, voter, stars, Date.now()).run();
+      }
+      return json({ ok: true, rating: await ratingOf(env, id) });
+    }
+
+    // ── GET /store/ratings ──────────────────────────────────────────────────
+    if (url.pathname === "/store/ratings") {
+      const { results } = await env.RATINGS
+        .prepare("SELECT entry, AVG(stars) AS avg, COUNT(*) AS count FROM ratings GROUP BY entry")
+        .all();
+      const ratings = {};
+      for (const r of results || []) {
+        ratings[r.entry] = { avg: Math.round(Number(r.avg) * 100) / 100, count: Number(r.count) || 0 };
+      }
+      return json({ ratings }, { headers: { "Cache-Control": "max-age=60" } });
     }
 
     // ── GET /count ──────────────────────────────────────────────────────────

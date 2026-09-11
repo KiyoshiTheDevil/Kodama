@@ -9,7 +9,7 @@ import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, MusicNote, Palette, FloppyDisk, FileImport,
   Globe, ScreencastSimple, TextSize, Megaphone, Columns } from "../icons.jsx";
 import { describePermissions, actionTitle } from "../extensions/manifest.js";
-import DetailPage, { DetailSection } from "./detail.jsx";
+import DetailPage, { DetailSection, CardRating } from "./detail.jsx";
 
 // The manifest names an icon; this is where a name becomes a component. Kept here rather than in
 // the manifest so that file stays free of anything that has to be rendered.
@@ -64,6 +64,7 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
           <div className="mt-0.5 text-[length:var(--t11)] text-muted">
             {(entry.creators || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
             {` · ${t("extPermissionCount", { n: perms.length })}`}
+            <CardRating entry={entry} />
           </div>
         </div>
       </button>

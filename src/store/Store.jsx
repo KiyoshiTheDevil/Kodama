@@ -15,7 +15,8 @@ import { PresetCard, PresetDetail } from "./preset-views.jsx";
 import { installExtension, uninstallExtension, onExtensionsChanged } from "../extensions/registry.js";
 import { ExtensionCard, ExtensionDetail } from "./extension-views.jsx";
 import { reportDownload, fetchDownloadCounts } from "./downloads.js";
-import DetailPage from "./detail.jsx";
+import DetailPage, { RateContext, CardRating } from "./detail.jsx";
+import { rate, fetchRatings } from "./ratings.js";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
 import { applyTheme, readTheme } from "../theme.js";
@@ -177,6 +178,7 @@ function ThemeCard({ entry, active, t, onOpen, onInstall, onRemove, onApply }) {
           )}
           <div className="mt-0.5 text-[length:var(--t11)] text-muted">
             {(entry.creators || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
+            <CardRating entry={entry} />
           </div>
         </div>
       </button>
@@ -276,10 +278,33 @@ export default function Store({ t, language }) {
   // null until known, and kept null when the Worker cannot be reached: the page then shows no
   // number rather than a zero that would be a claim.
   const [counts, setCounts] = useState(null);
+  const [ratings, setRatings] = useState(null);
   const load = useCallback(() => {
     setBusy(true);
     fetchCatalogue().then(setCat).finally(() => setBusy(false));
     fetchDownloadCounts().then(c => { if (c) setCounts(c); });
+    fetchRatings().then(r => { if (r) setRatings(r); });
+  }, []);
+
+  // What the Worker knows about an entry, put on the entry itself so every card and page reads it
+  // the same way. An id it has never seen is 0 / no votes once the answer is in at all; before
+  // that it is null, which the page shows as a dash rather than as a zero it cannot vouch for.
+  const withStats = (e) => ({
+    ...e,
+    downloads: counts ? (counts[e.id] || 0) : null,
+    rating: ratings ? (ratings[e.id] || { avg: 0, count: 0 }) : null,
+  });
+
+  // The vote lands, then the new average replaces the old one here, so the page shows it at once
+  // instead of after the next reload. Returns the reason on failure, null on success.
+  const castRating = useCallback(async (entry, stars) => {
+    try {
+      const r = await rate(entry.id, stars);
+      if (r) setRatings(all => ({ ...(all || {}), [entry.id]: r }));
+      return null;
+    } catch (e) {
+      return String(e?.message || e);
+    }
   }, []);
   useEffect(load, [load]);
 
@@ -394,7 +419,7 @@ export default function Store({ t, language }) {
     if (section === "themes") return [themes];
     if (section === "extensions") return [exts];
     return all.filter(g => g.key === section);
-  })().map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length > 0);
+  })().map(g => ({ ...g, items: g.items.filter(match).map(withStats) })).filter(g => g.items.length > 0);
 
   const everything = groups.flatMap(g => g.items.map(i => ({ ...i, _group: g.kind })));
 
@@ -402,8 +427,8 @@ export default function Store({ t, language }) {
   // is a claim about the whole shop. Read from the catalogue rather than from `groups`, which is
   // filtered by the current shelf and by whatever is typed in the search box.
   const pending = [
-    ...(cat?.themes || []).filter(e => e.updatable).map(e => ({ ...e, _group: "theme" })),
-    ...PRESET_KINDS.flatMap(k => (cat?.[k] || []).filter(e => e.updatable).map(e => ({ ...e, _group: "preset" }))),
+    ...(cat?.themes || []).filter(e => e.updatable).map(e => ({ ...withStats(e), _group: "theme" })),
+    ...PRESET_KINDS.flatMap(k => (cat?.[k] || []).filter(e => e.updatable).map(e => ({ ...withStats(e), _group: "preset" }))),
   ];
   const updateAll = async () => {
     for (const e of pending) {
@@ -412,9 +437,7 @@ export default function Store({ t, language }) {
     }
     refresh();
   };
-  const found = detailId ? everything.find(e => e.id === detailId) : null;
-  // An id the Worker has never counted is 0 once the counts are known at all.
-  const detail = found && { ...found, downloads: counts ? (counts[found.id] || 0) : null };
+  const detail = detailId ? everything.find(e => e.id === detailId) : null;
 
   // The equaliser's preset rows, to the pixel: 30px tall, a 14px glyph, --t13, and the selected
   // one filled with the accent. These are the same kind of window and they were reading as two
@@ -438,6 +461,7 @@ export default function Store({ t, language }) {
   };
 
   return (
+    <RateContext.Provider value={castRating}>
     <div className="flex h-full w-full select-none flex-col overflow-hidden" style={{ background: "var(--bg-base)" }}>
       {/* ── Header ───────────────────────────────────────────────
           Same grammar as the equaliser and the overlay editor: a 52px bar, the title with its
@@ -601,5 +625,6 @@ export default function Store({ t, language }) {
         </div>
       </div>
     </div>
+    </RateContext.Provider>
   );
 }

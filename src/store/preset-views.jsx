@@ -7,7 +7,7 @@
  * side should look different in the way they actually differ.
  */
 import { Button } from "@heroui/react";
-import DetailPage from "./detail.jsx";
+import DetailPage, { CardRating } from "./detail.jsx";
 import { BANDS, RANGE_DB } from "../equalizer/presets.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 
@@ -115,6 +115,7 @@ export function PresetCard({ entry, t, onOpen, onInstall, onRemove }) {
           )}
           <div className="mt-0.5 text-[length:var(--t11)] text-muted">
             {(entry.creators || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
+            <CardRating entry={entry} />
           </div>
         </div>
       </button>
