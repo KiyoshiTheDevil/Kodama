@@ -64,8 +64,20 @@ pub fn kill_existing_server(child: &mut Option<Child>) {
                 // is orphaned and keeps a lock on node.exe — which then makes the NSIS updater
                 // fail with "Error opening file for writing: ...\node.exe". Kill whatever still
                 // listens on either port, targeted (won't touch the user's own node processes).
-                if (line.contains(":9847") || line.contains(":4416")) && line.contains("LISTENING") {
-                    let parts: Vec<&str> = line.split_whitespace().collect();
+                //
+                // Matched on the LOCAL address column and the exact port. A substring test on the
+                // whole line also caught ports 44160-44169, so closing Kodama could end whatever
+                // unrelated program happened to listen on one of those.
+                //
+                // A listening socket is recognised by its empty foreign address, not by the word
+                // "LISTENING": netstat translates the state column ("ABHÖREN" on German Windows),
+                // so the word never matched there and this cleanup never ran.
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                let ours = parts.len() >= 5
+                    && parts[0] == "TCP"
+                    && (parts[2] == "0.0.0.0:0" || parts[2] == "[::]:0")
+                    && (parts[1].ends_with(":9847") || parts[1].ends_with(":4416"));
+                if ours {
                     if let Some(pid) = parts.last() {
                         let _ = std::process::Command::new("taskkill")
                             .args(["/F", "/T", "/PID", pid])

@@ -50,6 +50,7 @@ Fixes:
 - Big Picture loaded in the background and flooded the console
 - The Kimuco bridge filled the console with network errors, it has been removed
 - Updating ended every Node process on the computer, now only Kodama's own
+- Closing Kodama left its background processes running on Windows in languages other than English
 
 ## [1.0.0-alpha.37] - 2026-09-06
 
