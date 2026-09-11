@@ -10,12 +10,45 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.38] - 2026-09-11
+
 Changes:
+- Choose which device sound comes out of, and playback follows a changed default live
+- Updates download in the background, the sidebar shows their progress and size
+- Shuffle a playlist or album from its context menu
+- Channels show their playlists and the full video list, fan and unofficial channels open (#28)
+- Video sync can use a video whose match Kodama is unsure about
+- Square or round bar ends in the visualizer, and saved presets can be overwritten
+- Sharp corners switch under Experiments
+- Loading progress moves to a toast in the corner
+- Sub-sections for Connections, Playback and the Visualizer in Settings
+- The page reloads by itself once the session comes back
+- Bug reports include the current appearance
+- Big Picture can only be opened from Settings
+- Artwork that fails to load shows a placeholder
+- Settings controls and icon buttons carry names for screen readers
+- Images load only from the app and its own backend
+- The Node runtime is kept beside the profiles and fetched again if it goes missing
 - The Composer has been removed from Kodama, it can be added back as an extension from the store in Beta
+- Groundwork for the store, themes and extensions, which open with the Beta
 
 Fixes:
 - Albums that list music videos play and download the songs instead
 - A song plays again after its download was deleted
+- Speed Dial shows songs again instead of YouTube videos
+- Lyrics never came back after an instrumental part
+- A dead session was not reported after startup, and the warning stayed after signing back in
+- A failed sign-in showed a tick
+- Toasts ignored the UI zoom
+- Exporting a visualizer preset now asks where to save it
+- The visualizer preview ignored its scale and kept the wrong bar thickness after fullscreen
+- The slider handle overshot its track
+- Artist pictures in the library grid were blurry
+- Four places showed the name of a missing string instead of its text
+- The accent wash kept the old accent
+- A download filled the log with one giant entry
+- Big Picture loaded in the background and flooded the console
+- The Kimuco bridge filled the console with network errors, it has been removed
 
 ## [1.0.0-alpha.37] - 2026-09-06
 
