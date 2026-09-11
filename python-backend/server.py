@@ -3045,6 +3045,94 @@ def _heal_node():
         _logging.error("[runtime] fetching node failed: %s", e)
         return None
 
+def _remove_path(path, strict=False):
+    """A file or a directory, gone. Quietly unless strict, where a failure is the caller's news."""
+    import shutil
+    if not os.path.lexists(path):
+        return
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path, ignore_errors=not strict)
+        if strict and os.path.exists(path):
+            raise OSError(f"could not remove {path}")
+    else:
+        try:
+            os.remove(path)
+        except OSError:
+            if strict:
+                raise
+
+def _content_digest(path):
+    """SHA-256 over a file's bytes, or over a directory's relative paths and file bytes."""
+    import hashlib
+    h = hashlib.sha256()
+    def feed(p):
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            dirs.sort()
+            for name in sorted(files):
+                full = os.path.join(root, name)
+                h.update(os.path.relpath(full, path).replace("\\", "/").encode("utf-8") + b"\0")
+                feed(full)
+    else:
+        feed(path)
+    return h.hexdigest()
+
+def _same_content(a, b):
+    try:
+        if os.path.isfile(a) and os.path.isfile(b) and os.path.getsize(a) != os.path.getsize(b):
+            return False  # the cheap answer first; hashing 81 MB is for when sizes agree
+        return _content_digest(a) == _content_digest(b)
+    except OSError:
+        return False
+
+def _apply_staged_runtime():
+    """Put copies staged by the last run in place, before anything runs from RUNTIME_DIR.
+
+    Called at startup ahead of the lookups, which is the one moment the runtime node is
+    certainly not running: the PO-token server that locks it has not been started yet. An
+    .incoming with no staged record is a leftover - an interrupted copy, or the 81 MB an
+    earlier build could not clean up - and is removed.
+    """
+    import json as _json
+    record_path = os.path.join(RUNTIME_DIR, "source.json")
+    try:
+        with open(record_path) as f:
+            record = _json.load(f)
+    except Exception:
+        record = {}
+    changed = False
+    for key, dst in (("node", os.path.join(RUNTIME_DIR, _node_name())),
+                     ("potgen", os.path.join(RUNTIME_DIR, "potgen", "server"))):
+        tmp = dst + ".incoming"
+        staged = record.get(key + "_staged")
+        if not os.path.lexists(tmp):
+            if staged:
+                record.pop(key + "_staged", None)
+                changed = True
+            continue
+        if not staged:
+            _remove_path(tmp)
+            _logging.info("[runtime] removed a leftover %s", os.path.basename(tmp))
+            continue
+        try:
+            _remove_path(dst, strict=True)
+            os.replace(tmp, dst)
+            record[key] = staged
+            record.pop(key + "_staged", None)
+            changed = True
+            _logging.info("[runtime] staged %s put in place", key)
+        except Exception as e:
+            _logging.warning("[runtime] staged %s still could not be put in place: %s", key, e)
+    if changed:
+        try:
+            with open(record_path, "w") as f:
+                _json.dump(record, f)
+        except Exception:
+            pass
+
 def _adopt_runtime_assets():
     """Take a copy of the bundled Node runtime and PO-token generator into RUNTIME_DIR.
 
@@ -3081,22 +3169,39 @@ def _adopt_runtime_assets():
             return
         if record.get(key) == stamp and os.path.exists(dst):
             return
+        # The stamp moves on EVERY full update, not only when the pinned version does: the
+        # installer writes node.exe afresh and its mtime with it. Recopying on that alone meant
+        # 81 MB copied on every start after an update, into a target that is locked because it
+        # is the very node the PO-token server runs from - so the copy failed, every time, and
+        # left its 81 MB .incoming behind. Same content is not an update: note the new stamp
+        # and leave the copy alone.
+        if os.path.exists(dst) and _same_content(src, dst):
+            record[key] = stamp
+            _logging.info("[runtime] %s unchanged by the update, kept", key)
+            return
         os.makedirs(RUNTIME_DIR, exist_ok=True)
         # Build beside the target and move into place, so an interrupted copy never leaves a
         # half-written runtime behind for the next start to trip over.
         tmp = dst + ".incoming"
         try:
-            if os.path.exists(tmp):
-                shutil.rmtree(tmp, ignore_errors=True) if os.path.isdir(tmp) else os.remove(tmp)
+            _remove_path(tmp)
             copier(src, tmp)
-            if os.path.exists(dst):
-                shutil.rmtree(dst, ignore_errors=True) if os.path.isdir(dst) else os.remove(dst)
+        except Exception as e:
+            _logging.warning("[runtime] could not copy %s: %s", key, e)
+            _remove_path(tmp)
+            return
+        try:
+            _remove_path(dst, strict=True)
             os.replace(tmp, dst)
             record[key] = stamp
+            record.pop(key + "_staged", None)
             _logging.info("[runtime] adopted %s from %s", key, src)
         except Exception as e:
-            _logging.warning("[runtime] could not adopt %s: %s", key, e)
-            shutil.rmtree(tmp, ignore_errors=True) if os.path.isdir(tmp) else None
+            # Genuinely new content, and the current copy is in use. The finished copy stays
+            # where it is and _apply_staged_runtime() puts it in place at the next start, before
+            # anything runs from this directory.
+            record[key + "_staged"] = stamp
+            _logging.info("[runtime] %s is in use, new copy staged for the next start (%s)", key, e)
 
     # The bundled originals, as the installer laid them down. Deliberately not the PATH node:
     # only what shipped with the app is ours to copy.
@@ -3118,6 +3223,10 @@ def _adopt_runtime_assets():
     except Exception:
         pass
 
+try:
+    _apply_staged_runtime()
+except Exception as _e:
+    _logging.warning("[runtime] applying staged copies failed: %s", _e)
 _NODE22 = _find_node22()
 _POT_SERVER_DIR = _find_pot_server_dir()
 _POT_AVAILABLE = bool(_NODE22 and _POT_SERVER_DIR)
