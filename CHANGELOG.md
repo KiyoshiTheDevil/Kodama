@@ -13,7 +13,7 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 ## [1.0.0-alpha.39] - 2026-09-11
 
 Fixes:
-- Themes other than Dark had no effect
+- Changing themes wasn't possible
 
 ## [1.0.0-alpha.38] - 2026-09-11
 
