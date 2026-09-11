@@ -214,8 +214,19 @@ export function annotateExtensions(raw) {
     const { ok, manifest } = parseManifest(entry, { trusted: isTrustedExtension(entry?.id) });
     if (!ok) return null;
     const local = installed.find(m => m.id === manifest.id);
+    // What every page of the store shows, in the store's own words. The manifest says name and
+    // authors because that is what an extension calls them; the shared detail page asks for title
+    // and creators, and answering it here keeps that page from growing a branch per kind.
+    const shop = common(entry);
     return {
       ...manifest,
+      title: manifest.name,
+      creators: manifest.authors,
+      official: entry.official !== false && manifest.authors.includes("Kodama"),
+      size: shop.size,
+      screenshots: shop.screenshots,
+      tags: shop.tags,
+      minVersion: shop.minVersion,
       entry,
       installed: !!local,
       installedVersion: local?.version || null,

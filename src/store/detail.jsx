@@ -35,7 +35,20 @@ function Stat({ label, children }) {
   );
 }
 
-export default function DetailPage({ entry, t, onBack, actions, icon, stages = [], values = [], valuesLabel }) {
+/** A section of the page: the same heading everywhere, whatever it heads. */
+export function DetailSection({ label, children }) {
+  return (
+    <div>
+      <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+// `children` is whatever a kind has to say that the others do not, an extension's permissions for
+// one. It comes last, after what every entry shares, so the pages read alike up to the point where
+// they genuinely differ.
+export default function DetailPage({ entry, t, onBack, actions, icon, stages = [], values = [], valuesLabel, children }) {
   // Drawn views first, then any real pictures the entry published. A drawn one is made from the
   // values being looked at, so it is right by construction and cannot go stale when Kodama's own
   // look changes; a photograph is better at showing an entry in its real surroundings. An entry
@@ -125,6 +138,8 @@ export default function DetailPage({ entry, t, onBack, actions, icon, stages = [
           </div>
         </div>
       )}
+
+      {children}
     </div>
   );
 }

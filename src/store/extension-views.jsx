@@ -6,9 +6,10 @@
  * that is the one thing a listener has to weigh before saying yes.
  */
 import { Button } from "@heroui/react";
-import { PuzzlePiece, Check, CaretLeft, MusicNote, Palette, FloppyDisk, FileImport,
+import { PuzzlePiece, Check, MusicNote, Palette, FloppyDisk, FileImport,
   Globe, ScreencastSimple, TextSize, Megaphone, Columns } from "../icons.jsx";
-import { describePermissions } from "../extensions/manifest.js";
+import { describePermissions, actionTitle } from "../extensions/manifest.js";
+import DetailPage, { DetailSection } from "./detail.jsx";
 
 // The manifest names an icon; this is where a name becomes a component. Kept here rather than in
 // the manifest so that file stays free of anything that has to be rendered.
@@ -43,30 +44,27 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface">
       <button onClick={() => onOpen(entry.id)} className="block cursor-default text-left">
-        <div className="flex items-center gap-3 p-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-md)]"
-            style={{ background: "var(--bg-elevated)" }}>
-            {entry.icon
-              ? <img src={thumb(entry.icon)} alt="" className="h-6 w-6 object-contain" />
-              : <PuzzlePiece size={17} className="text-muted" />}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-[length:var(--t14)] font-medium text-primary">{entry.name}</span>
-              {entry.installed && <Check size={13} weight="bold" className="shrink-0 text-accent" />}
-            </div>
-            <div className="truncate text-[length:var(--t11)] text-muted">
-              {(entry.authors || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
-            </div>
-          </div>
+        {/* Built like a preset's card: a picture on top, the same height as a preset's preview so
+            mixed shelves line up, then title, description and one line of facts. */}
+        <div className="flex h-[108px] items-center justify-center" style={{ background: "var(--bg-elevated)" }}>
+          {entry.icon
+            ? <img src={thumb(entry.icon)} alt="" className="h-12 w-12 object-contain" />
+            : <PuzzlePiece size={34} className="text-muted" />}
         </div>
-        {entry.description && (
-          <div className="px-3 pb-2 text-[length:var(--t11)] leading-snug text-muted">{entry.description}</div>
-        )}
-        {/* The count, on the card. The list itself is on the page, but "four things" is the part
-            that decides whether someone opens the page at all. */}
-        <div className="px-3 pb-1 text-[length:var(--t11)] text-muted">
-          {t("extPermissionCount", { n: perms.length })}
+        <div className="flex flex-col gap-1 border-t border-border p-3 pb-0">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[length:var(--t14)] font-medium text-primary">{entry.title}</span>
+            {entry.installed && <Check size={13} weight="bold" className="shrink-0 text-accent" />}
+          </div>
+          {entry.description && (
+            <div className="line-clamp-2 text-[length:var(--t11)] leading-snug text-muted">{entry.description}</div>
+          )}
+          {/* The count, on the card. The list itself is on the page, but "four things" is the part
+              that decides whether someone opens the page at all. */}
+          <div className="mt-0.5 text-[length:var(--t11)] text-muted">
+            {(entry.creators || []).join(", ")}{entry.version ? ` · ${entry.version}` : ""}
+            {` · ${t("extPermissionCount", { n: perms.length })}`}
+          </div>
         </div>
       </button>
       <div className="p-3 pt-2">
@@ -78,48 +76,33 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
   );
 }
 
-export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
+/**
+ * The same page as a theme or a preset: head, version / requires / size, description, then what
+ * only an extension has. An extension was the one kind laid out on its own, which made it look
+ * like a different shop rather than a different shelf.
+ */
+export function ExtensionDetail({ entry, t, language, onBack, onInstall, onRemove }) {
   const perms = describePermissions(entry);
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-6">
-      <button onClick={onBack}
-        className="flex w-fit cursor-default items-center gap-1.5 text-[length:var(--t12)] text-muted hover:text-primary">
-        <CaretLeft size={12} /> {t("storeBack")}
-      </button>
+    <DetailPage entry={entry} t={t} onBack={onBack}
+      icon={<div className="flex h-full w-full items-center justify-center" style={{ background: "var(--bg-elevated)" }}>
+        {entry.icon
+          ? <img src={thumb(entry.icon)} alt="" className="h-12 w-12 object-contain" />
+          : <PuzzlePiece size={34} className="text-muted" />}
+      </div>}
+      actions={<ExtensionActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />}>
 
-      <div className="flex items-start gap-4">
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[var(--r-lg)] border border-border"
-          style={{ background: "var(--bg-elevated)" }}>
-          {entry.icon
-            ? <img src={thumb(entry.icon)} alt="" className="h-10 w-10 object-contain" />
-            : <PuzzlePiece size={30} className="text-muted" />}
-        </div>
-        <div className="min-w-0 flex-1 pt-1">
-          <h2 className="truncate text-[length:var(--t20)] font-semibold text-primary">{entry.name}</h2>
-          <div className="mt-1 text-[length:var(--t13)] text-accent">
-            {(entry.authors || []).join(", ") || "—"}
-          </div>
-          {entry.description && (
-            <p className="mt-2 text-[length:var(--t13)] leading-relaxed text-muted">{entry.description}</p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 pt-1">
-          <ExtensionActions entry={entry} t={t} onInstall={onInstall} onRemove={onRemove} />
-        </div>
-      </div>
-
-      {/* Every permission, in the words the manifest carries, with the ones that reach past the
-          sandbox marked. Kodama's own extensions go through this too: seeing their list written
-          out is the cheapest check that the wording is comprehensible, and it stops first-party
-          from quietly becoming the path where nobody reads them. */}
-      <div>
-        <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("extPermissions")}</div>
+      {/* Every permission, with the ones that reach past the sandbox marked. Kodama's own
+          extensions go through this too: seeing their list written out is the cheapest check that
+          the wording is comprehensible, and it stops first-party from quietly becoming the path
+          where nobody reads them. */}
+      <DetailSection label={t("extPermissions")}>
         {/* One line per capability, said from the listener's side: what it can do to them, not
             which part of Kodama makes it possible. Each line is already its own category, so there
             is no heading above it to repeat it. The words are Kodama's, looked up as perm_<id>,
             because a permission is Kodama describing an extension and not the extension
             describing itself. */}
-        <div className="flex flex-col gap-3 rounded-[var(--r-lg)] border border-border p-4">
+        <div className="flex flex-col gap-2.5 rounded-[var(--r-md)] border border-border p-3">
           {perms.map(p => {
             const Icon = GROUP_ICONS[p.icon] || PuzzlePiece;
             return (
@@ -137,21 +120,21 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
           })}
         </div>
         <div className="mt-2 text-[length:var(--t11)] leading-relaxed text-muted">{t("extInternalNote")}</div>
-      </div>
+      </DetailSection>
 
+      {/* Laid out like a theme's palette: name on the left, value on the right. */}
       {entry.actions?.length > 0 && (
-        <div>
-          <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("extAddsTo")}</div>
-          <div className="flex flex-col gap-1 rounded-[var(--r-md)] border border-border p-3">
+        <DetailSection label={t("extAddsTo")}>
+          <div className="grid gap-x-6 gap-y-1 rounded-[var(--r-md)] border border-border p-3 sm:grid-cols-2">
             {entry.actions.map(a => (
-              <div key={a.slot} className="flex justify-between gap-3 text-[length:var(--t11)]">
-                <span className="text-muted">{typeof a.title === "string" ? a.title : (a.title.en || "")}</span>
-                <span className="shrink-0 font-mono text-primary">{a.slot}</span>
+              <div key={a.slot} className="flex items-center justify-between gap-3 font-mono text-[length:var(--t11)]">
+                <span className="truncate text-muted">{actionTitle(a, language)}</span>
+                <span className="shrink-0 text-primary">{a.slot}</span>
               </div>
             ))}
           </div>
-        </div>
+        </DetailSection>
       )}
-    </div>
+    </DetailPage>
   );
 }

@@ -248,7 +248,7 @@ function ThemeDetail({ entry, active, t, onBack, onInstall, onRemove, onApply })
   );
 }
 
-export default function Store({ t }) {
+export default function Store({ t, language }) {
   const [cat, setCat] = useState(null);        // null = not fetched yet
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
@@ -527,7 +527,7 @@ export default function Store({ t }) {
           ) : current?.soon ? (
             <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
           ) : detail ? (detail._group === "extension" ? (
-            <ExtensionDetail entry={detail} t={t}
+            <ExtensionDetail entry={detail} t={t} language={language}
               onBack={() => setDetailId(null)}
               onInstall={installExt} onRemove={removeExt} />
           ) : detail._group === "theme" ? (

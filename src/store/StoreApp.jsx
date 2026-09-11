@@ -33,7 +33,7 @@ export default function StoreApp() {
 
   return (
     <IconContext.Provider value={{ weight: "bold" }}>
-      <Store t={t} />
+      <Store t={t} language={language} />
     </IconContext.Provider>
   );
 }
