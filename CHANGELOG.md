@@ -10,6 +10,13 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+Changes:
+- The Composer has been removed from Kodama, it can be added back as an extension from the store in Beta
+
+Fixes:
+- Albums that list music videos play and download the songs instead
+- A song plays again after its download was deleted
+
 ## [1.0.0-alpha.37] - 2026-09-06
 
 Changes:
