@@ -83,7 +83,11 @@ function TextSetting({ manifest, setting, lang, t }) {
 }
 
 function ToggleSetting({ manifest, setting, lang }) {
-  const [on, setOn] = useState(() => !!store["storage.get"]({ key: setting.key }, manifest));
+  // Unset shows the declared default, which is what the extension itself assumes until it is set.
+  const [on, setOn] = useState(() => {
+    const v = store["storage.get"]({ key: setting.key }, manifest);
+    return v === null ? !!setting.default : !!v;
+  });
   return (
     <SettingRow label={localisedText(setting.label, lang)} description={localisedText(setting.hint, lang) || undefined}>
       <Toggle value={on} onChange={(v) => {

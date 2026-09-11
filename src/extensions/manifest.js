@@ -310,7 +310,13 @@ export function parseManifest(raw, { trusted = false } = {}) {
     const label = localised(st.label, 60);
     if (!label) { fail(`setting "${st.key}" needs a label, or a label with at least en`); continue; }
     seenKeys.add(st.key);
-    settings.push({ key: st.key, type: st.type, label, hint: localised(st.hint, 160) || "" });
+    // A switch shows a position before anyone touches it. Declared, so Kodama draws the same
+    // position the extension assumes; without it the page read "off" while the extension ran.
+    if (st.default !== undefined && (st.type !== "toggle" || typeof st.default !== "boolean")) {
+      fail(`setting "${st.key}": only a toggle takes a default, and it must be true or false`); continue;
+    }
+    settings.push({ key: st.key, type: st.type, label, hint: localised(st.hint, 160) || "",
+                    ...(st.type === "toggle" ? { default: st.default === true } : {}) });
   }
   if (settings.length && !permissions.includes("storage")) fail("settings are kept in storage, so they need the storage permission");
 
