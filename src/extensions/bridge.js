@@ -16,14 +16,14 @@ export const METHODS = {
   "storage.set":      "storage",
   "storage.remove":   "storage",
   "storage.keys":     "storage",
-  "appearance.get":   "appearance:read",
-  "player.get":       "player:read",
-  "player.play":      "player:control",
-  "player.pause":     "player:control",
-  "player.next":      "player:control",
-  "player.previous":  "player:control",
-  "ui.toast":         "ui:toast",
-  "net.fetch":        "net",
+  "appearance.get":   "appearance",
+  "player.get":       "nowplaying",
+  "player.play":      "playback",
+  "player.pause":     "playback",
+  "player.next":      "playback",
+  "player.previous":  "playback",
+  "ui.toast":         "notifications",
+  "net.fetch":        "network",
 };
 
 export class BridgeError extends Error {
@@ -95,7 +95,7 @@ export function createDispatcher(manifest, impl) {
     }
 
     // net is the one method whose ARGUMENT carries a permission of its own: the manifest lists
-    // hosts, and a granted "net" says nothing about which.
+    // hosts, and a granted "network" says nothing about which.
     if (method === "net.fetch" && !hostAllowed(msg.params?.url, manifest.hosts)) {
       return reply({
         ok: false,
@@ -167,6 +167,6 @@ export function methodsFor(permission) {
 /** A permission with no method behind it is a promise the bridge cannot keep. */
 export function unreachablePermissions() {
   return Object.entries(PERMISSIONS)
-    .filter(([id, def]) => def.tier === "open" && id !== "ui:panel" && !methodsFor(id).length)
+    .filter(([id, def]) => def.tier === "open" && id !== "panel" && !methodsFor(id).length)
     .map(([id]) => id);
 }

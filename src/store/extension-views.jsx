@@ -8,7 +8,7 @@
 import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, CaretLeft, MusicNote, Palette, FloppyDisk, FileImport,
   Globe, ScreencastSimple, TextSize, Megaphone, Columns } from "../icons.jsx";
-import { permissionGroups } from "../extensions/manifest.js";
+import { describePermissions } from "../extensions/manifest.js";
 
 // The manifest names an icon; this is where a name becomes a component. Kept here rather than in
 // the manifest so that file stays free of anything that has to be rendered.
@@ -38,9 +38,8 @@ export function ExtensionActions({ entry, t, onInstall, onRemove, size = "sm" })
 }
 
 export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
-  // Groups, not individual permissions: "three kinds of access" is the number someone weighs,
-  // and it is the same number of rows they will find on the page.
-  const groups = permissionGroups(entry);
+  // One per capability, the same number of lines they will find on the page.
+  const perms = describePermissions(entry);
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface">
       <button onClick={() => onOpen(entry.id)} className="block cursor-default text-left">
@@ -67,7 +66,7 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
         {/* The count, on the card. The list itself is on the page, but "four things" is the part
             that decides whether someone opens the page at all. */}
         <div className="px-3 pb-1 text-[length:var(--t11)] text-muted">
-          {t("extPermissionCount", { n: groups.length })}
+          {t("extPermissionCount", { n: perms.length })}
         </div>
       </button>
       <div className="p-3 pt-2">
@@ -80,7 +79,7 @@ export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
 }
 
 export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
-  const groups = permissionGroups(entry);
+  const perms = describePermissions(entry);
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-6">
       <button onClick={onBack}
@@ -115,30 +114,24 @@ export function ExtensionDetail({ entry, t, onBack, onInstall, onRemove }) {
           from quietly becoming the path where nobody reads them. */}
       <div>
         <div className="mb-2 text-[length:var(--t15)] font-semibold text-primary">{t("extPermissions")}</div>
-        {/* Built the way a phone builds it: a small category heading, then the concrete things
-            under it as verb phrases finishing "this extension may ...". No explanatory second
-            line, because a noun with a sentence beneath reads like documentation and
-            documentation is what people skip.
-
-            The heading names the thing being reached, not the part of Kodama that reaches it.
-            A phone never says MediaStore, it says Music and audio. */}
-        <div className="flex flex-col gap-5 rounded-[var(--r-lg)] border border-border p-4">
-          {groups.map(g => {
-            const Icon = GROUP_ICONS[g.icon] || PuzzlePiece;
+        {/* One line per capability, said from the listener's side: what it can do to them, not
+            which part of Kodama makes it possible. Each line is already its own category, so there
+            is no heading above it to repeat it. The words are Kodama's, looked up as perm_<id>,
+            because a permission is Kodama describing an extension and not the extension
+            describing itself. */}
+        <div className="flex flex-col gap-3 rounded-[var(--r-lg)] border border-border p-4">
+          {perms.map(p => {
+            const Icon = GROUP_ICONS[p.icon] || PuzzlePiece;
             return (
-              <div key={g.id}>
-                <div className="mb-2 text-[length:var(--t11)] text-accent">{g.label}</div>
-                <div className="flex flex-col gap-2">
-                  {g.items.map(p => (
-                    <div key={p.id} className="flex items-start gap-3">
-                      <span className="mt-[1px] flex h-4 w-4 shrink-0 items-center justify-center"
-                        style={{ color: p.internal ? "var(--status-warning)" : "var(--text-muted)" }}>
-                        <Icon size={14} />
-                      </span>
-                      <span className="text-[length:var(--t13)] leading-snug text-primary">{p.does}</span>
-                    </div>
-                  ))}
-                </div>
+              <div key={p.id} className="flex items-center gap-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center"
+                  style={{ color: p.internal ? "var(--status-warning)" : "var(--text-muted)" }}>
+                  <Icon size={15} />
+                </span>
+                <span className="text-[length:var(--t13)] leading-snug text-primary">
+                  {t(`perm_${p.id}`)}
+                  {p.detail && <span className="text-muted"> · {p.detail}</span>}
+                </span>
               </div>
             );
           })}

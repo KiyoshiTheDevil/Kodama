@@ -61,69 +61,49 @@ export const SLOTS = {
 /**
  * Every permission that exists, and who may hold it.
  *
- * `tier: "open"` can be granted to anyone. `tier: "internal"` is Kodama's own: it reaches past
- * the sandbox, so no review could make it safe in a stranger's hands.
- *
- * Backend permissions name a ROUTE GROUP rather than "the backend". "May talk to Kodama's
- * backend" is not a sentence anyone can weigh; "may write your overlay's configuration" is.
- */
-/**
- * The categories a permission falls into, named after the thing being reached rather than after
- * the part of Kodama that reaches it.
- *
- * That distinction is the whole point and it is easy to get wrong. "Kodama's own services" was a
- * heading about our architecture; the audio behind it is the listener's music, and "Music and
- * audio" is what they are actually deciding about. A phone never says "MediaStore", it says
- * "Music and audio".
- *
- * So a permission is grouped by its SUBJECT, not by which layer implements it: reading the audio
- * Kodama extracted sits beside knowing what is playing, even though one goes through the backend
- * and the other through the bridge.
- */
-export const PERMISSION_GROUPS = {
-  music:         { label: "Music and audio", icon: "MusicNote" },
-  appearance:    { label: "Appearance", icon: "Palette" },
-  storage:       { label: "Storage", icon: "FloppyDisk" },
-  // "Files", not "Your files": the category names the resource, and the constraint that makes it
-  // safe belongs on the action, where it is true. The extension never browses anything.
-  files:         { label: "Files", icon: "FileImport" },
-  network:       { label: "Network", icon: "Globe" },
-  web:           { label: "Web content", icon: "Globe" },
-  windows:       { label: "Windows", icon: "ScreencastSimple" },
-  overlay:       { label: "Your overlay", icon: "ScreencastSimple" },
-  fonts:         { label: "Fonts", icon: "TextSize" },
-  notifications: { label: "Notifications", icon: "Megaphone" },
-  interface:     { label: "Kodama's interface", icon: "Columns" },
-};
-
-/**
- * Every permission that exists, and who may hold it.
+ * A permission is a CAPABILITY, named from the listener's side: what the extension can do to them,
+ * not which part of Kodama makes it possible. The earlier list had a line reading "shows a page
+ * from composer.kiyoshi.dev, with everything that site can reach", which was true and told nobody
+ * anything. The Composer imports and exports projects and TTML through a file picker, uploads
+ * songs, pulls audio into the cache through its search, and downloads a separation model. Those
+ * are the things to disclose, and "it is a web page" hid every one of them.
  *
  * `tier: "open"` can be granted to anyone. `tier: "internal"` is Kodama's own: it reaches past the
  * sandbox, so no review could make it safe in a stranger's hands.
  *
- * `does` is a verb phrase, in lower case, finishing the sentence "this extension may ...". That is
- * how a phone writes them: "record audio", "show notifications". A noun with an explanatory
- * sentence underneath reads like documentation, and documentation is what people skip.
+ * `frame` is what the permission unlocks on the frame of an "app" extension, so that granting it
+ * is also where it is enforced. Without this the list was decoration: the frame never had
+ * allow-downloads, so an app could not export a file whatever its manifest said, and nothing on
+ * the page would have told you why.
+ *
+ * The words themselves live in the locale files, as perm_<id>. They are Kodama's sentences about
+ * an extension, not the extension's own, so they are translated like everything else Kodama says.
  */
 export const PERMISSIONS = {
-  // ── Open: everything here is handed over by the host, one call at a time ──
-  "storage":         { tier: "open", group: "storage", does: "keep data of its own" },
-  "appearance:read": { tier: "open", group: "appearance", does: "read your theme, text size and language" },
-  "player:read":     { tier: "open", group: "music", does: "see what is playing" },
-  "player:control":  { tier: "open", group: "music", does: "play, pause and skip" },
-  "ui:panel":        { tier: "open", group: "interface", does: "show a panel inside Kodama" },
-  "ui:toast":        { tier: "open", group: "notifications", does: "show notifications" },
-  "net":             { tier: "open", group: "network", does: "connect to the internet", needsHosts: true },
+  // ── Open: handed over by the host, one call at a time ─────────────────────
+  "appearance":    { tier: "open", icon: "Palette" },
+  "storage":       { tier: "open", icon: "FloppyDisk" },
+  "nowplaying":    { tier: "open", icon: "MusicNote" },
+  // Separate from nowplaying on purpose: something that shows the current title has no business
+  // skipping it.
+  "playback":      { tier: "open", icon: "MusicNote" },
+  "notifications": { tier: "open", icon: "Megaphone" },
+  "panel":         { tier: "open", icon: "Columns" },
+  // For a panel this is enforced: every request goes through the host and is checked against the
+  // hosts it declared. For an app it is a disclosure and not a lock, because an app runs on an
+  // origin of its own and reaches the network the way any web page does. Said plainly here so that
+  // nobody later reads the panel's guarantee into the app's line.
+  "network":       { tier: "open", icon: "Globe" },
 
   // ── Internal: reaches past the sandbox. Kodama's own extensions only ──────
-  "window:create":   { tier: "internal", group: "windows", does: "open a window of its own" },
-  "files:read":      { tier: "internal", group: "files", does: "open a file you pick" },
-  "files:write":     { tier: "internal", group: "files", does: "save a file where you pick" },
-  "backend:overlay": { tier: "internal", group: "overlay", does: "read and change your overlay configuration" },
-  "backend:fonts":   { tier: "internal", group: "fonts", does: "list the fonts installed on this computer" },
-  "backend:composer": { tier: "internal", group: "music", does: "read the audio Kodama extracts for a song" },
-  "app:frame":       { tier: "internal", group: "web", does: "show a web page, with everything that site can reach" },
+  // Reading through a picker and writing through a download. The picker is the listener choosing;
+  // the download is what needs unlocking, and it is what this permission unlocks.
+  "files":         { tier: "internal", icon: "FileImport", frame: { sandbox: ["allow-downloads"] } },
+  // Playing audio in the frame without a gesture first, and the audio Kodama extracts for a song.
+  "audio":         { tier: "internal", icon: "MusicNote", frame: { allow: ["autoplay"] } },
+  "window":        { tier: "internal", icon: "ScreencastSimple" },
+  "overlay":       { tier: "internal", icon: "ScreencastSimple" },
+  "fonts":         { tier: "internal", icon: "TextSize" },
 };
 
 export const isInternal = (id) => PERMISSIONS[id]?.tier === "internal";
@@ -220,19 +200,23 @@ export function parseManifest(raw, { trusted = false } = {}) {
   // Asked of what the manifest REQUESTED, not of what survived the tier check. A published window
   // extension is already being told the real reason it cannot exist; adding "and by the way it
   // does not ask for the permission it just asked for" sends the author looking for a typo.
-  if (kind === "window" && !permissions.includes("window:create") && !refused.includes("window:create")) {
-    fail('a "window" extension must ask for window:create');
+  if (kind === "window" && !permissions.includes("window") && !refused.includes("window")) {
+    fail('a "window" extension must ask for window');
   }
-  if (kind === "panel" && permissions.includes("window:create")) {
-    fail('a "panel" extension cannot ask for window:create');
+  if (kind === "panel" && permissions.includes("window")) {
+    fail('a "panel" extension cannot ask for window');
+  }
+  // An app is framed with its own origin and is therefore not sandboxed away from what that origin
+  // can reach. That is a property of the SHAPE, so it is gated on the shape. It used to be a
+  // permission called app:frame, which then had to appear in the list, where it read as
+  // "this is a web page" and disclosed nothing.
+  if (kind === "app" && !trusted) {
+    fail("an \"app\" extension cannot be published: only Kodama's own may run unsandboxed");
   }
 
   // ── The origin an app is loaded from ───────────────────────────────────────
   let origin = "";
   if (kind === "app") {
-    if (!permissions.includes("app:frame") && !refused.includes("app:frame")) {
-      fail('an "app" extension must ask for app:frame');
-    }
     if (!ORIGIN_OK(raw.origin)) {
       fail(`origin "${raw.origin}" must be a bare https origin, or http on localhost`);
     } else {
@@ -289,18 +273,22 @@ export function parseManifest(raw, { trusted = false } = {}) {
     fail("icon must be an .svg or .png, on the store repo or on this extension's own origin");
   }
 
-  // ── Hosts, for net ─────────────────────────────────────────────────────────
+  // ── Hosts, for a panel's network ───────────────────────────────────────────
+  //
+  // Only a panel lists them, because only a panel's requests go through the host and can be held
+  // to a list. An app declaring network is disclosing, and asking it for hosts would suggest a
+  // limit that is not there.
   const hosts = [];
-  if (permissions.includes("net")) {
+  if (permissions.includes("network") && kind === "panel") {
     const list = Array.isArray(raw.hosts) ? raw.hosts : [];
-    if (!list.length) fail("net was asked for but no hosts were listed");
+    if (!list.length) fail("network was asked for but no hosts were listed");
     for (const h of list) {
       if (typeof h !== "string" || !HOST_OK.test(h)) fail(`"${h}" is not a bare host name`);
       else hosts.push(h);
     }
   } else if (Array.isArray(raw.hosts) && raw.hosts.length) {
     // Not fatal, but it means the author expected requests to work. Better said than swallowed.
-    fail("hosts were listed but net was not asked for");
+    fail("hosts were listed but network was not asked for");
   }
 
   if (problems.length) return { ok: false, manifest: null, problems };
@@ -337,44 +325,39 @@ export function actionTitle(action, language = "en") {
 }
 
 /**
- * What an extension may do, gathered into groups.
+ * What an extension may do, one line per capability.
  *
- * One row per group, the way a phone lists Camera once rather than every call behind it. An
- * extension asking for three things shows three rows with three icons, and the reader is deciding
- * about kinds of access rather than reading an inventory.
- */
-export function permissionGroups(manifest) {
-  const seen = new Map();
-  for (const p of describePermissions(manifest)) {
-    const def = PERMISSIONS[p.id];
-    const g = PERMISSION_GROUPS[def.group];
-    if (!seen.has(def.group)) {
-      seen.set(def.group, { id: def.group, label: g.label, icon: g.icon, items: [] });
-    }
-    seen.get(def.group).items.push(p);
-  }
-  return [...seen.values()];
-}
-
-/**
- * The permission list as sentences, for the dialog shown before installing.
+ * Flat, not grouped. Each line is already a category of its own, "can access the internet", "can
+ * access local files", so a heading above it would only repeat it. `detail` names the subject
+ * where there is one, because "can access the internet" without saying to where is the kind of
+ * line people learn to click past.
  *
- * Kodama's own extensions go through this too. Seeing the Overlay Editor's own list written out
- * is the cheapest check that the wording is comprehensible, and it keeps first-party from
- * quietly becoming the path where nobody ever reads the permissions.
+ * The sentence itself is looked up by the caller as perm_<id>: this module decides WHAT is
+ * disclosed, the locale files decide how it is said.
  */
 export function describePermissions(manifest) {
   return (manifest?.permissions || []).map(p => {
     const def = PERMISSIONS[p];
-    const base = { id: p, internal: def.tier === "internal", group: def.group, does: def.does };
-    // The two that carry a subject name it. "Network access" without saying to where is the kind
-    // of permission line people learn to click past.
-    if (p === "app:frame" && manifest.origin) {
-      return { ...base, does: `show a page from ${new URL(manifest.origin).host}, with everything that site can reach` };
-    }
-    if (p === "net" && manifest.hosts?.length) {
-      return { ...base, does: `connect to ${manifest.hosts.join(", ")}` };
-    }
-    return base;
+    let detail = "";
+    if (p === "network" && manifest.hosts?.length) detail = manifest.hosts.join(", ");
+    return { id: p, internal: def.tier === "internal", icon: def.icon, detail };
   });
+}
+
+/**
+ * The frame attributes an app's permissions add up to.
+ *
+ * The base is what any framed app needs to run at all; everything else is granted by a permission
+ * and only by one. Enforced here rather than trusted to the app: an app that did not ask for files
+ * gets a frame that cannot start a download, whatever its own code tries.
+ */
+export function frameAttributes(manifest) {
+  const sandbox = new Set(["allow-scripts", "allow-same-origin", "allow-forms", "allow-popups"]);
+  const allow = new Set();
+  for (const p of manifest?.permissions || []) {
+    const f = PERMISSIONS[p]?.frame;
+    for (const t of f?.sandbox || []) sandbox.add(t);
+    for (const t of f?.allow || []) allow.add(t);
+  }
+  return { sandbox: [...sandbox].join(" "), allow: [...allow].join("; ") };
 }

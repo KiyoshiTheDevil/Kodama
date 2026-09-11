@@ -5,7 +5,7 @@
 // not a second opinion about that review.
 //
 // It exists because internal permissions are not promises Kodama can keep for an arbitrary id.
-// "backend:composer" grants access to routes that exist in a particular Kodama build; an entry
+// "audio" grants access to routes that exist in a particular Kodama build; an entry
 // asking for it is asking for something the running version either has or does not. The build
 // already has to know about it, and writing that down is the difference between a coupling that
 // is visible and one that is merely true.

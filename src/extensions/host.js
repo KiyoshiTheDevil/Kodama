@@ -16,7 +16,7 @@
 // question that extension just asked.
 import { createDispatcher } from "./bridge.js";
 import { guestDocument } from "./guest.js";
-import { API_VERSION } from "./manifest.js";
+import { API_VERSION, frameAttributes } from "./manifest.js";
 
 /** Errors from one extension before it is stopped. A crash loop is a stuck app, not a bug report. */
 const ERROR_LIMIT = 8;
@@ -73,9 +73,16 @@ export function mountExtension({ container, manifest, code, impl, onError, conte
   // allow-same-origin belongs here and nowhere else. The warning it usually carries is about a
   // frame sharing the EMBEDDER's origin, which could then reach through to the host document.
   // An app's origin is not Kodama's, so it reaches its own server and nothing of ours.
-  frame.setAttribute("sandbox", framed
-    ? "allow-scripts allow-same-origin allow-forms allow-popups"
-    : "allow-scripts");
+  // A panel keeps the bare sandbox. An app gets exactly what its permissions add up to, so a
+  // permission is enforced where it is granted instead of trusted to the app's own code: one that
+  // did not ask for files gets a frame that cannot start a download.
+  if (framed) {
+    const attrs = frameAttributes(manifest);
+    frame.setAttribute("sandbox", attrs.sandbox);
+    if (attrs.allow) frame.setAttribute("allow", attrs.allow);
+  } else {
+    frame.setAttribute("sandbox", "allow-scripts");   // never allow-same-origin, see above
+  }
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute("title", manifest.name);
   frame.style.cssText = "border:0;width:100%;height:100%;display:block;background:transparent";
