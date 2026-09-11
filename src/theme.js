@@ -2,6 +2,39 @@ import { findTheme, tokensToCss } from "./themes.js";
 
 const THEME_STYLE_ID = "kodama-theme-vars";
 
+// Where the rule goes: a constructed stylesheet, not a <style> element.
+//
+// A release build serves a CSP in which Tauri has put a nonce on every <style> of index.html and
+// added it to style-src. Once style-src carries a nonce, browsers ignore 'unsafe-inline', so a
+// <style> created at runtime, which has no nonce, is dropped without a word. Every theme but Dark
+// did nothing in alpha.38, and the dev build could not show it: it is served by Vite, with no
+// asset processing and so no nonce. Dark looked right only because it sets nothing.
+//
+// A constructed stylesheet is built through the CSSOM rather than parsed from inline text, and
+// style-src does not govern it. Checked in Chromium under a CSP of that shape: the runtime <style>
+// stayed ignored, the constructed sheet applied, and a :root[...] rule still won over it.
+// Supported by WebView2 and by WebKit since Safari 16.4; anything older keeps the old element.
+let themeSheet = null;
+
+function writeThemeRule(css) {
+  if (typeof CSSStyleSheet !== "undefined" && "replaceSync" in CSSStyleSheet.prototype
+      && "adoptedStyleSheets" in document) {
+    if (!themeSheet) {
+      themeSheet = new CSSStyleSheet();
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, themeSheet];
+    }
+    themeSheet.replaceSync(css);
+    return;
+  }
+  let el = document.getElementById(THEME_STYLE_ID);
+  if (!el) {
+    el = document.createElement("style");
+    el.id = THEME_STYLE_ID;
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
+}
+
 // Applying the colour theme to a document.
 //
 // Setting `data-theme` alone is not enough. HeroUI ships its own token set and scopes it like
@@ -29,16 +62,10 @@ export function applyTheme(theme) {
 
   // The theme's own values, written as a stylesheet rule rather than as inline properties.
   // Inline would outrank everything, including the high-contrast block, which is an
-  // accessibility override and has to win. As a rule appended to <head> it lands after the
-  // bundle's :root and before nothing, and high contrast beats it on specificity (:root[...]).
-  let el = document.getElementById(THEME_STYLE_ID);
-  if (!el) {
-    el = document.createElement("style");
-    el.id = THEME_STYLE_ID;
-    document.head.appendChild(el);
-  }
+  // accessibility override and has to win. As a rule it lands after the bundle's :root, and high
+  // contrast beats it on specificity (:root[...]).
   const decls = tokensToCss(def.tokens);
-  el.textContent = decls ? `:root{${decls}}` : "";
+  writeThemeRule(decls ? `:root{${decls}}` : "");
 
   // The name still goes on, because the picker reads it and it is what gets stored. The MODE is
   // what styling keys on now: a theme arriving from outside has a name nothing can pattern-match,
