@@ -36,9 +36,17 @@
 // manifest honest: the first stranger to write an extension hits a wall Kodama has already felt.
 
 /** Bumped when the bridge changes shape. Major differences are refused, minor ones warn. */
-export const API_VERSION = "1.0";
+// 1.1: the "background" shape, events pushed to an extension, settings Kodama draws for it, and
+// code downloaded with a checksum. Additions only, so an extension written for 1.0 still loads.
+export const API_VERSION = "1.1";
 
-export const KINDS = ["panel", "window", "app"];
+// "background" is a panel with nowhere to be seen: the same sandboxed frame, mounted out of sight
+// for as long as Kodama runs. It exists for extensions whose whole job happens between Kodama and
+// a service - a scrobbler - and which would otherwise need a panel left open for no reason.
+export const KINDS = ["panel", "window", "app", "background"];
+
+/** The shapes that run as code in a sandboxed frame, downloaded rather than framed from a site. */
+export const SANDBOXED = new Set(["panel", "background"]);
 
 /**
  * The places an extension may offer something, named by Kodama.
@@ -126,6 +134,29 @@ const HOST_OK = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z
 // a request to a host nobody vetted, on every visit to the shelf.
 const ICON_HOST = "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/";
 
+// A sandboxed extension's code. From the store repo only, the same reviewed place the manifest came
+// from, and pinned by a checksum the store's generator writes beside it: what is installed is
+// byte for byte what was reviewed, and a file changed afterwards on the host is refused rather
+// than run. A script from anywhere else would be code nobody looked at.
+const SCRIPT_OK = (url) => typeof url === "string" && url.startsWith(ICON_HOST) && /\.js$/i.test(url)
+  && !url.slice(ICON_HOST.length).includes("..");
+const SHA256_OK = /^[0-9a-f]{64}$/;
+
+// A setting Kodama draws for an extension, and stores in that extension's own storage under `key`.
+// Three types, because those are the three a form needs and each is drawn the way Kodama draws
+// its own: a line of text, a secret that is never shown back in full, and a switch.
+const SETTING_TYPES = new Set(["text", "secret", "toggle"]);
+const SETTING_KEY_OK = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+const localised = (v, max) => {
+  if (typeof v === "string") return v.trim() ? v.trim().slice(0, max) : null;
+  if (v && typeof v === "object" && typeof v.en === "string" && v.en.trim()) {
+    const out = {};
+    for (const [k, t] of Object.entries(v)) if (/^[a-z]{2}(-[A-Z]{2})?$/.test(k) && typeof t === "string") out[k] = t.slice(0, max);
+    return out;
+  }
+  return null;
+};
+
 function iconOf(raw, origin) {
   const url = raw.icon;
   if (typeof url !== "string" || !url) return "";
@@ -203,8 +234,8 @@ export function parseManifest(raw, { trusted = false } = {}) {
   if (kind === "window" && !permissions.includes("window") && !refused.includes("window")) {
     fail('a "window" extension must ask for window');
   }
-  if (kind === "panel" && permissions.includes("window")) {
-    fail('a "panel" extension cannot ask for window');
+  if (SANDBOXED.has(kind) && permissions.includes("window")) {
+    fail(`a "${kind}" extension cannot ask for window`);
   }
   // An app is framed with its own origin and is therefore not sandboxed away from what that origin
   // can reach. That is a property of the SHAPE, so it is gated on the shape. It used to be a
@@ -231,6 +262,17 @@ export function parseManifest(raw, { trusted = false } = {}) {
     fail(`only an "app" extension has an origin`);
   }
 
+  // ── Its code, for the shapes that run code of their own ────────────────────
+  let script = "", scriptSha256 = "";
+  if (SANDBOXED.has(kind)) {
+    if (!SCRIPT_OK(raw.script)) fail("script must be a .js file on the store repo");
+    else script = raw.script;
+    if (!SHA256_OK.test(raw.scriptSha256 || "")) fail("scriptSha256 is missing; the store generator writes it");
+    else scriptSha256 = raw.scriptSha256;
+  } else if (raw.script || raw.scriptSha256) {
+    fail(`a "${kind}" extension is not loaded from a script`);
+  }
+
   // ── What it offers, and where ──────────────────────────────────────────────
   //
   // Titles may be a plain string or a map of language to string. A theme's title is a proper noun
@@ -248,6 +290,29 @@ export function parseManifest(raw, { trusted = false } = {}) {
     if (!ok_title) { fail(`the action for "${act.slot}" needs a title, or a title with at least en`); continue; }
     actions.push({ slot: act.slot, title: ok_title });
   }
+  // Nothing to open. An action is a button that opens the extension somewhere, and a background
+  // extension has no somewhere.
+  if (kind === "background" && actions.length) fail("a \"background\" extension has no actions to offer");
+
+  // ── Settings, drawn by Kodama ──────────────────────────────────────────────
+  //
+  // Drawn by Kodama rather than by the extension, which has no surface of its own when it runs in
+  // the background and should not need one to ask for a token. Stored in the extension's own
+  // storage, so it reads them like anything else it keeps - and so they need that permission.
+  const settings = [];
+  const raw_settings = raw.contributes?.settings;
+  if (raw_settings !== undefined && !Array.isArray(raw_settings)) fail("contributes.settings must be a list");
+  const seenKeys = new Set();
+  for (const st of Array.isArray(raw_settings) ? raw_settings.slice(0, 12) : []) {
+    if (!st || typeof st !== "object") { fail("a setting is not an object"); continue; }
+    if (!SETTING_KEY_OK.test(st.key || "") || seenKeys.has(st.key)) { fail(`setting key "${st.key}" is not a unique name`); continue; }
+    if (!SETTING_TYPES.has(st.type)) { fail(`setting "${st.key}" must be text, secret or toggle`); continue; }
+    const label = localised(st.label, 60);
+    if (!label) { fail(`setting "${st.key}" needs a label, or a label with at least en`); continue; }
+    seenKeys.add(st.key);
+    settings.push({ key: st.key, type: st.type, label, hint: localised(st.hint, 160) || "" });
+  }
+  if (settings.length && !permissions.includes("storage")) fail("settings are kept in storage, so they need the storage permission");
 
   // ── How to hand it the thing being looked at ───────────────────────────────
   //
@@ -279,7 +344,7 @@ export function parseManifest(raw, { trusted = false } = {}) {
   // to a list. An app declaring network is disclosing, and asking it for hosts would suggest a
   // limit that is not there.
   const hosts = [];
-  if (permissions.includes("network") && kind === "panel") {
+  if (permissions.includes("network") && SANDBOXED.has(kind)) {
     const list = Array.isArray(raw.hosts) ? raw.hosts : [];
     if (!list.length) fail("network was asked for but no hosts were listed");
     for (const h of list) {
@@ -307,6 +372,9 @@ export function parseManifest(raw, { trusted = false } = {}) {
       permissions,
       hosts,
       actions,
+      settings,
+      script,
+      scriptSha256,
       icon: icon || "",
       context,
       origin,
@@ -314,6 +382,13 @@ export function parseManifest(raw, { trusted = false } = {}) {
       trusted,
     },
   };
+}
+
+/** A localised field (a string, or a map with at least en) in the reader's language. */
+export function localisedText(v, language = "en") {
+  if (typeof v === "string") return v;
+  if (!v || typeof v !== "object") return "";
+  return v[language] || v.en || Object.values(v)[0] || "";
 }
 
 /** An action's title in the reader's language, falling back to English and then to anything. */
@@ -336,12 +411,16 @@ export function actionTitle(action, language = "en") {
  * disclosed, the locale files decide how it is said.
  */
 export function describePermissions(manifest) {
-  return (manifest?.permissions || []).map(p => {
+  const lines = (manifest?.permissions || []).map(p => {
     const def = PERMISSIONS[p];
     let detail = "";
     if (p === "network" && manifest.hosts?.length) detail = manifest.hosts.join(", ");
     return { id: p, internal: def.tier === "internal", icon: def.icon, detail };
   });
+  // Not a permission but a fact worth the same line: it runs whenever Kodama does, without a
+  // window that would say so. Listed first, because it changes how every line after it reads.
+  if (manifest?.kind === "background") lines.unshift({ id: "background", internal: false, icon: "Clock", detail: "" });
+  return lines;
 }
 
 /**

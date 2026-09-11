@@ -5,8 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
 import {
-  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh,
-} from "../icons.jsx";
+  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh, PuzzlePiece } from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
@@ -28,6 +27,7 @@ import { APP_ICON_DEFAULT, APP_ICON_GROUPS } from "./app-icons.js";
 import { isSettingsSectionLocked } from "./section-store.js";
 import { AccountSettingsTab } from "./account-tab.jsx";
 import { StorageTab } from "./storage-tab.jsx";
+import { ExtensionsTab, useExtensionsWithSettings } from "./extensions-tab.jsx";
 import { LyricsProviderList } from "./lyrics-providers.jsx";
 import { DebugTab } from "./debug-tab.jsx";
 import { UnisonIdentitySection } from "./unison-identity.jsx";
@@ -696,6 +696,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     </div>
   );
 
+  // Only when something installed has settings to show. An empty "Extensions" page would be a
+  // promise with nothing behind it, and until the store opens there is nothing to install.
+  const extensionSettings = useExtensionsWithSettings();
+
   const navItems = [
     { id: "account",        label: t("account"),       iconEl: <UserCircle size={18} /> },
     { id: "darstellung",    label: t("appearance"),    iconEl: <PaintBrushBroad size={18} /> },
@@ -709,6 +713,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     { id: "storage",    label: t("storage"),     iconEl: <HardDrives size={18} /> },
     { id: "sicherheit", label: t("security"),   iconEl: <Lock size={18} /> },
     { id: "overlay",    label: t("overlay"),     iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    ...(extensionSettings.length ? [{ id: "extensions", label: t("extensionsTab"), iconEl: <PuzzlePiece size={18} /> }] : []),
     { id: "experimental", label: t("experimental"), iconEl: <Flask size={18} /> },
     { id: "update",     label: t("update"),      iconEl: <ArrowsClockwise size={18} /> },
     { id: "about",      label: t("about"),       iconEl: <Info size={18} /> },
@@ -1607,6 +1612,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             })()}
 
             {tab === "storage" && <StorageTab t={t} />}
+            {tab === "extensions" && <ExtensionsTab t={t} lang={language} />}
 
             {tab === "sicherheit" && (
               <>

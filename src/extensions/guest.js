@@ -11,12 +11,21 @@ export const GUEST_SHIM = `
 (function () {
   var seq = 0;
   var waiting = new Map();
+  var listeners = {};
 
   // Replies come back through the one channel the frame has. The parent is the only sender that
   // can reach it, so there is nothing to check the sender against here: any other window would
   // need a handle to this frame, and having one already means the host is compromised.
   window.addEventListener("message", function (e) {
     var m = e.data;
+    // An event Kodama pushed. Handed to whoever subscribed; one listener throwing does not keep
+    // the others from hearing it.
+    if (m && m.__kodama === "event" && typeof m.name === "string") {
+      (listeners[m.name] || []).slice().forEach(function (fn) {
+        try { fn(m.data); } catch (err) { setTimeout(function () { throw err; }); }
+      });
+      return;
+    }
     if (!m || m.__kodama !== "reply" || !waiting.has(m.id)) return;
     var w = waiting.get(m.id);
     waiting.delete(m.id);
@@ -60,6 +69,14 @@ export const GUEST_SHIM = `
       previous: function () { return call("player.previous"); },
     },
     ui: { toast: function (text, kind) { return call("ui.toast", { text: text, kind: kind }); } },
+    // Subscribe to something Kodama tells rather than answers. Returns a function that stops it.
+    on: function (name, fn) {
+      if (typeof fn !== "function") return function () {};
+      (listeners[name] = listeners[name] || []).push(fn);
+      return function () {
+        listeners[name] = (listeners[name] || []).filter(function (f) { return f !== fn; });
+      };
+    },
     net: { fetch: function (url, init) { return call("net.fetch", { url: url, init: init }); } },
   };
 

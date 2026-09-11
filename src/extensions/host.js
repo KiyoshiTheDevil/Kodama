@@ -14,7 +14,7 @@
 // The reverse direction has to use "*" as the target origin, because "null" is not addressable.
 // That is safe here only because nothing sent to an extension is a secret: it is the answer to a
 // question that extension just asked.
-import { createDispatcher } from "./bridge.js";
+import { createDispatcher, eventAllowed } from "./bridge.js";
 import { guestDocument } from "./guest.js";
 import { API_VERSION, frameAttributes } from "./manifest.js";
 
@@ -129,5 +129,12 @@ export function mountExtension({ container, manifest, code, impl, onError, conte
     frame,
     destroy: () => stop(null),
     get stopped() { return dead; },
+    // Tell the extension something. Checked here, at the one place every event passes, so no
+    // caller can hand an extension an event its manifest did not earn.
+    emit(name, data) {
+      if (dead || !eventAllowed(manifest, name)) return false;
+      frame.contentWindow?.postMessage({ __kodama: "event", name, data }, framed ? manifest.origin : "*");
+      return true;
+    },
   };
 }

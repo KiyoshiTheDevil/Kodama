@@ -26,6 +26,26 @@ export const METHODS = {
   "net.fetch":        "network",
 };
 
+/**
+ * What Kodama tells an extension without being asked, and what it has to hold to be told.
+ *
+ * Gated like a method: an event is information, and "nowplaying" is the permission that says an
+ * extension may know what is playing, whether it asks or is told. An extension without it is not
+ * sent the event at all, rather than sent it and trusted to ignore it.
+ */
+export const EVENTS = {
+  // The track changed, or playback started or stopped. Not every progress tick: position is
+  // there to be asked for, and pushing it several times a second would be a stream nobody needs.
+  "player.changed":   "nowplaying",
+  // A value Kodama drew in Settings for this extension was changed. Its own values only.
+  "settings.changed": "storage",
+};
+
+export function eventAllowed(manifest, name) {
+  const need = EVENTS[name];
+  return !!need && (manifest?.permissions || []).includes(need);
+}
+
 export class BridgeError extends Error {
   constructor(code, message) {
     super(message);

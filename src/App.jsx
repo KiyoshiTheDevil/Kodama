@@ -67,6 +67,7 @@ import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterC
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 import { shuffled } from "./shuffle.js";
 import { STATS_URL } from "./stats-endpoint.js";
+import BackgroundExtensions from "./extensions/background.jsx";
 
 
 
@@ -6319,6 +6320,8 @@ export default function App() {
             visible={queueOpen}
           />
         </div>
+        {/* Background extensions: out of sight, for as long as this window is open. */}
+        <BackgroundExtensions addToast={addToast} />
         {/* Login Screen - shown when no profile exists */}
       {showLogin && (
         <LoginScreen

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "extensions-net",
+  "description": "Network requests made on behalf of sandboxed extensions (net.fetch). Only the main window, where background extensions run. Any https host is allowed at this level because extensions declare their hosts in their manifests, which Kodama cannot know at build time; the per-extension limit is enforced by the bridge (src/extensions/bridge.js hostAllowed), which refuses any host the manifest did not list, anything but https, and redirects.",
+  "windows": ["main"],
+  "permissions": [
+    "http:allow-fetch-send",
+    "http:allow-fetch-read-body",
+    "http:allow-fetch-cancel",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "https://**" }]
+    }
+  ]
+}

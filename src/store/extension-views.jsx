@@ -7,14 +7,14 @@
  */
 import { Button } from "@heroui/react";
 import { PuzzlePiece, Check, MusicNote, Palette, FloppyDisk, FileImport,
-  Globe, ScreencastSimple, TextSize, Megaphone, Columns } from "../icons.jsx";
+  Globe, ScreencastSimple, TextSize, Megaphone, Columns, Clock } from "../icons.jsx";
 import { describePermissions, actionTitle } from "../extensions/manifest.js";
 import DetailPage, { DetailSection, CardRating } from "./detail.jsx";
 
 // The manifest names an icon; this is where a name becomes a component. Kept here rather than in
 // the manifest so that file stays free of anything that has to be rendered.
 const GROUP_ICONS = {
-  MusicNote, Palette, FloppyDisk, FileImport, Globe, ScreencastSimple, TextSize, Megaphone, Columns,
+  MusicNote, Palette, FloppyDisk, FileImport, Globe, ScreencastSimple, TextSize, Megaphone, Columns, Clock,
 };
 import { thumb } from "../context.jsx";
 
@@ -39,8 +39,9 @@ export function ExtensionActions({ entry, t, onInstall, onRemove, size = "sm" })
 }
 
 export function ExtensionCard({ entry, t, onOpen, onInstall, onRemove }) {
-  // One per capability, the same number of lines they will find on the page.
-  const perms = describePermissions(entry);
+  // One per capability. The "runs in the background" line is a fact about the shape, not a
+  // permission, so it is not counted as one.
+  const perms = describePermissions(entry).filter(p => p.id !== "background");
   return (
     <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface">
       <button onClick={() => onOpen(entry.id)} className="block cursor-default text-left">

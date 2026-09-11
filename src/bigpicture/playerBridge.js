@@ -21,6 +21,9 @@ export function setNowPlaying(s) {
 function subscribe(l) { _listeners.add(l); return () => _listeners.delete(l); }
 function getSnapshot() { return _state; }
 export function useNowPlaying() { return useSyncExternalStore(subscribe, getSnapshot); }
+// The same store for code outside React: extensions running in the main window read it and are
+// told when it changes. Fires on every progress tick, so a subscriber decides what is news.
+export { subscribe as subscribeNowPlaying, getSnapshot as getNowPlaying };
 
 // Handlers are registered from two places (the Player owns transport/seek; App owns play), so
 // registration MERGES instead of replacing. Big Picture invokes them via the send* helpers.
