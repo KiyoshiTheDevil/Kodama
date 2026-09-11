@@ -800,6 +800,10 @@ def _load_album_disk(browse_id):
         tracks = data.get("tracks", [])
         if tracks and "isExplicit" not in tracks[0]:
             return None
+        # ...and those written before an album's music videos were swapped for its songs: they
+        # would keep serving the video ids (and their audio) for the rest of ALBUM_CACHE_TTL.
+        if not data.get("audioResolved"):
+            return None
         return data
     except Exception:
         return None
@@ -3825,6 +3829,49 @@ def get_playlist(playlist_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _norm_title(s):
+    import re as _re
+    return _re.sub(r"[^\w]+", "", (s or "").casefold())
+
+def _album_audio_ids(album):
+    """Map an album's video tracks onto its audio tracks.
+
+    Some albums list every track as its music video (OMV) rather than as the song (ATV): Don
+    Toliver's OCTANE comes back as 18 OMVs, and downloading or playing them gives the video's
+    audio, with dialogue, sound effects and a different length. YouTube Music's own app switches
+    to the song. The album's audioPlaylistId (OLAK5uy_...) is that switch: the same tracks, in the
+    same order, as songs. Returns {index: (videoId, duration)} for the tracks to swap.
+
+    Paired by position and confirmed by title; a track the audio playlist does not have keeps
+    its video rather than being given someone else's song.
+    """
+    tracks = album.get("tracks", [])
+    if all((t.get("videoType") or "MUSIC_VIDEO_TYPE_ATV") == "MUSIC_VIDEO_TYPE_ATV" for t in tracks):
+        return {}
+    pid = album.get("audioPlaylistId")
+    if not pid:
+        return {}
+    try:
+        audio = get_ytmusic().get_playlist(pid, limit=None).get("tracks", [])
+    except Exception as e:
+        _logging.warning(f"[album] audio playlist {pid} failed: {e}")
+        return {}
+    audio = [a for a in audio if a.get("videoId") and a.get("videoType") == "MUSIC_VIDEO_TYPE_ATV"]
+    by_title = {}
+    for a in audio:
+        by_title.setdefault(_norm_title(a.get("title")), a)
+    swaps = {}
+    for i, t in enumerate(tracks):
+        if (t.get("videoType") or "MUSIC_VIDEO_TYPE_ATV") == "MUSIC_VIDEO_TYPE_ATV":
+            continue
+        key = _norm_title(t.get("title"))
+        a = audio[i] if i < len(audio) and _norm_title(audio[i].get("title")) == key else by_title.get(key)
+        if a:
+            swaps[i] = (a["videoId"], a.get("duration") or t.get("duration", ""))
+    if swaps:
+        _logging.info(f"[album] {album.get('title')}: {len(swaps)} of {len(tracks)} tracks swapped from video to song")
+    return swaps
+
 @app.route("/album/<browse_id>")
 def get_album(browse_id):
     try:
@@ -3839,22 +3886,24 @@ def get_album(browse_id):
         album_artists = album.get("artists", [])
         album_artist_name = _artist_names(album_artists)
         album_artist_browse_id = album_artists[0].get("id", "") if album_artists else ""
-        for t in album.get("tracks", []):
+        swaps = _album_audio_ids(album)
+        for i, t in enumerate(album.get("tracks", [])):
             if not t.get("videoId"):
                 continue
+            video_id, duration = swaps.get(i, (t.get("videoId", ""), t.get("duration", "")))
             track_artists = t.get("artists", [])
             artists = _artist_names(track_artists) or album_artist_name
             artist_browse_id = track_artists[0].get("id", "") if track_artists else album_artist_browse_id
             thumbs = album.get("thumbnails", [])
             thumbnail = _pick_thumb(thumbs)
             tracks.append({
-                "videoId": t.get("videoId", ""),
+                "videoId": video_id,
                 "title": t.get("title", ""),
                 "artists": artists,
                 "artistBrowseId": artist_browse_id,
                 "artistLinks": _artist_links(track_artists or album_artists),
                 "album": album.get("title", ""),
-                "duration": t.get("duration", ""),
+                "duration": duration,
                 "thumbnail": thumbnail,
                 "isExplicit": bool(t.get("isExplicit", False)),
             })
@@ -3866,6 +3915,8 @@ def get_album(browse_id):
             "year": album.get("year", ""),
             "thumbnail": _pick_thumb(thumbs),
             "tracks": tracks,
+            # Marks a cache written after videos were swapped for songs (see _album_audio_ids).
+            "audioResolved": True,
         }
         if _cache_enabled["albums"]:
             _save_album_disk(browse_id, result)
