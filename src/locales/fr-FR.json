@@ -499,6 +499,13 @@
   "unisonAnonymous": "Anonyme",
   "translateLyrics": "Traduire les paroles",
   "romajiLyrics": "Afficher Romaji",
+  "showRomaji": "Afficher Romaji",
+  "showAgentTags": "Afficher les balises d'interprète",
+  "showAgentTagsDesc": "Affiche les interprètes actifs sous forme de balises au bas de la superposition des paroles",
+  "importLyrics": "Importer les paroles (.lrc / .ttml)",
+  "removeCustomLyrics": "Supprimer les paroles importées",
+  "customLyricsActive": "Paroles personnalisées actives",
+  "lyricsSource": "Source des paroles",
   "downloads": "Téléchargements",
   "saveAsMp3": "Enregistrer au format MP3",
   "saveAsOpus": "Enregistrer en tant qu'OPUS",
@@ -589,5 +596,7 @@
   "offlineBanner": "Mode hors ligne, seules les chansons téléchargées sont disponibles",
   "offlineComingSoon": "Le mode hors ligne sera bientôt disponible",
   "debug": "Débogage",
-  "debugSysInfo": "Informations système"
+  "debugSysInfo": "Informations système",
+  "debugNoLogs": "Aucune entrée de journal pour le moment.",
+  "debugBackendUnreachable": "Arrière-plan non accessible"
 }
