@@ -14,6 +14,7 @@ import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPre
 import { PresetCard, PresetDetail } from "./preset-views.jsx";
 import { installExtension, uninstallExtension, onExtensionsChanged } from "../extensions/registry.js";
 import { ExtensionCard, ExtensionDetail } from "./extension-views.jsx";
+import { reportDownload, fetchDownloadCounts } from "./downloads.js";
 import DetailPage from "./detail.jsx";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
@@ -272,9 +273,13 @@ export default function Store({ t, language }) {
   const canBack = at > 0;
   const canFwd = at < hist.length - 1;
 
+  // null until known, and kept null when the Worker cannot be reached: the page then shows no
+  // number rather than a zero that would be a claim.
+  const [counts, setCounts] = useState(null);
   const load = useCallback(() => {
     setBusy(true);
     fetchCatalogue().then(setCat).finally(() => setBusy(false));
+    fetchDownloadCounts().then(c => { if (c) setCounts(c); });
   }, []);
   useEffect(load, [load]);
 
@@ -303,7 +308,10 @@ export default function Store({ t, language }) {
     import("@tauri-apps/api/event").then(({ emit }) => emit(THEME_SELECTED, id)).catch(() => {});
   };
 
-  const install = async (e) => { await installThemeEverywhere(e); refresh(); };
+  const install = async (e) => {
+    if (!e.installed) reportDownload(e.id);
+    await installThemeEverywhere(e); refresh();
+  };
   const remove = async (e) => {
     await uninstallThemeEverywhere(e.id);
     // Under "Installed" the entry it was opened from is about to disappear from the list.
@@ -314,7 +322,10 @@ export default function Store({ t, language }) {
     refresh();
   };
 
-  const installP = async (e) => { await installPresetEverywhere(e.kind, e); refresh(); };
+  const installP = async (e) => {
+    if (!e.installed) reportDownload(e.id);
+    await installPresetEverywhere(e.kind, e); refresh();
+  };
   const removeP = async (e) => {
     await uninstallPresetEverywhere(e.kind, e.id);
     if (section === "mine" && detailId === e.id) setDetailId(null);
@@ -327,6 +338,7 @@ export default function Store({ t, language }) {
     // silently: an extension that will not load should say so now, not by never appearing.
     const r = await installExtension(e.entry);
     setExtProblem(r.ok ? null : r.problems.join(" · "));
+    if (r.ok && !e.installed) reportDownload(e.id);
     refresh();
   };
   const removeExt = async (e) => {
@@ -400,7 +412,9 @@ export default function Store({ t, language }) {
     }
     refresh();
   };
-  const detail = detailId ? everything.find(e => e.id === detailId) : null;
+  const found = detailId ? everything.find(e => e.id === detailId) : null;
+  // An id the Worker has never counted is 0 once the counts are known at all.
+  const detail = found && { ...found, downloads: counts ? (counts[found.id] || 0) : null };
 
   // The equaliser's preset rows, to the pixel: 30px tall, a 14px glyph, --t13, and the selected
   // one filled with the accent. These are the same kind of window and they were reading as two

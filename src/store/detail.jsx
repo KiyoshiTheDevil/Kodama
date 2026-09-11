@@ -16,6 +16,11 @@ export function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** A download count, grouped the way the reader's system groups numbers. Unknown is a dash. */
+export function formatCount(n) {
+  return typeof n === "number" ? n.toLocaleString() : "—";
+}
+
 /** Kodama's own work, as against merely reviewed. */
 function VerifiedMark() {
   return (
@@ -82,13 +87,15 @@ export default function DetailPage({ entry, t, onBack, actions, icon, stages = [
         <div className="flex shrink-0 items-center gap-1.5 pt-2">{actions}</div>
       </div>
 
-      {/* ── The three questions worth answering before installing ────────── */}
+      {/* ── The questions worth answering before installing ─────────────── */}
       <div className="flex items-stretch divide-x" style={{ borderColor: "var(--stroke-dim)" }}>
         <Stat label={t("storeVersion")}>{entry.version || "1.0.0"}</Stat>
         <div style={{ width: 1, background: "var(--stroke-dim)" }} />
         <Stat label={t("storeRequires")}>{entry.minVersion ? `Kodama ${entry.minVersion}` : "—"}</Stat>
         <div style={{ width: 1, background: "var(--stroke-dim)" }} />
         <Stat label={t("storeSize")}>{formatSize(entry.size)}</Stat>
+        <div style={{ width: 1, background: "var(--stroke-dim)" }} />
+        <Stat label={t("storeDownloads")}>{formatCount(entry.downloads)}</Stat>
       </div>
 
       {shots.length > 0 && (

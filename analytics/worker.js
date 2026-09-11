@@ -29,6 +29,8 @@
  *   GET  /count                        -> { day, dau, month, mau }
  *   GET  /badge                        -> shields.io endpoint JSON (active users)
  *   GET  /badge?metric=mau             -> shields.io endpoint JSON (monthly)
+ *   POST /store/install  body: { id }  -> counts one download of a store entry
+ *   GET  /store/counts                 -> { counts: { <id>: n } }
  */
 
 const CORS = {
@@ -177,6 +179,45 @@ async function snapshotDownloads(env) {
   };
 }
 
+// ─── Store downloads ─────────────────────────────────────────────────────────
+//
+// The same promise as the heartbeat: how many, never who. The app sends the id of what it
+// installed and nothing else, and only the first time that installation installs it, so an
+// update or a reinstall is not a second download.
+//
+// Anyone can POST here, so two things keep the numbers honest enough for a shop:
+//   - only ids the published catalogue actually contains are counted, which also stops the
+//     endpoint from being used to fill KV with made-up keys;
+//   - one address counts once per entry while this Worker instance lives. Held in memory only
+//     and never written anywhere, because the app promises "no IP stored" and a hashed IP in KV
+//     would break that: there are only four billion IPv4 addresses, a hash of one can be
+//     reversed by trying them all.
+// That dampens inflation, it does not prevent it. For a download count that is acceptable.
+//
+// Cost: one KV write per counted download. Downloads are rare next to daily pings, so this
+// barely moves the budget described above.
+const CATALOGUE_URL = "https://raw.githubusercontent.com/KiyoshiTheDevil/kodama-store/main/index.json";
+const STORE_KINDS = ["themes", "visualizer", "equalizer", "widgets", "extensions"];
+let catalogueIds = null;   // per isolate; GitHub serves the file with a 5 minute cache anyway
+let catalogueAt = 0;
+
+async function publishedIds() {
+  if (catalogueIds && Date.now() - catalogueAt < 10 * 60 * 1000) return catalogueIds;
+  try {
+    const r = await fetch(CATALOGUE_URL, { cf: { cacheTtl: 300 } });
+    if (r.ok) {
+      const index = await r.json();
+      catalogueIds = new Set(STORE_KINDS.flatMap(k => (index[k] || []).map(e => e && e.id).filter(Boolean)));
+      catalogueAt = Date.now();
+    }
+  } catch { /* keep whatever we had; with nothing, nothing is counted */ }
+  return catalogueIds || new Set();
+}
+
+// address + id pairs already counted by this instance. Bounded, so a flood cannot grow it
+// without limit; clearing it only means the next repeat counts again.
+const recentInstalls = new Set();
+
 /**
  * Monthly counters only keep growing while pings arrive, so a month that has ended is never
  * touched again. Re-writing the previous month once a day carries it past the 40-day expiry
@@ -239,6 +280,41 @@ export default {
         await incr(env, `mau:${month}`);
       }
       return json({ ok: true });
+    }
+
+    // ── POST /store/install ─────────────────────────────────────────────────
+    if (url.pathname === "/store/install" && request.method === "POST") {
+      let id;
+      try { id = (await request.json()).id; } catch { /* ignore malformed */ }
+      if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) {
+        return json({ ok: false }, { status: 400 });
+      }
+      if (!(await publishedIds()).has(id)) {
+        return json({ ok: false, error: "unknown id" }, { status: 404 });
+      }
+      const pair = `${request.headers.get("cf-connecting-ip") || ""} ${id}`;
+      if (recentInstalls.has(pair)) return json({ ok: true, counted: false });
+      if (recentInstalls.size > 10_000) recentInstalls.clear();
+      recentInstalls.add(pair);
+      await incr(env, `inst:${id}`);
+      return json({ ok: true, counted: true });
+    }
+
+    // ── GET /store/counts ───────────────────────────────────────────────────
+    // Every entry's count in one list() call, read from the metadata incr() mirrors.
+    if (url.pathname === "/store/counts") {
+      const counts = {};
+      let cursor;
+      do {
+        const r = await env.STATS.list({ prefix: "inst:", cursor });
+        for (const k of r.keys) {
+          counts[k.name.slice(5)] = (k.metadata && typeof k.metadata.n === "number")
+            ? k.metadata.n
+            : await readCount(env, k.name);
+        }
+        cursor = r.list_complete ? null : r.cursor;
+      } while (cursor);
+      return json({ counts }, { headers: { "Cache-Control": "max-age=300" } });
     }
 
     // ── GET /count ──────────────────────────────────────────────────────────

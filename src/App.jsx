@@ -66,6 +66,7 @@ import { particleBurst, dissolve } from "./effects/particle-burst.js";
 import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 import { shuffled } from "./shuffle.js";
+import { STATS_URL } from "./stats-endpoint.js";
 
 
 
@@ -82,11 +83,6 @@ const DEMO_TRACK_ID = "lrpAl2Eca70"; // mechanical corpse (feat. GUMI) — tommy
 const DEMO_SEEK_S   = 33;            // pose at ~0:33
 const DEMO_NAME     = "Kodama";
 const DEMO_PROFILE  = { name: "demo", displayName: DEMO_NAME, avatar: "" };
-
-// Anonymous active-user heartbeat endpoint (Cloudflare Worker, see analytics/).
-// Leave "" until the Worker is deployed — the heartbeat no-ops while empty.
-// NOTE: when set, add this host to CSP connect-src in index.html + tauri.conf.json.
-const STATS_URL = "https://kodama-stats.kiyoshidesign.workers.dev";
 
 // Anonymous, opt-out active-user heartbeat. Fires at most once per UTC day per
 // install. The raw install id never leaves the device — only a daily/monthly
