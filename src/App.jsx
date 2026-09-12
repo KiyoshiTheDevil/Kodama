@@ -6228,14 +6228,13 @@ export default function App() {
               </div>
               <div style={{
                 // insetInlineStart so the pane starts at the same edge the split ratio is
-                // measured from, and borderInlineEnd so the divider lands between the panes
-                // rather than jumping to the far side when the layout flips.
+                // measured from. No divider line: the two panes share one ambient background and
+                // the line only cut through it. The drag handle below still shows its bar on hover.
                 position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
                 width: coverSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
-                borderInlineEnd: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
                 <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} />
               </div>
