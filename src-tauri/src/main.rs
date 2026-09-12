@@ -293,15 +293,25 @@ fn main() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             match event {
-                // X-Button → Fenster verstecken statt schließen
+                // Closing the main window: to the tray, or out of Kodama altogether.
+                //
+                // Never just the window. Tauri ends the process only once the LAST window is gone,
+                // and there is always another one: the hidden session-keeper, and often the mini
+                // player, the equaliser or the store. Letting the main window close by itself
+                // destroyed the player and left the rest running - tray icon, backend, PO-token
+                // server - with "Show Kodama" pointing at a window that no longer existed, until
+                // Quit was found in the tray. Every other window depends on the player in this
+                // one, so closing it without the tray means quitting, the same way Quit does.
                 tauri::RunEvent::WindowEvent { ref label, event: tauri::WindowEvent::CloseRequested { api, .. }, .. }
                     if label == "main" =>
                 {
+                    api.prevent_close();
                     if app_handle.state::<CloseTray>().0.load(Ordering::Relaxed) {
-                        api.prevent_close();
                         if let Some(win) = app_handle.get_webview_window("main") {
                             let _ = win.hide();
                         }
+                    } else {
+                        app_handle.exit(0);
                     }
                 }
                 // Echtes Beenden (via Tray-Menü oder quit_app-Command)
