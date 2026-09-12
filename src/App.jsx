@@ -4136,25 +4136,54 @@ export default function App() {
     return Number.isFinite(saved) ? Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, saved)) : 0.5;
   });
   const [splitResizing, setSplitResizing] = useState(false);
+  // The panes and the handle, so a drag can move them without React.
+  const splitLyricsRef = useRef(null);
+  const splitCoverRef = useRef(null);
+  const splitVideoRef = useRef(null);
+  const splitHandleRef = useRef(null);
   const startSplitResize = useCallback((e) => {
     e.preventDefault();
     setSplitResizing(true);
     document.body.style.cursor = "ew-resize";
     document.body.style.userSelect = "none";
+    // Dragging used to set the ratio as state on every mouse move, and every one re-rendered the
+    // whole App - this component and everything under it - 60 to 120 times a second, on top of
+    // the lyrics reflowing their blurred lines at each new width. That was the stutter.
+    //
+    // Now the widths are written straight onto the four elements, at most once per frame, and
+    // the ratio reaches React once, on release. Only a pane that is currently split is resized:
+    // one that is not stands at 100% and must stay there. React does not undo the writes when
+    // something else re-renders meanwhile, because it only touches a style whose value it
+    // changed itself, and the ratio it knows has not changed until the drag ends.
+    let latest = null, frame = 0;
+    const apply = () => {
+      frame = 0;
+      if (latest == null) return;
+      const cover = `${(latest * 100).toFixed(2)}%`, lyrics = `${((1 - latest) * 100).toFixed(2)}%`;
+      const lyr = splitLyricsRef.current, cov = splitCoverRef.current, vid = splitVideoRef.current, handle = splitHandleRef.current;
+      if (lyr && lyr.style.width !== "100%") lyr.style.width = lyrics;
+      if (cov && cov.style.width !== "100%") cov.style.width = cover;
+      if (vid && vid.style.width !== "100%") vid.style.width = cover;
+      if (handle) handle.style.insetInlineStart = cover;
+    };
     const onMove = (ev) => {
       // Split spans the full window in fullscreen, so the ratio is the cursor's distance from
       // the inline start over the window width -- measured from the right edge in RTL.
       const x = isRtl() ? window.innerWidth - ev.clientX : ev.clientX;
-      const r = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, x / window.innerWidth));
-      setSplitRatio(r);
+      latest = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, x / window.innerWidth));
+      if (!frame) frame = requestAnimationFrame(apply);
     };
     const onUp = () => {
+      if (frame) { cancelAnimationFrame(frame); apply(); }
       setSplitResizing(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
-      setSplitRatio(r => { localStorage.setItem("kiyoshi-split-ratio", String(r)); return r; });
+      if (latest != null) {
+        setSplitRatio(latest);
+        try { localStorage.setItem("kiyoshi-split-ratio", String(latest)); } catch { /* storage full */ }
+      }
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -6217,7 +6246,7 @@ export default function App() {
             // an FFT and stream 30 payloads a second. Mounted is not the same as visible.
             const coverOnScreen = overlayOpen && !showVideoView && (coverSplitActive || !showLyrics);
             return (<>
-              <div style={{
+              <div ref={splitLyricsRef} style={{
                 position: "absolute", top: 0, bottom: 0, right: 0,
                 width: anySplitActive ? lyricsPct : "100%",
                 opacity: showVideoView ? (videoSplitActive ? 1 : 0) : (coverSplitActive ? 1 : (showLyrics ? 1 : 0)),
@@ -6226,7 +6255,7 @@ export default function App() {
               }}>
                 <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} />
               </div>
-              <div style={{
+              <div ref={splitCoverRef} style={{
                 // insetInlineStart so the pane starts at the same edge the split ratio is
                 // measured from. No divider line: the two panes share one ambient background and
                 // the line only cut through it. The drag handle below still shows its bar on hover.
@@ -6240,7 +6269,7 @@ export default function App() {
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
-              <div style={{
+              <div ref={splitVideoRef} style={{
                 position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
                 width: videoSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
@@ -6251,7 +6280,7 @@ export default function App() {
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (
-                <div
+                <div ref={splitHandleRef}
                   onMouseDown={startSplitResize}
                   style={{ position: "absolute", top: 0, bottom: 0, insetInlineStart: coverPct, width: 12, marginInlineStart: -6, cursor: "ew-resize", zIndex: 6 }}
                   onMouseEnter={e => { const bar = e.currentTarget.firstChild; if (bar) bar.style.opacity = "1"; }}

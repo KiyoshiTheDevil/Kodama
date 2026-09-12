@@ -19,6 +19,7 @@ Fixes:
 - After an update, every start copied the 81 MB Node runtime again and left a copy behind
 - With Close to Tray off, closing the window left Kodama running in the tray with no way to reopen it
 - The linear visualizer's bars squeezed together as the window got smaller
+- Resizing the split view between visualizer and lyrics stuttered
 
 ## [1.0.0-alpha.39] - 2026-09-11
 
