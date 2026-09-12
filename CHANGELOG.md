@@ -10,6 +10,9 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+Changes:
+- In a short window the expanded player hides the title and artist, which the player bar already shows
+
 Fixes:
 - With more than one login saved, Kodama started with the oldest one and appeared signed out after every restart
 - Renew Session in the library added a new login instead of renewing the current one

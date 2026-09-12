@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { thumb, hiResThumb, useZoom } from "../context.jsx";
 import { ExplicitBadge } from "../ui/rows.jsx";
 import { audioLevels, acquireAudioLevels } from "../audioLevels.js";
@@ -28,6 +28,27 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
   const zoom = useZoom();
   const zoomRef = useRef(zoom); zoomRef.current = zoom;
   const scaleRef = useRef(scale); scaleRef.current = scale;
+
+  // Title and artist step aside when the view is too short for them. At the window's smallest
+  // height the cover, the spectrum and a two-line title were pressed into each other, and the
+  // same title and artist are already in the player bar right below. Judged on the view's own
+  // height, which is what runs out, with a band between hiding and showing again so a window
+  // resized right at the edge does not flicker between the two. Not in the settings preview,
+  // which is a miniature on purpose.
+  const rootRef = useRef(null);
+  const [roomForInfo, setRoomForInfo] = useState(true);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || scale !== 1 || typeof ResizeObserver === "undefined") return;
+    // The smallest window leaves this view about 450 px, the default window about 590.
+    const HIDE_BELOW = 520, SHOW_ABOVE = 550;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      setRoomForInfo(prev => (prev ? h >= HIDE_BELOW : h > SHOW_ABOVE));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [scale]);
 
   // Extract a vibrant colour from the cover for the "dynamic" colour mode.
   useEffect(() => {
@@ -212,7 +233,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
   }, [ambientVisualizer, active]);
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div ref={rootRef} style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
 
       {/* Ambient colour blobs — negative inset keeps edges outside the visible area. Skipped in
           ambientBackground mode: the global AmbientBackdrop already provides the colour, and these
@@ -262,7 +283,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         </div>
 
         {/* Track info */}
-        <div style={{ textAlign: "center", maxWidth: (compact ? 360 : 520) * scale }}>
+        {roomForInfo && <div style={{ textAlign: "center", maxWidth: (compact ? 360 : 520) * scale, animation: "fadeIn 0.2s ease" }}>
           <div style={{ fontSize: compact ? 17 * scale : scaled("var(--t22)"), fontWeight: 700, color: "#fff", marginBottom: (compact ? 3 : 6) * scale, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 * scale, lineHeight: 1.3 }}>
             <span style={{ overflowWrap: "anywhere" }}>{track.title}</span>
             {/* The badge is a shared component with its own fixed size. Shrunk from the outside
@@ -271,7 +292,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
             {track.isExplicit && (scale === 1 ? <ExplicitBadge /> : <span style={{ zoom: scale, display: "inline-flex" }}><ExplicitBadge /></span>)}
           </div>
           <div style={{ fontSize: compact ? 12 * scale : scaled("var(--t14)"), color: "rgba(255,255,255,0.6)", overflowWrap: "anywhere" }}>{track.artists}</div>
-        </div>
+        </div>}
       </div>
     </div>
   );
