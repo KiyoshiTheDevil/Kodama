@@ -15,7 +15,7 @@ function vizLerp(a, b, t) { const A = vizToRGB(a), B = vizToRGB(b); return `rgb(
 // config: the spacing, the title and the artist line. Without it the miniature drew its cover
 // and bars at a third of their size around a full-size title, which is the one part of the
 // preview that then did not match what it is previewing.
-export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, narrow = false, scale = 1 }) {
+export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, scale = 1 }) {
   // Font sizes come from tokens, so they are scaled in CSS rather than in JS. Left untouched
   // at 1 so the full-size view renders the exact same declaration it always did.
   const scaled = (v) => (scale === 1 ? v : `calc(${v} * ${scale})`);
@@ -27,6 +27,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
   const coverColorRef = useRef(null);
   const zoom = useZoom();
   const zoomRef = useRef(zoom); zoomRef.current = zoom;
+  const scaleRef = useRef(scale); scaleRef.current = scale;
 
   // Extract a vibrant colour from the cover for the "dynamic" colour mode.
   useEffect(() => {
@@ -82,13 +83,19 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
       ctx.clearRect(0, 0, w, h);
 
       const src = audioLevels.bands || [], srcN = src.length || 48;
-      // In a narrow (split) pane the linear spectrum is only a fraction of the window width —
-      // scale the bar count by that fraction so the per-bar spacing matches the full view
-      // (and adapts as the split is resized) instead of cramming the bars together.
+      // The linear spectrum spreads its bars across the width it is given, so a fixed count
+      // crammed them together as the window narrowed. The setting now means the count across the
+      // SCREEN's full width, the widest this view can be, and a narrower view shows
+      // proportionally fewer at the same spacing. That also covers the split pane, which used to
+      // be the one case scaled, against the window rather than the screen, so resizing the
+      // window still squeezed it. Measured in screen pixels: the canvas is in local units, so UI
+      // zoom is multiplied back in, and the settings preview divides its miniature scale out, or
+      // it would collapse to the minimum. Ring and frame follow the cover, which has a fixed size.
       let n = Math.max(8, (cfg.barCount | 0) || 48);
-      if (narrow && cfg.shape === "linear") {
-        const frac = Math.min(1, w / (window.innerWidth || w));
-        n = Math.max(8, Math.round(n * frac));
+      if (cfg.shape === "linear") {
+        const full = Math.max(320, window.screen?.availWidth || window.innerWidth || w);
+        const here = (w * (zoomRef.current || 1)) / (scaleRef.current || 1);
+        n = Math.max(8, Math.round(n * Math.min(1, here / full)));
       }
       const resp = Math.max(0, Math.min(1, cfg.responsiveness != null ? cfg.responsiveness : 0.75));
       const rel = (1 - resp) * 0.95; // 0 = instant, 0.95 = very floaty
@@ -202,7 +209,7 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
     };
     raf = requestAnimationFrame(draw);
     return () => { cancelAnimationFrame(raf); releaseLevels(); if (coverRef.current) coverRef.current.style.transform = ""; };
-  }, [ambientVisualizer, narrow, active]);
+  }, [ambientVisualizer, active]);
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>

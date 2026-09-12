@@ -6237,7 +6237,7 @@ export default function App() {
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
                 borderInlineEnd: coverSplitActive ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}>
-                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} narrow={coverSplitActive} />
+                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
