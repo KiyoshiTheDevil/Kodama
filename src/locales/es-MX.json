@@ -481,7 +481,7 @@
   "noLyricsHint": "Crea tus propias letras con una de estas herramientas:",
   "createLyrics": "Crear letras",
   "noSuggestions": "No hay sugerencias.",
-  "noSuggestionsHint": "Esto no puede suceder justo al iniciar la app. Dale un momento y vuelve a intentarlo.",
+  "noSuggestionsHint": "Esto puede suceder justo al iniciar la app. Dale un momento y vuelve a intentarlo.",
   "moodsGenres": "Estilos y géneros",
   "speedDial": "Selección rápida",
   "loadingLikedSongs": "Cargando canciones que te gustan…",
