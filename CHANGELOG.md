@@ -10,6 +10,8 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.40] - 2026-09-22
+
 Changes:
 - The store opens: themes, visualizer and equaliser presets, and extensions, with download counts and star ratings
 - The Composer is back, as an extension from the store
