@@ -1,15 +1,15 @@
 {
-  "version": "v1.0.0-alpha.40",
-  "pub_date": "2026-09-22T11:35:36Z",
-  "notes": "Changes:\n- The store is now public for everyone! Get themes, extensions and various presets right from the new storefront\n- In a short window the expanded player hides the title and artist, which the player bar already shows\nFixes:\n- With more than one login saved, Kodama started with the oldest one and appeared signed out after every restart\n- Renew Session in the library added a new login instead of renewing the current one\n- After an update, every start copied the 81 MB Node runtime again and left a copy behind\n- With Close to Tray off, closing the window left Kodama running in the tray with no way to reopen it\n- The linear visualizer's bars squeezed together as the window got smaller\n- Resizing the split view between visualizer and lyrics stuttered",
+  "version": "v1.0.0-alpha.41",
+  "pub_date": "2026-09-22T14:27:26Z",
+  "notes": "Fixes:\n- Extensions from the store that run inside Kodama, such as ListenBrainz, did not start",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.40/Kodama_1.0.0-alpha.40_x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnROcEZSVkRnUVpEdXh1OVZEQUNjZUwzdVVRU1BkRUoyTy82cDFFbGlaRUlrcW1qWVp1SlJXVWlaZjJYQmhHekI0NTBkSkxMQWFmbW4ySlNha1UxMEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDc2ODQ1CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjQwX3g2NC1zZXR1cC5leGUKYjdZNnBwaUc1Y3ZmMGxiNXlKUE9vd0RLU1NyaGVGTW16WE9uZFVzYUZzMXJpS2E2MzhUeUptMHpnZGYybEZoaVZpNnVna0VPaEU5VWVVYmEvRFlMQnc9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.41/Kodama_1.0.0-alpha.41_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdnNHU2NVQXUzcVYxY0VIUmE4MGF2STlpUkcrYTlUNTIwUys4cU1laTR0Y3M1Q2ZFOThGdmYwRHFvbSs3MU5vVDkxclVzZyt4Yzl2eS84M25Mckw0b3dRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDg3MTQ4CWZpbGU6S29kYW1hXzEuMC4wLWFscGhhLjQxX3g2NC1zZXR1cC5leGUKZERyUHRVb3p4elR3TTRBR2V2MFF4UjhDa1crTnkrUEhCbStBY2UvbkRLQmt3RnFsVEltdFF5ekV6TXAvREJYZWZJdC90ZGplekd5cEpMUXZ0eWY2RGc9PQo="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.40/Kodama.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmxOQWRDQjBTWkV2MWs2UnZjb2tpdlREQURsQUVIQStNa3U1N2hzR05TUzRaR3pmZ1ZQY294NHc5Z1B4eFBObE5SaEUvL0h0N21lYnMraCsxRDhRZkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDc2NDk0CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKbXowVmxSeFhJNW9pNFpkWnZWb2Y2aDVHZWdadS90SHZhcGhhK1JqLzRwOW94d1JMUU1nWmR0Q3VDbHlCMVZNK3gwbThrdVY0d09BalFHeXlaT1lPQ0E9PQo="
+      "url": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/v1.0.0-alpha.41/Kodama.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUMks4N0FOVGUxdmorbEVnQ2pRRmRvL3pMeERjN2NUZm5zNktLY2VmaW9tVkpTRDJrSEhkcW5wVlBmOThPci9ONjZPaS83U3RrMVpHamduR01OUFJaZm42dEFpRWVMK2dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDg2NzY4CWZpbGU6S29kYW1hLmFwcC50YXIuZ3oKcjZUSVUzdzY2eVl6VXptMHIzSVRUNU9KN2VmSDdaVlB5d3d5bG5tdC8yRTVZaDV3ZjlKNmtBa3dRdWZFUXVRbExTR0NpcHdZWkFON0t5d3FzNzBSQ0E9PQo="
     }
   }
 }
