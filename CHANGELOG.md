@@ -10,6 +10,8 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.41] - 2026-09-22
+
 Fixes:
 - Extensions from the store that run inside Kodama, such as ListenBrainz, did not start
 
