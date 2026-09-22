@@ -13,9 +13,7 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 ## [1.0.0-alpha.40] - 2026-09-22
 
 Changes:
-- The store opens: themes, visualizer and equaliser presets, and extensions, with download counts and star ratings
-- The Composer is back, as an extension from the store
-- ListenBrainz, as an extension from the store: submits what you listen to, set up under Settings, Extensions
+- The store is now public for everyone! Get themes, extensions and various presets right from the new storefront
 - In a short window the expanded player hides the title and artist, which the player bar already shows
 
 Fixes:
