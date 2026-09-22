@@ -471,8 +471,8 @@ export default function Store({ t, language }) {
         <div className="pointer-events-none flex shrink-0 items-baseline gap-1.5">
           <Storefront size={16} className="self-center text-primary" />
           <span className="ml-1 font-semibold text-primary" style={{ fontSize: "var(--t15)" }}>{t("store")}</span>
-          {/* Opens at Beta, and says so. Reachable earlier only in a dev build or with the debug
-              tools unlocked, which is exactly when the label is worth having. */}
+          {/* The store is a component in beta inside an alpha app, the way the overlay editor is,
+              and says so where it is used. */}
           <span className="font-bold text-accent" style={{ fontSize: "var(--t10)" }}>BETA</span>
         </div>
 

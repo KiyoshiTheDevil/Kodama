@@ -1,8 +1,9 @@
 // When the store is reachable.
 //
-// It is built now and opens at Beta. Shipping the code in an alpha while leaving the door shut is
-// deliberate: the window, the catalogue and the install path all get real use and real bug reports
-// from the people building it, without an unfinished shop being the first thing a listener finds.
+// Built in alpha.38 behind a closed door, so the window, the catalogue and the install path got
+// real use from the people building it first. Opened in alpha.40 rather than waiting for Beta:
+// the store is one component with its own BETA badge, the way the overlay editor carries one in
+// an alpha app, and the Composer, taken out of Kodama in alpha.38, only comes back through it.
 //
 // The gate is on the VERSION rather than on a setting, because a setting is something a listener
 // can turn on by accident and then report a half-built shop as broken. Kodama's own version is the
@@ -11,7 +12,7 @@ import { APP_VERSION } from "../version.js";
 import { compareVersions } from "./catalogue.js";
 
 /** The release that opens the store. compareVersions already ranks alpha below beta below none. */
-export const STORE_OPENS_AT = "1.0.0-beta.1";
+export const STORE_OPENS_AT = "1.0.0-alpha.40";
 
 /**
  * Two doors stay open before that: a dev build, and a build where the debug tools were unlocked

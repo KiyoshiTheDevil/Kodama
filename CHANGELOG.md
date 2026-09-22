@@ -11,6 +11,9 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 ## [Unreleased]
 
 Changes:
+- The store opens: themes, visualizer and equaliser presets, and extensions, with download counts and star ratings
+- The Composer is back, as an extension from the store
+- ListenBrainz, as an extension from the store: submits what you listen to, set up under Settings, Extensions
 - In a short window the expanded player hides the title and artist, which the player bar already shows
 
 Fixes:
@@ -20,7 +23,6 @@ Fixes:
 - With Close to Tray off, closing the window left Kodama running in the tray with no way to reopen it
 - The linear visualizer's bars squeezed together as the window got smaller
 - Resizing the split view between visualizer and lyrics stuttered
-- Extensions that run in Kodama's sandbox could not start in release builds
 
 ## [1.0.0-alpha.39] - 2026-09-11
 
