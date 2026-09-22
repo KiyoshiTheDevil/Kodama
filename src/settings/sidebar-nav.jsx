@@ -2,14 +2,19 @@ import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, Button, ListBox, ListBoxItem, ScrollShadowRoot } from "@heroui/react";
 import { API, useLang, useAnimations } from "../context.jsx";
 import { translate } from "../i18n.js";
-import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
+import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, PuzzlePiece, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
 import { subscribeSettingsSection, getSettingsSection } from "./section-store.js";
 import { SidebarTooltip } from "../ui/tooltip.jsx";
+import { useExtensionsWithSettings } from "./extensions-tab.jsx";
 
 export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing }) {
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
+  // This is the list the settings sidebar actually draws. panel.jsx keeps a second one for the
+  // page heading, and the Extensions entry was added only there at first, so installing an
+  // extension with settings showed nowhere to reach them.
+  const extensionSettings = useExtensionsWithSettings();
   const anim = useAnimations();
   const [tooltip, setTooltip] = useState(null);
   const [debugUnlocked, setDebugUnlocked] = useState(() => localStorage.getItem("kiyoshi-debug-unlocked") === "true");
@@ -99,6 +104,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
     ] },
     { id: "sicherheit",    label: t("security"),      iconEl: <Lock size={18} /> },
     { id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    ...(extensionSettings.length ? [{ id: "extensions", label: t("extensionsTab"), iconEl: <PuzzlePiece size={18} /> }] : []),
     { id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> },
     { id: "experimental",  label: t("experimental"),  iconEl: <Flask size={18} /> },
     { id: "language",      label: t("language"),      iconEl: <Translate size={18} /> },
