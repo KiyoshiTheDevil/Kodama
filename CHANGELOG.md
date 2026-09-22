@@ -20,6 +20,7 @@ Fixes:
 - With Close to Tray off, closing the window left Kodama running in the tray with no way to reopen it
 - The linear visualizer's bars squeezed together as the window got smaller
 - Resizing the split view between visualizer and lyrics stuttered
+- Extensions that run in Kodama's sandbox could not start in release builds
 
 ## [1.0.0-alpha.39] - 2026-09-11
 
