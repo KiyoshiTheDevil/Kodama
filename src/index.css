@@ -1221,3 +1221,15 @@ img.img-failed {
   zoom: var(--ui-zoom, 1);
   bottom: 120px;
 }
+
+/* Terms and privacy text inside the app (src/settings/legal.jsx). The markup comes from
+   docs/*.html, whose own stylesheet does not load here, so it is styled with the app's tokens. */
+.legal-app { color: var(--text-secondary); font-size: var(--t13); line-height: 1.65; }
+.legal-app h2 { color: var(--text-primary); font-size: var(--t15); font-weight: 600; margin: 22px 0 6px; }
+.legal-app p { margin: 0 0 10px; }
+.legal-app ul { margin: 0 0 12px; padding-inline-start: 20px; list-style: disc; }
+.legal-app li { margin: 3px 0; }
+.legal-app strong { color: var(--text-primary); font-weight: 600; }
+.legal-app a { color: var(--accent); cursor: pointer; }
+.legal-app a:hover { text-decoration: underline; }
+.legal-app .updated { color: var(--text-muted); font-size: var(--t11); margin: 0 0 12px; }

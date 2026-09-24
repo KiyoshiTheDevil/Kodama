@@ -27,6 +27,7 @@ import { APP_ICON_DEFAULT, APP_ICON_GROUPS } from "./app-icons.js";
 import { isSettingsSectionLocked } from "./section-store.js";
 import { AccountSettingsTab } from "./account-tab.jsx";
 import { StorageTab } from "./storage-tab.jsx";
+import { LegalModal, LegalLinks } from "./legal.jsx";
 import { ExtensionsTab, useExtensionsWithSettings } from "./extensions-tab.jsx";
 import { LyricsProviderList } from "./lyrics-providers.jsx";
 import { DebugTab } from "./debug-tab.jsx";
@@ -699,6 +700,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   // Only when something installed has settings to show. An empty "Extensions" page would be a
   // promise with nothing behind it, and until the store opens there is nothing to install.
   const extensionSettings = useExtensionsWithSettings();
+
+  const [legalPage, setLegalPage] = useState(null);   // "terms" | "privacy" | null
 
   const navItems = [
     { id: "account",        label: t("account"),       iconEl: <UserCircle size={18} /> },
@@ -1958,6 +1961,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       Ko-fi
                     </Button>
                   </div>
+                  <div style={{ marginTop: 10 }}>
+                    <LegalLinks onPage={setLegalPage} t={t} />
+                  </div>
+                  <LegalModal page={legalPage} onPage={setLegalPage} t={t} />
                 </div>
 
                 {/* Contributors */}

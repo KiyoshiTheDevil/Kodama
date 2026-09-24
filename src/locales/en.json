@@ -171,6 +171,8 @@
   "extSettingShow": "Show",
   "extSettingHide": "Hide",
   "extSettingsNote": "These values are kept by the extension they belong to, and removed with it.",
+  "legalTerms": "Terms of Service",
+  "legalPrivacy": "Privacy Policy",
   "storeBack": "Back",
   "storeVersion": "Version",
   "storeValues": "Values",

@@ -175,3 +175,16 @@ footer a:hover { color:var(--t1); }
   border-radius:9px; padding:8px 14px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
   white-space:nowrap; overflow-x:auto; max-width:100%; box-sizing:border-box; }
 .mac-install .mac-note { margin:0; font-size:12px; color:var(--t3); max-width:440px; }
+
+/* Legal pages (terms.html, privacy.html): long-form reading text. */
+.legal { max-width:720px; margin:0 auto; color:var(--t2); font-size:15px; line-height:1.65; }
+.legal h2 { color:var(--t1); font-size:19px; font-weight:600; margin:38px 0 10px; }
+.legal h3 { color:var(--t1); font-size:15.5px; font-weight:600; margin:24px 0 6px; }
+.legal p { margin:0 0 12px; }
+.legal ul { margin:0 0 14px; padding-left:22px; }
+.legal li { margin:4px 0; }
+.legal strong { color:var(--t1); font-weight:600; }
+.legal a { color:var(--accent); }
+.legal a:hover { text-decoration:underline; }
+.legal code { font-size:13px; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:4px; }
+.legal .updated { color:var(--t3); font-size:13px; text-align:center; margin:-18px 0 24px; }
