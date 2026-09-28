@@ -38,6 +38,15 @@
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
+  ; The backend keeps its own copy of Node (and the PO-token generator) outside the install
+  ; directory, so the slim update installer can leave node.exe out. That copy is ours alone and
+  ; about 90 MB: a real uninstall takes it along, profiles and settings next to it stay. An update
+  ; runs this old uninstaller with /UPDATE, and then the copy must survive, or the slim update
+  ; would leave Kodama without Node.
+  ${If} $UpdateMode <> 1
+    RMDir /r "$LOCALAPPDATA\${BUNDLEID}\runtime"
+  ${EndIf}
+
   ; Remove kiyoshi-audio temp folder (used by the audio backend)
   RMDir /r "$TEMP\kiyoshi-audio"
 

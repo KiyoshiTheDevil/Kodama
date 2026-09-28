@@ -10,6 +10,13 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+Changes:
+- Updates on Windows are much smaller, since the bundled Node runtime is no longer downloaded again with every update
+- Terms of Service and Privacy Policy can be found under About
+
+Fixes:
+- Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
+
 ## [1.0.0-alpha.41] - 2026-09-22
 
 Fixes:

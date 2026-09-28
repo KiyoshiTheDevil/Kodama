@@ -111,6 +111,34 @@ jobs:
           cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*_x64-setup.exe out/
           cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*_x64-setup.exe.sig out/
           ls -la out
+      # A second installer for in-app updates, without node.exe. Node is 81 of about 130 MB and
+      # never changes (pinned); since alpha.38 the backend keeps its own copy under
+      # %LOCALAPPDATA%\dev.kodama.music\runtime and fetches it (checksum-verified) when missing.
+      # The full setup above stays the download for new installs; latest.json points here.
+      # The bundle config is compiled into the app, so this rebuilds the app crate once more;
+      # the dependencies come from the cache of the build above.
+      - name: Build slim update installer (no node.exe)
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -e
+          CFG=src-tauri/tauri.windows.conf.json
+          jq 'del(.bundle.resources["resources/node.exe"])' "$CFG" > "$CFG.tmp" && mv "$CFG.tmp" "$CFG"
+          echo "slim windows conf:"; cat "$CFG"
+          NSIS=src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
+          rm -f "$NSIS"/*_x64-setup.exe "$NSIS"/*_x64-setup.exe.sig
+          npx tauri build --target x86_64-pc-windows-msvc --bundles nsis
+          EXE=$(ls "$NSIS"/*_x64-setup.exe | head -1)
+          UPD="out/$(basename "$EXE" _x64-setup.exe)_x64-update.exe"
+          cp "$EXE" "$UPD"
+          cp "$EXE.sig" "$UPD.sig"
+          # The point of the whole step: fail loudly if Node slipped back in.
+          FULL=$(stat -c %s out/*_x64-setup.exe); SLIM=$(stat -c %s "$UPD")
+          echo "full: $FULL bytes, slim: $SLIM bytes"
+          [ "$SLIM" -lt $((FULL - 50000000)) ] || { echo "::error::slim installer is not smaller by the size of node.exe"; exit 1; }
+          ls -la out
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -246,10 +274,13 @@ jobs:
 
           WIN_EXE=$(ls dl/windows/*_x64-setup.exe | head -1)
           WIN_SIG="$WIN_EXE.sig"
+          # The updater gets the slim installer (no node.exe); the full one is for new installs.
+          WIN_UPD=$(ls dl/windows/*_x64-update.exe | head -1)
+          WIN_UPD_SIG="$WIN_UPD.sig"
           DMG=$(ls dl/macos/*.dmg | head -1)
           MAC_TGZ=$(ls dl/macos/*.app.tar.gz | head -1)
           MAC_SIG="$MAC_TGZ.sig"
-          for f in "$WIN_EXE" "$WIN_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG"; do
+          for f in "$WIN_EXE" "$WIN_SIG" "$WIN_UPD" "$WIN_UPD_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG"; do
             [ -f "$f" ] || { echo "::error::missing artifact $f"; ls -R dl; exit 1; }
           done
 
@@ -261,7 +292,7 @@ jobs:
 
           gh release view "$TAG" --repo "$DIST" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$DIST" --title "Kodama $TAG" --notes "$NOTES" $PRE
-          gh release upload "$TAG" "$WIN_EXE" "$WIN_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG" --repo "$DIST" --clobber
+          gh release upload "$TAG" "$WIN_EXE" "$WIN_SIG" "$WIN_UPD" "$WIN_UPD_SIG" "$DMG" "$MAC_TGZ" "$MAC_SIG" --repo "$DIST" --clobber
 
           # Public dist repo: plain browser_download_url works (no token needed).
           base_url="https://github.com/$DIST/releases/download/$TAG"
@@ -269,7 +300,7 @@ jobs:
             --arg version "v${VERSION}" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg notes "$NOTES" \
-            --arg wurl "$base_url/$(basename "$WIN_EXE")" --arg wsig "$(cat "$WIN_SIG")" \
+            --arg wurl "$base_url/$(basename "$WIN_UPD")" --arg wsig "$(cat "$WIN_UPD_SIG")" \
             --arg murl "$base_url/$(basename "$MAC_TGZ")" --arg msig "$(cat "$MAC_SIG")" \
             '{version:$version, pub_date:$pub_date, notes:$notes,
               platforms:{

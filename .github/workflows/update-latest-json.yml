@@ -56,8 +56,13 @@ jobs:
           fi
 
           ASSETS=$(echo "$RELEASE" | jq '.assets')
-          EXE_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe")) | .browser_download_url' | head -1)
-          SIG_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe.sig")) | .browser_download_url' | head -1)
+          # The slim update installer (no node.exe) when the release has one, else the full setup.
+          EXE_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-update.exe")) | .browser_download_url' | head -1)
+          SIG_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-update.exe.sig")) | .browser_download_url' | head -1)
+          if [ -z "$EXE_URL" ] || [ "$EXE_URL" = "null" ]; then
+            EXE_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe")) | .browser_download_url' | head -1)
+            SIG_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x64-setup.exe.sig")) | .browser_download_url' | head -1)
+          fi
 
           echo "EXE URL: $EXE_URL"
           echo "SIG URL: $SIG_URL"
