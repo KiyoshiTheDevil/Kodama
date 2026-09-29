@@ -15,6 +15,7 @@ import { Tooltip } from "../ui/tooltip.jsx";
 import { LyricsToolChips, OffsetChips, SourceChip } from "./tool-chips.jsx";
 import { useLyricOffset } from "./offset.js";
 import { useLyricsPrefs } from "../preferences.jsx";
+import { BraccatoLyricsView } from "./braccato-view.jsx";
 
 // How much the active line grows in fluid mode. Needed as a constant because a translation
 // aligned to the growing edge has to be pulled back by exactly this amount.
@@ -39,7 +40,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const {
     showTranslation, translationLang, translationFontSize,
     showRomaji, romajiFontSize, showAgentTags,
-    syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground,
+    syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics,
   } = useLyricsPrefs();
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
   // bottom-anchored chips above it while it's visible so they aren't covered.
@@ -582,6 +583,22 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
 
   const activeIdx = lastIdxRef.current;
   const lyricsSynced = !!(lyrics && lyrics.some(l => (l.time ?? -1) >= 0));
+  // Experiment: Braccato (the Better Lyrics engine) draws synced lyrics instead. It brings its own
+  // scrolling and its own manual-scroll detection, so Kodama's centring, spring and wheel watcher
+  // below stand down while it is on. Unsynced lyrics stay with Kodama: there is nothing to animate.
+  const braccatoOn = !!braccatoLyrics && lyricsSynced;
+  const braccatoResumeRef = useRef(null);
+  const braccatoClock = useCallback(() => {
+    const { ct, pt, playing } = audioSnapRef.current;
+    return { t: Math.max(0, (playing ? ct + (performance.now() - pt) / 1000 : ct) - offsetRef.current), playing };
+  }, [offsetRef]);
+  const braccatoSeek = useCallback((timeS) => {
+    if (audioRef.current) audioRef.current.currentTime = Math.max(0, timeS + offsetRef.current);
+  }, [audioRef, offsetRef]);
+  const braccatoUserScrolling = useCallback((v) => {
+    userScrollingRef.current = v;
+    setUserScrolling(v);
+  }, []);
 
   // Unique agents in order of first appearance (only when ≥2 distinct named agents)
   const lyricsAgents = useMemo(() => {
@@ -640,7 +657,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   useEffect(() => {
     // Paused while the user is manually scrolling — resumed explicitly via the "Resume
     // autoscroll" button (which flips userScrolling back off, re-running this effect).
-    if (userScrolling) return;
+    if (userScrolling || braccatoOn) return;
     if (activeIdx < 0 || !containerRef.current) return;
     const container = containerRef.current;
     // Fluid wraps each line in a will-change:transform div (its own offsetParent), so the
@@ -679,11 +696,11 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         else { scrollTargetRef.current = t2; scrollPosRef.current = t2; scrollVelRef.current = 0; container.scrollTop = t2; }
       });
     }
-  }, [activeIdx, fluidLyrics, userScrolling]);
+  }, [activeIdx, fluidLyrics, userScrolling, braccatoOn]);
 
   useEffect(() => {
     // Same reason as the paint loop: no point running the spring for an off-screen pane.
-    if (!fluidLyrics || !active) return;
+    if (!fluidLyrics || !active || braccatoOn) return;
     const container = containerRef.current;
     if (!container) return;
     scrollPosRef.current = container.scrollTop;
@@ -764,7 +781,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       container.removeEventListener("touchmove", onUserScroll);
       wraps.forEach(w => { w.style.transform = ""; });
     };
-  }, [fluidLyrics, lyrics, active]);
+  }, [fluidLyrics, lyrics, active, braccatoOn]);
 
   // Manual-scroll detection for non-fluid mode (fluid mode's own rAF loop above already
   // covers this, plus its physics bookkeeping). Only wheel/touchmove count as "the user
@@ -772,7 +789,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   // container.scrollTo()/scrollTop writes and would immediately re-pause right after we
   // resume.
   useEffect(() => {
-    if (fluidLyrics) return;
+    if (fluidLyrics || braccatoOn) return;
     const container = containerRef.current;
     if (!container) return;
     const onUserScroll = () => {
@@ -784,11 +801,12 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       container.removeEventListener("wheel", onUserScroll);
       container.removeEventListener("touchmove", onUserScroll);
     };
-  }, [fluidLyrics]);
+  }, [fluidLyrics, braccatoOn]);
 
   const resumeAutoscroll = useCallback(() => {
     userScrollingRef.current = false;
     setUserScrolling(false);
+    braccatoResumeRef.current?.();
   }, []);
 
   return (
@@ -929,7 +947,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       <div ref={containerRef} className="lyrics-scroll" data-scroll-active={scrollActive ? "true" : "false"}
         style={{
           position: "relative", zIndex: 1, flex: 1,
-          ...(lyrics ? {
+          ...(lyrics && braccatoOn ? {
+            // Braccato measures and writes the room it needs above and below the lines itself.
+            overflowY: "auto", padding: "0 80px",
+          } : lyrics ? {
             // With lyrics: scrollable, 40vh top/bottom padding so the active line can sit centred.
             overflowY: "auto", padding: "40vh 80px 40vh",
             // Fluid: soft top/bottom edge-fade so lines dissolve instead of hard-clipping.
@@ -989,7 +1010,22 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             </button>
           </div>
         )}
-        {lyrics && lyrics.map((line, i) => {
+        {lyrics && braccatoOn && (
+          <BraccatoLyricsView
+            lines={lyrics}
+            translations={showTranslation ? translations : null}
+            romaji={showRomaji ? romajiLines : null}
+            translationLang={translationLang}
+            fontSize={fontSize}
+            active={active}
+            clock={braccatoClock}
+            onSeek={braccatoSeek}
+            scrollRef={containerRef}
+            onUserScrolling={braccatoUserScrolling}
+            resumeRef={braccatoResumeRef}
+          />
+        )}
+        {lyrics && !braccatoOn && lyrics.map((line, i) => {
           const isActive   = i === activeIdx;
           const isTrailing = i === trailingIdx; // previous line still playing while new one is active
           const isPast     = i < activeIdx && !isTrailing;

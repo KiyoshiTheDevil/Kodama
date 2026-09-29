@@ -1064,6 +1064,8 @@
   "rtlLayoutDesc": "Flips the interface for languages such as Hebrew or Arabic. Kodama is not built for this yet, so plenty will sit in the wrong place. Here to be tried out and reported on.",
   "sharpCorners": "Sharp corners",
   "sharpCornersDesc": "Squares every corner in the app. A test for the theme work: what stays round is what does not yet follow the theme.",
+  "braccatoLyrics": "Better Lyrics engine (Braccato)",
+  "braccatoLyricsDesc": "Synced lyrics are drawn by Braccato, the engine behind Better Lyrics, instead of Kodama's own view. A first try, so some things may look or behave differently.",
   "ovlEditorTitle": "Overlay Editor",
   "ovlMenuPrefs": "Preferences",
   "ovlPlaceImage": "Place image",

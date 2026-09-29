@@ -26,6 +26,7 @@ export const LYRICS_PREFS_DEFAULTS = {
   showAgentTags:       true,
   syllableZoom:        false,
   fluidLyrics:         true,
+  braccatoLyrics:      false,
   ambientVisualizer:   true,
   ambientBackground:   false,
 };

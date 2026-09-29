@@ -1,0 +1,14 @@
+/* Kodama's side of the Braccato experiment. Braccato's own sheets carry the lines and the sweep;
+   this only fits them into Kodama's lyrics pane. */
+
+/* The element has no display of its own. */
+braccato-lyrics {
+  display: block;
+  --blyrics-default-font-family: var(--font);
+}
+
+/* Braccato measures how much room the first line needs to reach the scroll target and writes it as
+   --blyrics-padding-top, but its own sheet only spends the bottom one. */
+braccato-lyrics .blyrics-container {
+  padding-top: var(--blyrics-padding-top, 2rem);
+}

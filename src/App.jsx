@@ -4097,6 +4097,8 @@ export default function App() {
   const [showRomaji, setShowRomaji] = usePersistedState("kiyoshi-lyrics-romaji", false);
   const [syllableZoom, setSyllableZoom] = usePersistedState("kiyoshi-lyrics-syllable-zoom", false);
   const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", true);
+  // Experiment: draw synced lyrics with Braccato, the Better Lyrics engine (src/lyrics/braccato-view.jsx).
+  const [braccatoLyrics, setBraccatoLyrics] = usePersistedState("kiyoshi-lyrics-braccato", false);
   const [videoSyncEnabled, setVideoSyncEnabled] = usePersistedState("kiyoshi-video-sync", false);
   // "auto" = best available; otherwise a max-height cap (string, matches <select>/ToggleButton
   // values) for users on a weaker/metered connection.
@@ -5862,9 +5864,10 @@ export default function App() {
     fluidLyrics,
     ambientVisualizer,
     ambientBackground,
+    braccatoLyrics,
   }), [showLyricsTranslation, setShowLyricsTranslation, lyricsTranslationLang, setLyricsTranslationLang,
        lyricsTranslationFontSize, showRomaji, setShowRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
-       fluidLyrics, ambientVisualizer, ambientBackground]);
+       fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics]);
 
   const playbackPrefs = useMemo(() => ({
     crossfade,
@@ -6480,6 +6483,8 @@ export default function App() {
             onToggleSyllableZoom={() => setSyllableZoom(v => !v)}
             fluidLyrics={fluidLyrics}
             onToggleFluidLyrics={() => setFluidLyrics(v => !v)}
+            braccatoLyrics={braccatoLyrics}
+            onToggleBraccatoLyrics={() => setBraccatoLyrics(v => !v)}
             videoSyncEnabled={videoSyncEnabled}
             onToggleVideoSync={() => setVideoSyncEnabled(v => !v)}
             videoSyncQuality={videoSyncQuality}

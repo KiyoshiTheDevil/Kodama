@@ -9,6 +9,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@braccato/core": "1.15.3",
     "@heroui/react": "^3.1.0",
     "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
     "@phosphor-icons/react": "^2.1.10",
