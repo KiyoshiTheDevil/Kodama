@@ -127,6 +127,12 @@ function decorate(core, container, lines, { translations, romaji, translationLan
   return changed;
 }
 
+// Braccato reads its behaviour switches from comments in the theme stylesheet, and only from there.
+// The letter wave (each letter floats up as the word is sung) is on by default; Kodama writes the
+// switch either way so turning it back on does not depend on an empty theme restoring the default.
+// A comment setting holds one value for every view on the page, the stage included.
+const themeFor = ({ letterWave = true } = {}) => `/* blyrics-letter-wave = ${letterWave ? "true" : "false"}; */`;
+
 // Kodama's own size settings for the lines under a lyric. Braccato sizes the translation with
 // --blyrics-translated-font-size and derives the romanization from it; Kodama keeps two settings,
 // so the romanization gets its own size back.
@@ -162,7 +168,7 @@ function useDecorations({ core, getRenderer, getContainer, lines, translations, 
 // onto Kodama's "Resume autoscroll" pill, and `resumeRef.current()` resumes it from there.
 export function BraccatoLyricsView({
   lines, translations, romaji, translationLang, fontSize, translationFontSize, romajiFontSize, active,
-  clock, onSeek, scrollRef, onUserScrolling, resumeRef,
+  letterWave = true, clock, onSeek, scrollRef, onUserScrolling, resumeRef,
 }) {
   const [core, setCore] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -206,6 +212,12 @@ export function BraccatoLyricsView({
   useEffect(() => {
     if (core && elRef.current) elRef.current.lyrics = data;
   }, [core, data]);
+
+  // Changing the letter wave makes Braccato rebuild the lines, which fires lyrics-loaded, so the
+  // translations are hung back on by the decorations below.
+  useEffect(() => {
+    if (core && elRef.current) elRef.current.theme = themeFor({ letterWave });
+  }, [core, letterWave]);
 
   // Braccato measures the room above the first line (and below the last) from the height of the
   // scroll element, but only follows resizes of its own lines, not of that element. Kodama's pane
@@ -276,7 +288,7 @@ export function BraccatoLyricsView({
 // The shade behind the captions is Kodama's, not the theme's: Braccato reports where the sung lines
 // are (onStageLayout), and the shade shows only while something is on stage, so a bright video
 // stays readable without a dark band sitting there through every instrumental.
-export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, clock }) {
+export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, letterWave = true, clock }) {
   const mountRef = useRef(null);
   const rendererRef = useRef(null);
   const [core, setCore] = useState(null);
@@ -320,6 +332,17 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
     rendererRef.current.setLyrics(data, { mount: mountRef.current });
     setBuilt(n => n + 1);
   }, [core, data]);
+
+  // setTheme answers whether the lines need building again; if so they are rebuilt here and the
+  // decorations follow the build count.
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!core || !r || !mountRef.current) return;
+    if (r.setTheme(themeFor({ letterWave }))) {
+      r.setLyrics(data, { mount: mountRef.current });
+      setBuilt(n => n + 1);
+    }
+  }, [core, letterWave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const retick = () => {
     const now = live.current.clock?.();

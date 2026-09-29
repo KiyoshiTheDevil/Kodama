@@ -1066,6 +1066,8 @@
   "sharpCornersDesc": "Squares every corner in the app. A test for the theme work: what stays round is what does not yet follow the theme.",
   "braccatoLyrics": "Better Lyrics engine (Braccato)",
   "braccatoLyricsDesc": "Synced lyrics are drawn by Braccato, the engine behind Better Lyrics, instead of Kodama's own view. A first try, so some things may look or behave differently.",
+  "braccatoLetterWave": "Letter wave",
+  "braccatoLetterWaveDesc": "While a word is sung, its letters float up one after another, a wave running through the word. Braccato only.",
   "ovlEditorTitle": "Overlay Editor",
   "ovlMenuPrefs": "Preferences",
   "ovlPlaceImage": "Place image",

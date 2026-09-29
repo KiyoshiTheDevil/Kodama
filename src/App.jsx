@@ -4099,6 +4099,7 @@ export default function App() {
   const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", true);
   // Experiment: draw synced lyrics with Braccato, the Better Lyrics engine (src/lyrics/braccato-view.jsx).
   const [braccatoLyrics, setBraccatoLyrics] = usePersistedState("kiyoshi-lyrics-braccato", false);
+  const [braccatoLetterWave, setBraccatoLetterWave] = usePersistedState("kiyoshi-lyrics-braccato-letterwave", true);
   const [videoSyncEnabled, setVideoSyncEnabled] = usePersistedState("kiyoshi-video-sync", false);
   // "auto" = best available; otherwise a max-height cap (string, matches <select>/ToggleButton
   // values) for users on a weaker/metered connection.
@@ -5865,9 +5866,10 @@ export default function App() {
     ambientVisualizer,
     ambientBackground,
     braccatoLyrics,
+    braccatoLetterWave,
   }), [showLyricsTranslation, setShowLyricsTranslation, lyricsTranslationLang, setLyricsTranslationLang,
        lyricsTranslationFontSize, showRomaji, setShowRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
-       fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics]);
+       fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics, braccatoLetterWave]);
 
   const playbackPrefs = useMemo(() => ({
     crossfade,
@@ -6279,7 +6281,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} language={language} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave} language={language} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (
@@ -6485,6 +6487,8 @@ export default function App() {
             onToggleFluidLyrics={() => setFluidLyrics(v => !v)}
             braccatoLyrics={braccatoLyrics}
             onToggleBraccatoLyrics={() => setBraccatoLyrics(v => !v)}
+            braccatoLetterWave={braccatoLetterWave}
+            onToggleBraccatoLetterWave={() => setBraccatoLetterWave(v => !v)}
             videoSyncEnabled={videoSyncEnabled}
             onToggleVideoSync={() => setVideoSyncEnabled(v => !v)}
             videoSyncQuality={videoSyncQuality}

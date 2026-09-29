@@ -1066,6 +1066,8 @@
   "sharpCornersDesc": "Macht alle Ecken der App eckig. Ein Test für die Theme-Arbeit: Was rund bleibt, folgt dem Theme noch nicht.",
   "braccatoLyrics": "Better-Lyrics-Engine (Braccato)",
   "braccatoLyricsDesc": "Synchronisierte Lyrics werden von Braccato gezeichnet, der Engine hinter Better Lyrics, statt von Kodamas eigener Ansicht. Ein erster Versuch, manches kann anders aussehen oder sich anders verhalten.",
+  "braccatoLetterWave": "Buchstabenwelle",
+  "braccatoLetterWaveDesc": "Während ein Wort gesungen wird, heben sich seine Buchstaben nacheinander, wie eine Welle durch das Wort. Nur mit Braccato.",
   "ovlEditorTitle": "Overlay Editor",
   "ovlMenuPrefs": "Einstellungen",
   "ovlPlaceImage": "Bild platzieren",

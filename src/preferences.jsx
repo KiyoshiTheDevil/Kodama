@@ -27,6 +27,7 @@ export const LYRICS_PREFS_DEFAULTS = {
   syllableZoom:        false,
   fluidLyrics:         true,
   braccatoLyrics:      false,
+  braccatoLetterWave:  true,
   ambientVisualizer:   true,
   ambientBackground:   false,
 };

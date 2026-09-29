@@ -432,7 +432,7 @@ function KaraokeLine({ line, timeRef, fluid, syllableZoom, mainFontSize, bgFontS
 // Bottom-third caption strip — an alternative to the split-with-lyrics view for users who'd
 // rather keep the video full-size. fluid=true (mirrors the app's own "fluid lyrics" setting)
 // swaps the plain crossfade for a softer blur/glow entrance on each line change.
-function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef, braccato = false }) {
+function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef, braccato = false, braccatoLetterWave = true }) {
   const { mainLine, trailingLine, translation, romaji, timeRef, snapRef, lines, source, submitterName, applyLyrics, translationsAll, romajiAll } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji, offsetRef);
   // Experiment: Braccato's stage draws the captions. The clock is the one this hook already keeps
   // (offset applied), so both caption paths answer to the same time.
@@ -476,6 +476,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
         fontSize={30}
         translationFontSize={19}
         romajiFontSize={18}
+        letterWave={braccatoLetterWave}
         clock={braccatoClock} />
     );
   }
@@ -553,7 +554,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, braccatoCaptions = false, language = "en" }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, braccatoCaptions = false, braccatoLetterWave = true, language = "en" }) {
   // The caption toggles live here too: this view renders lyrics through its own path, so
   // without them the settings the lyrics view offers would be unreachable while a video
   // is on screen. Revealed on cursor activity — a permanent bar over a video is intrusive.
@@ -602,7 +603,7 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
           </Button>
         </div>
       )}
-      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef} braccato={braccatoCaptions}
+      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef} braccato={braccatoCaptions} braccatoLetterWave={braccatoLetterWave}
         onSourceChange={(name, submitter) => setCapSource({ name, submitter })} />}
       {showCaptions && (
         <div style={{

@@ -40,7 +40,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const {
     showTranslation, translationLang, translationFontSize,
     showRomaji, romajiFontSize, showAgentTags,
-    syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics,
+    syllableZoom, fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics, braccatoLetterWave,
   } = useLyricsPrefs();
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
   // bottom-anchored chips above it while it's visible so they aren't covered.
@@ -1021,6 +1021,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             fontSize={fontSize}
             translationFontSize={translationFontSize}
             romajiFontSize={romajiFontSize}
+            letterWave={braccatoLetterWave}
             active={active}
             clock={braccatoClock}
             onSeek={braccatoSeek}
