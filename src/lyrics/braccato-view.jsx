@@ -9,15 +9,18 @@
 // for them.
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// Resolves to the engine's facade (createLyricsRenderer, injectTranslation, injectRomanization),
+// with the element registered and the stylesheets in.
 let loading = null;
 function loadBraccato() {
   loading ??= Promise.all([
+    import("@braccato/core"),
     import("@braccato/core/element"),
     import("@braccato/core/styles/variables.css"),
     import("@braccato/core/styles/lyrics.css"),
     import("@braccato/core/styles/instrumental.css"),
     import("./braccato-view.css"),
-  ]);
+  ]).then(([core]) => core);
   return loading;
 }
 
@@ -25,11 +28,7 @@ function loadBraccato() {
 // layout "stage" and ticked by hand. Its placement sheet comes with it.
 let loadingStage = null;
 function loadBraccatoStage() {
-  loadingStage ??= Promise.all([
-    loadBraccato(),
-    import("@braccato/core/styles/stage.css"),
-    import("@braccato/core"),
-  ]).then(([, , core]) => core);
+  loadingStage ??= Promise.all([loadBraccato(), import("@braccato/core/styles/stage.css")]).then(([core]) => core);
   return loadingStage;
 }
 
@@ -38,6 +37,7 @@ function loadBraccatoStage() {
 const AGENT = { lead: "v1", featured: "v2", group: "v1000" };
 
 const ms = (s) => Math.max(0, Math.round(s * 1000));
+const lineText = (line) => line.wordSync ? (line.words || []).map(w => w.text).join("") : (line.text || "");
 
 // Kodama keeps a space as a word of its own; Braccato expects it on the end of the word before, the
 // way Better Lyrics' own lyrics carry it. A space with no word before it is dropped.
@@ -59,10 +59,12 @@ function toParts(words, background) {
 }
 
 // Kodama's lines are { time, endTime, text | words[], bgWords?, agentRole? } in seconds.
-export function toBraccatoLyrics(lines, { translations, romaji, translationLang } = {}) {
+// Translations and romaji are not part of this: Braccato builds a line from its words alone and
+// takes what goes under it afterwards (see decorate below).
+export function toBraccatoLyrics(lines) {
   if (!Array.isArray(lines)) return [];
   return lines.map((line, i) => {
-    const text = line.wordSync ? (line.words || []).map(w => w.text).join("") : (line.text || "");
+    const text = lineText(line);
     const next = lines[i + 1]?.time;
     const end = line.endTime ?? (next != null && next > line.time ? next : line.time + 5);
     const out = {
@@ -80,17 +82,46 @@ export function toBraccatoLyrics(lines, { translations, romaji, translationLang 
     }
     if (parts.length) out.parts = parts;
     if (line.agentRole && AGENT[line.agentRole]) out.agent = AGENT[line.agentRole];
-    const tr = translations?.[i];
-    if (tr && tr !== text) out.translation = { text: tr, lang: (translationLang || "").toLowerCase() };
-    if (romaji?.[i]) out.romanization = romaji[i];
     return out;
   });
 }
 
-// `clock()` returns { t, playing }, t already shifted by the lyrics offset. `onSeek(t)` is handed
-// that same kind of time back. `scrollRef` is the container that scrolls, which Braccato would
-// otherwise have to guess. `onUserScrolling(bool)` mirrors Braccato's own manual-scroll detection
-// onto Kodama's "Resume autoscroll" pill, and `resumeRef.current()` resumes it from there.
+const TRANSLATED = "blyrics--translated";
+const ROMANIZED = "blyrics--romanized";
+
+// Hangs translations and romaji onto lines Braccato has already built, the way Better Lyrics itself
+// does it: they arrive from the backend after the lyrics, and Braccato draws a line from its words
+// alone, so the `translation` and `romanization` fields of a lyric are never read. What is already
+// there and still right stays; what changed or was switched off goes. Braccato builds exactly one
+// element per lyric, in order, so line i is the i-th line element.
+// Returns whether anything changed, so the caller only asks for a relayout when it has to.
+function decorate(core, container, lines, { translations, romaji, translationLang }) {
+  if (!container) return false;
+  const els = container.querySelectorAll(":scope > .blyrics--line");
+  const lang = (translationLang || "").toLowerCase() || null;
+  let changed = false;
+  els.forEach((el, i) => {
+    const line = lines[i];
+    if (!line) return;
+    const text = lineText(line);
+    const wantRo = romaji?.[i] && romaji[i] !== text ? romaji[i] : null;
+    const wantTr = translations?.[i] && translations[i] !== text ? translations[i] : null;
+    const ro = el.querySelector(`:scope > .${ROMANIZED}`);
+    if (ro && ro.textContent !== wantRo) { ro.remove(); changed = true; }
+    const tr = el.querySelector(`:scope > .${TRANSLATED}`);
+    // Compared against what Kodama asked for, not tr.lang: Braccato normalises the tag it writes.
+    if (tr && (tr.textContent !== wantTr || tr.dataset.kodamaLang !== String(lang))) { tr.remove(); changed = true; }
+    if (wantRo && !el.querySelector(`:scope > .${ROMANIZED}`)) { core.injectRomanization(document, el, null, wantRo); changed = true; }
+    if (wantTr && !el.querySelector(`:scope > .${TRANSLATED}`)) {
+      core.injectTranslation(document, el, wantTr, lang);
+      const added = el.querySelector(`:scope > .${TRANSLATED}`);
+      if (added) added.dataset.kodamaLang = String(lang);
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 // Kodama's own size settings for the lines under a lyric. Braccato sizes the translation with
 // --blyrics-translated-font-size and derives the romanization from it; Kodama keeps two settings,
 // so the romanization gets its own size back.
@@ -99,12 +130,38 @@ const subSizes = (translationFontSize, romajiFontSize) => ({
   ...(romajiFontSize ? { "--kodama-romaji-size": `${romajiFontSize}px` } : {}),
 });
 
+// Keeps the decorations in step with what Kodama has. Runs when the lines were (re)built and when
+// the translations, romaji or their language change. After a change the renderer is asked to catch
+// the layout up, which floats the new line in while its neighbours slide to make room instead of
+// the lyric jumping down. Tried once more on the next frame if the lines were not built yet.
+function useDecorations({ core, getRenderer, getContainer, lines, translations, romaji, translationLang, built, isTicking, retick }) {
+  useEffect(() => {
+    if (!core || !built) return;
+    let raf = 0;
+    const apply = () => {
+      const container = getContainer();
+      if (!container?.querySelector(".blyrics--line")) return false;
+      if (decorate(core, container, lines, { translations, romaji, translationLang })) {
+        getRenderer()?.scheduleLyricPositionUpdate(isTicking, retick);
+      }
+      return true;
+    };
+    if (!apply()) raf = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(raf);
+  }, [core, built, lines, translations, romaji, translationLang]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// `clock()` returns { t, playing }, t already shifted by the lyrics offset. `onSeek(t)` is handed
+// that same kind of time back. `scrollRef` is the container that scrolls, which Braccato would
+// otherwise have to guess. `onUserScrolling(bool)` mirrors Braccato's own manual-scroll detection
+// onto Kodama's "Resume autoscroll" pill, and `resumeRef.current()` resumes it from there.
 export function BraccatoLyricsView({
   lines, translations, romaji, translationLang, fontSize, translationFontSize, romajiFontSize, active,
   clock, onSeek, scrollRef, onUserScrolling, resumeRef,
 }) {
-  const [ready, setReady] = useState(false);
+  const [core, setCore] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [built, setBuilt] = useState(0);
   const elRef = useRef(null);
   // Read live by the engine's host callbacks, which are handed over once.
   const live = useRef({});
@@ -113,19 +170,16 @@ export function BraccatoLyricsView({
   useEffect(() => {
     let alive = true;
     loadBraccato()
-      .then(() => { if (alive) setReady(true); })
+      .then((c) => { if (alive) setCore(c); })
       .catch((e) => { console.error("[braccato] could not load the engine", e); if (alive) setFailed(true); });
     return () => { alive = false; };
   }, []);
 
-  const data = useMemo(
-    () => toBraccatoLyrics(lines, { translations, romaji, translationLang }),
-    [lines, translations, romaji, translationLang],
-  );
+  const data = useMemo(() => toBraccatoLyrics(lines), [lines]);
 
   useEffect(() => {
     const el = elRef.current;
-    if (!ready || !el) return;
+    if (!core || !el) return;
     el.host = {
       getScrollElement: () => scrollRef.current,
       seek: (s) => live.current.onSeek?.(s),
@@ -134,13 +188,30 @@ export function BraccatoLyricsView({
       setResumeAffordanceVisible: (v) => live.current.onUserScrolling?.(v),
     };
     const onError = (e) => console.error("[braccato]", e.detail?.phase, e.detail?.error);
+    // Also fires when a rebuild replaced the lines, which takes their decorations with them.
+    const onLoaded = () => setBuilt(n => n + 1);
     el.addEventListener("braccato:error", onError);
-    return () => el.removeEventListener("braccato:error", onError);
-  }, [ready, scrollRef]);
+    el.addEventListener("braccato:lyrics-loaded", onLoaded);
+    return () => {
+      el.removeEventListener("braccato:error", onError);
+      el.removeEventListener("braccato:lyrics-loaded", onLoaded);
+    };
+  }, [core, scrollRef]);
 
   useEffect(() => {
-    if (ready && elRef.current) elRef.current.lyrics = data;
-  }, [ready, data]);
+    if (core && elRef.current) elRef.current.lyrics = data;
+  }, [core, data]);
+
+  useDecorations({
+    core, built, lines, translations, romaji, translationLang,
+    getRenderer: () => elRef.current?.renderer,
+    getContainer: () => elRef.current?.renderer?.container || elRef.current?.querySelector(".blyrics-container"),
+    isTicking: () => !!live.current.active,
+    retick: () => {
+      const el = elRef.current, now = live.current.clock?.();
+      if (el && now) el.currentTime = now.t;
+    },
+  });
 
   useEffect(() => {
     if (resumeRef) resumeRef.current = () => elRef.current?.renderer?.resumeAutoscroll();
@@ -149,7 +220,7 @@ export function BraccatoLyricsView({
   // The clock. Braccato renders on every write of currentTime, so this is its frame loop, and like
   // every loop in Kodama it stops while the lyrics are not on screen.
   useEffect(() => {
-    if (!ready || !active) return;
+    if (!core || !active) return;
     let raf = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
@@ -161,10 +232,10 @@ export function BraccatoLyricsView({
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [ready, active]);
+  }, [core, active]);
 
   if (failed) return <div style={{ textAlign: "center", color: "var(--text-muted)" }}>Braccato could not be loaded.</div>;
-  if (!ready) return null;
+  if (!core) return null;
   return (
     <braccato-lyrics
       ref={elRef}
@@ -183,7 +254,8 @@ export function BraccatoLyricsView({
 export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, clock }) {
   const mountRef = useRef(null);
   const rendererRef = useRef(null);
-  const [ready, setReady] = useState(false);
+  const [core, setCore] = useState(null);
+  const [built, setBuilt] = useState(0);
   const [onStage, setOnStage] = useState(false);
   const live = useRef({});
   live.current = { clock };
@@ -192,9 +264,9 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
     let alive = true;
     let renderer = null;
     loadBraccatoStage()
-      .then(({ createLyricsRenderer }) => {
+      .then((c) => {
         if (!alive || !mountRef.current) return;
-        renderer = createLyricsRenderer({
+        renderer = c.createLyricsRenderer({
           document, window,
           mount: mountRef.current,
           layout: "stage",
@@ -206,7 +278,7 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
           },
         });
         rendererRef.current = renderer;
-        setReady(true);
+        setCore(c);
       })
       .catch((e) => console.error("[braccato] could not load the stage", e));
     return () => {
@@ -216,28 +288,39 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
     };
   }, []);
 
-  const data = useMemo(
-    () => toBraccatoLyrics(lines, { translations, romaji, translationLang }),
-    [lines, translations, romaji, translationLang],
-  );
+  const data = useMemo(() => toBraccatoLyrics(lines), [lines]);
 
   useEffect(() => {
-    if (ready && rendererRef.current && mountRef.current) rendererRef.current.setLyrics(data, { mount: mountRef.current });
-  }, [ready, data]);
+    if (!core || !rendererRef.current || !mountRef.current) return;
+    rendererRef.current.setLyrics(data, { mount: mountRef.current });
+    setBuilt(n => n + 1);
+  }, [core, data]);
+
+  const retick = () => {
+    const now = live.current.clock?.();
+    if (now) rendererRef.current?.tick(now.t, { isPlaying: now.playing });
+  };
+
+  useDecorations({
+    core, built, lines, translations, romaji, translationLang,
+    getRenderer: () => rendererRef.current,
+    getContainer: () => rendererRef.current?.container || mountRef.current?.querySelector(".blyrics-container"),
+    isTicking: () => true,
+    retick,
+  });
 
   // The stage is only mounted while the video with captions is on screen, so it ticks for as long
   // as it exists.
   useEffect(() => {
-    if (!ready) return;
+    if (!core) return;
     let raf = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
-      const now = live.current.clock?.();
-      if (now) rendererRef.current?.tick(now.t, { isPlaying: now.playing });
+      retick();
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [ready]);
+  }, [core]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
