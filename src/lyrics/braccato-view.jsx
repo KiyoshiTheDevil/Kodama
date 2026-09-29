@@ -87,6 +87,7 @@ export function toBraccatoLyrics(lines) {
 }
 
 const TRANSLATED = "blyrics--translated";
+const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
 const ROMANIZED = "blyrics--romanized";
 
 // Hangs translations and romaji onto lines Braccato has already built, the way Better Lyrics itself
@@ -104,8 +105,12 @@ function decorate(core, container, lines, { translations, romaji, translationLan
     const line = lines[i];
     if (!line) return;
     const text = lineText(line);
-    const wantRo = romaji?.[i] && romaji[i] !== text ? romaji[i] : null;
-    const wantTr = translations?.[i] && translations[i] !== text ? translations[i] : null;
+    // The backend translates a line together with its background vocals, so a line already in the
+    // target language comes back as "main bg" and must count as unchanged too.
+    const bg = (line.bgWords || []).map(w => w.text).join("") || line.bgText || "";
+    const same = (s) => { const n = norm(s); return n === norm(text) || (bg && n === norm(`${text} ${bg}`)); };
+    const wantRo = romaji?.[i] && !same(romaji[i]) ? romaji[i] : null;
+    const wantTr = translations?.[i] && !same(translations[i]) ? translations[i] : null;
     const ro = el.querySelector(`:scope > .${ROMANIZED}`);
     if (ro && ro.textContent !== wantRo) { ro.remove(); changed = true; }
     const tr = el.querySelector(`:scope > .${TRANSLATED}`);
@@ -201,6 +206,26 @@ export function BraccatoLyricsView({
   useEffect(() => {
     if (core && elRef.current) elRef.current.lyrics = data;
   }, [core, data]);
+
+  // Braccato measures the room above the first line (and below the last) from the height of the
+  // scroll element, but only follows resizes of its own lines, not of that element. Kodama's pane
+  // often has no height yet when the lyrics arrive, and it changes on fullscreen or a resized
+  // window: without this the room stayed at zero and the lyrics started at the very top.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!core || !scroller || typeof ResizeObserver === "undefined") return;
+    let raf = 0;
+    let last = scroller.clientHeight;
+    const ro = new ResizeObserver(() => {
+      const h = scroller.clientHeight;
+      if (h === last) return;
+      last = h;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => elRef.current?.renderer?.relayout(true));
+    });
+    ro.observe(scroller);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [core, scrollRef]);
 
   useDecorations({
     core, built, lines, translations, romaji, translationLang,
