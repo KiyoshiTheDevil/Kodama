@@ -6279,7 +6279,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} language={language} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} language={language} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (

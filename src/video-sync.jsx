@@ -19,6 +19,7 @@ import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
 import { DEFAULT_LYRICS_PROVIDERS as BROWSER_PROVIDERS } from "./lyrics/providers.js";
 import { useLyricOffset } from "./lyrics/offset.js";
 import { paintLineWords } from "./lyrics/paint.js";
+import { BraccatoStageView } from "./lyrics/braccato-view.jsx";
 
 // Real-world calibration (2026-07-18): a confirmed correct match ("Nachos") scored 10.5, a
 // second plausible one scored 5.2 — but a confidence of 3.38 turned out to be a false positive
@@ -178,6 +179,9 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
   const [trailingLine, setTrailingLine] = useState(null);
   const [currentTranslation, setCurrentTranslation] = useState("");
   const [currentRomaji, setCurrentRomaji] = useState("");
+  // The whole lists as well: Braccato's stage gets every line at once and picks for itself.
+  const [translationsAll, setTranslationsAll] = useState(null);
+  const [romajiAll, setRomajiAll] = useState(null);
   const [lines, setLines] = useState([]);
   const [source, setSource] = useState("");
   const [submitterName, setSubmitterName] = useState(null);
@@ -225,6 +229,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
 
   useEffect(() => {
     translationsRef.current = null;
+    setTranslationsAll(null);
     if (!enabled || !showTranslation || !lines.length) return;
     let cancelled = false;
     fetch("http://localhost:9847/translate-lyrics", {
@@ -236,6 +241,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
       .then(d => {
         if (cancelled) return;
         translationsRef.current = d.translations || null;
+        setTranslationsAll(translationsRef.current);
         // Translation can arrive after the active line already settled — correct it retroactively.
         const idx = curIdxRef.current;
         const tr = idx >= 0 ? translationsRef.current?.[idx] : null;
@@ -250,6 +256,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
   // main lyrics view uses. No target language (it's a transliteration of the original).
   useEffect(() => {
     romajisRef.current = null;
+    setRomajiAll(null);
     if (!enabled || !showRomaji || !lines.length) return;
     let cancelled = false;
     fetch("http://localhost:9847/romanize-lyrics", {
@@ -261,6 +268,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
       .then(d => {
         if (cancelled) return;
         romajisRef.current = d.romanizations || null;
+        setRomajiAll(romajisRef.current);
         // Romaji can arrive after the active line settled — correct it retroactively.
         const idx = curIdxRef.current;
         const ro = idx >= 0 ? romajisRef.current?.[idx] : null;
@@ -350,7 +358,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
     setSubmitterName(res?.submitterName || null);
   }, []);
 
-  return { mainLine, trailingLine, translation: currentTranslation, romaji: currentRomaji, timeRef, lines, source, submitterName, applyLyrics };
+  return { mainLine, trailingLine, translation: currentTranslation, romaji: currentRomaji, timeRef, snapRef, lines, source, submitterName, applyLyrics, translationsAll, romajiAll };
 }
 
 // Renders one line — word-synced main text (if available) plus a smaller background-vocal row
@@ -424,8 +432,11 @@ function KaraokeLine({ line, timeRef, fluid, syllableZoom, mainFontSize, bgFontS
 // Bottom-third caption strip — an alternative to the split-with-lyrics view for users who'd
 // rather keep the video full-size. fluid=true (mirrors the app's own "fluid lyrics" setting)
 // swaps the plain crossfade for a softer blur/glow entrance on each line change.
-function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef }) {
-  const { mainLine, trailingLine, translation, romaji, timeRef, lines, source, submitterName, applyLyrics } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji, offsetRef);
+function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef, braccato = false }) {
+  const { mainLine, trailingLine, translation, romaji, timeRef, snapRef, lines, source, submitterName, applyLyrics, translationsAll, romajiAll } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji, offsetRef);
+  // Experiment: Braccato's stage draws the captions. The clock is the one this hook already keeps
+  // (offset applied), so both caption paths answer to the same time.
+  const braccatoClock = useCallback(() => ({ t: Math.max(0, timeRef.current), playing: !!snapRef.current.playing }), [timeRef, snapRef]);
   // Reported upward rather than decided per visible line: a button that appears and
   // disappears as the song moves through Latin passages would be worse than none.
   useEffect(() => {
@@ -455,6 +466,17 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
     setShownRomaji(romaji);
     setAnimKey(k => k + 1);
   }, [mainLine, translation, romaji]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (braccato && lines.length) {
+    return (
+      <BraccatoStageView lines={lines}
+        translations={showTranslation ? translationsAll : null}
+        romaji={showRomaji ? romajiAll : null}
+        translationLang={translationLang}
+        fontSize={30}
+        clock={braccatoClock} />
+    );
+  }
 
   if (!shownMain) return null;
 
@@ -529,7 +551,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, language = "en" }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, braccatoCaptions = false, language = "en" }) {
   // The caption toggles live here too: this view renders lyrics through its own path, so
   // without them the settings the lyrics view offers would be unreachable while a video
   // is on screen. Revealed on cursor activity — a permanent bar over a video is intrusive.
@@ -578,7 +600,7 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
           </Button>
         </div>
       )}
-      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef}
+      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef} braccato={braccatoCaptions}
         onSourceChange={(name, submitter) => setCapSource({ name, submitter })} />}
       {showCaptions && (
         <div style={{

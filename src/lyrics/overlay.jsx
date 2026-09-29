@@ -949,7 +949,9 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
           position: "relative", zIndex: 1, flex: 1,
           ...(lyrics && braccatoOn ? {
             // Braccato measures and writes the room it needs above and below the lines itself.
-            overflowY: "auto", padding: "0 80px",
+            // In fullscreen the player bar covers the bottom; scroll-padding tells Braccato which
+            // part of the view is really visible, so the active line sits in that part.
+            overflowY: "auto", padding: "0 80px", scrollPaddingBottom: chipBottomLift,
           } : lyrics ? {
             // With lyrics: scrollable, 40vh top/bottom padding so the active line can sit centred.
             overflowY: "auto", padding: "40vh 80px 40vh",

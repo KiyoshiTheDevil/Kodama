@@ -21,6 +21,18 @@ function loadBraccato() {
   return loading;
 }
 
+// The stage (captions over a video) is not offered by the element: it is a renderer built with
+// layout "stage" and ticked by hand. Its placement sheet comes with it.
+let loadingStage = null;
+function loadBraccatoStage() {
+  loadingStage ??= Promise.all([
+    loadBraccato(),
+    import("@braccato/core/styles/stage.css"),
+    import("@braccato/core"),
+  ]).then(([, , core]) => core);
+  return loadingStage;
+}
+
 // Better Lyrics names the voices of a duet v1 (lead), v2 (the other voice, drawn on the right) and
 // v1000 (everyone). Kodama's TTML parser calls the same three lead, featured and group.
 const AGENT = { lead: "v1", featured: "v2", group: "v1000" };
@@ -150,5 +162,84 @@ export function BraccatoLyricsView({
       ref={elRef}
       style={{ "--blyrics-font-size": `${fontSize}px` }}
     />
+  );
+}
+
+// Captions over a video, drawn by Braccato's stage layout: only the lines being sung, each one
+// sliding and fading into the next, a duet's voices kept to their own sides. It fills the element
+// it is given, so it sits in a box over the video. `clock` is the same as above.
+//
+// The shade behind the captions is Kodama's, not the theme's: Braccato reports where the sung lines
+// are (onStageLayout), and the shade shows only while something is on stage, so a bright video
+// stays readable without a dark band sitting there through every instrumental.
+export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, clock }) {
+  const mountRef = useRef(null);
+  const rendererRef = useRef(null);
+  const [ready, setReady] = useState(false);
+  const [onStage, setOnStage] = useState(false);
+  const live = useRef({});
+  live.current = { clock };
+
+  useEffect(() => {
+    let alive = true;
+    let renderer = null;
+    loadBraccatoStage()
+      .then(({ createLyricsRenderer }) => {
+        if (!alive || !mountRef.current) return;
+        renderer = createLyricsRenderer({
+          document, window,
+          mount: mountRef.current,
+          layout: "stage",
+          host: {
+            isViewVisible: () => true,
+            seek: () => {},
+            onStageLayout: (box) => setOnStage(!!box),
+            log: () => {},
+          },
+        });
+        rendererRef.current = renderer;
+        setReady(true);
+      })
+      .catch((e) => console.error("[braccato] could not load the stage", e));
+    return () => {
+      alive = false;
+      renderer?.destroy();
+      rendererRef.current = null;
+    };
+  }, []);
+
+  const data = useMemo(
+    () => toBraccatoLyrics(lines, { translations, romaji, translationLang }),
+    [lines, translations, romaji, translationLang],
+  );
+
+  useEffect(() => {
+    if (ready && rendererRef.current && mountRef.current) rendererRef.current.setLyrics(data, { mount: mountRef.current });
+  }, [ready, data]);
+
+  // The stage is only mounted while the video with captions is on screen, so it ticks for as long
+  // as it exists.
+  useEffect(() => {
+    if (!ready) return;
+    let raf = 0;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      const now = live.current.clock?.();
+      if (now) rendererRef.current?.tick(now.t, { isPlaying: now.playing });
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [ready]);
+
+  return (
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <div style={{
+        position: "absolute", left: 0, right: 0, bottom: 0, height: "45%",
+        background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)",
+        opacity: onStage ? 1 : 0, transition: "opacity 0.4s ease",
+      }} />
+      <div ref={mountRef} className="kodama-braccato-stage"
+        style={{ position: "absolute", inset: "0 40px 36px", "--blyrics-font-size": `${fontSize}px` }} />
+    </div>
   );
 }

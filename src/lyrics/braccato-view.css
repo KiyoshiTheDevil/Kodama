@@ -2,13 +2,25 @@
    this only fits them into Kodama's lyrics pane. */
 
 /* The element has no display of its own. */
+braccato-lyrics,
+.kodama-braccato-stage {
+  --blyrics-default-font-family: var(--font);
+}
 braccato-lyrics {
   display: block;
-  --blyrics-default-font-family: var(--font);
+}
+
+/* Captions over a video: the text needs its own shadow to hold up on a bright frame, since the
+   shade behind it fades out between lines. */
+.kodama-braccato-stage .blyrics--line {
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
 }
 
 /* Braccato measures how much room the first line needs to reach the scroll target and writes it as
    --blyrics-padding-top, but its own sheet only spends the bottom one. */
 braccato-lyrics .blyrics-container {
   padding-top: var(--blyrics-padding-top, 2rem);
+  /* Where the active line sits, as a share of the view from the top. Braccato's default is 0.37,
+     which read as too high in Kodama's pane; Kodama's own view centres at 0.5. */
+  --blyrics-target-scroll-pos-ratio: 0.45;
 }
