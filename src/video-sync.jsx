@@ -474,6 +474,8 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
         romaji={showRomaji ? romajiAll : null}
         translationLang={translationLang}
         fontSize={30}
+        translationFontSize={19}
+        romajiFontSize={18}
         clock={braccatoClock} />
     );
   }

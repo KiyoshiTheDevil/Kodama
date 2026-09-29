@@ -91,8 +91,16 @@ export function toBraccatoLyrics(lines, { translations, romaji, translationLang 
 // that same kind of time back. `scrollRef` is the container that scrolls, which Braccato would
 // otherwise have to guess. `onUserScrolling(bool)` mirrors Braccato's own manual-scroll detection
 // onto Kodama's "Resume autoscroll" pill, and `resumeRef.current()` resumes it from there.
+// Kodama's own size settings for the lines under a lyric. Braccato sizes the translation with
+// --blyrics-translated-font-size and derives the romanization from it; Kodama keeps two settings,
+// so the romanization gets its own size back.
+const subSizes = (translationFontSize, romajiFontSize) => ({
+  ...(translationFontSize ? { "--blyrics-translated-font-size": `${translationFontSize}px` } : {}),
+  ...(romajiFontSize ? { "--kodama-romaji-size": `${romajiFontSize}px` } : {}),
+});
+
 export function BraccatoLyricsView({
-  lines, translations, romaji, translationLang, fontSize, active,
+  lines, translations, romaji, translationLang, fontSize, translationFontSize, romajiFontSize, active,
   clock, onSeek, scrollRef, onUserScrolling, resumeRef,
 }) {
   const [ready, setReady] = useState(false);
@@ -160,7 +168,7 @@ export function BraccatoLyricsView({
   return (
     <braccato-lyrics
       ref={elRef}
-      style={{ "--blyrics-font-size": `${fontSize}px` }}
+      style={{ "--blyrics-font-size": `${fontSize}px`, ...subSizes(translationFontSize, romajiFontSize) }}
     />
   );
 }
@@ -172,7 +180,7 @@ export function BraccatoLyricsView({
 // The shade behind the captions is Kodama's, not the theme's: Braccato reports where the sung lines
 // are (onStageLayout), and the shade shows only while something is on stage, so a bright video
 // stays readable without a dark band sitting there through every instrumental.
-export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, clock }) {
+export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, clock }) {
   const mountRef = useRef(null);
   const rendererRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -239,7 +247,7 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
         opacity: onStage ? 1 : 0, transition: "opacity 0.4s ease",
       }} />
       <div ref={mountRef} className="kodama-braccato-stage"
-        style={{ position: "absolute", inset: "0 40px 36px", "--blyrics-font-size": `${fontSize}px` }} />
+        style={{ position: "absolute", inset: "0 40px 36px", "--blyrics-font-size": `${fontSize}px`, ...subSizes(translationFontSize, romajiFontSize) }} />
     </div>
   );
 }
