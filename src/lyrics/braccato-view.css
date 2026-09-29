@@ -2,9 +2,14 @@
    this only fits them into Kodama's lyrics pane. */
 
 /* The element has no display of its own. */
+/* Kodama's own typeface. Braccato redefines its default stack on every line (so each can pick a
+   fallback for its own language), which makes --blyrics-default-font-family unreachable from out
+   here; --blyrics-font-family is the override it leaves for themes, and it inherits. --font is the
+   app's font setting (MiSans Latin, or OpenDyslexic when chosen), ending in system-ui, sans-serif:
+   the same fallbacks Kodama's own lyrics view has always relied on for other scripts. */
 braccato-lyrics,
 .kodama-braccato-stage {
-  --blyrics-default-font-family: var(--font);
+  --blyrics-font-family: var(--font);
 }
 braccato-lyrics {
   display: block;
