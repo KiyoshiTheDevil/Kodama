@@ -16,6 +16,7 @@ Changes:
 - Visualizer presets show which one is active and are applied with a button
 - Store previews of visualizer presets show their real shape
 - Updates on Windows are much smaller, since the bundled Node runtime is no longer downloaded again with every update
+- The visualizer now defaults to the linear style
 - Terms of Service and Privacy Policy can be found under About
 
 Fixes:

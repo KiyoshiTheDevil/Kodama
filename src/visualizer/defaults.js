@@ -1,7 +1,7 @@
 // Canonical visualizer settings. Shared by the renderer (CoverView), the settings tab's
 // preset/reset buttons, and the stored-config merge in App().
 export const VIZ_DEFAULTS = {
-  shape: "frame",          // "frame" | "ring" | "linear"
+  shape: "linear",         // "frame" | "ring" | "linear"
   linearPos: "bottom",     // (linear only) "bottom" = over the seek bar | "center" = behind cover
   barCount: 56,
   barLength: 90,
