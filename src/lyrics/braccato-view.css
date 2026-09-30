@@ -22,6 +22,14 @@ braccato-lyrics .blyrics--romanized,
   font-size: var(--kodama-romaji-size, calc(var(--blyrics-translated-font-size) / 1.25));
 }
 
+/* The romanization is a pill as wide as its text, so text-align does not move it. Braccato centres
+   it only for lines everyone sings; on the stage every line is centred unless it is a duet, so the
+   pill has to follow there too. In a duet each voice keeps its side, pill included. */
+.kodama-braccato-stage .blyrics-container[data-layout="stage"]:not([data-stage-duet]) .blyrics--romanized {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Captions over a video: the text needs its own shadow to hold up on a bright frame, since the
    shade behind it fades out between lines. */
 .kodama-braccato-stage .blyrics--line {
