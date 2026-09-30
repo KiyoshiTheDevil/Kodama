@@ -35,7 +35,16 @@ fn shutdown_via_http() {
     }
 }
 
-pub fn kill_existing_server(child: &mut Option<Child>) {
+/// Ends the backend. `sweep` also hunts down leftovers by name and port with taskkill and netstat:
+/// right for the start of a run (a server from an earlier one may still be there) and before an
+/// update (the installer must be able to overwrite their files).
+///
+/// Never on the way out of Kodama. That path also runs while Windows shuts down, and then a new
+/// console process can no longer start: taskkill failed with 0xc0000142 and its error box held up
+/// the shutdown. Leaving the process never needs a new one anyway: the backend is asked to stop,
+/// our own child is ended through its handle, and the job object it runs in (see start_server)
+/// takes everything it started along when Kodama is gone.
+pub fn kill_existing_server(child: &mut Option<Child>, sweep: bool) {
     shutdown_via_http();
     std::thread::sleep(std::time::Duration::from_millis(400));
 
@@ -45,7 +54,7 @@ pub fn kill_existing_server(child: &mut Option<Child>) {
     }
 
     #[cfg(windows)]
-    {
+    if sweep {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let _ = std::process::Command::new("taskkill")
@@ -126,7 +135,11 @@ pub fn start_server(app: &tauri::AppHandle) {
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
     match cmd.spawn() {
-        Ok(child) => { *app.state::<ServerProcess>().0.lock().unwrap() = Some(child); }
+        Ok(child) => {
+            #[cfg(windows)]
+            bind_to_kodama(&child);
+            *app.state::<ServerProcess>().0.lock().unwrap() = Some(child);
+        }
         Err(e) => { eprintln!("[server] Failed to spawn {}: {}", server_exe.display(), e); return; }
     }
 
@@ -135,8 +148,55 @@ pub fn start_server(app: &tauri::AppHandle) {
     wait_for_server(15000);
 }
 
+/// Puts the backend into a job object that ends every process in it once its last handle is
+/// closed. Kodama holds that handle for its whole life and never closes it, so Windows closes it
+/// when Kodama ends, however it ends: quit, crash, "End task" or a shutdown. Processes the backend
+/// starts join the job with it, the PO-token Node included, so none of them outlives Kodama, and
+/// no orphaned node.exe is left locking its file for the next update.
+#[cfg(windows)]
+fn bind_to_kodama(child: &Child) {
+    use std::os::windows::io::AsRawHandle;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    unsafe {
+        let job = match CreateJobObjectW(None, PCWSTR::null()) {
+            Ok(j) => j,
+            Err(e) => { eprintln!("[server] no job object: {e}"); return; }
+        };
+        let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if let Err(e) = SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            &info as *const _ as *const std::ffi::c_void,
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        ) {
+            eprintln!("[server] job object limit not set: {e}");
+            return;
+        }
+        if let Err(e) = AssignProcessToJobObject(job, HANDLE(child.as_raw_handle())) {
+            eprintln!("[server] backend not bound to the job object: {e}");
+        }
+        // `job` is deliberately never closed: closing it is what ends the backend.
+    }
+}
+
+/// Leaving Kodama: ask the backend to stop and end our own child, without starting any process
+/// (see kill_existing_server).
 pub fn stop_server(app_handle: &tauri::AppHandle) {
     let state: tauri::State<ServerProcess> = app_handle.state();
     let mut child_opt = state.0.lock().ok().and_then(|mut g| g.take());
-    kill_existing_server(&mut child_opt);
+    kill_existing_server(&mut child_opt, false);
+}
+
+/// Before an update: the thorough version, so no leftover holds a file the installer must write.
+pub fn stop_server_for_update(app_handle: &tauri::AppHandle) {
+    let state: tauri::State<ServerProcess> = app_handle.state();
+    let mut child_opt = state.0.lock().ok().and_then(|mut g| g.take());
+    kill_existing_server(&mut child_opt, true);
 }

@@ -115,7 +115,8 @@ fn capture_screenshot(_app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 fn stop_server_cmd(app: tauri::AppHandle) {
-    server::stop_server(&app);
+    // Called by the frontend right before an update installs: the thorough version.
+    server::stop_server_for_update(&app);
 }
 
 /// Rebuilds the tray menu with localised labels.
@@ -268,7 +269,7 @@ fn main() {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
                     let mut none: Option<std::process::Child> = None;
-                    server::kill_existing_server(&mut none);
+                    server::kill_existing_server(&mut none, true);
                     server::start_server(&handle);
                 });
             }

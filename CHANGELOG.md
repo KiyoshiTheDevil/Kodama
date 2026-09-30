@@ -17,6 +17,7 @@ Changes:
 - Terms of Service and Privacy Policy can be found under About
 
 Fixes:
+- Shutting down Windows with Kodama open showed a taskkill error that held up the shutdown
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
 ## [1.0.0-alpha.41] - 2026-09-22
