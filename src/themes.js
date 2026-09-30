@@ -113,7 +113,7 @@ export function sanitizeTokens(tokens) {
   return out;
 }
 
-const INSTALLED_KEY = "kodama-installed-themes";
+export const INSTALLED_KEY = "kodama-installed-themes";
 
 /** Themes installed at runtime. Sanitised on the way out, never on trust. */
 export function readInstalledThemes() {

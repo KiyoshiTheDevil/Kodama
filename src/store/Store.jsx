@@ -20,6 +20,7 @@ import { rate, fetchRatings } from "./ratings.js";
 import { allThemes } from "../themes.js";
 import { installThemeEverywhere, uninstallThemeEverywhere, onThemesChanged, THEME_SELECTED } from "./sync.js";
 import { applyTheme, readTheme } from "../theme.js";
+import { INSTALLED_KEY } from "../themes.js";
 import { RESCUE_COMBO } from "../theme-rescue.js";
 import { WindowControls, HDR_ICON_BTN, hdrCorners } from "../ui/window-chrome.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
@@ -321,6 +322,21 @@ export default function Store({ t, language }) {
 
   // Another window can install or remove one too: Settings for a theme, the equaliser for a preset.
   useEffect(() => onThemesChanged(refresh), [refresh]);
+
+  // This window applied a theme only when it opened or chose one itself. Switching theme in the main
+  // window left the store in the old one, and removing that one here then found a different name in
+  // storage and did nothing, so the store stayed in a theme that no longer existed. The storage
+  // event fires here for every write from another window, and only once the new value is readable.
+  useEffect(() => {
+    const onStorage = (ev) => {
+      if (ev.key !== "kiyoshi-theme" && ev.key !== INSTALLED_KEY) return;
+      const id = readTheme();
+      applyTheme(id);
+      setTheme(id);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   useEffect(() => onPresetsChanged(refresh), [refresh]);
   useEffect(() => onExtensionsChanged(refresh), [refresh]);
 
@@ -343,7 +359,7 @@ export default function Store({ t, language }) {
     if (section === "mine" && detailId === e.id) setDetailId(null);
     // Removing the theme that is on would leave every window pointing at something that no
     // longer exists. findTheme falls back to dark on the next apply anyway, so go there openly.
-    if (readTheme() === e.id) apply("dark");
+    if (readTheme() === e.id || theme === e.id) apply("dark");
     refresh();
   };
 
