@@ -2,14 +2,15 @@
  * Presets as they appear in the store.
  *
  * A preset has no palette to show, so the preview is drawn from the values themselves: an
- * equaliser preset IS its ten gains, and a visualizer preset is mostly a density and a thickness.
- * Neither is the real renderer and neither pretends to be. The point is that two presets side by
- * side should look different in the way they actually differ.
+ * equaliser preset IS its ten gains, and a visualizer preset is drawn by the visualizer itself.
+ * The point is that two presets side by side should look different in the way they actually differ.
  */
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import DetailPage, { CardRating } from "./detail.jsx";
 import { BANDS, RANGE_DB } from "../equalizer/presets.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
+import { drawSpectrum } from "../visualizer/draw.js";
 
 /**
  * The curve, as ten bars growing from a middle line.
@@ -45,37 +46,96 @@ export function EqPreview({ config, height = 96 }) {
 }
 
 /**
- * Bars at the preset's own count and thickness.
+ * The preset drawn by the visualizer's own drawing code (src/visualizer/draw.js), with a fixed
+ * pattern in place of audio, so the same preset always shows the same picture and two can be
+ * compared. It used to be a separate row of bars that knew no shapes: a ring showed as a straight
+ * line, and a frame drawn as a curve showed as neither.
  *
- * The heights come from a fixed pattern rather than from audio, so the same preset always draws
- * the same picture and two presets can be compared. What is honest here is the density, the
- * thickness, the gap and the cap: those are the settings someone is actually choosing between.
+ * Drawn at the real sizes (cover, bar length, gap) and scaled down to fit, so the proportions are
+ * the ones the listener will see. A line is never thinner than one screen pixel, or a hairline
+ * preset would vanish from its own preview.
  */
+const PREVIEW_COVER = 200;
+
+// Deterministic "music": a slow swell with a couple of peaks, and a lower second layer.
+function previewValues(n, ring) {
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = ring ? i / n : i / Math.max(1, n - 1);
+    out[i] = Math.min(1, 0.22 + 0.5 * Math.abs(Math.sin(x * Math.PI * (ring ? 3 : 2.4))) + 0.2 * Math.abs(Math.sin(x * Math.PI * 9)));
+  }
+  return out;
+}
+
 export function VizPreview({ config, height = 96 }) {
-  const c = { ...VIZ_DEFAULTS, ...(config || {}) };
-  const count = Math.max(6, Math.min(Number(c.barCount) || 56, 64));
-  const thickness = Math.max(1, Math.min(Number(c.barThickness) || 3, 10));
-  const gap = Math.max(0, Math.min(Number(c.gap) || 0, 12)) / 2;
-  const round = c.barCap !== "square";
-  // A shape that stays put: a slow swell with a couple of peaks, so density reads clearly.
-  const at = (i) => {
-    const x = i / (count - 1);
-    return 0.25 + 0.55 * Math.abs(Math.sin(x * Math.PI * 2.4)) + 0.2 * Math.abs(Math.sin(x * Math.PI * 7));
-  };
-  return (
-    <div className="flex items-end justify-center px-3" style={{ height, gap }}>
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i}
-          style={{
-            width: thickness,
-            height: `${Math.min(at(i), 1) * (height - 20)}px`,
-            borderRadius: round ? thickness : 1,
-            background: "var(--accent)",
-            opacity: c.mirror && i % 2 ? 0.55 : 1,
-          }} />
-      ))}
-    </div>
-  );
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    setWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv || !width) return;
+    const c = { ...VIZ_DEFAULTS, ...(config || {}) };
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(width * dpr);
+    cv.height = Math.round(height * dpr);
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+
+    const reach = (Number(c.gap) || 0) + 4 + (Number(c.barLength) || 0) + 8;
+    const linear = c.shape === "linear";
+    const centred = linear && (c.linearPos || "bottom") === "center";
+    // The room the drawing needs, in real units, and the scale that fits it into the card.
+    const needH = linear
+      ? (centred ? Math.max(PREVIEW_COVER, 2 * reach) + 16 : reach + 48)
+      : PREVIEW_COVER + 2 * reach;
+    const needW = linear ? 0 : PREVIEW_COVER + 2 * reach;
+    const scale = Math.min(height / needH, needW ? width / needW : Infinity);
+    const w = width / scale, h = height / scale;
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+
+    const box = { x: (w - PREVIEW_COVER) / 2, y: (h - PREVIEW_COVER) / 2, w: PREVIEW_COVER, h: PREVIEW_COVER };
+    // Where the cover would be. A linear spectrum at the bottom sits under the player, not the
+    // cover, so it gets none.
+    if (!linear || centred) {
+      ctx.fillStyle = "rgba(255,255,255,0.07)";
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.w, box.h, 14); else ctx.rect(box.x, box.y, box.w, box.h);
+      ctx.fill();
+    }
+
+    const n = Math.max(8, Math.round(Number(c.barCount) || 48));
+    // The same shaping the live visualizer applies (cover-view.jsx): floor and ceiling, then the
+    // smoothing across neighbouring bands, which is most of what a calm preset like Soft Curve is.
+    const fl = Number(c.floor) || 0, ce = c.ceiling != null ? Number(c.ceiling) : 1, rng = Math.max(0.02, ce - fl);
+    const raw = previewValues(n, c.shape === "ring").map(v => Math.max(0, Math.min(1, (v - fl) / rng)));
+    const sbr = Math.round((Number(c.smoothBands) || 0) * 8);
+    const vals = sbr > 0 ? raw.map((_, i) => {
+      let sum = 0, wsum = 0;
+      for (let k = -sbr; k <= sbr; k++) {
+        const j = i + k;
+        if (j < 0 || j >= n) continue;
+        const wk = 1 - Math.abs(k) / (sbr + 1);
+        sum += raw[j] * wk; wsum += wk;
+      }
+      return sum / wsum;
+    }) : raw;
+    const peaks = c.peakHold ? vals.map(v => Math.min(1, v + 0.12)) : null;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#e040fb";
+    const baseCol = c.color === "custom" ? (c.customColor || accent) : accent;
+    drawSpectrum(ctx, { w, h, box, cfg: c, n, vals, peaks, baseCol, minWidth: 1 / scale });
+  }, [config, width, height]);
+
+  return <canvas ref={ref} style={{ display: "block", width: "100%", height }} />;
 }
 
 export const PresetPreview = ({ kind, config, height }) =>
