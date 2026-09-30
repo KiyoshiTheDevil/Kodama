@@ -4097,8 +4097,12 @@ export default function App() {
   const [showRomaji, setShowRomaji] = usePersistedState("kiyoshi-lyrics-romaji", false);
   const [syllableZoom, setSyllableZoom] = usePersistedState("kiyoshi-lyrics-syllable-zoom", false);
   const [fluidLyrics, setFluidLyrics] = usePersistedState("kiyoshi-lyrics-fluid", true);
-  // Experiment: draw synced lyrics with Braccato, the Better Lyrics engine (src/lyrics/braccato-view.jsx).
-  const [braccatoLyrics, setBraccatoLyrics] = usePersistedState("kiyoshi-lyrics-braccato", false);
+  // Which engine draws synced lyrics: "braccato" (the Better Lyrics engine, src/lyrics/braccato-view.jsx,
+  // the default) or "legacy" (Kodama's own view). A key of its own rather than the old experiment
+  // switch (kiyoshi-lyrics-braccato): whoever had turned that experiment off again would otherwise
+  // never see the new default.
+  const [lyricsEngine, setLyricsEngine] = usePersistedState("kiyoshi-lyrics-engine", "braccato");
+  const braccatoLyrics = lyricsEngine !== "legacy";
   const [braccatoLetterWave, setBraccatoLetterWave] = usePersistedState("kiyoshi-lyrics-braccato-letterwave", true);
   const [videoSyncEnabled, setVideoSyncEnabled] = usePersistedState("kiyoshi-video-sync", false);
   // "auto" = best available; otherwise a max-height cap (string, matches <select>/ToggleButton
@@ -6485,8 +6489,8 @@ export default function App() {
             onToggleSyllableZoom={() => setSyllableZoom(v => !v)}
             fluidLyrics={fluidLyrics}
             onToggleFluidLyrics={() => setFluidLyrics(v => !v)}
-            braccatoLyrics={braccatoLyrics}
-            onToggleBraccatoLyrics={() => setBraccatoLyrics(v => !v)}
+            lyricsEngine={braccatoLyrics ? "braccato" : "legacy"}
+            onLyricsEngineChange={setLyricsEngine}
             braccatoLetterWave={braccatoLetterWave}
             onToggleBraccatoLetterWave={() => setBraccatoLetterWave(v => !v)}
             videoSyncEnabled={videoSyncEnabled}

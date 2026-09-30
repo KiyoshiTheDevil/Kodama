@@ -340,7 +340,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
   autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
   audioOutput, onAudioOutputChange,
-  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, braccatoLyrics, onToggleBraccatoLyrics, braccatoLetterWave, onToggleBraccatoLetterWave, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, sharpCorners, onToggleSharpCorners, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, lyricsEngine = "braccato", onLyricsEngineChange, braccatoLetterWave, onToggleBraccatoLetterWave, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, sharpCorners, onToggleSharpCorners, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -1462,12 +1462,34 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
                 <div id="set-sec-lyrics-effects" data-settings-section="lyrics-effects" style={{ scrollMarginTop: 8 }}>
                   <SectionLabel>{t("lyrEffects")}</SectionLabel>
-                  <SettingRow label={t("syllableZoom")} description={t("syllableZoomDesc")} icon={<Sparkles />}>
-                    <Toggle value={syllableZoom} onChange={onToggleSyllableZoom} />
+                  <SettingRow label={t("lyricsEngine")} description={t("lyricsEngineDesc")} icon={<WaveformLines />}>
+                    <ToggleButtonGroupRoot
+                      aria-label={t("lyricsEngine")}
+                      selectionMode="single"
+                      disallowEmptySelection
+                      selectedKeys={[lyricsEngine]}
+                      onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onLyricsEngineChange?.(v); }}
+                      size="sm"
+                    >
+                      <ToggleButton id="braccato">{t("lyricsEngineBraccato")}</ToggleButton>
+                      <ToggleButton id="legacy">{t("lyricsEngineLegacy")}</ToggleButton>
+                    </ToggleButtonGroupRoot>
                   </SettingRow>
-                  <SettingRow label={t("fluidLyrics")} description={t("fluidLyricsDesc")} icon={<WaveformLines />}>
-                    <Toggle value={fluidLyrics} onChange={onToggleFluidLyrics} />
-                  </SettingRow>
+                  {/* Each engine has its own effects; only the ones that apply to the chosen one show. */}
+                  {lyricsEngine === "braccato" ? (
+                    <SettingRow label={t("braccatoLetterWave")} description={t("braccatoLetterWaveDesc")} icon={<Sparkles />}>
+                      <Toggle value={braccatoLetterWave} onChange={onToggleBraccatoLetterWave} />
+                    </SettingRow>
+                  ) : (
+                    <>
+                      <SettingRow label={t("syllableZoom")} description={t("syllableZoomDesc")} icon={<Sparkles />}>
+                        <Toggle value={syllableZoom} onChange={onToggleSyllableZoom} />
+                      </SettingRow>
+                      <SettingRow label={t("fluidLyrics")} description={t("fluidLyricsDesc")} icon={<WaveformLines />}>
+                        <Toggle value={fluidLyrics} onChange={onToggleFluidLyrics} />
+                      </SettingRow>
+                    </>
+                  )}
                 </div>
 
                 <div id="set-sec-lyrics-providers" data-settings-section="lyrics-providers" style={{ scrollMarginTop: 8 }}>
@@ -1835,14 +1857,6 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SettingRow label={t("sharpCorners")} description={t("sharpCornersDesc")} icon={<PaintBrushBroad />}>
                   <Toggle value={sharpCorners} onChange={onToggleSharpCorners} />
                 </SettingRow>
-                <SettingRow label={t("braccatoLyrics")} description={t("braccatoLyricsDesc")} icon={<WaveformLines />}>
-                  <Toggle value={braccatoLyrics} onChange={onToggleBraccatoLyrics} />
-                </SettingRow>
-                {braccatoLyrics && (
-                  <SettingRow label={t("braccatoLetterWave")} description={t("braccatoLetterWaveDesc")} icon={<Sparkles />}>
-                    <Toggle value={braccatoLetterWave} onChange={onToggleBraccatoLetterWave} />
-                  </SettingRow>
-                )}
               </>
             )}
 
