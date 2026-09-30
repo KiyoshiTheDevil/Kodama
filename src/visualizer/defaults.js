@@ -23,6 +23,9 @@ export const VIZ_DEFAULTS = {
   gradColor: "#ffffff",
   color: "accent",         // "accent" | "custom" | "cover"
   customColor: "#e040fb",
+  // Part of the visualizer settings rather than a cover setting, so a preset can bring it along:
+  // a ring hugs a round cover the way a frame hugs a square one.
+  coverShape: "rounded",   // "rounded" | "circle"
   coverPulse: true, coverPulseStrength: 0.3,
   blobs: true,
 };

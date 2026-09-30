@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
 import {
-  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh, PuzzlePiece } from "../icons.jsx";
+  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Gamepad, Globe, HardDrives, ImageSquare, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh, PuzzlePiece } from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
@@ -1095,6 +1095,12 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         className="w-7 h-7 rounded-md cursor-pointer border border-border bg-transparent p-0.5 shrink-0" />
                     )}
                     <Toggle value={!!vizConfig.gradient} onChange={(v) => onUpdateViz({ gradient: v })} />
+                  </div>
+                </SettingRow>
+                <SettingRow label={t("coverShape")} icon={<ImageSquare />}>
+                  <div className="flex gap-1.5">
+                    <Button variant={vizConfig.coverShape !== "circle" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ coverShape: "rounded" })}>{t("coverShapeRounded")}</Button>
+                    <Button variant={vizConfig.coverShape === "circle" ? "secondary" : "ghost"} size="sm" onPress={() => onUpdateViz({ coverShape: "circle" })}>{t("coverShapeCircle")}</Button>
                   </div>
                 </SettingRow>
                 <SettingRow label={t("coverPulse") || "Cover pulse"} icon={<Sparkles />}>

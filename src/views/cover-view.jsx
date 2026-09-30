@@ -207,10 +207,11 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         transition: "margin-bottom 0.3s ease" }}>
         {/* Album cover */}
         <div ref={coverRef} style={{
-          width: coverSize, height: coverSize, borderRadius: scaled(compact ? "var(--r-xl)" : "var(--r-2xl)"), overflow: "hidden",
+          width: coverSize, height: coverSize, overflow: "hidden",
+          borderRadius: vizConfig?.coverShape === "circle" ? "50%" : scaled(compact ? "var(--r-xl)" : "var(--r-2xl)"),
           boxShadow: "var(--elevation-5)",
           transform: isPlaying ? "scale(1.03)" : "scale(0.97)",
-          transition: ambientVisualizer ? "none" : "transform 0.6s cubic-bezier(0.4,0,0.2,1)",
+          transition: ambientVisualizer ? "border-radius 0.3s ease" : "transform 0.6s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s ease",
         }}>
           {hq
             ? <img src={thumb(hq)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

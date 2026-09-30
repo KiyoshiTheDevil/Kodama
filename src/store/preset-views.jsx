@@ -109,7 +109,8 @@ export function VizPreview({ config, height = 96 }) {
     if (!linear || centred) {
       ctx.fillStyle = "rgba(255,255,255,0.07)";
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.w, box.h, 14); else ctx.rect(box.x, box.y, box.w, box.h);
+      if (c.coverShape === "circle") ctx.arc(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, 0, Math.PI * 2);
+      else if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.w, box.h, 14); else ctx.rect(box.x, box.y, box.w, box.h);
       ctx.fill();
     }
 
