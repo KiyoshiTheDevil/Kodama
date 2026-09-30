@@ -19,6 +19,7 @@ import { LyricsBrowserModal } from "./modals/lyrics-browser-modal.jsx";
 import { DEFAULT_LYRICS_PROVIDERS as BROWSER_PROVIDERS } from "./lyrics/providers.js";
 import { useLyricOffset } from "./lyrics/offset.js";
 import { paintLineWords } from "./lyrics/paint.js";
+import { repeatsLine } from "./lyrics/same-text.js";
 import { BraccatoStageView } from "./lyrics/braccato-view.jsx";
 
 // Real-world calibration (2026-07-18): a confirmed correct match ("Nachos") scored 10.5, a
@@ -245,8 +246,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
         // Translation can arrive after the active line already settled — correct it retroactively.
         const idx = curIdxRef.current;
         const tr = idx >= 0 ? translationsRef.current?.[idx] : null;
-        const lineText = idx >= 0 ? linesRef.current[idx]?.text : null;
-        setCurrentTranslation(tr && tr !== lineText ? tr : "");
+        setCurrentTranslation(tr && !repeatsLine(linesRef.current[idx], tr) ? tr : "");
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -272,8 +272,7 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
         // Romaji can arrive after the active line settled — correct it retroactively.
         const idx = curIdxRef.current;
         const ro = idx >= 0 ? romajisRef.current?.[idx] : null;
-        const lineText = idx >= 0 ? linesRef.current[idx]?.text : null;
-        setCurrentRomaji(ro && ro !== lineText ? ro : "");
+        setCurrentRomaji(ro && !repeatsLine(linesRef.current[idx], ro) ? ro : "");
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -330,9 +329,9 @@ function useCaptionLine(track, audioRef, enabled, showTranslation, translationLa
         const line = idx >= 0 ? lns[idx] : null;
         setMainLine(line);
         const tr = idx >= 0 ? translationsRef.current?.[idx] : null;
-        setCurrentTranslation(tr && tr !== line?.text ? tr : "");
+        setCurrentTranslation(tr && !repeatsLine(line, tr) ? tr : "");
         const ro = idx >= 0 ? romajisRef.current?.[idx] : null;
-        setCurrentRomaji(ro && ro !== line?.text ? ro : "");
+        setCurrentRomaji(ro && !repeatsLine(line, ro) ? ro : "");
       }
       if (trailingIdx !== trailingIdxRef.current) {
         trailingIdxRef.current = trailingIdx;

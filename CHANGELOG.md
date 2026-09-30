@@ -25,6 +25,7 @@ Fixes:
 - The frame visualizer ignored the curve style and drew bars
 - A visualizer preset removed in the store stayed in the preset list and kept running
 - The store window stayed in a theme after it was removed, and did not follow theme changes made in the main window
+- Legacy lyrics and captions showed a translation that only repeated the line
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
 ## [1.0.0-alpha.41] - 2026-09-22

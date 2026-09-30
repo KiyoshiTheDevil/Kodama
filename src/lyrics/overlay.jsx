@@ -16,6 +16,7 @@ import { LyricsToolChips, OffsetChips, SourceChip } from "./tool-chips.jsx";
 import { useLyricOffset } from "./offset.js";
 import { useLyricsPrefs } from "../preferences.jsx";
 import { BraccatoLyricsView } from "./braccato-view.jsx";
+import { repeatsLine } from "./same-text.js";
 
 // How much the active line grows in fluid mode. Needed as a constant because a translation
 // aligned to the growing edge has to be pulled back by exactly this amount.
@@ -1169,7 +1170,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   {line.bgText}
                 </div>
               )}
-              {showRomaji && romajiLines?.[i] && (
+              {showRomaji && romajiLines?.[i] && !repeatsLine(line, romajiLines[i]) && (
                 <div style={{
                   fontSize: romajiFontSize,
                   fontWeight: 500,
@@ -1180,7 +1181,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   textAlign,
                 }}>{romajiLines[i]}</div>
               )}
-              {showTranslation && translations?.[i] && translations[i] !== lineText && (
+              {showTranslation && translations?.[i] && !repeatsLine(line, translations[i]) && (
                 <div dir={isRtlLang(translationLang) ? "rtl" : "ltr"} style={{
                   fontSize: translationFontSize,
                   fontWeight: 600,

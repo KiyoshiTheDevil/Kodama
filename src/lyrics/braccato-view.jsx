@@ -8,6 +8,7 @@
 // The engine and its stylesheets load on first use, so nobody who leaves the experiment off pays
 // for them.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { repeatsLine } from "./same-text.js";
 
 // Resolves to the engine's facade (createLyricsRenderer, injectTranslation, injectRomanization),
 // with the element registered and the stylesheets in.
@@ -87,7 +88,6 @@ export function toBraccatoLyrics(lines) {
 }
 
 const TRANSLATED = "blyrics--translated";
-const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
 const ROMANIZED = "blyrics--romanized";
 
 // Hangs translations and romaji onto lines Braccato has already built, the way Better Lyrics itself
@@ -104,11 +104,7 @@ function decorate(core, container, lines, { translations, romaji, translationLan
   els.forEach((el, i) => {
     const line = lines[i];
     if (!line) return;
-    const text = lineText(line);
-    // The backend translates a line together with its background vocals, so a line already in the
-    // target language comes back as "main bg" and must count as unchanged too.
-    const bg = (line.bgWords || []).map(w => w.text).join("") || line.bgText || "";
-    const same = (s) => { const n = norm(s); return n === norm(text) || (bg && n === norm(`${text} ${bg}`)); };
+    const same = (s) => repeatsLine(line, s);
     const wantRo = romaji?.[i] && !same(romaji[i]) ? romaji[i] : null;
     const wantTr = translations?.[i] && !same(translations[i]) ? translations[i] : null;
     const ro = el.querySelector(`:scope > .${ROMANIZED}`);
