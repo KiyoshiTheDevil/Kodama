@@ -13,11 +13,14 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 Changes:
 - Lyrics are now drawn by Braccato, the engine behind Better Lyrics. The previous view stays available as Legacy
 - Video captions use Braccato's stage mode
+- Visualizer presets show which one is active and are applied with a button
+- Store previews of visualizer presets show their real shape
 - Updates on Windows are much smaller, since the bundled Node runtime is no longer downloaded again with every update
 - Terms of Service and Privacy Policy can be found under About
 
 Fixes:
 - Shutting down Windows with Kodama open showed a taskkill error that held up the shutdown
+- The frame visualizer ignored the curve style and drew bars
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
 ## [1.0.0-alpha.41] - 2026-09-22

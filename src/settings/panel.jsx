@@ -439,6 +439,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     setVizPresetName("");
   };
   const applyVizPreset = (p) => onUpdateViz({ ...VIZ_DEFAULTS, ...p.config });
+  // A preset counts as active when the visualizer is set exactly the way applying it would set it.
+  // Worked out from the values rather than remembered, so the mark is honest: moving a slider after
+  // applying takes it away, and a hand-made setting that happens to match a preset shows it.
+  const isVizPresetActive = (p) => {
+    const want = { ...VIZ_DEFAULTS, ...(p?.config || {}) };
+    return Object.keys(VIZ_DEFAULTS).every((k) => {
+      const a = vizConfig?.[k], b = want[k];
+      if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 1e-6;
+      return a === b;
+    });
+  };
   // Save into an existing preset instead of beside it. Tuning a saved look meant saving a
   // second one under the same name and deleting the first. Keeps the id, so the row stays
   // where it is rather than jumping to the top the way a new one does.
@@ -960,9 +971,19 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </Button>
                     <input ref={vizImportRef} type="file" accept=".json" multiple className="hidden" onChange={handleVizImport} />
                   </div>
-                  {vizPresets.map((p) => (
-                    <div key={p.id} className="setting-row flex items-center gap-1 pl-[18px] pr-2.5 py-2.5">
-                      <button className="flex-1 min-w-0 text-left text-[length:var(--t13)] font-medium truncate hover:text-accent transition-colors" onClick={() => applyVizPreset(p)}>{p.name}</button>
+                  {vizPresets.map((p) => {
+                    const active = isVizPresetActive(p);
+                    return (
+                    <div key={p.id} className="setting-row flex items-center gap-1 pl-[18px] pr-2.5 py-2.5"
+                      style={active ? { background: "color-mix(in srgb, var(--accent) 10%, var(--surface-1))" } : undefined}>
+                      <span className={`flex-1 min-w-0 truncate text-[length:var(--t13)] font-medium ${active ? "text-accent" : ""}`}>{p.name}</span>
+                      {active ? (
+                        <span className="flex shrink-0 items-center gap-1 px-2 text-[length:var(--t12)] font-semibold text-accent">
+                          <Check size={13} weight="bold" />{t("vizPresetActive")}
+                        </span>
+                      ) : (
+                        <Button variant="secondary" size="sm" className="shrink-0 h-7!" onPress={() => applyVizPreset(p)}>{t("vizPresetApply")}</Button>
+                      )}
                       <Tooltip text={t("vizPresetOverwrite")}>
                         <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0!" onPress={() => overwriteVizPreset(p.id)} aria-label={t("vizPresetOverwrite")}><ArrowsClockwise size={13} /></Button>
                       </Tooltip>
@@ -973,7 +994,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         <Button isIconOnly size="sm" variant="ghost" className="h-7! w-7! min-w-0! text-muted hover:text-[var(--status-danger)]" onPress={() => deleteVizPreset(p.id)} aria-label={t("delete")}><Trash size={13} /></Button>
                       </Tooltip>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <SectionAnchor id="viz-general" />
                 <SectionLabel>{t("vizSecGeneral")}</SectionLabel>

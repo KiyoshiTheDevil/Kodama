@@ -318,6 +318,8 @@
   "resetToDefault": "Auf Standard zurücksetzen",
   "visualizerPresets": "Presets",
   "vizPresetOverwrite": "Mit aktuellen Einstellungen überschreiben",
+  "vizPresetApply": "Anwenden",
+  "vizPresetActive": "Aktiv",
   "presetNamePlaceholder": "Preset benennen…",
   "preset": "Preset",
   "showPreview": "Vorschau anzeigen",
