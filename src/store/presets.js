@@ -16,7 +16,7 @@
 // A preset installed this way is otherwise an ordinary custom preset. Deleting it in the equaliser
 // window is allowed and simply makes the store offer it again, which is the honest outcome: the
 // store reports what is there, it does not own it.
-import { normalizePreset, loadState, saveState } from "../equalizer/presets.js";
+import { normalizePreset, loadState, saveState, STORAGE_KEY as EQ_KEY } from "../equalizer/presets.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 
 export const STORE_PREFIX = "store:";
@@ -24,6 +24,7 @@ export const PRESETS_CHANGED = "kodama://presets-changed";
 export const PRESET_KINDS = ["visualizer", "equalizer"];
 
 const VIZ_KEY = "kodama-visualizer-presets";
+export const VIZ_CONFIG_KEY = "kiyoshi-visualizer-config";
 
 /** "store:speech@1.0.0" → { id: "speech", version: "1.0.0" }. Null for a listener's own preset. */
 export function parseStoreId(raw) {
@@ -103,7 +104,21 @@ export function installPreset(kind, entry) {
 
 export function uninstallPreset(kind, id) {
   const keep = (p) => parseStoreId(p?.id)?.id !== id;
-  if (kind === "visualizer") return writeViz(readViz().filter(keep));
+  if (kind === "visualizer") {
+    const list = readViz();
+    // Removing the look that is on screen takes it off the screen too, the way the equaliser falls
+    // back to its default. Otherwise the preset is gone from every list and still running, with
+    // nothing left to point at.
+    try {
+      const current = { ...VIZ_DEFAULTS, ...JSON.parse(localStorage.getItem(VIZ_CONFIG_KEY) || "{}") };
+      const wasOn = list.filter(p => !keep(p)).some(p => {
+        const want = { ...VIZ_DEFAULTS, ...(p?.config || {}) };
+        return Object.keys(VIZ_DEFAULTS).every(k => current[k] === want[k]);
+      });
+      if (wasOn) localStorage.setItem(VIZ_CONFIG_KEY, JSON.stringify({ ...VIZ_DEFAULTS }));
+    } catch { /* nothing stored, nothing on */ }
+    return writeViz(list.filter(keep));
+  }
 
   const state = loadState();
   // Matched on the catalogue id, not the whole id: the selection may still name an older version
@@ -139,7 +154,14 @@ export async function uninstallPresetEverywhere(kind, id) {
   return ok;
 }
 
-/** Run `fn` whenever a preset is installed or removed in any window. */
+/**
+ * Run `fn` whenever a preset is installed or removed in any window.
+ *
+ * The Tauri event alone is not enough. It can arrive before the other window's localStorage write
+ * has reached this one, so reading the list in response still found the removed preset. The
+ * browser's own `storage` event fires only once the new value is readable here, so it is the one
+ * that settles the list; the Tauri event stays for the case where it is quicker and already right.
+ */
 export function onPresetsChanged(fn) {
   let stop = () => {};
   let dead = false;
@@ -147,5 +169,7 @@ export function onPresetsChanged(fn) {
     .then(({ listen }) => listen(PRESETS_CHANGED, fn))
     .then(un => { if (dead) un(); else stop = un; })
     .catch(() => {});
-  return () => { dead = true; stop(); };
+  const onStorage = (e) => { if (e.key === VIZ_KEY || e.key === EQ_KEY) fn(); };
+  window.addEventListener("storage", onStorage);
+  return () => { dead = true; stop(); window.removeEventListener("storage", onStorage); };
 }

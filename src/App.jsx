@@ -3812,6 +3812,15 @@ export default function App() {
     localStorage.setItem("kiyoshi-visualizer-config", JSON.stringify(next));
     return next;
   }), []);
+  // Removing the active preset in the store window resets the stored config; follow it here.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== "kiyoshi-visualizer-config") return;
+      try { setVizConfig({ ...VIZ_DEFAULTS, ...JSON.parse(e.newValue || "{}") }); } catch { /* keep what we have */ }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const [ambientBackground, setAmbientBackground] = usePersistedState("kiyoshi-ambient-bg", false);
   const [flashbang, setFlashbang] = useState(false);
   const lightClickRef = useRef({ count: 0, lastTime: 0 });
