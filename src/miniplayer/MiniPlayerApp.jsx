@@ -134,7 +134,7 @@ export default function MiniPlayerApp() {
     >
       {/* Cover fills the window. The broadcast carries the raw thumbnail — the small list
           variant — so it gets upgraded here: the window is square and can be scaled by DPI,
-          which made the shipped size visibly soft. Same path Big Picture's cover uses. */}
+          which made the shipped size visibly soft. */}
       {np.thumbnail && (
         <img
           src={thumbHi(np.thumbnail, 800)} alt="" draggable={false}

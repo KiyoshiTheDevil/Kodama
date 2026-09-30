@@ -2,7 +2,7 @@
 // is open.
 //
 // The main window because that is where the player is. What these extensions are for is reacting
-// to playback, and the store the player feeds (bigpicture/playerBridge.js) only exists in this
+// to playback, and the store the player feeds (now-playing.js) only exists in this
 // window's JavaScript; anywhere else would mean relaying every change over Tauri's event bus to
 // learn what this window already knows.
 //
@@ -13,7 +13,7 @@ import { useEffect, useRef } from "react";
 import { mountExtension } from "./host.js";
 import { hostImpl, nowPlaying, nowPlayingImpl, playbackImpl, netImpl } from "./impl.js";
 import { installedExtensions, extensionCode, onExtensionsChanged } from "./registry.js";
-import { getNowPlaying, subscribeNowPlaying, getAudio, sendPlayerCommand } from "../bigpicture/playerBridge.js";
+import { getNowPlaying, subscribeNowPlaying, getAudio, sendPlayerCommand } from "../now-playing.js";
 
 /** Fired on window by the Settings page when it changes a value it drew for an extension. */
 export const EXTENSION_SETTINGS_EVENT = "kodama-extension-setting";

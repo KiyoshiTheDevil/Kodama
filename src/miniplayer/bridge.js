@@ -2,8 +2,7 @@
  * Mini player ↔ main window plumbing.
  *
  * The mini player is a real Tauri window, so it gets its own JS context — the in-process
- * store in bigpicture/playerBridge.js cannot reach it (that one only works because Big
- * Picture is rendered inside the main window's React root).
+ * store in now-playing.js cannot reach it (that one only works inside the main window).
  *
  * State goes out as a broadcast event. Commands come back on "media-control", the very
  * channel the OS media keys already use (src-tauri/src/media.rs → App.jsx), so the main

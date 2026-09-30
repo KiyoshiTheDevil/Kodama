@@ -6,11 +6,6 @@ import MiniPlayerApp from "./miniplayer/MiniPlayerApp.jsx";
 import EqualizerApp from "./equalizer/EqualizerApp.jsx";
 import StoreApp from "./store/StoreApp.jsx";
 import ExtensionApp from "./extensions/ExtensionApp.jsx";
-// Big Picture mode — still early/WIP (see src/bigpicture/), reachable only through the
-// "Launch" button in Settings > Experimental, and mounted only once that is pressed. The gamepad test spike (GamepadTest.jsx)
-// stays out — it was only ever a throwaway harness for verifying the Gamepad API, not
-// a real entry point.
-import { BigPictureGate } from "./bigpicture/BigPicture.jsx";
 import { installErrorCapture } from "./bug-diagnostics.js";
 import { installThemeRescue } from "./theme-rescue.js";
 import { pruneLyricsCache } from "./lyrics/cache.js";
@@ -40,7 +35,7 @@ console.log("[boot] main.jsx executing at +" + (Date.now() - (window.__bootStart
 const params = new URLSearchParams(window.location.search);
 const isOverlayEditor = params.get("overlayEditor") === "1";
 // The mini player is its own small window and shares nothing with the main tree — render it
-// alone, without App or Big Picture (a second App would start a second audio pipeline).
+// alone, without App (a second App would start a second audio pipeline).
 const isMiniPlayer = params.get("miniPlayer") === "1";
 // Same reasoning as the mini player: its own small window, and a second App here would start
 // a second audio pipeline against the one the equaliser is meant to be filtering.
@@ -62,10 +57,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   ) : isEqualizer ? (
     <EqualizerApp />
   ) : (
-    <>
-      {isOverlayEditor ? <OverlayEditorApp /> : <App />}
-      <BigPictureGate />
-    </>
+    isOverlayEditor ? <OverlayEditorApp /> : <App />
   )
 );
 

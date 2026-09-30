@@ -19,6 +19,7 @@ Changes:
 - The visualizer now defaults to the linear style
 - The cover can be shown as a circle, set under Visualizer and carried by presets
 - Terms of Service and Privacy Policy can be found under About
+- Big Picture mode has been removed
 
 Fixes:
 - Shutting down Windows with Kodama open showed a taskkill error that held up the shutdown

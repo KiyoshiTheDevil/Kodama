@@ -36,7 +36,7 @@ function nextVocalAfter(lyr, t) {
 export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
   // them are per-instance, they were just settings threaded down from App(). Rendered outside
-  // the provider (Big Picture) these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
+  // the provider these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
   // the prop defaults used to give that instance.
   const {
     showTranslation, translationLang, translationFontSize,
@@ -365,7 +365,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   useLayoutEffect(() => {
     const idx = lastIdxRef.current;
     if (idx >= 0) {
-      // Scope to this instance's own container — Big Picture mounts a second LyricsOverlay while
+      // Scope to this instance's own container — a second LyricsOverlay can be mounted while
       // the desktop one may still be in the DOM, and a global querySelector would grab the wrong
       // (earlier-in-document) instance's spans, leaving this instance's words unpainted.
       const root = containerRef.current || document;

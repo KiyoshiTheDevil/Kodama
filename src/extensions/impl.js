@@ -93,7 +93,7 @@ export function nowPlayingImpl(getSnapshot, getAudio) {
   return { "player.get": () => nowPlaying(getSnapshot(), getAudio?.()) };
 }
 
-/** Transport, through the same handlers Big Picture and the media keys use. */
+/** Transport, through the same handlers the media keys use. */
 export function playbackImpl(send, getSnapshot) {
   const ensure = (want) => {
     const s = getSnapshot();

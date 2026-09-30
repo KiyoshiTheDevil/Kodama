@@ -63,7 +63,7 @@ import { DownloadsView } from "./views/downloads-view.jsx";
 import { HistoryView } from "./views/history-view.jsx";
 import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
-import { setNowPlaying as bpSetNowPlaying, registerPlayerCommands as bpRegisterCommands, registerAudio as bpRegisterAudio } from "./bigpicture/playerBridge.js";
+import { setNowPlaying, registerPlayerAction, registerAudio } from "./now-playing.js";
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 import { shuffled } from "./shuffle.js";
 import { STATS_URL } from "./stats-endpoint.js";
@@ -2111,25 +2111,22 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return () => { clearInterval(iv); };
   }, [remoteEnabled]);
 
-  // Big Picture bridge: expose playback commands (re-registered each render so they close over
-  // current state) + push a formatted now-playing snapshot to the in-process store.
+  // The in-process now-playing store the background extensions read: commands (re-registered each
+  // render so they close over current state) and a formatted snapshot.
   useEffect(() => {
-    bpRegisterCommands({
-      action: runPlaybackAction,
-      seek: (sec) => { const a = audioRef.current; if (a) a.currentTime = Math.max(0, sec); },
-    });
-    bpRegisterAudio(audioRef.current); // hand the IpcAudio clock to Big Picture's lyrics view
+    registerPlayerAction(runPlaybackAction);
+    registerAudio(audioRef.current);
   });
   useEffect(() => {
     const tr = track;
     const artists = Array.isArray(tr?.artists)
       ? tr.artists.map(a => (a && a.name) || a).filter(Boolean).join(", ")
       : (tr?.artists || "");
-    bpSetNowPlaying({
+    setNowPlaying({
       title: tr?.title || "", artists, thumbnail: tr?.thumbnail || "",
       isPlaying: !!isPlaying, position: Math.floor(progress || 0), duration: Math.floor(duration || 0),
       hasTrack: !!tr, shuffle: !!shuffle, repeat: repeat || "none",
-      track: tr || null, // raw track object so Big Picture's lyrics view can fetch for it
+      track: tr || null,
     });
   }, [track, isPlaying, progress, duration, shuffle, repeat]);
 
@@ -4520,7 +4517,7 @@ export default function App() {
     }
   }, []);
 
-  // Enqueue a track for Big Picture's context menu: "next" inserts it right after the current
+  // Enqueue a track from the context menu: "next" inserts it right after the current
   // track, "end" appends it. The queue is the source of truth for next/prev (getAdjacentTrack),
   // so a plain splice is enough. With nothing playing yet, just start it.
   const enqueue = useCallback((track, mode) => {
@@ -4535,9 +4532,6 @@ export default function App() {
       return n;
     });
   }, [currentTrack, handlePlay]);
-
-  // Big Picture bridge: expose "play this track" + enqueue (the Player already owns transport/seek).
-  useEffect(() => { bpRegisterCommands({ play: handlePlay, enqueue }); }, [handlePlay, enqueue]);
 
   // Start an autoplay radio/mix seeded from a single track. Reads the language from localStorage
   // (not the `language` state, which is declared further down → would be a TDZ ref here).
@@ -5750,10 +5744,6 @@ export default function App() {
       // While the overlay editor is open, playback shortcuts must not fire —
       // arrow keys nudge the selected layer, Space/etc. belong to the editor.
       if (document.querySelector("[data-overlay-editor]")) return;
-
-      // Same for Big Picture mode: its own navigation (arrows/enter) owns the keyboard while open,
-      // so the desktop shortcuts (arrow = prev/next track, etc.) must stay out of the way.
-      if (document.querySelector("[data-bigpicture]")) return;
 
       const sc = customShortcutsRef.current;
 
