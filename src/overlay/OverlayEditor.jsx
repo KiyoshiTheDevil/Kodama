@@ -23,14 +23,14 @@ import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../u
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
-  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller, Shapes,
+  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller, Shapes, Folder,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
 import {
   isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners, defaultCanvas,
 } from "./schema.js";
-import { readElements, writeElements, makeElement, placeElement } from "./elements.js";
+import { readElements, writeElements, makeElement, placeElement, foldersOf, moveToFolder, renameFolder, dissolveFolder, cleanFolder } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
@@ -1910,13 +1910,25 @@ export default function OverlayEditor({
   const [confirmDelEl, setConfirmDelEl] = useState(null);
   const [elDrag, setElDrag] = useState(null);             // { el, x, y, over } while dragging one
   const [pickedEl, setPickedEl] = useState(null);         // the card selected in the library
+  // Folders: flat, a name on each element. "__all__" shows every folder as its own section,
+  // "__none__" the elements without one.
+  const [libFolder, setLibFolder] = useState("__all__");
+  const [collapsedFolders, setCollapsedFolders] = useState(() => new Set());
+  const [elementFolder, setElementFolder] = useState("");      // folder field while saving
+  const [newFolderFor, setNewFolderFor] = useState(null);      // element id waiting for a new folder name
+  const [folderDraft, setFolderDraft] = useState("");
+  const [renamingFolder, setRenamingFolder] = useState(null);
+  const [chipMenu, setChipMenu] = useState(null);              // { folder, x, y } for the right-click menu
   const startSaveElement = () => {
     if (!selectedIds.length) return;
     setLibOpen(true);
     setElementName(selGroup?.name || selected?.name || t("ovlElementDefault"));
+    // Saving while a folder is open puts the new element into it.
+    setElementFolder(libFolder.startsWith("__") ? "" : libFolder);
+    setNewFolderFor(null);
   };
   const saveElement = () => {
-    const el = makeElement(doc, selectedIds, (elementName || "").trim() || t("ovlElementDefault"));
+    const el = makeElement(doc, selectedIds, (elementName || "").trim() || t("ovlElementDefault"), elementFolder);
     if (el) persistElements([el, ...elements]);
     setElementName(null);
   };
@@ -1938,13 +1950,16 @@ export default function OverlayEditor({
     const move = (ev) => {
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
       moved = true;
-      setElDrag({ el, x: ev.clientX, y: ev.clientY, over: inViewport(ev) });
+      setElDrag({ el, x: ev.clientX, y: ev.clientY, over: inViewport(ev), chip: ev.target?.closest?.("[data-folder-chip]")?.dataset.folderChip || null });
     };
     const up = (ev) => {
       window.removeEventListener("pointermove", move);
       setElDrag(null);
       // A click picks the card, as in Figma; Enter, the Insert button or a double-click place it.
       if (!moved) { setPickedEl(el.id); return; }
+      // Dropped on a folder chip: file it there instead of placing it.
+      const chip = ev.target?.closest?.("[data-folder-chip]")?.dataset.folderChip;
+      if (chip && chip !== "__all__") { persistElements(moveToFolder(readElements(), el.id, chip === "__none__" ? "" : chip)); return; }
       if (!inViewport(ev)) return;
       const r = viewportRef.current.getBoundingClientRect();
       insertElement(el, { x: (ev.clientX - r.left - pan.x) / zoom, y: (ev.clientY - r.top - pan.y) / zoom });
@@ -1962,6 +1977,93 @@ export default function OverlayEditor({
     layers: el.layers, groups: el.groups || [],
   }])), [elements]);
   const shownElements = elements.filter((el) => !libQuery.trim() || (el.name || "").toLowerCase().includes(libQuery.trim().toLowerCase()));
+  const libFolders = foldersOf(elements);
+  const inFolder = shownElements.filter((el) => libFolder === "__all__" ? true
+    : libFolder === "__none__" ? !cleanFolder(el.folder) : cleanFolder(el.folder) === libFolder);
+  // "All" with folders in use: one section per folder, the loose ones last. Otherwise one flat grid.
+  const libSections = libFolder === "__all__" && libFolders.length
+    ? [...libFolders.map((f) => ({ key: f, label: f, items: inFolder.filter((el) => cleanFolder(el.folder) === f) })),
+       { key: "__none__", label: t("ovlElementsNoFolder"), items: inFolder.filter((el) => !cleanFolder(el.folder)) }].filter((sec) => sec.items.length)
+    : [{ key: "__flat__", label: libFolder === "__all__" ? t("ovlElementsMine") : libFolder === "__none__" ? t("ovlElementsNoFolder") : libFolder, items: inFolder }];
+  const toggleFolderOpen = (key) => setCollapsedFolders((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const finishFolderRename = () => {
+    const to = cleanFolder(folderDraft);
+    if (renamingFolder && to && to !== renamingFolder) {
+      persistElements(renameFolder(elements, renamingFolder, to));
+      if (libFolder === renamingFolder) setLibFolder(to);
+    }
+    setRenamingFolder(null);
+  };
+  const renderElementCard = (el) => {
+                const picked = pickedEl === el.id;
+                const n = el.layers?.length || 0;
+                return (
+                  <div key={el.id} title={t("ovlElementHint")}
+                    onPointerDown={(e) => { if (!e.target.closest("button,input")) startElementDrag(e, el); }}
+                    onDoubleClick={(e) => { if (!e.target.closest("button,input")) insertElement(el, null); }}
+                    className="group/el relative flex flex-col min-w-0 cursor-grab select-none">
+                    <div className="relative aspect-square overflow-hidden transition-shadow"
+                      style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)",
+                        boxShadow: picked ? "0 0 0 2px var(--accent)" : "none" }}>
+                      <DesignPreview apiBase={apiBase} doc={elementDocs[el.id]} box={{ w: 104, h: 104 }} pad={10} />
+                      <div className="absolute top-1.5 right-1.5 flex opacity-0 group-hover/el:opacity-100 focus-within:opacity-100 transition-opacity"
+                        style={{ gap: HDR_NOTCH }}>
+                        <Dropdown>
+                          <DropdownTrigger aria-label={t("ovlElementMoveTo")}
+                            className="w-6 h-6 flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary cursor-pointer"
+                            style={{ borderRadius: hdrCorners(false, true, 24) }}><Folder size={11} /></DropdownTrigger>
+                          <DropdownPopover placement="bottom end" className="[--dd-min-w:10rem]">
+                            <DropdownMenu aria-label={t("ovlElementMoveTo")} onAction={(k) => {
+                              const key = String(k);
+                              if (key === "__new__") { setNewFolderFor(el.id); setFolderDraft(""); setElementName(null); }
+                              else persistElements(moveToFolder(elements, el.id, key === "__none__" ? "" : key));
+                            }}>
+                              <DropdownSection>
+                                {libFolders.map((f) => (
+                                  <DropdownItem key={f} id={f} textValue={f}>
+                                    <Folder size={12} />{f}{cleanFolder(el.folder) === f && <Check size={11} className="ml-auto" />}
+                                  </DropdownItem>
+                                ))}
+                                <DropdownItem key="__none__" id="__none__" textValue={t("ovlElementsNoFolder")}>
+                                  <span className="w-3" />{t("ovlElementsNoFolder")}{!cleanFolder(el.folder) && <Check size={11} className="ml-auto" />}
+                                </DropdownItem>
+                              </DropdownSection>
+                              <DropdownSection className="border-t border-border mt-1 pt-1">
+                                <DropdownItem key="__new__" id="__new__" textValue={t("ovlElementNewFolder")}><Plus size={12} />{t("ovlElementNewFolder")}</DropdownItem>
+                              </DropdownSection>
+                            </DropdownMenu>
+                          </DropdownPopover>
+                        </Dropdown>
+                        <button type="button" aria-label={t("ovlElementRename")} title={t("ovlElementRename")}
+                          onClick={() => { setRenamingEl(el.id); setElDraft(el.name || ""); }}
+                          className="w-6 h-6 flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary cursor-pointer"
+                          style={{ borderRadius: hdrCorners(true, true, 24) }}><PencilSimple size={11} /></button>
+                        <button type="button" aria-label={t("ovlMenuDelete")} title={confirmDelEl === el.id ? t("ovlElementDeleteConfirm") : t("ovlMenuDelete")}
+                          onClick={() => {
+                            if (confirmDelEl === el.id) { persistElements(elements.filter((x) => x.id !== el.id)); setConfirmDelEl(null); if (picked) setPickedEl(null); }
+                            else { setConfirmDelEl(el.id); setTimeout(() => setConfirmDelEl((c) => (c === el.id ? null : c)), 2500); }
+                          }}
+                          className={`h-6 flex items-center justify-center gap-1 border-0 cursor-pointer ${confirmDelEl === el.id ? "px-2 bg-[var(--status-danger)] text-white" : "w-6 bg-[var(--surface-2)] text-secondary hover:text-[var(--status-danger)]"}`}
+                          style={{ borderRadius: hdrCorners(true, false, 24) }}>
+                          <Trash size={11} />{confirmDelEl === el.id && <span style={{ fontSize: "var(--t11)" }}>{t("ovlElementDeleteConfirm")}</span>}
+                        </button>
+                      </div>
+                    </div>
+                    {renamingEl === el.id ? (
+                      <input autoFocus value={elDraft} onChange={(e) => setElDraft(e.target.value)}
+                        onBlur={() => { const nn = elDraft.trim(); if (nn) persistElements(elements.map((x) => (x.id === el.id ? { ...x, name: nn } : x))); setRenamingEl(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingEl(null); } }}
+                        style={{ fontSize: "var(--t12)" }}
+                        className="mt-1.5 h-6 px-2 rounded-[var(--r-full)] bg-[var(--surface-2)] text-primary border border-accent outline-none" />
+                    ) : (
+                      <div style={{ fontSize: "var(--t12)" }} className="mt-1.5 px-0.5 truncate font-medium text-primary">{el.name}</div>
+                    )}
+                    <div style={{ fontSize: "var(--t11)" }} className="px-0.5 truncate text-muted tabular-nums">
+                      {el.w} × {el.h} · {n} {n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}
+                    </div>
+                  </div>
+                );
+  };
   const insertPicked = () => {
     const el = elements.find((x) => x.id === pickedEl);
     if (!el) return false;
@@ -2613,70 +2715,95 @@ export default function OverlayEditor({
               <SearchPill value={libQuery} onChange={setLibQuery} placeholder={t("ovlElementsSearch")} className="flex-1" />
               <ChipGroup items={[{ key: "x", icon: <X size={12} />, aria: t("close"), onPress: () => { setLibOpen(false); setElementName(null); } }]} />
             </div>
-            <div className="flex items-center px-4 pt-1 pb-2 shrink-0">
-              <span style={{ fontSize: "var(--t12)" }} className="font-semibold text-secondary">{t("ovlElementsMine")}</span>
-              <span style={{ fontSize: "var(--t12)" }} className="ml-1.5 text-muted tabular-nums">{shownElements.length}</span>
-            </div>
+            {/* Folder chips, in the place Figma gives its tabs. Right-click renames or dissolves a
+                folder; a card dropped on a chip is filed there. */}
+            {libFolders.length > 0 && (
+              <div className="flex items-center gap-1.5 px-3 pb-2 overflow-x-auto shrink-0">
+                {[["__all__", t("ovlElementsAll")], ...libFolders.map((f) => [f, f]), ["__none__", t("ovlElementsNoFolder")]].map(([k, label]) => {
+                  const on = libFolder === k;
+                  const drop = !!elDrag && elDrag.chip === k && k !== "__all__";
+                  return renamingFolder === k ? (
+                    <input key={k} autoFocus value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)}
+                      onBlur={finishFolderRename}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingFolder(null); } }}
+                      style={{ fontSize: "var(--t12)", width: Math.max(80, folderDraft.length * 8 + 28) }}
+                      className="h-[26px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] text-primary border border-accent outline-none shrink-0" />
+                  ) : (
+                    <button key={k} type="button" data-folder-chip={k} onClick={() => setLibFolder(k)}
+                      onContextMenu={(e) => { if (k.startsWith("__")) return; e.preventDefault(); setChipMenu({ folder: k, x: e.clientX, y: e.clientY }); }}
+                      className={`h-[26px] px-3 shrink-0 flex items-center gap-1.5 rounded-[var(--r-full)] border-0 whitespace-nowrap cursor-pointer transition-colors ${on ? "bg-[var(--surface-3)] text-primary" : "bg-transparent text-secondary hover:text-primary hover:bg-[var(--surface-2)]"}`}
+                      style={{ fontSize: "var(--t12)", boxShadow: drop ? "0 0 0 2px var(--accent)" : "none" }}>
+                      {!k.startsWith("__") && <Folder size={11} />}{label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {/* pt: the picked card's ring sits outside the card, and the scroll box clipped it at the top. */}
-            <div className="overflow-y-auto min-h-0 px-3 pt-1 pb-3 grid grid-cols-4 gap-x-2 gap-y-3 content-start">
-              {shownElements.length === 0 && (
-                <div className="col-span-4 py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
+            <div className="overflow-y-auto min-h-0 px-3 pt-1 pb-3 flex flex-col gap-3">
+              {inFolder.length === 0 && (
+                <div className="py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
                   {elements.length ? t("ovlElementsNoMatch") : t("ovlElementsEmpty")}
                 </div>
               )}
-              {shownElements.map((el) => {
-                const picked = pickedEl === el.id;
-                const n = el.layers?.length || 0;
+              {libSections.map((sec) => {
+                const folded = sec.key !== "__flat__" && collapsedFolders.has(sec.key);
                 return (
-                  <div key={el.id} title={t("ovlElementHint")}
-                    onPointerDown={(e) => { if (!e.target.closest("button,input")) startElementDrag(e, el); }}
-                    onDoubleClick={(e) => { if (!e.target.closest("button,input")) insertElement(el, null); }}
-                    className="group/el relative flex flex-col min-w-0 cursor-grab select-none">
-                    <div className="relative aspect-square overflow-hidden transition-shadow"
-                      style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)",
-                        boxShadow: picked ? "0 0 0 2px var(--accent)" : "none" }}>
-                      <DesignPreview apiBase={apiBase} doc={elementDocs[el.id]} box={{ w: 104, h: 104 }} pad={10} />
-                      <div className="absolute top-1.5 right-1.5 flex opacity-0 group-hover/el:opacity-100 focus-within:opacity-100 transition-opacity"
-                        style={{ gap: HDR_NOTCH }}>
-                        <button type="button" aria-label={t("ovlElementRename")} title={t("ovlElementRename")}
-                          onClick={() => { setRenamingEl(el.id); setElDraft(el.name || ""); }}
-                          className="w-6 h-6 flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary cursor-pointer"
-                          style={{ borderRadius: hdrCorners(false, true, 24) }}><PencilSimple size={11} /></button>
-                        <button type="button" aria-label={t("ovlMenuDelete")} title={confirmDelEl === el.id ? t("ovlElementDeleteConfirm") : t("ovlMenuDelete")}
-                          onClick={() => {
-                            if (confirmDelEl === el.id) { persistElements(elements.filter((x) => x.id !== el.id)); setConfirmDelEl(null); if (picked) setPickedEl(null); }
-                            else { setConfirmDelEl(el.id); setTimeout(() => setConfirmDelEl((c) => (c === el.id ? null : c)), 2500); }
-                          }}
-                          className={`h-6 flex items-center justify-center gap-1 border-0 cursor-pointer ${confirmDelEl === el.id ? "px-2 bg-[var(--status-danger)] text-white" : "w-6 bg-[var(--surface-2)] text-secondary hover:text-[var(--status-danger)]"}`}
-                          style={{ borderRadius: hdrCorners(true, false, 24) }}>
-                          <Trash size={11} />{confirmDelEl === el.id && <span style={{ fontSize: "var(--t11)" }}>{t("ovlElementDeleteConfirm")}</span>}
+                  <div key={sec.key} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1 px-1">
+                      {sec.key !== "__flat__" && (
+                        <button type="button" onClick={() => toggleFolderOpen(sec.key)} aria-expanded={!folded} aria-label={sec.label}
+                          className="w-5 h-5 flex items-center justify-center border-0 bg-transparent text-secondary hover:text-primary cursor-pointer">
+                          {folded ? <CaretRight size={10} /> : <CaretDown size={10} />}
                         </button>
-                      </div>
+                      )}
+                      <span style={{ fontSize: "var(--t12)" }} className="font-semibold text-secondary truncate">{sec.label}</span>
+                      <span style={{ fontSize: "var(--t12)" }} className="ml-1 text-muted tabular-nums">{sec.items.length}</span>
                     </div>
-                    {renamingEl === el.id ? (
-                      <input autoFocus value={elDraft} onChange={(e) => setElDraft(e.target.value)}
-                        onBlur={() => { const nn = elDraft.trim(); if (nn) persistElements(elements.map((x) => (x.id === el.id ? { ...x, name: nn } : x))); setRenamingEl(null); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingEl(null); } }}
-                        style={{ fontSize: "var(--t12)" }}
-                        className="mt-1.5 h-6 px-2 rounded-[var(--r-full)] bg-[var(--surface-2)] text-primary border border-accent outline-none" />
-                    ) : (
-                      <div style={{ fontSize: "var(--t12)" }} className="mt-1.5 px-0.5 truncate font-medium text-primary">{el.name}</div>
+                    {!folded && (
+                      <div className="grid grid-cols-4 gap-x-2 gap-y-3">{sec.items.map(renderElementCard)}</div>
                     )}
-                    <div style={{ fontSize: "var(--t11)" }} className="px-0.5 truncate text-muted tabular-nums">
-                      {el.w} × {el.h} · {n} {n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}
-                    </div>
                   </div>
                 );
               })}
             </div>
             {/* Footer: save on the left, insert on the right. While naming, the name takes its place. */}
             <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ background: PANEL_FOOT }}
-              onKeyDown={(e) => { if (elementName === null) return; if (e.key === "Enter") saveElement(); if (e.key === "Escape") { e.stopPropagation(); setElementName(null); } }}>
-              {elementName !== null ? (
+              onKeyDown={(e) => {
+                if (newFolderFor !== null) {
+                  if (e.key === "Enter") { persistElements(moveToFolder(elements, newFolderFor, folderDraft)); setNewFolderFor(null); }
+                  if (e.key === "Escape") { e.stopPropagation(); setNewFolderFor(null); }
+                  return;
+                }
+                if (elementName === null) return;
+                if (e.key === "Enter") saveElement();
+                if (e.key === "Escape") { e.stopPropagation(); setElementName(null); }
+              }}>
+              {newFolderFor !== null ? (
+                <>
+                  <div className="flex-1 flex items-center gap-2 h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-accent">
+                    <Folder size={12} className="text-muted shrink-0" />
+                    <input autoFocus value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} placeholder={t("ovlFolderName")}
+                      className="flex-1 min-w-0 bg-transparent outline-none text-primary" style={{ fontSize: "var(--t12)" }} />
+                  </div>
+                  <ChipGroup items={[
+                    { key: "move", label: t("ovlElementMove"), icon: <Check size={12} />, active: true, disabled: !cleanFolder(folderDraft),
+                      onPress: () => { persistElements(moveToFolder(elements, newFolderFor, folderDraft)); setNewFolderFor(null); } },
+                    { key: "cancel", icon: <X size={12} />, aria: t("close"), onPress: () => setNewFolderFor(null) },
+                  ]} />
+                </>
+              ) : elementName !== null ? (
                 <>
                   <div className="flex-1 flex items-center h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-accent">
                     <input autoFocus value={elementName} onChange={(e) => setElementName(e.target.value)} placeholder={t("ovlElementName")}
                       className="flex-1 min-w-0 bg-transparent outline-none text-primary" style={{ fontSize: "var(--t12)" }} />
+                  </div>
+                  {/* The folder: an existing one from the suggestions, or a new name. */}
+                  <div className="w-[130px] flex items-center gap-2 h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent">
+                    <Folder size={12} className="text-muted shrink-0" />
+                    <input list="ovl-element-folders" value={elementFolder} onChange={(e) => setElementFolder(e.target.value)} placeholder={t("ovlElementFolder")}
+                      className="flex-1 min-w-0 bg-transparent outline-none text-primary" style={{ fontSize: "var(--t12)" }} />
+                    <datalist id="ovl-element-folders">{libFolders.map((f) => <option key={f} value={f} />)}</datalist>
                   </div>
                   <ChipGroup items={[
                     { key: "save", label: t("ovlSave"), icon: <Check size={12} />, active: true, onPress: saveElement },
@@ -2735,6 +2862,21 @@ export default function OverlayEditor({
         <ToolBtn active={libOpen} label={t("ovlElements")} corners={hdrCorners(false, false, TOOL_H)}
           onPress={() => { setLibOpen((o) => !o); setElementName(null); }}><Shapes size={16} /></ToolBtn>
       </div>
+      {chipMenu && (
+        <div className="fixed inset-0 z-[9998]" onPointerDown={() => setChipMenu(null)} onContextMenu={(e) => { e.preventDefault(); setChipMenu(null); }}>
+          <div className="absolute p-1 flex flex-col min-w-[170px]" onPointerDown={(e) => e.stopPropagation()}
+            style={{ ...PANEL_SHELL, borderRadius: "var(--r-xl)", left: chipMenu.x, top: chipMenu.y, transform: "translateY(-100%)" }}>
+            {[
+              ["rename", t("ovlFolderRename"), <PencilSimple key="i" size={12} />, () => { setRenamingFolder(chipMenu.folder); setFolderDraft(chipMenu.folder); }],
+              ["dissolve", t("ovlFolderDissolve"), <X key="i" size={12} />, () => { persistElements(dissolveFolder(elements, chipMenu.folder)); if (libFolder === chipMenu.folder) setLibFolder("__all__"); }],
+            ].map(([k, label, icon, run]) => (
+              <button key={k} type="button" onClick={() => { run(); setChipMenu(null); }}
+                className="flex items-center gap-2 h-8 px-3 rounded-[var(--r-full)] border-0 bg-transparent text-primary hover:bg-[var(--surface-2)] cursor-pointer text-left"
+                style={{ fontSize: "var(--t12)" }}>{icon}{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
       {/* While an element is dragged: where it lands on the canvas, at its real size, or a name
           chip while the pointer is still elsewhere. */}
       {elDrag && (elDrag.over ? (

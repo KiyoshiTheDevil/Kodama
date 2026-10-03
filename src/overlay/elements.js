@@ -10,6 +10,39 @@ import { makeId } from "./schema.js";
 import { groupsOf, membersOf, chainOf, boundsOf, tidyGroups } from "./groups.js";
 
 const KEY = "kiyoshi-overlay-elements";
+
+// ── Folders ──────────────────────────────────────────────────────────────────
+// Flat on purpose: one level, a name on each element. A folder exists while something is in it,
+// so there is nothing to create or clean up, and dissolving one deletes no element.
+export const cleanFolder = (f) => (typeof f === "string" ? f.trim().slice(0, 40) : "");
+
+/** The folders in use, in alphabetical order. */
+export function foldersOf(list) {
+  return [...new Set(list.map((e) => cleanFolder(e.folder)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+export function moveToFolder(list, id, folder) {
+  const f = cleanFolder(folder);
+  return list.map((e) => {
+    if (e.id !== id) return e;
+    if (f) return { ...e, folder: f };
+    const { folder: _drop, ...rest } = e; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+}
+/** Rename a folder. Renaming onto an existing name merges the two. */
+export function renameFolder(list, from, to) {
+  const t = cleanFolder(to);
+  if (!t) return list;
+  return list.map((e) => (cleanFolder(e.folder) === from ? { ...e, folder: t } : e));
+}
+/** Dissolve a folder: its elements stay, without a folder. */
+export function dissolveFolder(list, folder) {
+  return list.map((e) => {
+    if (cleanFolder(e.folder) !== folder) return e;
+    const { folder: _drop, ...rest } = e; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+}
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
 export function readElements() {
@@ -26,7 +59,7 @@ export function writeElements(list) {
  * The selected layers as an element. A group comes along when all of it is selected; a layer
  * from a group that is only partly selected moves up to the nearest group that did come along.
  */
-export function makeElement(doc, ids, name) {
+export function makeElement(doc, ids, name, folder) {
   const picked = doc.layers.filter((l) => ids.includes(l.id));
   if (!picked.length) return null;
   const keep = new Set(groupsOf(doc)
@@ -56,6 +89,7 @@ export function makeElement(doc, ids, name) {
   return {
     id: makeId("el"),
     name: name || "Element",
+    ...(cleanFolder(folder) ? { folder: cleanFolder(folder) } : {}),
     savedAt: new Date().toISOString(),
     w: Math.round(box.w), h: Math.round(box.h),
     layers, groups,

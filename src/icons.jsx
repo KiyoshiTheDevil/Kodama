@@ -96,6 +96,7 @@ export const ObjectGroup        = fa("object-group");
 export const ObjectUngroup      = fa("object-ungroup");
 export const PaintRoller        = fa("paint-roller");
 export const Shapes             = fa("shapes");
+export const Folder             = fa("folder");
 export const CaretLineLeft      = fa("angles-left");
 export const CaretLineRight     = fa("angles-right");
 export const CaretUp            = fa("caret-up");
