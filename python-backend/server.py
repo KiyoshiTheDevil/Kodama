@@ -6901,10 +6901,26 @@ function applyMarquee(rec){
   }
 }
 
+// Entrances were only ever played when the page was built, which in OBS is when the source
+// loads: usually before any song is there, and with auto-hide while the widget is invisible, so
+// nobody saw them. They now start over whenever the widget appears, and on every new song unless
+// the design says "only when it appears" (canvas.entranceOn).
+let stageShown=null,trackKey=null;
+const ENTRANCE_KF=/^ovl-(fade|slide|zoom)/;
+function restartEntrances(){
+  if(EDITOR)return;
+  const els=[...document.querySelectorAll('#layers *, #layers-free *')].filter(el=>ENTRANCE_KF.test(el.style.animationName||''));
+  const saved=els.map(el=>el.style.animation);
+  els.forEach(el=>{el.style.animation='none';});
+  void document.body.offsetWidth;
+  els.forEach((el,i)=>{el.style.animation=saved[i];});
+}
 function applyAutoHide(){
   const stage=document.getElementById('stage');
-  if(doc&&doc.canvas&&doc.canvas.autoHide)stage.style.opacity=(state.isPlaying&&state.title)?'1':'0';
-  else stage.style.opacity='1';
+  const show=!(doc&&doc.canvas&&doc.canvas.autoHide)||!!(state.isPlaying&&state.title);
+  stage.style.opacity=show?'1':'0';
+  if(show&&stageShown===false)restartEntrances();
+  stageShown=show;
 }
 
 function renderData(){
@@ -6940,12 +6956,16 @@ function updateState(s){
   if(s._configUpdate){applyDoc(s.config);return;}
   if(s._config)applyDoc(s._config);
   ['title','artist','album','cover','progress','duration','isPlaying'].forEach(f=>{if(f in s)state[f]=s[f];});
+  const key=(state.title||'')+'|'+(state.artist||'');
+  const newSong=trackKey!==null&&key!==trackKey&&!!state.title&&((doc&&doc.canvas&&doc.canvas.entranceOn)||'track')==='track';
+  trackKey=key;
   if(doc&&doc.canvas&&doc.canvas.bg&&doc.canvas.bg.blurFromCover&&(doc.canvas.bg.blur||0)>0){
     const blur=document.getElementById('blur');
     blur.style.backgroundImage=state.cover?`url(${state.cover})`:'none';
     blur.style.opacity=state.cover?'1':'0';
   }
   renderData();
+  if(newSong)restartEntrances();
 }
 
 // Editor live-preview channel: the editor postMessages the in-progress doc

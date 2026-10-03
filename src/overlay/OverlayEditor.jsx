@@ -2519,6 +2519,10 @@ export default function OverlayEditor({
                   <PillNum prefix="H" value={doc.canvas.height} min={20} max={2160} onChange={(v) => updateCanvas({ height: v })} />
                 </div>
                 <SwitchField label={t("overlayAutoHide")} checked={doc.canvas.autoHide} onChange={(v) => updateCanvas({ autoHide: v })} />
+                <Field label={t("ovlEntranceOn")}>
+                  <SelectField value={doc.canvas.entranceOn || "track"} onChange={(v) => updateCanvas({ entranceOn: v })}
+                    options={[{ value: "track", label: t("ovlEntranceOnTrack") }, { value: "appear", label: t("ovlEntranceOnAppear") }]} />
+                </Field>
               </Section>
               <Section title={t("ovlBackground")}>
                 <ColorField label={t("ovlColor")} value={doc.canvas.bg?.color} onChange={(v) => updateCanvasBg({ color: v })}

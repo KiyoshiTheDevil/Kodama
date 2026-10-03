@@ -24,6 +24,7 @@ Changes:
 - Overlay editor: selecting a layer on the canvas brings it into view in the layers panel
 - Overlay editor: groups can have entrance and loop animations, with a stagger that brings their contents in one after another
 - Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
+- Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 

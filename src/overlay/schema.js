@@ -205,6 +205,7 @@ export function defaultCanvas(over = {}) {
     border: { on: false, color: "#EEA8FF", width: 1.5, glow: 0 },
     shadow: { on: false, strength: 0.35 },
     autoHide: false,
+    entranceOn: "track",        // entrances replay on every new song ("track") or only when the widget appears ("appear")
     // Theme defaults — new layers inherit these via the editor.
     theme: { fontFamily: "system-ui, sans-serif", textColor: "#ffffff", accentColor: "#EEA8FF" },
     ...over,
