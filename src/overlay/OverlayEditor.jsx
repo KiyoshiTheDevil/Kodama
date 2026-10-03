@@ -23,13 +23,14 @@ import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../u
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
-  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller,
+  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller, Shapes,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
 import {
-  isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners,
+  isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners, defaultCanvas,
 } from "./schema.js";
+import { readElements, writeElements, makeElement, placeElement } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
@@ -1211,6 +1212,7 @@ export default function OverlayEditor({
   // that could not read them anyway.
   const clipboardRef = useRef([]);
   const saveActionsRef = useRef({});        // Save / Save as, defined further down with the profiles
+  const libActionsRef = useRef({});         // element library, defined further down
   const clipboardGroupsRef = useRef([]);   // names of the groups the copied layers were in
   // The entry selected in the inspector, the entry copied from it, and which of the two
   // clipboards Ctrl+V should use: whatever was copied last.
@@ -1433,6 +1435,8 @@ export default function OverlayEditor({
         if (!entryCopy) return;
       }
       if (e.key === "Escape" && selProp) { e.preventDefault(); setSelProp(null); return; }
+      if (e.key === "Escape" && libActionsRef.current.isOpen) { e.preventDefault(); libActionsRef.current.close?.(); return; }
+      if (mod && e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); libActionsRef.current.startSave?.(); return; }
       if (e.key === "Escape" && tool) { e.preventDefault(); setTool(null); setDrawRect(null); return; }
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault(); if (e.shiftKey) redo(); else undo();
@@ -1837,6 +1841,71 @@ export default function OverlayEditor({
     );
   };
 
+  // ── Element library ──────────────────────────────────────────────────────────
+  // Pieces of a design kept for reuse (see elements.js). Opened from the tool row, it floats
+  // above it; an element is dragged onto the canvas, or clicked to land in the middle.
+  const [elements, setElements] = useState(readElements);
+  const persistElements = (next) => { setElements(next); writeElements(next); };
+  const [libOpen, setLibOpen] = useState(false);
+  const [libQuery, setLibQuery] = useState("");
+  const [elementName, setElementName] = useState(null);   // a string while a new element is being named
+  const [renamingEl, setRenamingEl] = useState(null);
+  const [elDraft, setElDraft] = useState("");
+  const [confirmDelEl, setConfirmDelEl] = useState(null);
+  const [elDrag, setElDrag] = useState(null);             // { el, x, y, over } while dragging one
+  const startSaveElement = () => {
+    if (!selectedIds.length) return;
+    setLibOpen(true);
+    setElementName(selGroup?.name || selected?.name || t("ovlElementDefault"));
+  };
+  const saveElement = () => {
+    const el = makeElement(doc, selectedIds, (elementName || "").trim() || t("ovlElementDefault"));
+    if (el) persistElements([el, ...elements]);
+    setElementName(null);
+  };
+  const insertElement = (el, at) => {
+    const { doc: next, ids } = placeElement(doc, el, at, () => crypto.randomUUID());
+    commit(next, doc);
+    setSelectedIds(ids);
+  };
+  // Pointer-based like the layer list: HTML5 drag-and-drop is unreliable in WebView2.
+  const startElementDrag = (e, el) => {
+    if (e.button !== 0) return;
+    const sx = e.clientX, sy = e.clientY;
+    let moved = false;
+    const inViewport = (ev) => {
+      const r = viewportRef.current?.getBoundingClientRect();
+      return !!r && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
+        && !ev.target?.closest?.("[data-ovl-library]");
+    };
+    const move = (ev) => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+      moved = true;
+      setElDrag({ el, x: ev.clientX, y: ev.clientY, over: inViewport(ev) });
+    };
+    const up = (ev) => {
+      window.removeEventListener("pointermove", move);
+      setElDrag(null);
+      if (!moved) { insertElement(el, null); return; }
+      if (!inViewport(ev)) return;
+      const r = viewportRef.current.getBoundingClientRect();
+      insertElement(el, { x: (ev.clientX - r.left - pan.x) / zoom, y: (ev.clientY - r.top - pan.y) / zoom });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+  };
+  // What a card shows: the element alone on a transparent canvas of its own size, drawn by the
+  // same engine as everything else. Built once per list so the previews are not reloaded on
+  // every redraw of the editor.
+  const elementDocs = useMemo(() => Object.fromEntries(elements.map((el) => [el.id, {
+    version: 2,
+    canvas: { ...defaultCanvas(), width: Math.max(1, el.w), height: Math.max(1, el.h), bg: { color: "#000000", opacity: 0 },
+      corners: uniformCorners(0, "r"), border: { on: false }, shadow: { on: false } },
+    layers: el.layers, groups: el.groups || [],
+  }])), [elements]);
+  const shownElements = elements.filter((el) => !libQuery.trim() || (el.name || "").toLowerCase().includes(libQuery.trim().toLowerCase()));
+  libActionsRef.current = { isOpen: libOpen, close: () => { setLibOpen(false); setElementName(null); }, startSave: startSaveElement };
+
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
   const [browserQuery, setBrowserQuery] = useState("");
@@ -2026,6 +2095,7 @@ export default function OverlayEditor({
             ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone", "copy", "cut", "group"]),
             ...(canUngroup ? [] : ["ungroup"]),
             ...(canCopyProps ? [] : ["copyProps"]),
+            ...(selectedIds.length ? [] : ["saveElement"]),
             ...(propsClip && selectedIds.length ? [] : ["pasteProps", "pasteColors", "pasteEffects", "pasteAnims"]),
             ...(propsClip?.from === "group" ? ["pasteColors", "pasteEffects"] : []),
             ...(clipboardRef.current.length ? [] : ["paste"]),
@@ -2039,6 +2109,7 @@ export default function OverlayEditor({
             else if (key === "delete") deleteSelected();
             else if (key === "group") groupSelected();
             else if (key === "copyProps") copySelectedProps();
+            else if (key === "saveElement") libActionsRef.current.startSave?.();
             else if (key === "pasteProps") pasteSelectedProps("all");
             else if (key === "pasteColors") pasteSelectedProps("colors");
             else if (key === "pasteEffects") pasteSelectedProps("effects");
@@ -2070,6 +2141,9 @@ export default function OverlayEditor({
               <DropdownItem id="pasteColors" textValue={t("ovlPasteColors")}><span className="w-[13px]" />{t("ovlPasteColors")}</DropdownItem>
               <DropdownItem id="pasteEffects" textValue={t("ovlPasteEffects")}><span className="w-[13px]" />{t("ovlPasteEffects")}</DropdownItem>
               <DropdownItem id="pasteAnims" textValue={t("ovlPasteAnims")}><span className="w-[13px]" />{t("ovlPasteAnims")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="saveElement" textValue={t("ovlElementSaveAs")}><Shapes size={13} />{t("ovlElementSaveAs")}<span className="ml-auto pl-4 text-muted text-[length:var(--t11)]">Ctrl+Alt+K</span></DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="selectAll" textValue={t("ovlSelectAll")}><CursorArrow size={13} />{t("ovlSelectAll")}</DropdownItem>
@@ -2464,7 +2538,72 @@ export default function OverlayEditor({
       {/* ── Element toolbar, in its own band under the canvas ─────────────────────────
              Separate chips rather than one enclosing pill: the concept gives each tool its own
              surface, so the row reads as six controls instead of one segmented widget. ────── */}
-      <div className="shrink-0 flex items-center justify-center pt-2.5" style={{ gap: HDR_NOTCH }}>
+      <div className="shrink-0 flex items-center justify-center pt-2.5 relative" style={{ gap: HDR_NOTCH }}>
+        {libOpen && (
+          <div data-ovl-library data-ovl-panel
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-40 w-[480px] max-w-[calc(100%-24px)] flex flex-col rounded-[var(--r-xl)] border border-border shadow-xl"
+            style={{ background: "var(--bg-elevated)", maxHeight: 380 }}>
+            <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+              <span style={{ fontSize: "var(--t14)" }} className="mr-auto font-semibold text-primary">{t("ovlElements")}</span>
+              <TextFieldRoot value={libQuery} onChange={setLibQuery} aria-label={t("ovlElementsSearch")} className="w-40">
+                <InputRoot className="h-8! text-[length:var(--t12)]! bg-[var(--surface-2)]! border-transparent!" placeholder={t("ovlElementsSearch")} />
+              </TextFieldRoot>
+              <Button variant="secondary" size="sm" className="gap-1.5 h-8!" isDisabled={!selectedIds.length} onPress={startSaveElement}>
+                <Plus size={12} />{t("ovlElementSave")}
+              </Button>
+              <Button isIconOnly variant="ghost" size="sm" className="h-8! w-8! min-w-0!" aria-label={t("close")}
+                onPress={() => { setLibOpen(false); setElementName(null); }}><X size={13} /></Button>
+            </div>
+            {elementName !== null && (
+              <div className="flex items-center gap-2 px-3 pb-2"
+                onKeyDown={(e) => { if (e.key === "Enter") saveElement(); if (e.key === "Escape") { e.stopPropagation(); setElementName(null); } }}>
+                <TextFieldRoot value={elementName} onChange={setElementName} aria-label={t("ovlElementName")} className="flex-1">
+                  <InputRoot autoFocus className="h-8! text-[length:var(--t12)]! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlElementName")} />
+                </TextFieldRoot>
+                <Button variant="flat" color="primary" size="sm" className="h-8! gap-1.5" onPress={saveElement}><Check size={12} />{t("ovlSave")}</Button>
+                <Button isIconOnly variant="ghost" size="sm" className="h-8! w-8! min-w-0!" aria-label={t("close")} onPress={() => setElementName(null)}><X size={12} /></Button>
+              </div>
+            )}
+            <div className="overflow-y-auto min-h-0 px-3 pb-3 grid grid-cols-3 gap-2">
+              {shownElements.length === 0 && (
+                <div className="col-span-3 py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
+                  {elements.length ? t("ovlElementsNoMatch") : t("ovlElementsEmpty")}
+                </div>
+              )}
+              {shownElements.map((el) => (
+                <div key={el.id} title={t("ovlElementHint")}
+                  onPointerDown={(e) => { if (!e.target.closest("button,input")) startElementDrag(e, el); }}
+                  className="group/el relative flex flex-col rounded-[var(--r-lg)] border border-border bg-[var(--surface-1)] hover:border-accent/60 transition-colors cursor-grab select-none overflow-hidden">
+                  <div className="relative h-[84px]" style={{ background: "var(--surface-2)" }}>
+                    <DesignPreview apiBase={apiBase} doc={elementDocs[el.id]} box={{ w: 144, h: 84 }} />
+                  </div>
+                  {renamingEl === el.id ? (
+                    <input autoFocus value={elDraft} onChange={(e) => setElDraft(e.target.value)}
+                      onBlur={() => { const n = elDraft.trim(); if (n) persistElements(elements.map((x) => (x.id === el.id ? { ...x, name: n } : x))); setRenamingEl(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingEl(null); } }}
+                      style={{ fontSize: "var(--t12)" }}
+                      className="m-1 h-6 px-1.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] text-primary border border-border outline-none" />
+                  ) : (
+                    <div style={{ fontSize: "var(--t12)" }} className="px-2 py-1.5 truncate text-primary">{el.name}</div>
+                  )}
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/el:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button type="button" aria-label={t("ovlElementRename")} title={t("ovlElementRename")}
+                      onClick={() => { setRenamingEl(el.id); setElDraft(el.name || ""); }}
+                      className="w-6 h-6 flex items-center justify-center rounded-[var(--r-full)] border-0 bg-[var(--bg-elevated)] text-secondary hover:text-primary cursor-pointer"><PencilSimple size={11} /></button>
+                    <button type="button" aria-label={t("ovlMenuDelete")} title={confirmDelEl === el.id ? t("ovlElementDeleteConfirm") : t("ovlMenuDelete")}
+                      onClick={() => {
+                        if (confirmDelEl === el.id) { persistElements(elements.filter((x) => x.id !== el.id)); setConfirmDelEl(null); }
+                        else { setConfirmDelEl(el.id); setTimeout(() => setConfirmDelEl((c) => (c === el.id ? null : c)), 2500); }
+                      }}
+                      className={`h-6 flex items-center justify-center gap-1 rounded-[var(--r-full)] border-0 cursor-pointer ${confirmDelEl === el.id ? "px-2 bg-[var(--status-danger)] text-white" : "w-6 bg-[var(--bg-elevated)] text-secondary hover:text-[var(--status-danger)]"}`}>
+                      <Trash size={11} />{confirmDelEl === el.id && <span style={{ fontSize: "var(--t11)" }}>{t("ovlElementDeleteConfirm")}</span>}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {TOOLBAR_ITEMS(t).map((it, i, all) => {
           // The group rule the whole editor follows: the free ends of the row keep the pill
           // radius, the touching ends get the notch. At 44px tall the pill value is 22, and
@@ -2500,7 +2639,20 @@ export default function OverlayEditor({
               onPress={() => setTool(it.tool)}>{it.icon}</ToolBtn>
           );
         })}
+        <div className="w-2" />
+        <ToolBtn active={libOpen} label={t("ovlElements")} corners={hdrCorners(false, false, TOOL_H)}
+          onPress={() => { setLibOpen((o) => !o); setElementName(null); }}><Shapes size={16} /></ToolBtn>
       </div>
+      {/* While an element is dragged: where it lands on the canvas, at its real size, or a name
+          chip while the pointer is still elsewhere. */}
+      {elDrag && (elDrag.over ? (
+        <div className="fixed pointer-events-none z-[9999] rounded-[var(--r-sm)]"
+          style={{ left: elDrag.x, top: elDrag.y, width: elDrag.el.w * zoom, height: elDrag.el.h * zoom, transform: "translate(-50%, -50%)",
+            border: "1.5px dashed var(--accent)", background: "color-mix(in srgb, var(--accent) 12%, transparent)" }} />
+      ) : (
+        <div className="fixed pointer-events-none z-[9999] px-3 py-1.5 rounded-[var(--r-full)] bg-accent text-white shadow-lg"
+          style={{ left: elDrag.x + 12, top: elDrag.y + 12, fontSize: "var(--t12)" }}>{elDrag.el.name}</div>
+      ))}
       </div>{/* end canvas + toolbar column */}
 
       {/* ── Right: inspector (docked) ──────────────────────────────────────────── */}
