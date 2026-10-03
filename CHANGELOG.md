@@ -23,7 +23,7 @@ Changes:
 - Overlay editor: Save (Ctrl+S) writes into the open design, Save as creates a new one
 - Overlay editor: selecting a layer on the canvas brings it into view in the layers panel
 - Overlay editor: groups can have entrance and loop animations, with a stagger that brings their contents in one after another
-- Overlay editor: entrance animations can be played in the editor
+- Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 

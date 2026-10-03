@@ -760,6 +760,9 @@ function GroupAnimationSection({ t, group, onChange, onReplay }) {
           <Field label={t("ovlDuration")}>
             <PillNum ariaLabel={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />
           </Field>
+          <Field label={t("ovlDelay")}>
+            <PillNum ariaLabel={t("ovlDelay")} value={fx.entrance?.delay ?? 0} min={0} max={10} step={0.1} onChange={(v) => setFx("entrance", { delay: v })} />
+          </Field>
           <Field label={t("ovlStagger")}>
             <PillNum ariaLabel={t("ovlStagger")} value={fx.entrance?.stagger ?? 0} min={0} max={2} step={0.05} onChange={(v) => setFx("entrance", { stagger: v })} />
           </Field>
@@ -769,9 +772,14 @@ function GroupAnimationSection({ t, group, onChange, onReplay }) {
         <SelectField value={fx.loop?.type || "none"} options={LOOP_OPTS(t)} onChange={(v) => setFx("loop", { type: v })} />
       </Field>
       {loopOn && (
-        <Field label={t("ovlSpeed")}>
-          <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
-        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("ovlSpeed")}>
+            <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
+          </Field>
+          <Field label={t("ovlDelay")}>
+            <PillNum ariaLabel={t("ovlDelay")} value={fx.loop?.delay ?? 0} min={0} max={10} step={0.1} onChange={(v) => setFx("loop", { delay: v })} />
+          </Field>
+        </div>
       )}
     </Section>
   );
@@ -803,17 +811,27 @@ function LayerEffectsSection({ t, layer, setStyle, onReplay }) {
         <SelectField value={fx.entrance?.type || "none"} options={ENTRANCE_OPTS(t)} onChange={(v) => setFx("entrance", { type: v })} />
       </Field>
       {fx.entrance?.type && fx.entrance.type !== "none" && (
-        <Field label={t("ovlDuration")}>
-          <PillNum ariaLabel={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />
-        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("ovlDuration")}>
+            <PillNum ariaLabel={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />
+          </Field>
+          <Field label={t("ovlDelay")}>
+            <PillNum ariaLabel={t("ovlDelay")} value={fx.entrance?.delay ?? 0} min={0} max={10} step={0.1} onChange={(v) => setFx("entrance", { delay: v })} />
+          </Field>
+        </div>
       )}
       <Field label={t("ovlLoop")}>
         <SelectField value={fx.loop?.type || "none"} options={LOOP_OPTS(t)} onChange={(v) => setFx("loop", { type: v })} />
       </Field>
       {fx.loop?.type && fx.loop.type !== "none" && (
-        <Field label={t("ovlSpeed")}>
-          <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
-        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("ovlSpeed")}>
+            <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
+          </Field>
+          <Field label={t("ovlDelay")}>
+            <PillNum ariaLabel={t("ovlDelay")} value={fx.loop?.delay ?? 0} min={0} max={10} step={0.1} onChange={(v) => setFx("loop", { delay: v })} />
+          </Field>
+        </div>
       )}
     </Section>
   </>);

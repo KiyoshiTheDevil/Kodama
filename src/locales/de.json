@@ -718,6 +718,7 @@
   "ovlGroupName": "Gruppe",
   "ovlGroupHint": "Ein Klick wählt die ganze Gruppe, ein Doppelklick geht eine Ebene hinein. Strg+Klick wählt ein einzelnes Element, Umschalt+Klick erweitert die Auswahl.",
   "ovlStagger": "Versatz",
+  "ovlDelay": "Verzögerung",
   "ovlReplay": "Eingang abspielen",
   "ovlSelectionColors": "Farben der Auswahl",
   "ovlLayerSection": "Ebene",

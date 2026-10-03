@@ -6759,13 +6759,15 @@ function applyFx(el,entr,loopw,L){
   if(en&&en.type&&en.type!=='none'&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
   else entr.style.animation='';
   const lp=fx.loop;
-  if(lp&&lp.type&&lp.type!=='none'){const dur=lp.speed||(lp.type==='spin'?4:2);loopw.style.animation=`ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} infinite`;}
+  if(lp&&lp.type&&lp.type!=='none')loopw.style.animation=loopAnim(lp);
   else loopw.style.animation='';
 }
 // Entrance animations play in OBS but not in the editor, where every edit rebuilds the layers;
 // REPLAY lets the editor ask for one run on purpose.
 let REPLAY=false;
-function entrAnim(en,delay){return `ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) ${delay||0}s both`;}
+// `delay` on an animation is the listener's own wait; `extra` is added by a group's stagger.
+function entrAnim(en,extra){return `ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) ${(en.delay||0)+(extra||0)}s both`;}
+function loopAnim(lp){const dur=lp.speed||(lp.type==='spin'?4:2);return `ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} ${lp.delay||0}s infinite`;}
 
 // Groups are marks on the layers (layer.group, doc.groups with parents). Most of them draw
 // exactly as loose layers would; only a group that animates gets an element of its own, so that
@@ -6820,7 +6822,7 @@ function groupWrap(plan,container,gid){
   if(g.parent)outer.style.animation=staggerAnim(plan,g.parent,'g:'+gid);
   const fx=g.fx||{},en=fx.entrance,lp=fx.loop;
   if(plan.on(en)&&!plan.stagger(g)&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
-  if(plan.on(lp)){const dur=lp.speed||(lp.type==='spin'?4:2);loopw.style.animation=`ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} infinite`;}
+  if(plan.on(lp))loopw.style.animation=loopAnim(lp);
   container._gw[gid]=loopw;
   return loopw;
 }
