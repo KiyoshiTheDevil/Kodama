@@ -24,7 +24,7 @@ Changes:
 - Overlay editor: selecting a layer on the canvas brings it into view in the layers panel
 - Overlay editor: groups can have entrance and loop animations, with a stagger that brings their contents in one after another
 - Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
-- Overlay editor: ten new entrance animations (blur, pop, zoom out, flip, rotate, drop, reveal)
+- Overlay editor: new entrance animations: drive in from outside the canvas at an even speed, blur, pop, zoom out, flip, rotate, drop and reveal
 - Overlay editor: click a fill, stroke, effect or animation in the inspector, then Ctrl+C and Ctrl+V to copy it onto other elements
 - Overlay editor: copy the look of a layer or group and paste it onto others, whole or just its colors, effects or animations (Ctrl+Alt+C, Ctrl+Alt+V)
 - Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)

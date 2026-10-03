@@ -64,7 +64,8 @@ const WEIGHT_OPTS = (t) => [{ value: "400", label: t("ovlRegular") }, { value: "
 const FIT_OPTS = () => [{ value: "cover", label: "Cover" }, { value: "contain", label: "Contain" }, { value: "fill", label: "Fill" }];
 const SHAPE_OPTS = (t) => ["rect", "circle", "ellipse", "triangle", "polygon", "star", "line"].map((v) => ({ value: v, label: t("ovlShape_" + v) }));
 const CAP_OPTS = (t) => [{ value: "round", label: t("ovlCapRound") }, { value: "butt", label: t("ovlCapButt") }];
-const ENTRANCE_OPTS = (t) => ["none", "fade", "slideUp", "slideDown", "slideLeft", "slideRight", "zoom",
+const ENTRANCE_OPTS = (t) => ["none", "fade", "slideUp", "slideDown", "slideLeft", "slideRight",
+  "enterLeft", "enterRight", "enterTop", "enterBottom", "zoom",
   "zoomOut", "pop", "blurIn", "flipX", "flipY", "rotateIn", "dropIn", "wipeRight", "wipeLeft", "wipeUp"].map((v) => ({ value: v, label: t("ovlEntr_" + v) }));
 const LOOP_OPTS = (t) => ["none", "pulse", "float", "spin"].map((v) => ({ value: v, label: t("ovlLoop_" + v) }));
 const CORNER_OPTS  = (t) => [{ value: "r", label: t("ovlRound") }, { value: "b", label: t("ovlBevel") }];

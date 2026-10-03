@@ -6482,6 +6482,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 @keyframes ovl-dropIn{0%{opacity:0;transform:translateY(-48px)}55%{opacity:1;transform:translateY(8px)}75%{transform:translateY(-4px)}90%{transform:translateY(2px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes ovl-wipeRight{from{clip-path:inset(-60% 100% -60% -60%)}to{clip-path:inset(-60% -60% -60% -60%)}}
 @keyframes ovl-wipeLeft{from{clip-path:inset(-60% -60% -60% 100%)}to{clip-path:inset(-60% -60% -60% -60%)}}
+@keyframes ovl-enter{from{transform:translate(var(--ovl-dx,0px),var(--ovl-dy,0px))}to{transform:translate(0,0)}}
 @keyframes ovl-wipeUp{from{clip-path:inset(100% -60% -60% -60%)}to{clip-path:inset(-60% -60% -60% -60%)}}
 @keyframes ovl-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 @keyframes ovl-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -6766,7 +6767,7 @@ function applyFx(el,entr,loopw,L){
   const sbox=tgt.dataset.sbox||'';
   tgt.style.boxShadow=[sbox,ins.join(', ')].filter(Boolean).join(', ');
   const en=fx.entrance;
-  if(en&&en.type&&en.type!=='none'&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
+  if(en&&en.type&&en.type!=='none'&&(!EDITOR||REPLAY)){entr.style.animation=entrAnim(en,0);enterVars(entr,en,{x:L.x||0,y:L.y||0,w:L.w||0,h:L.h||0},L.rotation,L.flipH,L.flipV);}
   else entr.style.animation='';
   const lp=fx.loop;
   if(lp&&lp.type&&lp.type!=='none')loopw.style.animation=loopAnim(lp);
@@ -6776,7 +6777,29 @@ function applyFx(el,entr,loopw,L){
 // REPLAY lets the editor ask for one run on purpose.
 let REPLAY=false;
 // `delay` on an animation is the listener's own wait; `extra` is added by a group's stagger.
-function entrAnim(en,extra){return `ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) ${(en.delay||0)+(extra||0)}s both`;}
+// "enter*" travels in from outside the canvas at an even speed, with no fade: one keyframe,
+// with the distance handed over in --ovl-dx/--ovl-dy because it depends on where the layer is.
+function entrAnim(en,extra){
+  const enter=/^enter/.test(en.type||'');
+  return `${enter?'ovl-enter':'ovl-'+en.type} ${en.duration||0.5}s ${enter?'linear':'cubic-bezier(.22,1,.36,1)'} ${(en.delay||0)+(extra||0)}s both`;
+}
+// The distance from the canvas edge to the box, so it starts just out of sight. The animated
+// element of a layer sits inside its rotation and flip, so the direction is turned back into the
+// layer's own frame: "from the left" stays from the left on screen.
+function enterVars(el,en,box,rot,fh,fv){
+  if(!el||!en||!/^enter/.test(en.type||''))return;
+  const W=(doc&&doc.canvas&&doc.canvas.width)||0,H=(doc&&doc.canvas&&doc.canvas.height)||0;
+  const m=4+(rot?Math.max(box.w,box.h)/2:0);
+  let dx=0,dy=0;
+  if(en.type==='enterLeft')dx=-(box.x+box.w)-m;
+  else if(en.type==='enterRight')dx=W-box.x+m;
+  else if(en.type==='enterTop')dy=-(box.y+box.h)-m;
+  else if(en.type==='enterBottom')dy=H-box.y+m;
+  const a=-(rot||0)*Math.PI/180;
+  let lx=dx*Math.cos(a)-dy*Math.sin(a),ly=dx*Math.sin(a)+dy*Math.cos(a);
+  if(fh)lx=-lx;if(fv)ly=-ly;
+  el.style.setProperty('--ovl-dx',Math.round(lx)+'px');el.style.setProperty('--ovl-dy',Math.round(ly)+'px');
+}
 function loopAnim(lp){const dur=lp.speed||(lp.type==='spin'?4:2);return `ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} ${lp.delay||0}s infinite`;}
 
 // Groups are marks on the layers (layer.group, doc.groups with parents). Most of them draw
@@ -6829,9 +6852,10 @@ function groupWrap(plan,container,gid){
   [outer,entr,loopw].forEach(d=>{d.style.transformOrigin=origin;});
   outer.style.zIndex=plan.top[gid]||0;
   outer.appendChild(entr);entr.appendChild(loopw);container.appendChild(outer);
-  if(g.parent)outer.style.animation=staggerAnim(plan,g.parent,'g:'+gid);
+  const gbox={x:b.x1,y:b.y1,w:b.x2-b.x1,h:b.y2-b.y1};
+  if(g.parent){outer.style.animation=staggerAnim(plan,g.parent,'g:'+gid);enterVars(outer,(plan.gm[g.parent].fx||{}).entrance,gbox,0);}
   const fx=g.fx||{},en=fx.entrance,lp=fx.loop;
-  if(plan.on(en)&&!plan.stagger(g)&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
+  if(plan.on(en)&&!plan.stagger(g)&&(!EDITOR||REPLAY)){entr.style.animation=entrAnim(en,0);enterVars(entr,en,gbox,0);}
   if(plan.on(lp))loopw.style.animation=loopAnim(lp);
   container._gw[gid]=loopw;
   return loopw;
@@ -6869,7 +6893,7 @@ function buildLayers(dc){
     if(sa){
       const sw=document.createElement('div');sw.className='layer-anim';
       sw.style.zIndex=L.z||0;sw.style.transformOrigin=((L.x||0)+(L.w||0)/2)+'px '+((L.y||0)+(L.h||0)/2)+'px';
-      sw.style.animation=sa;sw.appendChild(el);host.appendChild(sw);
+      sw.style.animation=sa;enterVars(sw,(plan.gm[L.group].fx||{}).entrance,{x:L.x||0,y:L.y||0,w:L.w||0,h:L.h||0},0);sw.appendChild(el);host.appendChild(sw);
     }else host.appendChild(el);
     layerEls[L.id]=rec;
   }
@@ -6916,7 +6940,7 @@ function applyMarquee(rec){
 // nobody saw them. They now start over whenever the widget appears, and on every new song unless
 // the design says "only when it appears" (canvas.entranceOn).
 let stageShown=null,trackKey=null;
-const ENTRANCE_KF=/^ovl-(fade|slide|zoom|blurIn|pop|flip|rotateIn|dropIn|wipe)/;
+const ENTRANCE_KF=/^ovl-(fade|slide|zoom|blurIn|pop|flip|rotateIn|dropIn|wipe|enter)/;
 function restartEntrances(){
   if(EDITOR)return;
   const els=[...document.querySelectorAll('#layers *, #layers-free *')].filter(el=>ENTRANCE_KF.test(el.style.animationName||''));
