@@ -116,3 +116,112 @@ export function pasteProps(doc, ids, clip, what = "all") {
   });
   return { ...doc, groups, layers };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Single entries, as in Figma: click one fill, stroke, effect or the animation in the
+//  inspector, Ctrl+C, select another element, Ctrl+V.
+// ─────────────────────────────────────────────────────────────────────────────
+const freshId = (p) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
+const ITEM_LIST = { fill: "fills", stroke: "strokes", effect: "effects" };
+
+/** The entry `sel` ({ kind: "fill" | "stroke" | "effect" | "animation", index }) of a layer or group. */
+export function copyItem(doc, ids, sel) {
+  if (!sel || !ids.length) return null;
+  const g = ids.length > 1 ? selectedGroup(doc, ids) : null;
+  if (g) return sel.kind === "animation" ? { kind: "animation", anim: animOf(g.fx) } : null;
+  const l = ids.length === 1 ? doc.layers.find((x) => x.id === ids[0]) : null;
+  if (!l) return null;
+  const s = l.style || {};
+  if (sel.kind === "fill" && s.fills?.[sel.index]) return { kind: "fill", paint: clone(s.fills[sel.index]) };
+  if (sel.kind === "stroke" && s.strokes?.[sel.index]) {
+    return { kind: "stroke", paint: clone(s.strokes[sel.index]), weight: s.strokeWeight, position: s.strokePosition };
+  }
+  if (sel.kind === "effect" && s.effects?.[sel.index]) return { kind: "effect", effect: clone(s.effects[sel.index]) };
+  if (sel.kind === "animation") return { kind: "animation", anim: animOf(s.fx) };
+  return null;
+}
+
+/** Insert at `at` (or replace there when `replace`). */
+function put(list, item, at, replace) {
+  const next = Array.isArray(list) ? [...list] : [];
+  if (replace && at != null && at < next.length) next[at] = item;
+  else next.splice(at == null ? next.length : at, 0, item);
+  return next;
+}
+
+const withAnim = (fx, anim) => {
+  const out = { ...(fx || {}) };
+  for (const k of ANIM_KEYS) { if (anim[k]) out[k] = clone(anim[k]); else delete out[k]; }
+  return out;
+};
+
+function itemOntoLayer(l, item, target) {
+  const st = { ...(l.style || {}) };
+  const same = !!target && target.kind === item.kind;
+  if (item.kind === "fill") {
+    if (supports(l.type, "fills")) {
+      st.fills = put(st.fills, { ...clone(item.paint), id: freshId("fill") }, same ? target.index : 0, same);
+      if (l.type === "text" && st.fills[0]?.color) st.color = st.fills[0].color;
+    } else if (l.type === "progress") {
+      st.fillColor = item.paint.color;
+      st.fillOpacity = item.paint.opacity ?? 100;
+    } else return l;
+  } else if (item.kind === "stroke") {
+    if (!supports(l.type, "strokes")) return l;
+    const had = Array.isArray(st.strokes) && st.strokes.length > 0;
+    st.strokes = put(st.strokes, { ...clone(item.paint), id: freshId("stroke") }, same ? target.index : 0, same);
+    // A first stroke brings its weight and position along; otherwise it would land at whatever
+    // the layer happened to default to and not look like the one that was copied.
+    if (!had) {
+      if (item.weight != null) st.strokeWeight = item.weight;
+      if (item.position) st.strokePosition = item.position;
+    }
+  } else if (item.kind === "effect") {
+    st.effects = put(st.effects, { ...clone(item.effect), id: freshId("fx") }, same ? target.index : null, same);
+  } else if (item.kind === "animation") {
+    st.fx = withAnim(st.fx, item.anim);
+  } else return l;
+  return { ...l, style: st };
+}
+
+/**
+ * Paste a copied entry onto the selection. `target` is the entry selected in the inspector of
+ * the element being pasted onto: one of the same kind is replaced, otherwise the entry is added
+ * (fills and strokes on top, effects at the end). A whole group takes an animation itself and
+ * hands paints and effects to its layers.
+ */
+export function pasteItem(doc, ids, item, target = null) {
+  if (!item || !ids.length) return doc;
+  const g = ids.length > 1 ? selectedGroup(doc, ids) : null;
+  if (g && item.kind === "animation") {
+    return { ...doc, groups: (doc.groups || []).map((x) => (x.id === g.id ? { ...x, fx: withAnim(x.fx, item.anim) } : x)) };
+  }
+  const layerIds = g ? membersOf(doc, g.id).map((l) => l.id) : ids;
+  const single = !g && ids.length === 1;
+  return {
+    ...doc,
+    layers: doc.layers.map((l) => (layerIds.includes(l.id) && !l.locked ? itemOntoLayer(l, item, single ? target : null) : l)),
+  };
+}
+
+/** Remove the selected entry from the selected layer (or a group's animation). */
+export function removeItem(doc, ids, sel) {
+  if (!sel || !ids.length) return doc;
+  const g = ids.length > 1 ? selectedGroup(doc, ids) : null;
+  if (g) {
+    if (sel.kind !== "animation") return doc;
+    return { ...doc, groups: (doc.groups || []).map((x) => (x.id === g.id ? { ...x, fx: withAnim(x.fx, {}) } : x)) };
+  }
+  if (ids.length !== 1) return doc;
+  return {
+    ...doc,
+    layers: doc.layers.map((l) => {
+      if (l.id !== ids[0] || l.locked) return l;
+      const st = { ...(l.style || {}) };
+      const key = ITEM_LIST[sel.kind];
+      if (key) st[key] = (st[key] || []).filter((_, i) => i !== sel.index);
+      else if (sel.kind === "animation") st.fx = withAnim(st.fx, {});
+      return { ...l, style: st };
+    }),
+  };
+}

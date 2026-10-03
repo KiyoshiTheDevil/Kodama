@@ -7,7 +7,7 @@
 //  Floating panels: left = layers, right = inspector. Live drag preview goes to
 //  the iframe via postMessage; commits persist (localStorage + POST v2 → SSE/OBS).
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo, createContext, useContext } from "react";
 // createPortal removed — font picker is now lifted to OverlayEditor level
 import {
   Button, Switch,
@@ -36,7 +36,7 @@ import {
   setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf, pickOnClick, pickOnDoubleClick,
   groupsToUngroup, placeAbove, selectionColors, replaceColor, chainOf, findGroup,
 } from "./groups.js";
-import { copyProps, pasteProps } from "./style-clipboard.js";
+import { copyProps, pasteProps, copyItem, pasteItem, removeItem } from "./style-clipboard.js";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -451,19 +451,35 @@ function IconBtnRow({ actions }) {
   );
 }
 
+// One entry of the inspector (a fill, a stroke, an effect, the animation) can be selected, as in
+// Figma: Ctrl+C then copies that entry instead of the layer, Ctrl+V on another element adds it
+// there (or replaces the selected entry of the same kind), Delete removes just it.
+const PropSelCtx = createContext(null);
+function PropRow({ kind, index = 0, className = "", children }) {
+  const ps = useContext(PropSelCtx);
+  const on = !!ps?.sel && ps.sel.kind === kind && (ps.sel.index ?? 0) === index;
+  return (
+    <div data-propsel className={className} onPointerDownCapture={() => ps?.select({ kind, index })}
+      style={{ outline: on ? "1.5px solid var(--accent)" : "1.5px solid transparent", outlineOffset: 3, borderRadius: "var(--r-lg)" }}>
+      {children}
+    </div>
+  );
+}
+
 // Figma-style fill list: ordered solid paints (index 0 = front). Add / reorder via the
 // header "+", toggle visibility (eye), remove (−). Each row edits color + opacity.
 function FillList({ t, fills, onChange }) {
   const list = Array.isArray(fills) ? fills : [];
   const set = (i, patch) => onChange(list.map((f, j) => (j === i ? { ...f, ...patch } : f)));
   const add = () => onChange([{ id: Math.random().toString(36).slice(2), type: "solid", color: "#ffffff", opacity: 100, visible: true }, ...list]);
-  const remove = (i) => onChange(list.filter((_, j) => j !== i));
+  const ps = useContext(PropSelCtx);
+  const remove = (i) => { onChange(list.filter((_, j) => j !== i)); ps?.select(null); };
   return (
     <Section title={t("ovlFill")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddFill") || "Add fill"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((f, i) => (
-        <div key={f.id || i} className="group/frow flex items-center gap-1.5">
+        <PropRow key={f.id || i} kind="fill" index={i} className="group/frow flex items-center gap-1.5">
           <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={f.color} onChange={(c) => set(i, { color: c })} /></div>
           <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={f.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
           <BareIconBtn onPress={() => set(i, { visible: f.visible === false })} label={t("ovlVisible")}>
@@ -471,7 +487,7 @@ function FillList({ t, fills, onChange }) {
           </BareIconBtn>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
             className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
-        </div>
+        </PropRow>
       ))}
     </Section>
   );
@@ -483,13 +499,14 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
   const list = Array.isArray(strokes) ? strokes : [];
   const set = (i, patch) => onChange(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const add = () => onChange([{ id: Math.random().toString(36).slice(2), color: "#ffffff", opacity: 100, visible: true }, ...list]);
-  const remove = (i) => onChange(list.filter((_, j) => j !== i));
+  const ps = useContext(PropSelCtx);
+  const remove = (i) => { onChange(list.filter((_, j) => j !== i)); ps?.select(null); };
   return (
     <Section title={t("ovlStroke") || t("ovlBorder")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((s, i) => (
-        <div key={s.id || i} className="group/srow flex items-center gap-1.5">
+        <PropRow key={s.id || i} kind="stroke" index={i} className="group/srow flex items-center gap-1.5">
           <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={s.color} onChange={(c) => set(i, { color: c })} /></div>
           <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={s.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
           <BareIconBtn onPress={() => set(i, { visible: s.visible === false })} label={t("ovlVisible")}>
@@ -497,7 +514,7 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
           </BareIconBtn>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
             className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
-        </div>
+        </PropRow>
       ))}
       {list.length > 0 && (
         <div className="grid grid-cols-2 gap-2 items-end">
@@ -521,13 +538,14 @@ function EffectList({ t, effects, onChange }) {
   const set = (i, patch) => onChange(list.map((e, j) => (j === i ? { ...e, ...patch } : e)));
   const setType = (i, ty) => onChange(list.map((e, j) => (j === i ? { id: e.id, type: ty, visible: e.visible, ...EFFECT_DEFAULTS[ty] } : e)));
   const add = () => onChange([...list, makeEffect("shadow")]);
-  const remove = (i) => onChange(list.filter((_, j) => j !== i));
+  const ps = useContext(PropSelCtx);
+  const remove = (i) => { onChange(list.filter((_, j) => j !== i)); ps?.select(null); };
   return (
     <Section title={t("ovlEffects")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddEffect") || "Add effect"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((e, i) => (
-        <div key={e.id || i} className="flex items-start gap-1.5">
+        <PropRow key={e.id || i} kind="effect" index={i} className="flex items-start gap-1.5">
           {/* The two actions sit beside the whole effect, not just its first row, so every
               field below lines up with the pill above it. Indenting the parameters instead
               left them offset from the control they belong to, and running them full width
@@ -566,7 +584,7 @@ function EffectList({ t, effects, onChange }) {
           </BareIconBtn>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
             className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
-        </div>
+        </PropRow>
       ))}
     </Section>
   );
@@ -752,6 +770,7 @@ function GroupAnimationSection({ t, group, onChange, onReplay }) {
   const entOn = fx.entrance?.type && fx.entrance.type !== "none";
   const loopOn = fx.loop?.type && fx.loop.type !== "none";
   return (
+    <PropRow kind="animation">
     <Section title={t("ovlAnimation") || "Animation"} right={entOn ? <ReplayButton t={t} onReplay={onReplay} /> : null}>
       <Field label={t("ovlEntrance")}>
         <SelectField value={fx.entrance?.type || "none"} options={ENTRANCE_OPTS(t)} onChange={(v) => setFx("entrance", { type: v })} />
@@ -783,6 +802,7 @@ function GroupAnimationSection({ t, group, onChange, onReplay }) {
         </div>
       )}
     </Section>
+    </PropRow>
   );
 }
 
@@ -804,6 +824,7 @@ function LayerEffectsSection({ t, layer, setStyle, onReplay }) {
   const setFx = (key, patch) => setStyle(id, { fx: { ...fx, [key]: { ...(fx[key] || {}), ...patch } } });
   return (<>
     <EffectList t={t} effects={s.effects} onChange={(effects) => setStyle(id, { effects })} />
+    <PropRow kind="animation">
     <Section title={t("ovlAnimation") || "Animation"}
       right={fx.entrance?.type && fx.entrance.type !== "none" ? <ReplayButton t={t} onReplay={onReplay} /> : null}>
       {/* Named blocks, like the rest of the panel. The duration and speed appear only once
@@ -835,6 +856,7 @@ function LayerEffectsSection({ t, layer, setStyle, onReplay }) {
         </div>
       )}
     </Section>
+    </PropRow>
   </>);
 }
 
@@ -1181,6 +1203,14 @@ export default function OverlayEditor({
   const clipboardRef = useRef([]);
   const saveActionsRef = useRef({});        // Save / Save as, defined further down with the profiles
   const clipboardGroupsRef = useRef([]);   // names of the groups the copied layers were in
+  // The entry selected in the inspector, the entry copied from it, and which of the two
+  // clipboards Ctrl+V should use: whatever was copied last.
+  const [selProp, setSelProp] = useState(null);
+  const propItemRef = useRef(null);
+  const lastCopyRef = useRef("layers");
+  const selKey = selectedIds.join(",");
+  useEffect(() => { setSelProp(null); }, [selKey]);
+  const propSelValue = useMemo(() => ({ sel: selProp, select: setSelProp }), [selProp]);
   // "Copy properties": how one layer or group looks, kept apart from the layer clipboard so
   // copying a look does not throw away copied layers and the other way round.
   const [propsClip, setPropsClip] = useState(null);
@@ -1193,6 +1223,7 @@ export default function OverlayEditor({
     // quietly change what lands.
     clipboardRef.current = picked.map((l) => JSON.parse(JSON.stringify(l)));
     clipboardGroupsRef.current = groupsOf(doc);
+    lastCopyRef.current = "layers";
     pasteCountRef.current = 0;
     return true;
   }, [doc, selectedIds]);
@@ -1383,9 +1414,17 @@ export default function OverlayEditor({
   useEffect(() => {
     const onKey = (e) => {
       const tag = (e.target?.tagName || "").toUpperCase();
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "Escape" && tool) { e.preventDefault(); setTool(null); setDrawRect(null); return; }
       const mod = e.ctrlKey || e.metaKey;
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        // Clicking an entry usually lands in its hex field. Ctrl+C there copies the entry, unless
+        // some text is actually selected: then it is the text someone wants.
+        const el = e.target;
+        const entryCopy = mod && !e.altKey && e.key.toLowerCase() === "c" && selProp
+          && el.closest?.("[data-propsel]") && el.selectionStart === el.selectionEnd;
+        if (!entryCopy) return;
+      }
+      if (e.key === "Escape" && selProp) { e.preventDefault(); setSelProp(null); return; }
+      if (e.key === "Escape" && tool) { e.preventDefault(); setTool(null); setDrawRect(null); return; }
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault(); if (e.shiftKey) redo(); else undo();
       } else if (mod && e.altKey && e.key.toLowerCase() === "c") {
@@ -1393,11 +1432,16 @@ export default function OverlayEditor({
       } else if (mod && e.altKey && e.key.toLowerCase() === "v") {
         e.preventDefault(); pasteSelectedProps("all");
       } else if (mod && e.key.toLowerCase() === "c") {
-        e.preventDefault(); copySelected();
+        e.preventDefault();
+        const it = selProp ? copyItem(doc, selectedIds, selProp) : null;
+        if (it) { propItemRef.current = it; lastCopyRef.current = "item"; } else copySelected();
       } else if (mod && e.key.toLowerCase() === "x") {
         e.preventDefault(); cutSelected();
       } else if (mod && e.key.toLowerCase() === "v") {
-        e.preventDefault(); pasteClipboard();
+        e.preventDefault();
+        if (lastCopyRef.current === "item" && propItemRef.current) {
+          if (selectedIds.length) { const next = pasteItem(doc, selectedIds, propItemRef.current, selProp); if (next !== doc) commit(next, doc); }
+        } else pasteClipboard();
       } else if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault(); if (e.shiftKey) saveActionsRef.current.openSaveAs?.(); else saveActionsRef.current.saveCurrent?.();
       } else if (mod && e.key.toLowerCase() === "g") {
@@ -1407,7 +1451,9 @@ export default function OverlayEditor({
       } else if (mod && e.shiftKey && e.key === "2") {
         e.preventDefault(); zoomToSelection();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
-        e.preventDefault(); deleteSelected();
+        e.preventDefault();
+        if (selProp) { const next = removeItem(doc, selectedIds, selProp); if (next !== doc) commit(next, doc); setSelProp(null); }
+        else deleteSelected();
       } else if (selectedIds.length && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         const step = e.shiftKey ? prefs.nudgeBig : prefs.nudge;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
@@ -2452,7 +2498,9 @@ export default function OverlayEditor({
       {prefs.showRight && <div className="shrink-0 flex flex-col relative" style={{ width: rightW }}>
         <div onPointerDown={(e) => startPanelResize("right", e)}
           className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
-        <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3">
+        <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3"
+          onPointerDown={(e) => { if (selProp && !e.target.closest("[data-propsel]")) setSelProp(null); }}>
+        <PropSelCtx.Provider value={propSelValue}>
           {selectedIds.length > 1 ? (() => {
             const bb = boundsOf(doc.layers.filter((l) => selectedIds.includes(l.id))) || { x: 0, y: 0, w: 0, h: 0 };
             return (
@@ -2746,7 +2794,7 @@ export default function OverlayEditor({
             </>
             );
           })()}
-
+        </PropSelCtx.Provider>
         </div>
       </div>}
 
