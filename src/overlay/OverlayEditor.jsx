@@ -2617,7 +2617,8 @@ export default function OverlayEditor({
               <span style={{ fontSize: "var(--t12)" }} className="font-semibold text-secondary">{t("ovlElementsMine")}</span>
               <span style={{ fontSize: "var(--t12)" }} className="ml-1.5 text-muted tabular-nums">{shownElements.length}</span>
             </div>
-            <div className="overflow-y-auto min-h-0 px-3 pb-3 grid grid-cols-4 gap-x-2 gap-y-3 content-start">
+            {/* pt: the picked card's ring sits outside the card, and the scroll box clipped it at the top. */}
+            <div className="overflow-y-auto min-h-0 px-3 pt-1 pb-3 grid grid-cols-4 gap-x-2 gap-y-3 content-start">
               {shownElements.length === 0 && (
                 <div className="col-span-4 py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
                   {elements.length ? t("ovlElementsNoMatch") : t("ovlElementsEmpty")}
