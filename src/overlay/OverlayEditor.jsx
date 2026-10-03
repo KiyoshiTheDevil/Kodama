@@ -33,7 +33,8 @@ import {
 import { ColorPicker } from "../ui/color-picker.jsx";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
-  setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf,
+  setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf, pickOnClick, pickOnDoubleClick,
+  groupsToUngroup, placeAbove, selectionColors, replaceColor,
 } from "./groups.js";
 
 const TYPE_META = {
@@ -1103,7 +1104,8 @@ export default function OverlayEditor({
     if (!picked.length) return;
     const topZ = doc.layers.reduce((m, l) => Math.max(m, l.z || 0), 0);
     const { clones, newGroups } = cloneLayers(doc, picked, { offset: 20, topZ, makeLayerId: () => crypto.randomUUID() });
-    commit({ ...doc, layers: [...doc.layers, ...clones], groups: [...groupsOf(doc), ...newGroups] }, doc);
+    const anchor = picked.reduce((a, l) => ((l.z || 0) > (a.z || 0) ? l : a), picked[0]);
+    commit(placeAbove({ ...doc, layers: [...doc.layers, ...clones], groups: [...groupsOf(doc), ...newGroups] }, clones.map((c) => c.id), anchor.id), doc);
     setSelectedIds(clones.map((c) => c.id));
   }, [doc, selectedIds, commit]);
 
@@ -1111,6 +1113,7 @@ export default function OverlayEditor({
   // and serialising them through the OS clipboard would only buy pasting into a foreign app
   // that could not read them anyway.
   const clipboardRef = useRef([]);
+  const saveActionsRef = useRef({});        // Save / Save as, defined further down with the profiles
   const clipboardGroupsRef = useRef([]);   // names of the groups the copied layers were in
   const pasteCountRef = useRef(0);
 
@@ -1152,10 +1155,30 @@ export default function OverlayEditor({
     setSelectedIds(ids);
   }, [doc, selectedIds, commit, t]);
   const ungroupSelected = useCallback(() => {
-    const gids = [...new Set(doc.layers.filter((l) => selectedIds.includes(l.id) && l.group).map((l) => l.group))];
+    const gids = groupsToUngroup(doc, selectedIds);
     if (gids.length) commit(ungroupLayers(doc, gids), doc);
   }, [doc, selectedIds, commit]);
-  const canUngroup = doc.layers.some((l) => selectedIds.includes(l.id) && l.group);
+  const canUngroup = groupsToUngroup(doc, selectedIds).length > 0;
+
+  // Shift adds to the selection or takes back out what is already in it, as in Figma.
+  const toggleInSelection = (ids) => {
+    const all = ids.every((id) => selectedIds.includes(id));
+    setSelectedIds(all ? selectedIds.filter((id) => !ids.includes(id)) : [...selectedIds, ...ids.filter((id) => !selectedIds.includes(id))]);
+  };
+
+  // Change one colour everywhere in the selection, like Figma's "Selection colors". Keyed by the
+  // colour the row showed when it was drawn: while a picker is being dragged faster than the panel
+  // redraws, the row still names the old colour, so the latest one it was changed to is
+  // remembered here and replaced instead. Half-typed hex values are left alone until complete.
+  const recolorRef = useRef({});
+  const recolorSelection = (shown, next) => {
+    if (!/^#[0-9a-f]{6}$/i.test(next)) return;
+    const from = recolorRef.current[shown] || shown;
+    recolorRef.current[shown] = next;
+    liveEdit((b) => { const d = replaceColor(b, selectedIds, from, next); return d === b ? null : d; });
+  };
+  // Once the panel has redrawn, every row names its colour again and the memory is stale.
+  useEffect(() => { recolorRef.current = {}; }, [doc]);
 
   // Move every unlocked layer of the selection so its shared box lands where `fn` says.
   const moveSelection = (fn) => liveEdit((b) => {
@@ -1292,6 +1315,8 @@ export default function OverlayEditor({
         e.preventDefault(); cutSelected();
       } else if (mod && e.key.toLowerCase() === "v") {
         e.preventDefault(); pasteClipboard();
+      } else if (mod && e.key.toLowerCase() === "s") {
+        e.preventDefault(); if (e.shiftKey) saveActionsRef.current.openSaveAs?.(); else saveActionsRef.current.saveCurrent?.();
       } else if (mod && e.key.toLowerCase() === "g") {
         e.preventDefault(); if (e.shiftKey) ungroupSelected(); else groupSelected();
       } else if (mod && e.key.toLowerCase() === "d") {
@@ -1359,14 +1384,15 @@ export default function OverlayEditor({
     const onUp = (ev) => {
       window.removeEventListener("pointermove", onMove);
       setMarquee(null);
-      if (!moved) { setSelectedId(null); return; }
+      if (!moved) { if (!e.shiftKey) setSelectedId(null); return; }
       const p = toCanvas(ev.clientX, ev.clientY);
       const bx = Math.min(p0.x, p.x), by = Math.min(p0.y, p.y), bw = Math.abs(p.x - p0.x), bh = Math.abs(p.y - p0.y);
       const hits = doc.layers
         .filter((l) => l.visible !== false && !l.locked)
         .filter((l) => l.x < bx + bw && l.x + l.w > bx && l.y < by + bh && l.y + l.h > by)
         .map((l) => l.id);
-      setSelectedIds(expandToGroups(doc, hits));
+      const got = expandToGroups(doc, hits);
+      setSelectedIds(e.shiftKey ? [...selectedIds, ...got.filter((id) => !selectedIds.includes(id))] : got);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -1429,17 +1455,16 @@ export default function OverlayEditor({
     e.stopPropagation(); e.preventDefault();
     if (layer.locked) return;
     flushLive();
-    // What a press on this layer takes hold of. Dragging a member of a multi-selection moves the
-    // whole selection. A member of a group takes the whole group, unless the selection is
-    // already inside that group (after a double-click on one of its elements), or Ctrl is held:
-    // then it is just this one, as in Figma.
+    // What a press on this layer takes hold of, as in Figma. Dragging a member of a
+    // multi-selection moves the whole selection. Otherwise a click lands at the depth the
+    // selection is at (the outermost group, or the next level inside a group already entered);
+    // Ctrl takes the layer itself whatever group it is in, Shift adds to the selection.
     const deep = e.ctrlKey || e.metaKey;
-    const insideGroup = (gid) => selectedIds.length > 0 && !selectedGroup(doc, selectedIds)
-      && selectedIds.every((id) => doc.layers.find((l) => l.id === id)?.group === gid);
     let moveIds = [layer.id];
-    if (mode === "move" && !deep) {
-      if (selectedIds.length > 1 && selectedIds.includes(layer.id)) moveIds = selectedIds;
-      else if (layer.group && !insideGroup(layer.group)) moveIds = expandToGroups(doc, [layer.id]);
+    if (mode === "move") {
+      const picked = deep ? [layer.id] : pickOnClick(doc, layer.id, selectedIds);
+      if (e.shiftKey) { toggleInSelection(picked); return; }
+      moveIds = !deep && selectedIds.length > 1 && selectedIds.includes(layer.id) ? selectedIds : picked;
     }
     const multiMove = moveIds.length > 1;
     setSelectedIds(moveIds);
@@ -1570,7 +1595,10 @@ export default function OverlayEditor({
   // Opening or closing a group is how the panel looks, not a change to the design: it is kept
   // in the document so it survives a reload, but it is not an undo step.
   const setGroupUi = (gid, patch) => { const next = setGroup(doc, gid, patch); setDoc(next); pushDoc(next); };
-  const setMembers = (gid, patch) => commit({ ...doc, layers: doc.layers.map((l) => (l.group === gid ? { ...l, ...patch } : l)) }, doc);
+  const setMembers = (gid, patch) => {
+    const ids = new Set(membersOf(doc, gid).map((l) => l.id));
+    commit({ ...doc, layers: doc.layers.map((l) => (ids.has(l.id) ? { ...l, ...patch } : l)) }, doc);
+  };
 
   const renderGroupRow = (row, rowIdx) => {
     const g = groupsOf(doc).find((x) => x.id === row.gid);
@@ -1582,7 +1610,8 @@ export default function OverlayEditor({
     const chipsShown = allLocked || allHidden;
     const isDragging = dragId === `g:${g.id}`;
     return (
-      <div key={`g:${g.id}`} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}>
+      <div key={`g:${g.id}`} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}
+        style={row.depth ? { paddingLeft: GROUP_INDENT * row.depth } : undefined}>
         {dropIndex === rowIdx && (
           <div className="absolute -top-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
         )}
@@ -1591,9 +1620,9 @@ export default function OverlayEditor({
         )}
         <div
           onPointerDown={(e) => { if (renamingGroup !== g.id) onRowPointerDown(e, { kind: "group", gid: g.id }); }}
-          onClick={() => {
+          onClick={(e) => {
             if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }
-            setSelectedIds(members.map((m) => m.id));
+            if (e.shiftKey) toggleInSelection(members.map((m) => m.id)); else setSelectedIds(members.map((m) => m.id));
           }}
           onDoubleClick={() => { setRenamingGroup(g.id); setGroupDraft(g.name || ""); }}
           className={[
@@ -1658,17 +1687,48 @@ export default function OverlayEditor({
     localStorage.setItem("kiyoshi-overlay-profiles", JSON.stringify(next));
   }, []);
 
+  // The saved design the canvas came from, so "Save" can write back into it instead of asking
+  // for a name every time. Cleared by "New"; set by opening a design and by "Save as".
+  const [currentProfileId, setCurrentProfileIdState] = useState(() => localStorage.getItem("kiyoshi-overlay-current-profile") || null);
+  const setCurrentProfileId = useCallback((id) => {
+    setCurrentProfileIdState(id);
+    if (id) localStorage.setItem("kiyoshi-overlay-current-profile", id); else localStorage.removeItem("kiyoshi-overlay-current-profile");
+  }, []);
+  const [justSaved, setJustSaved] = useState(false);
+  const flashSaved = useCallback(() => { setJustSaved(true); setTimeout(() => setJustSaved(false), 1400); }, []);
+
+  // "Save as": always a new entry, named in the popover (prefilled with the document's name).
   const saveProfile = useCallback(() => {
-    const name = saveName.trim() || t("ovlProfileDefaultName");
-    persistProfiles([{ id: crypto.randomUUID(), name, savedAt: new Date().toISOString(), doc }, ...profiles]);
+    const name = saveName.trim() || doc.canvas.name || t("ovlProfileDefaultName");
+    const id = crypto.randomUUID();
+    persistProfiles([{ id, name, savedAt: new Date().toISOString(), doc }, ...profiles]);
+    setCurrentProfileId(id);
     setSaveName("");
     setSaveOpen(false);
-  }, [saveName, doc, profiles, persistProfiles, t]);
+    flashSaved();
+  }, [saveName, doc, profiles, persistProfiles, t, setCurrentProfileId, flashSaved]);
+
+  const openSaveAs = useCallback(() => {
+    setSaveName(doc.canvas.name || "");
+    setSaveOpen(true); setBrowserOpen(false);
+  }, [doc.canvas.name]);
+
+  // "Save": into the design it came from, without a question. Only a design that was never
+  // saved (or whose entry was deleted since) still asks for a name.
+  const saveCurrent = useCallback(() => {
+    const prof = currentProfileId && profiles.find((p) => p.id === currentProfileId);
+    if (!prof) { openSaveAs(); return; }
+    persistProfiles(profiles.map((p) => (p.id === prof.id ? { ...p, doc, savedAt: new Date().toISOString() } : p)));
+    flashSaved();
+  }, [currentProfileId, profiles, doc, persistProfiles, openSaveAs, flashSaved]);
+
+  saveActionsRef.current = { saveCurrent, openSaveAs };
 
   const applyProfile = useCallback((prof) => {
     commit(normalizeOverlayDoc(prof.doc));
+    setCurrentProfileId(prof.id);
     setBrowserOpen(false);
-  }, [commit]);
+  }, [commit, setCurrentProfileId]);
 
   const deleteProfile = useCallback((id) => {
     persistProfiles(profiles.filter((p) => p.id !== id));
@@ -1772,9 +1832,10 @@ export default function OverlayEditor({
         <div className="flex items-center gap-[6px]">
         <MenuBtn label={t("ovlMenuFile")} corners={hdrCorners(false, true)}>
           <DropdownMenu aria-label={t("ovlMenuFile")} onAction={(key) => {
-            if (key === "new") { commit(defaultOverlayDoc()); setSelectedId(null); }
+            if (key === "new") { commit(defaultOverlayDoc()); setSelectedId(null); setCurrentProfileId(null); }
             else if (key === "place") { const id = addLayer("image"); if (id) pickImage(id); }
-            else if (key === "save") { setSaveOpen(true); setBrowserOpen(false); }
+            else if (key === "save") saveCurrent();
+            else if (key === "saveAs") openSaveAs();
             else if (key === "browse") { setBrowserOpen(true); setSaveOpen(false); }
             else if (key === "import") { importFileRef.current?.click(); }
             else if (key === "export") { exportProfile({ id: "current", name: t("ovlMenuExportCurrent"), doc, savedAt: new Date().toISOString() }); }
@@ -1784,7 +1845,8 @@ export default function OverlayEditor({
               <DropdownItem id="place" textValue={t("ovlPlaceImage")}><ImageSquare size={13} />{t("ovlPlaceImage")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
-              <DropdownItem id="save" textValue={t("ovlProfileSave")}><FloppyDisk size={13} />{t("ovlProfileSave")}</DropdownItem>
+              <DropdownItem id="save" textValue={t("ovlSave")}><FloppyDisk size={13} />{t("ovlSave")}<span className="ml-auto pl-4 text-muted text-[length:var(--t11)]">Ctrl+S</span></DropdownItem>
+              <DropdownItem id="saveAs" textValue={t("ovlSaveAs")}><FloppyDisk size={13} />{t("ovlSaveAs")}<span className="ml-auto pl-4 text-muted text-[length:var(--t11)]">Ctrl+Shift+S</span></DropdownItem>
               <DropdownItem id="browse" textValue={t("ovlProfileBrowse")}><Swatches size={13} />{t("ovlProfileBrowse")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
@@ -1904,7 +1966,7 @@ export default function OverlayEditor({
           <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, true) }}
             onPress={() => exportProfile({ id: "current", name: t("ovlMenuExportCurrent"), doc, savedAt: new Date().toISOString() })} aria-label={t("ovlMenuExportCurrent")}><FileExport size={15} weight="fill" /></Button>
           <Button variant="ghost" size="sm" isIconOnly className={HDR_ICON_BTN} style={{ borderRadius: hdrCorners(true, false) }}
-            onPress={() => { setSaveOpen((o) => !o); setBrowserOpen(false); }} aria-label={t("ovlProfileSave")}><FloppyDisk size={15} weight="fill" /></Button>
+            onPress={saveCurrent} aria-label={t("ovlSave")}>{justSaved ? <Check size={15} weight="bold" /> : <FloppyDisk size={15} weight="fill" />}</Button>
         </div>
 
         <div className="w-px h-[18px] bg-border mx-1.5 shrink-0" />
@@ -1961,7 +2023,7 @@ export default function OverlayEditor({
               const chipsShown = lockShown || eyeShown;
               return (
                 <div key={l.id} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}
-                  style={row.group ? { paddingLeft: GROUP_INDENT } : undefined}>
+                  style={row.depth ? { paddingLeft: GROUP_INDENT * row.depth } : undefined}>
                   {/* The drop line sits IN the gap, so it says where the row lands instead of
                       which row you are over -- an outline leaves you guessing above or below.
                       Zero height and absolutely placed, so showing it never nudges the list. */}
@@ -1974,9 +2036,9 @@ export default function OverlayEditor({
                   <div
                     data-layer-id={l.id}
                     onPointerDown={(e) => onRowPointerDown(e, { kind: "layer", id: l.id })}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }
-                      setSelectedId(l.id);
+                      if (e.shiftKey) toggleInSelection([l.id]); else setSelectedId(l.id);
                     }}
                     className={[
                       "flex-1 min-w-0 flex items-center gap-2 px-4 cursor-default select-none",
@@ -2085,7 +2147,7 @@ export default function OverlayEditor({
                   if (e.button !== 0) return;
                   startGesture(e, "move", null, l);
                 } : undefined}
-                onDoubleClick={interactive ? (e) => { e.stopPropagation(); setSelectedId(l.id); } : undefined}
+                onDoubleClick={interactive ? (e) => { e.stopPropagation(); setSelectedIds(pickOnDoubleClick(doc, l.id, selectedIds)); } : undefined}
                 onPointerEnter={interactive ? () => setHoveredId(l.id) : undefined}
                 onPointerLeave={interactive ? () => setHoveredId((h) => (h === l.id ? null : h)) : undefined}
                 style={{
@@ -2162,7 +2224,7 @@ export default function OverlayEditor({
           })}
           {/* A selected group reads as one object: one box around all of it. */}
           {selGroup && (() => {
-            const bb = boundsOf(doc.layers.filter((l) => l.group === selGroup.id));
+            const bb = boundsOf(membersOf(doc, selGroup.id));
             return bb && (
               <div style={{ position: "absolute", left: bb.x, top: bb.y, width: bb.w, height: bb.h,
                 boxShadow: `0 0 0 ${BW}px var(--accent)`, pointerEvents: "none" }} />
@@ -2308,6 +2370,35 @@ export default function OverlayEditor({
                 </Field>
                 <div className="text-[length:var(--t11)] text-muted tabular-nums">{Math.round(bb.w)} × {Math.round(bb.h)}</div>
               </Section>
+              {(() => {
+                const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
+                const ops = [...new Set(picked.map((l) => l.opacity ?? 100))];
+                const colors = selectionColors(picked);
+                return (
+                  <>
+                    <Section title={t("ovlLayerSection") || "Layer"}>
+                      <Field label={t("ovlOpacity")}>
+                        <PercentField label={t("ovlOpacity")} value={ops.length === 1 ? ops[0] : "–"}
+                          onChange={(o) => liveEdit((b) => ({ ...b, layers: b.layers.map((l) => (selectedIds.includes(l.id) ? { ...l, opacity: o } : l)) }))} />
+                      </Field>
+                    </Section>
+                    {colors.length > 0 && (
+                      <Section title={t("ovlSelectionColors")}>
+                        <div className="flex flex-col gap-1.5">
+                          {colors.map((c, i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <div className="flex-1 min-w-0">
+                                <ColorField label={t("ovlSelectionColors")} value={c.color} onChange={(v) => recolorSelection(c.color, v)} />
+                              </div>
+                              {c.count > 1 && <span className="shrink-0 w-6 text-right text-[length:var(--t11)] text-muted tabular-nums">×{c.count}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
+                  </>
+                );
+              })()}
               <div className="flex flex-wrap gap-2 mt-3">
                 {selGroup ? (
                   <Button variant="secondary" size="sm" className="gap-1.5" onPress={ungroupSelected}><ObjectUngroup size={13} /> {t("ovlUngroup")}</Button>
@@ -2533,7 +2624,7 @@ export default function OverlayEditor({
         <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-50 w-64 rounded-xl shadow-xl border border-border p-3 flex flex-col gap-2"
           style={{ background: "var(--bg-elevated)" }}
           onKeyDown={(e) => { if (e.key === "Enter") saveProfile(); if (e.key === "Escape") setSaveOpen(false); }}>
-          <span className="text-[length:var(--t12)] font-semibold text-primary">{t("ovlProfileSave")}</span>
+          <span className="text-[length:var(--t12)] font-semibold text-primary">{t("ovlSaveAs")}</span>
           <TextFieldRoot value={saveName} onChange={setSaveName} aria-label={t("ovlProfileName")}>
             <InputRoot autoFocus className="text-[length:var(--t12)]! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlProfileName")} />
           </TextFieldRoot>

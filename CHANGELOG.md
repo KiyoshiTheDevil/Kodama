@@ -18,7 +18,9 @@ Changes:
 - Updates on Windows are much smaller, since the bundled Node runtime is no longer downloaded again with every update
 - The visualizer now defaults to the linear style
 - The cover can be shown as a circle, set under Visualizer and carried by presets
-- Overlay editor: layers can be grouped (Ctrl+G), moved, aligned and shown or hidden together
+- Overlay editor: layers can be grouped (Ctrl+G), also inside other groups
+- Overlay editor: Shift+click selects several layers, whose shared colors and opacity can be edited together
+- Overlay editor: Save (Ctrl+S) writes into the open design, Save as creates a new one
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 
