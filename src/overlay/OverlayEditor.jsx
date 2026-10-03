@@ -23,7 +23,7 @@ import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../u
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
-  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup,
+  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
@@ -742,14 +742,61 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
 }
 
 // Per-layer effects (Figma-style add/remove list) + entrance & loop animations.
-function LayerEffectsSection({ t, layer, setStyle }) {
+// Entrance and loop for a group, the same choices a layer has, plus a stagger: the group's
+// contents come in one after another instead of all at once. Stored on the group (`fx`), which
+// the renderer reads to give an animated group an element of its own.
+function GroupAnimationSection({ t, group, onChange, onReplay }) {
+  const fx = group.fx || {};
+  const setFx = (key, patch) => onChange({ fx: { ...fx, [key]: { ...(fx[key] || {}), ...patch } } });
+  const entOn = fx.entrance?.type && fx.entrance.type !== "none";
+  const loopOn = fx.loop?.type && fx.loop.type !== "none";
+  return (
+    <Section title={t("ovlAnimation") || "Animation"} right={entOn ? <ReplayButton t={t} onReplay={onReplay} /> : null}>
+      <Field label={t("ovlEntrance")}>
+        <SelectField value={fx.entrance?.type || "none"} options={ENTRANCE_OPTS(t)} onChange={(v) => setFx("entrance", { type: v })} />
+      </Field>
+      {entOn && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("ovlDuration")}>
+            <PillNum ariaLabel={t("ovlDuration")} value={fx.entrance?.duration ?? 0.5} min={0.1} max={3} step={0.1} onChange={(v) => setFx("entrance", { duration: v })} />
+          </Field>
+          <Field label={t("ovlStagger")}>
+            <PillNum ariaLabel={t("ovlStagger")} value={fx.entrance?.stagger ?? 0} min={0} max={2} step={0.05} onChange={(v) => setFx("entrance", { stagger: v })} />
+          </Field>
+        </div>
+      )}
+      <Field label={t("ovlLoop")}>
+        <SelectField value={fx.loop?.type || "none"} options={LOOP_OPTS(t)} onChange={(v) => setFx("loop", { type: v })} />
+      </Field>
+      {loopOn && (
+        <Field label={t("ovlSpeed")}>
+          <PillNum ariaLabel={t("ovlSpeed")} value={fx.loop?.speed ?? 2} min={0.3} max={10} step={0.1} onChange={(v) => setFx("loop", { speed: v })} />
+        </Field>
+      )}
+    </Section>
+  );
+}
+
+// Entrances do not play in the editor, where every change rebuilds the preview; this plays them once.
+function ReplayButton({ t, onReplay }) {
+  return (
+    <Tooltip text={t("ovlReplay")}>
+      <Button variant="ghost" size="sm" isIconOnly onPress={onReplay} aria-label={t("ovlReplay")} className="h-7! w-7! min-w-0!">
+        <Play size={12} weight="fill" />
+      </Button>
+    </Tooltip>
+  );
+}
+
+function LayerEffectsSection({ t, layer, setStyle, onReplay }) {
   const s = layer.style || {};
   const id = layer.id;
   const fx = s.fx || {};
   const setFx = (key, patch) => setStyle(id, { fx: { ...fx, [key]: { ...(fx[key] || {}), ...patch } } });
   return (<>
     <EffectList t={t} effects={s.effects} onChange={(effects) => setStyle(id, { effects })} />
-    <Section title={t("ovlAnimation") || "Animation"}>
+    <Section title={t("ovlAnimation") || "Animation"}
+      right={fx.entrance?.type && fx.entrance.type !== "none" ? <ReplayButton t={t} onReplay={onReplay} /> : null}>
       {/* Named blocks, like the rest of the panel. The duration and speed appear only once
           their animation is set to something, so an unused section stays two fields. */}
       <Field label={t("ovlEntrance")}>
@@ -1179,6 +1226,8 @@ export default function OverlayEditor({
   };
   // Once the panel has redrawn, every row names its colour again and the memory is stale.
   useEffect(() => { recolorRef.current = {}; }, [doc]);
+
+  const replayEntrances = () => iframeRef.current?.contentWindow?.postMessage({ __overlayReplay: true }, "*");
 
   // Move every unlocked layer of the selection so its shared box lands where `fn` says.
   const moveSelection = (fn) => liveEdit((b) => {
@@ -2424,6 +2473,10 @@ export default function OverlayEditor({
                   </>
                 );
               })()}
+              {selGroup && (
+                <GroupAnimationSection t={t} group={selGroup} onReplay={replayEntrances}
+                  onChange={(patch) => liveEdit((b) => setGroup(b, selGroup.id, patch))} />
+              )}
               <div className="flex flex-wrap gap-2 mt-3">
                 {selGroup ? (
                   <Button variant="secondary" size="sm" className="gap-1.5" onPress={ungroupSelected}><ObjectUngroup size={13} /> {t("ovlUngroup")}</Button>
@@ -2636,7 +2689,7 @@ export default function OverlayEditor({
               </Section>
 
               <LayerStyleSections t={t} layer={selected} setLayer={setLayer} setStyle={setStyle} onPickImage={() => pickImage(selected.id)} onOpenFontPicker={() => setFontPickerOpen(true)} />
-              <LayerEffectsSection t={t} layer={selected} setStyle={setStyle} />
+              <LayerEffectsSection t={t} layer={selected} setStyle={setStyle} onReplay={replayEntrances} />
             </>
             );
           })()}

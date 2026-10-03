@@ -717,6 +717,8 @@
   "ovlUngroup": "Gruppierung aufheben",
   "ovlGroupName": "Gruppe",
   "ovlGroupHint": "Ein Klick wählt die ganze Gruppe, ein Doppelklick geht eine Ebene hinein. Strg+Klick wählt ein einzelnes Element, Umschalt+Klick erweitert die Auswahl.",
+  "ovlStagger": "Versatz",
+  "ovlReplay": "Eingang abspielen",
   "ovlSelectionColors": "Farben der Auswahl",
   "ovlLayerSection": "Ebene",
   "ovlSave": "Speichern",

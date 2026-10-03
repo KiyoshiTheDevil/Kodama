@@ -6466,6 +6466,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 #blur{background-size:cover;background-position:center;opacity:0;transition:opacity .3s}
 .layer{position:absolute}
 .layer-anim{position:absolute;inset:0}
+.layer-group{position:absolute;inset:0}
 @keyframes ovl-fade{from{opacity:0}to{opacity:1}}
 @keyframes ovl-slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes ovl-slideDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
@@ -6755,16 +6756,80 @@ function applyFx(el,entr,loopw,L){
   const sbox=tgt.dataset.sbox||'';
   tgt.style.boxShadow=[sbox,ins.join(', ')].filter(Boolean).join(', ');
   const en=fx.entrance;
-  if(en&&en.type&&en.type!=='none'&&!EDITOR)entr.style.animation=`ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) both`;
+  if(en&&en.type&&en.type!=='none'&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
   else entr.style.animation='';
   const lp=fx.loop;
   if(lp&&lp.type&&lp.type!=='none'){const dur=lp.speed||(lp.type==='spin'?4:2);loopw.style.animation=`ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} infinite`;}
   else loopw.style.animation='';
 }
+// Entrance animations play in OBS but not in the editor, where every edit rebuilds the layers;
+// REPLAY lets the editor ask for one run on purpose.
+let REPLAY=false;
+function entrAnim(en,delay){return `ovl-${en.type} ${en.duration||0.5}s cubic-bezier(.22,1,.36,1) ${delay||0}s both`;}
+
+// Groups are marks on the layers (layer.group, doc.groups with parents). Most of them draw
+// exactly as loose layers would; only a group that animates gets an element of its own, so that
+// it moves, spins or pulses as ONE thing around its own centre. A wrapper is a stacking context
+// and would change how blend modes inside it mix with what is below, which is why a group
+// without animation gets none.
+function groupPlan(dc){
+  const gm={};(dc.groups||[]).forEach(g=>{gm[g.id]=g;});
+  const on=a=>a&&a.type&&a.type!=='none';
+  const animated=g=>!!(g&&g.fx&&(on(g.fx.entrance)||on(g.fx.loop)));
+  const stagger=g=>!!(g&&g.fx&&on(g.fx.entrance)&&(g.fx.entrance.stagger||0)>0);
+  const chain=L=>{const out=[],seen={};let id=L.group;while(id&&gm[id]&&!seen[id]){seen[id]=1;out.unshift(id);id=gm[id].parent;}return out;};
+  const box={},top={};
+  for(const L of dc.layers||[]){
+    for(const gid of chain(L)){
+      const b=box[gid]||(box[gid]={x1:1e9,y1:1e9,x2:-1e9,y2:-1e9});
+      b.x1=Math.min(b.x1,L.x||0);b.y1=Math.min(b.y1,L.y||0);
+      b.x2=Math.max(b.x2,(L.x||0)+(L.w||0));b.y2=Math.max(b.y2,(L.y||0)+(L.h||0));
+      top[gid]=Math.max(top[gid]==null?-1e9:top[gid],L.z||0);
+    }
+  }
+  // With a stagger, a group's direct children come in one after another, bottom first.
+  const order={};
+  for(const gid in gm){
+    if(!stagger(gm[gid]))continue;
+    const kids=[];
+    (dc.layers||[]).forEach(L=>{if(L.group===gid)kids.push(['l:'+L.id,L.z||0]);});
+    (dc.groups||[]).forEach(g=>{if(g.parent===gid&&top[g.id]!=null)kids.push(['g:'+g.id,top[g.id]]);});
+    kids.sort((a,b)=>a[1]-b[1]);
+    order[gid]={};kids.forEach((k,i)=>{order[gid][k[0]]=i;});
+  }
+  const wrapped=gid=>{const g=gm[gid];return animated(g)||!!(g&&g.parent&&stagger(gm[g.parent]));};
+  return {gm,on,stagger,chain,box,top,order,wrapped};
+}
+function staggerAnim(plan,parentId,key){
+  const p=plan.gm[parentId];
+  if(!p||!plan.stagger(p)||(EDITOR&&!REPLAY))return '';
+  const i=(plan.order[parentId]||{})[key]||0;
+  return entrAnim(p.fx.entrance,i*p.fx.entrance.stagger);
+}
+function groupWrap(plan,container,gid){
+  container._gw=container._gw||{};
+  if(container._gw[gid])return container._gw[gid];
+  const g=plan.gm[gid],b=plan.box[gid]||{x1:0,y1:0,x2:0,y2:0};
+  const origin=((b.x1+b.x2)/2)+'px '+((b.y1+b.y2)/2)+'px';
+  const outer=document.createElement('div');outer.className='layer-group';
+  const entr=document.createElement('div');entr.className='layer-anim';
+  const loopw=document.createElement('div');loopw.className='layer-anim';
+  [outer,entr,loopw].forEach(d=>{d.style.transformOrigin=origin;});
+  outer.style.zIndex=plan.top[gid]||0;
+  outer.appendChild(entr);entr.appendChild(loopw);container.appendChild(outer);
+  if(g.parent)outer.style.animation=staggerAnim(plan,g.parent,'g:'+gid);
+  const fx=g.fx||{},en=fx.entrance,lp=fx.loop;
+  if(plan.on(en)&&!plan.stagger(g)&&(!EDITOR||REPLAY))entr.style.animation=entrAnim(en,0);
+  if(plan.on(lp)){const dur=lp.speed||(lp.type==='spin'?4:2);loopw.style.animation=`ovl-${lp.type} ${dur}s ${lp.type==='spin'?'linear':'ease-in-out'} infinite`;}
+  container._gw[gid]=loopw;
+  return loopw;
+}
+
 function buildLayers(dc){
-  const layers=document.getElementById('layers');layers.innerHTML='';
-  const free=document.getElementById('layers-free');free.innerHTML='';
+  const layers=document.getElementById('layers');layers.innerHTML='';layers._gw=null;
+  const free=document.getElementById('layers-free');free.innerHTML='';free._gw=null;
   for(const k in layerEls)delete layerEls[k];
+  const plan=groupPlan(dc);
   const sorted=(dc.layers||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0));
   for(const L of sorted){
     const el=document.createElement('div');el.className='layer';
@@ -6784,7 +6849,17 @@ function buildLayers(dc){
     const rec={root:el,type:L.type,bind:L.bind,layer:L};
     (BUILDERS[L.type]||(()=>{}))(loopw,L,rec);
     applyFx(el,entr,loopw,L);
-    (L.clip===false?free:layers).appendChild(el);layerEls[L.id]=rec;
+    let host=L.clip===false?free:layers;
+    for(const gid of plan.chain(L).filter(plan.wrapped))host=groupWrap(plan,host,gid);
+    // A layer whose group comes in staggered gets its turn on a wrapper of its own: on el the
+    // keyframes' transform would replace the layer's rotation.
+    const sa=L.group?staggerAnim(plan,L.group,'l:'+L.id):'';
+    if(sa){
+      const sw=document.createElement('div');sw.className='layer-anim';
+      sw.style.zIndex=L.z||0;sw.style.transformOrigin=((L.x||0)+(L.w||0)/2)+'px '+((L.y||0)+(L.h||0)/2)+'px';
+      sw.style.animation=sa;sw.appendChild(el);host.appendChild(sw);
+    }else host.appendChild(el);
+    layerEls[L.id]=rec;
   }
 }
 
@@ -6873,7 +6948,10 @@ function updateState(s){
 
 // Editor live-preview channel: the editor postMessages the in-progress doc
 // during drag so the preview updates without flooding the backend with POSTs.
-window.addEventListener('message',function(e){if(e.data&&e.data.__overlayDoc)applyDoc(e.data.__overlayDoc);});
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.__overlayDoc)applyDoc(e.data.__overlayDoc);
+  else if(e.data&&e.data.__overlayReplay&&doc){REPLAY=true;try{buildLayers(doc);}finally{REPLAY=false;}renderData();}
+});
 
 function connect(){
   const es=new EventSource(API+'/overlay/stream');
