@@ -29,7 +29,6 @@ Changes:
 - Overlay editor: the element library, My Designs, the colour picker and the font picker share one look; My Designs shows a list beside a large preview
 - Overlay editor: click a fill, stroke, effect or animation in the inspector, then Ctrl+C and Ctrl+V to copy it onto other elements
 - Overlay editor: copy the look of a layer or group and paste it onto others, whole or just its colors, effects or animations (Ctrl+Alt+C, Ctrl+Alt+V)
-- Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 
@@ -40,6 +39,7 @@ Fixes:
 - The store window stayed in a theme after it was removed, and did not follow theme changes made in the main window
 - Legacy lyrics and captions showed a translation that only repeated the line
 - Overlay editor: design previews showed white corners and gaps; the Import button in the header did nothing while My Designs was closed
+- Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
 ## [1.0.0-alpha.41] - 2026-09-22
