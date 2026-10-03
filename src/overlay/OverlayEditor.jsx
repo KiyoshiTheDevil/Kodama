@@ -372,11 +372,10 @@ function SwitchField({ label, checked, onChange }) {
 // Labelled selects follow the fields: caption above, control across the full width. Unlabelled
 // ones already sat inline inside a row (stroke position, effect type) and stay that way.
 function SelectField({ label, value, onChange, options }) {
-  const Wrap = label
-    ? ({ children }) => <Field label={label}>{children}</Field>
-    : ({ children }) => <div className="flex items-center justify-between gap-2">{children}</div>;
-  return (
-    <Wrap>
+  // The wrapper is chosen inline, not as a component made here: a component created during
+  // render is a new type every render, so React threw the whole select away and rebuilt it on
+  // each redraw of the editor, closing an open menu the moment anything else changed.
+  const select = (
       <SelectRoot
         selectedKey={value} onSelectionChange={(k) => onChange(String(k))}
         aria-label={label} className={label ? "w-full" : "flex-1 min-w-0"}
@@ -399,8 +398,10 @@ function SelectField({ label, value, onChange, options }) {
           </ListBox>
         </SelectPopover>
       </SelectRoot>
-    </Wrap>
   );
+  return label
+    ? <Field label={label}>{select}</Field>
+    : <div className="flex items-center justify-between gap-2">{select}</div>;
 }
 // Icon/label segmented control (e.g. align L/C/R) — a pill matching the input fields,
 // with rounded inner segments (no hard per-segment dividers).
@@ -459,8 +460,14 @@ function PropRow({ kind, index = 0, className = "", children }) {
   const ps = useContext(PropSelCtx);
   const on = !!ps?.sel && ps.sel.kind === kind && (ps.sel.index ?? 0) === index;
   return (
-    <div data-propsel className={className} onPointerDownCapture={() => ps?.select({ kind, index })}
-      style={{ outline: on ? "1.5px solid var(--accent)" : "1.5px solid transparent", outlineOffset: 3, borderRadius: "var(--r-lg)" }}>
+    <div data-propsel className={className} onClickCapture={() => { if (!on) ps?.select({ kind, index }); }}
+      // A tinted ground rather than an outline, as in Figma: it reads as "this one is picked"
+      // without boxing in the fields. The inset is always there, so picking moves nothing.
+      style={{
+        margin: "-5px -6px", padding: "5px 6px", borderRadius: "var(--r-lg)",
+        background: on ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "transparent",
+        transition: "background-color 0.12s",
+      }}>
       {children}
     </div>
   );
