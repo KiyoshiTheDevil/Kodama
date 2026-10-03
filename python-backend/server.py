@@ -6473,6 +6473,16 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 @keyframes ovl-slideLeft{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes ovl-slideRight{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes ovl-zoom{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes ovl-blurIn{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
+@keyframes ovl-pop{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.1)}80%{transform:scale(.97)}100%{opacity:1;transform:scale(1)}}
+@keyframes ovl-zoomOut{from{opacity:0;transform:scale(1.3)}to{opacity:1;transform:scale(1)}}
+@keyframes ovl-flipX{from{opacity:0;transform:perspective(500px) rotateX(-80deg)}to{opacity:1;transform:perspective(500px) rotateX(0)}}
+@keyframes ovl-flipY{from{opacity:0;transform:perspective(500px) rotateY(80deg)}to{opacity:1;transform:perspective(500px) rotateY(0)}}
+@keyframes ovl-rotateIn{from{opacity:0;transform:rotate(-25deg) scale(.85)}to{opacity:1;transform:rotate(0) scale(1)}}
+@keyframes ovl-dropIn{0%{opacity:0;transform:translateY(-48px)}55%{opacity:1;transform:translateY(8px)}75%{transform:translateY(-4px)}90%{transform:translateY(2px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes ovl-wipeRight{from{clip-path:inset(-60% 100% -60% -60%)}to{clip-path:inset(-60% -60% -60% -60%)}}
+@keyframes ovl-wipeLeft{from{clip-path:inset(-60% -60% -60% 100%)}to{clip-path:inset(-60% -60% -60% -60%)}}
+@keyframes ovl-wipeUp{from{clip-path:inset(100% -60% -60% -60%)}to{clip-path:inset(-60% -60% -60% -60%)}}
 @keyframes ovl-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 @keyframes ovl-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes ovl-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
@@ -6906,7 +6916,7 @@ function applyMarquee(rec){
 // nobody saw them. They now start over whenever the widget appears, and on every new song unless
 // the design says "only when it appears" (canvas.entranceOn).
 let stageShown=null,trackKey=null;
-const ENTRANCE_KF=/^ovl-(fade|slide|zoom)/;
+const ENTRANCE_KF=/^ovl-(fade|slide|zoom|blurIn|pop|flip|rotateIn|dropIn|wipe)/;
 function restartEntrances(){
   if(EDITOR)return;
   const els=[...document.querySelectorAll('#layers *, #layers-free *')].filter(el=>ENTRANCE_KF.test(el.style.animationName||''));
