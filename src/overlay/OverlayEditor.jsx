@@ -34,7 +34,7 @@ import { ColorPicker } from "../ui/color-picker.jsx";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
   setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf, pickOnClick, pickOnDoubleClick,
-  groupsToUngroup, placeAbove, selectionColors, replaceColor,
+  groupsToUngroup, placeAbove, selectionColors, replaceColor, chainOf, findGroup,
 } from "./groups.js";
 
 const TYPE_META = {
@@ -1595,6 +1595,31 @@ export default function OverlayEditor({
   // Opening or closing a group is how the panel looks, not a change to the design: it is kept
   // in the document so it survives a reload, but it is not an undo step.
   const setGroupUi = (gid, patch) => { const next = setGroup(doc, gid, patch); setDoc(next); pushDoc(next); };
+  // Selecting something on the canvas brings its row into view in the layers panel, opening any
+  // closed group it is in on the way, as in Figma. Once per selection: editing the selection
+  // afterwards must not keep pulling the list back while someone scrolls it.
+  const revealedRef = useRef("");
+  useEffect(() => {
+    const key = selectedIds.join(",");
+    if (!key || revealedRef.current === key) return;
+    const firstRow = selGroup ? null : panelRows.find((r) => r.kind === "layer" && selectedIds.includes(r.id));
+    const first = doc.layers.find((l) => l.id === (firstRow?.id || selectedIds[0]));
+    const chain = selGroup ? chainOf(doc, { group: selGroup.parent }) : chainOf(doc, first);
+    const closed = chain.filter((gid) => findGroup(doc, gid)?.collapsed);
+    if (closed.length) {
+      // Opened first; this runs again once the rows are there.
+      let next = doc;
+      for (const gid of closed) next = setGroup(next, gid, { collapsed: false });
+      setDoc(next); pushDoc(next);
+      return;
+    }
+    revealedRef.current = key;
+    const el = selGroup
+      ? document.querySelector(`[data-group-id="${selGroup.id}"]`)
+      : document.querySelector(`[data-layer-id="${first?.id}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [selectedIds, doc, selGroup, panelRows, pushDoc]);
+
   const setMembers = (gid, patch) => {
     const ids = new Set(membersOf(doc, gid).map((l) => l.id));
     commit({ ...doc, layers: doc.layers.map((l) => (ids.has(l.id) ? { ...l, ...patch } : l)) }, doc);
@@ -1618,7 +1643,7 @@ export default function OverlayEditor({
         {dropIndex === rowIdx + 1 && rowIdx === panelRows.length - 1 && (
           <div className="absolute -bottom-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
         )}
-        <div
+        <div data-group-id={g.id}
           onPointerDown={(e) => { if (renamingGroup !== g.id) onRowPointerDown(e, { kind: "group", gid: g.id }); }}
           onClick={(e) => {
             if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }

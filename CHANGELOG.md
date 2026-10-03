@@ -21,6 +21,7 @@ Changes:
 - Overlay editor: layers can be grouped (Ctrl+G), also inside other groups
 - Overlay editor: Shift+click selects several layers, whose shared colors and opacity can be edited together
 - Overlay editor: Save (Ctrl+S) writes into the open design, Save as creates a new one
+- Overlay editor: selecting a layer on the canvas brings it into view in the layers panel
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 
