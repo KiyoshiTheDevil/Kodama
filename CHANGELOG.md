@@ -18,6 +18,7 @@ Changes:
 - Updates on Windows are much smaller, since the bundled Node runtime is no longer downloaded again with every update
 - The visualizer now defaults to the linear style
 - The cover can be shown as a circle, set under Visualizer and carried by presets
+- Overlay editor: layers can be grouped (Ctrl+G), moved, aligned and shown or hidden together
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 

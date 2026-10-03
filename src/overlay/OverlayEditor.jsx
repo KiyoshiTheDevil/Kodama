@@ -23,7 +23,7 @@ import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../u
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
-  ArrowsOut, ArrowClockwise, CaretDown, CursorArrow,
+  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
@@ -31,6 +31,10 @@ import {
   isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners,
 } from "./schema.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
+import {
+  tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
+  setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf,
+} from "./groups.js";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -149,6 +153,7 @@ function useElementSize() {
 }
 
 const LAYER_ROW_H = 30;
+const GROUP_INDENT = 18;   // how far a group's members sit in from its header
 
 // Menu bar entry. The design puts the bar at 52px with 30px controls, so the trigger height
 // lives here rather than being repeated at each of the four menus.
@@ -964,6 +969,9 @@ export default function OverlayEditor({
 
   // Commit: history + persist + push (used by add/delete, switches, undo).
   const commit = useCallback((next, prev) => {
+    // Every structural change goes through here, so this is the one place that keeps a group's
+    // members together and drops a group whose last member was deleted.
+    next = tidyGroups(next);
     flushLive();
     setPast((p) => [...p.slice(-60), prev ?? doc]);
     setFuture([]);
@@ -987,35 +995,28 @@ export default function OverlayEditor({
 
   const selected = doc.layers.find((l) => l.id === selectedId) || null;
   const orderedAsc = [...doc.layers].sort((a, b) => (a.z || 0) - (b.z || 0)); // paint order (hit-test top = last)
-  const orderedDesc = [...doc.layers].sort((a, b) => (b.z || 0) - (a.z || 0)); // list (top first)
 
-  // Drag-and-drop layer reorder. Takes the position to insert AT, counted in gaps between rows
+  // The layers panel: group headers with their members under them (see groups.js).
+  const panelRows = useMemo(() => buildRows(doc), [doc]);
+  const layerById = useMemo(() => new Map(doc.layers.map((l) => [l.id, l])), [doc.layers]);
+  const selGroup = selectedGroup(doc, selectedIds);
+
+  // Drag-and-drop reorder. Takes the position to insert AT, counted in gaps between rows
   // (0 = above the first row, length = below the last), rather than "the row I happen to be
-  // over": dropping onto a row cannot say whether you meant above or below it.
-  const moveLayerTo = useCallback((fromId, insertIndex) => {
-    const ordered = [...doc.layers].sort((a, b) => (b.z || 0) - (a.z || 0));
-    const fromIdx = ordered.findIndex((l) => l.id === fromId);
-    if (fromIdx === -1) return;
-    // Pulling the row out shifts every gap below it up by one.
-    let target = insertIndex > fromIdx ? insertIndex - 1 : insertIndex;
-    if (target === fromIdx) return;
-    const next = [...ordered];
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(target, 0, moved);
-    const n = next.length;
-    const updatedLayers = doc.layers.map((l) => ({
-      ...l,
-      z: n - 1 - next.findIndex((r) => r.id === l.id),
-    }));
-    commit({ ...doc, layers: updatedLayers });
+  // over": dropping onto a row cannot say whether you meant above or below it. Between two
+  // members of a group a layer joins it; anywhere else it stands on its own.
+  const dropRowAt = useCallback((drag, gap) => {
+    const next = dropRow(doc, buildRows(doc), drag, gap);
+    if (next !== doc) commit(next);
   }, [doc, commit]);
 
-  // Stable ref so pointer-event closures always call the latest moveLayerTo.
-  const moveLayerToRef = useRef(null);
-  moveLayerToRef.current = moveLayerTo;
+  // Stable ref so pointer-event closures always call the latest dropRowAt.
+  const dropRowRef = useRef(null);
+  dropRowRef.current = dropRowAt;
 
   // Pointer-based drag sort (HTML5 drag-and-drop is unreliable in WebView2/WebKit).
-  const onRowPointerDown = useCallback((e, id) => {
+  const onRowPointerDown = useCallback((e, drag) => {
+    const id = drag.kind === "group" ? `g:${drag.gid}` : drag.id;
     if (e.button !== 0) return;
     const startY = e.clientY, startX = e.clientX;
     let dragging = false;
@@ -1048,7 +1049,7 @@ export default function OverlayEditor({
       const fromId = dragIdRef.current;
       const at = dropIndexRef.current;
       if (fromId && at != null) {
-        moveLayerToRef.current?.(fromId, at);
+        dropRowRef.current?.(drag, at);
         // The click event still follows a pointerup; swallow it so the drop does not also
         // count as a selection of whatever ended up under the cursor.
         suppressLayerClickRef.current = true;
@@ -1095,19 +1096,22 @@ export default function OverlayEditor({
     commit({ ...doc, layers: doc.layers.filter((l) => !del.has(l.id)) }, doc);
     setSelectedIds([]);
   };
+  // Works on the whole selection, so a selected group duplicates as a new group. One element of
+  // a group duplicates into that same group.
   const duplicateSelected = useCallback(() => {
-    if (!selectedId) return;
-    const l = doc.layers.find((x) => x.id === selectedId);
-    if (!l) return;
-    const clone = { ...l, id: crypto.randomUUID(), x: l.x + 20, y: l.y + 20 };
-    commit({ ...doc, layers: [...doc.layers, clone] }, doc);
-    setSelectedId(clone.id);
-  }, [doc, selectedId, commit]);
+    const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
+    if (!picked.length) return;
+    const topZ = doc.layers.reduce((m, l) => Math.max(m, l.z || 0), 0);
+    const { clones, newGroups } = cloneLayers(doc, picked, { offset: 20, topZ, makeLayerId: () => crypto.randomUUID() });
+    commit({ ...doc, layers: [...doc.layers, ...clones], groups: [...groupsOf(doc), ...newGroups] }, doc);
+    setSelectedIds(clones.map((c) => c.id));
+  }, [doc, selectedIds, commit]);
 
   // An editor-local clipboard rather than the system one: layers are a structure, not text,
   // and serialising them through the OS clipboard would only buy pasting into a foreign app
   // that could not read them anyway.
   const clipboardRef = useRef([]);
+  const clipboardGroupsRef = useRef([]);   // names of the groups the copied layers were in
   const pasteCountRef = useRef(0);
 
   const copySelected = useCallback(() => {
@@ -1116,9 +1120,10 @@ export default function OverlayEditor({
     // Deep-cloned on copy, not on paste: otherwise editing the original before pasting would
     // quietly change what lands.
     clipboardRef.current = picked.map((l) => JSON.parse(JSON.stringify(l)));
+    clipboardGroupsRef.current = groupsOf(doc);
     pasteCountRef.current = 0;
     return true;
-  }, [doc.layers, selectedIds]);
+  }, [doc, selectedIds]);
 
   const cutSelected = useCallback(() => {
     if (copySelected()) deleteSelected();
@@ -1132,16 +1137,34 @@ export default function OverlayEditor({
     pasteCountRef.current += 1;
     const off = 20 * pasteCountRef.current;
     const topZ = doc.layers.reduce((m, l) => Math.max(m, l.z || 0), 0);
-    const clones = items.map((l, i) => ({
-      ...l,
-      id: crypto.randomUUID(),
-      x: (l.x || 0) + off,
-      y: (l.y || 0) + off,
-      z: topZ + 1 + i,
-    }));
-    commit({ ...doc, layers: [...doc.layers, ...clones] }, doc);
+    const { clones, newGroups } = cloneLayers(doc, items, {
+      offset: off, topZ, makeLayerId: () => crypto.randomUUID(), groups: clipboardGroupsRef.current,
+    });
+    commit({ ...doc, layers: [...doc.layers, ...clones], groups: [...groupsOf(doc), ...newGroups] }, doc);
     setSelectedIds(clones.map((c) => c.id));
   }, [doc, commit]);
+
+  const groupSelected = useCallback(() => {
+    const ids = doc.layers.filter((l) => selectedIds.includes(l.id)).map((l) => l.id);
+    if (!ids.length) return;
+    const { doc: next } = groupLayers(doc, ids, nextGroupName(doc, t("ovlGroupName")));
+    commit(next, doc);
+    setSelectedIds(ids);
+  }, [doc, selectedIds, commit, t]);
+  const ungroupSelected = useCallback(() => {
+    const gids = [...new Set(doc.layers.filter((l) => selectedIds.includes(l.id) && l.group).map((l) => l.group))];
+    if (gids.length) commit(ungroupLayers(doc, gids), doc);
+  }, [doc, selectedIds, commit]);
+  const canUngroup = doc.layers.some((l) => selectedIds.includes(l.id) && l.group);
+
+  // Move every unlocked layer of the selection so its shared box lands where `fn` says.
+  const moveSelection = (fn) => liveEdit((b) => {
+    const bb = boundsOf(b.layers.filter((l) => selectedIds.includes(l.id)));
+    if (!bb) return null;
+    const { dx = 0, dy = 0 } = fn(bb);
+    if (!dx && !dy) return null;
+    return { ...b, layers: b.layers.map((l) => (selectedIds.includes(l.id) && !l.locked ? { ...l, x: l.x + dx, y: l.y + dy } : l)) };
+  });
 
   // Zoom so the selection fills the viewport. Falls back to the whole canvas with nothing
   // selected, which is what someone pressing it with an empty selection means.
@@ -1164,7 +1187,13 @@ export default function OverlayEditor({
 
   // Align the selected layer to a canvas edge / center (editor-only, no engine change).
   const alignSelected = (axis, where) => {
-    if (!selected) return;
+    if (!selected) {
+      // Several layers align as one block, the way a group is meant to behave.
+      if (selectedIds.length < 2) return;
+      const to = (size, len) => (where === "start" ? 0 : where === "end" ? size - len : Math.round((size - len) / 2));
+      moveSelection((bb) => (axis === "x" ? { dx: to(doc.canvas.width, bb.w) - bb.x } : { dy: to(doc.canvas.height, bb.h) - bb.y }));
+      return;
+    }
     if (axis === "x") {
       const x = where === "start" ? 0 : where === "end" ? doc.canvas.width - selected.w : Math.round((doc.canvas.width - selected.w) / 2);
       setLayer(selected.id, { x });
@@ -1263,6 +1292,8 @@ export default function OverlayEditor({
         e.preventDefault(); cutSelected();
       } else if (mod && e.key.toLowerCase() === "v") {
         e.preventDefault(); pasteClipboard();
+      } else if (mod && e.key.toLowerCase() === "g") {
+        e.preventDefault(); if (e.shiftKey) ungroupSelected(); else groupSelected();
       } else if (mod && e.key.toLowerCase() === "d") {
         e.preventDefault(); duplicateSelected();
       } else if (mod && e.shiftKey && e.key === "2") {
@@ -1335,7 +1366,7 @@ export default function OverlayEditor({
         .filter((l) => l.visible !== false && !l.locked)
         .filter((l) => l.x < bx + bw && l.x + l.w > bx && l.y < by + bh && l.y + l.h > by)
         .map((l) => l.id);
-      setSelectedIds(hits);
+      setSelectedIds(expandToGroups(doc, hits));
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -1398,12 +1429,24 @@ export default function OverlayEditor({
     e.stopPropagation(); e.preventDefault();
     if (layer.locked) return;
     flushLive();
-    // Dragging a member of a multi-selection moves the whole group; otherwise select just it.
-    const multiMove = mode === "move" && selectedIds.length > 1 && selectedIds.includes(layer.id);
-    if (!multiMove) setSelectedId(layer.id);
+    // What a press on this layer takes hold of. Dragging a member of a multi-selection moves the
+    // whole selection. A member of a group takes the whole group, unless the selection is
+    // already inside that group (after a double-click on one of its elements), or Ctrl is held:
+    // then it is just this one, as in Figma.
+    const deep = e.ctrlKey || e.metaKey;
+    const insideGroup = (gid) => selectedIds.length > 0 && !selectedGroup(doc, selectedIds)
+      && selectedIds.every((id) => doc.layers.find((l) => l.id === id)?.group === gid);
+    let moveIds = [layer.id];
+    if (mode === "move" && !deep) {
+      if (selectedIds.length > 1 && selectedIds.includes(layer.id)) moveIds = selectedIds;
+      else if (layer.group && !insideGroup(layer.group)) moveIds = expandToGroups(doc, [layer.id]);
+    }
+    const multiMove = moveIds.length > 1;
+    setSelectedIds(moveIds);
     const startPositions = multiMove
-      ? doc.layers.filter((l) => selectedIds.includes(l.id) && !l.locked).map((l) => ({ id: l.id, x: l.x, y: l.y }))
+      ? doc.layers.filter((l) => moveIds.includes(l.id) && !l.locked).map((l) => ({ id: l.id, x: l.x, y: l.y, w: l.w, h: l.h }))
       : null;
+    const startBox = startPositions ? boundsOf(startPositions) : null;
     const rect = viewportRef.current.getBoundingClientRect();
     const z = zoom, p = { ...pan }, L0 = { ...layer };
     const center0 = { x: L0.x + L0.w / 2, y: L0.y + L0.h / 2 };
@@ -1414,8 +1457,9 @@ export default function OverlayEditor({
     const SNAP = prefs.snap ? 6 / z : 0;
     const gxs = [0, doc.canvas.width / 2, doc.canvas.width];
     const gys = [0, doc.canvas.height / 2, doc.canvas.height];
+    const movingIds = new Set(startPositions ? startPositions.map((s) => s.id) : [L0.id]);
     for (const l of doc.layers) {
-      if (l.id === L0.id || l.visible === false) continue;
+      if (movingIds.has(l.id) || l.visible === false) continue;
       gxs.push(l.x, l.x + l.w / 2, l.x + l.w);
       gys.push(l.y, l.y + l.h / 2, l.y + l.h);
     }
@@ -1445,14 +1489,19 @@ export default function OverlayEditor({
       if (mode === "move") {
         const dx = (ev.clientX - startClient.x) / z, dy = (ev.clientY - startClient.y) / z;
         if (startPositions) {
-          // Multi-selection: shift every selected layer by the same delta (no snapping).
-          const rdx = Math.round(dx), rdy = Math.round(dy);
+          // Multi-selection: shift every selected layer by the same delta. The box around them
+          // snaps like a single layer would, which is what makes a group placeable by eye.
+          let rdx = Math.round(dx), rdy = Math.round(dy), gx = null, gy = null;
+          if (startBox && !ev.altKey) {
+            const s = snapMove(startBox.x + rdx, startBox.y + rdy, startBox.w, startBox.h);
+            rdx = s.x - startBox.x; rdy = s.y - startBox.y; gx = s.gx; gy = s.gy;
+          }
           changed = true;
           lastDoc = { ...doc, layers: doc.layers.map((l) => {
             const sp = startPositions.find((s) => s.id === l.id);
             return sp ? { ...l, x: sp.x + rdx, y: sp.y + rdy } : l;
           }) };
-          setDoc(lastDoc); liveToIframe(lastDoc); setSnapLines({ x: null, y: null });
+          setDoc(lastDoc); liveToIframe(lastDoc); setSnapLines({ x: gx, y: gy });
           return;
         }
         let nx = Math.round(L0.x + dx), ny = Math.round(L0.y + dy), gx = null, gy = null;
@@ -1514,6 +1563,87 @@ export default function OverlayEditor({
     window.addEventListener("pointerup", up, { once: true });
   };
 
+
+  // ── Group rows in the layers panel ───────────────────────────────────────────
+  const [renamingGroup, setRenamingGroup] = useState(null);
+  const [groupDraft, setGroupDraft] = useState("");
+  // Opening or closing a group is how the panel looks, not a change to the design: it is kept
+  // in the document so it survives a reload, but it is not an undo step.
+  const setGroupUi = (gid, patch) => { const next = setGroup(doc, gid, patch); setDoc(next); pushDoc(next); };
+  const setMembers = (gid, patch) => commit({ ...doc, layers: doc.layers.map((l) => (l.group === gid ? { ...l, ...patch } : l)) }, doc);
+
+  const renderGroupRow = (row, rowIdx) => {
+    const g = groupsOf(doc).find((x) => x.id === row.gid);
+    if (!g) return null;
+    const members = membersOf(doc, g.id);
+    const active = selGroup?.id === g.id;
+    const allLocked = members.length > 0 && members.every((m) => m.locked);
+    const allHidden = members.length > 0 && members.every((m) => m.visible === false);
+    const chipsShown = allLocked || allHidden;
+    const isDragging = dragId === `g:${g.id}`;
+    return (
+      <div key={`g:${g.id}`} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}>
+        {dropIndex === rowIdx && (
+          <div className="absolute -top-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
+        )}
+        {dropIndex === rowIdx + 1 && rowIdx === panelRows.length - 1 && (
+          <div className="absolute -bottom-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
+        )}
+        <div
+          onPointerDown={(e) => { if (renamingGroup !== g.id) onRowPointerDown(e, { kind: "group", gid: g.id }); }}
+          onClick={() => {
+            if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }
+            setSelectedIds(members.map((m) => m.id));
+          }}
+          onDoubleClick={() => { setRenamingGroup(g.id); setGroupDraft(g.name || ""); }}
+          className={[
+            "flex-1 min-w-0 flex items-center gap-1.5 pl-1.5 pr-4 cursor-default select-none",
+            "transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-full)]",
+            chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]",
+            active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
+          ].join(" ")}
+          style={{ height: LAYER_ROW_H }}>
+          <button type="button" aria-label={t("ovlGroupToggle")} aria-expanded={!g.collapsed}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); setGroupUi(g.id, { collapsed: !g.collapsed }); }}
+            className="w-5 h-5 shrink-0 flex items-center justify-center border-0 bg-transparent text-inherit opacity-70 hover:opacity-100">
+            {g.collapsed ? <CaretRight size={11} /> : <CaretDown size={11} />}
+          </button>
+          <ObjectGroup size={14} className="shrink-0" />
+          {renamingGroup === g.id ? (
+            <input autoFocus value={groupDraft}
+              onChange={(e) => setGroupDraft(e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onBlur={() => { const n = groupDraft.trim(); if (n && n !== g.name) commit(setGroup(doc, g.id, { name: n }), doc); setRenamingGroup(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { setGroupDraft(g.name || ""); setRenamingGroup(null); } }}
+              style={{ fontSize: "var(--t13)" }}
+              className="flex-1 min-w-0 h-6 px-1.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] text-primary border border-border outline-none" />
+          ) : (
+            <span style={{ fontSize: "var(--t13)" }} className="flex-1 truncate font-semibold">{g.name || t("ovlGroupName")}</span>
+          )}
+        </div>
+        <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${allLocked ? "w-[36px]" : "w-0 group-hover:w-[36px]"}`}>
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); setMembers(g.id, { locked: !allLocked }); }}
+            aria-label={t("ovlLocked")} aria-pressed={allLocked}
+            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${allLocked ? "text-primary" : "text-secondary"} ${allHidden ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]"}`}
+            style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
+            {allLocked ? <Lock size={13} /> : <LockOpen size={13} />}
+          </button>
+        </span>
+        <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${allHidden ? "w-[36px]" : "w-0 group-hover:w-[36px]"}`}>
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); setMembers(g.id, { visible: allHidden }); }}
+            aria-label={t("ovlVisible")} aria-pressed={!allHidden}
+            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[var(--r-full)] ${allHidden ? "text-primary" : "text-secondary"}`}
+            style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
+            {allHidden ? <EyeSlash size={13} /> : <Eye size={13} />}
+          </button>
+        </span>
+      </div>
+    );
+  };
 
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
@@ -1668,7 +1798,8 @@ export default function OverlayEditor({
           <DropdownMenu aria-label={t("ovlMenuEdit")} disabledKeys={[
             ...(past.length ? [] : ["undo"]),
             ...(future.length ? [] : ["redo"]),
-            ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone", "copy", "cut"]),
+            ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone", "copy", "cut", "group"]),
+            ...(canUngroup ? [] : ["ungroup"]),
             ...(clipboardRef.current.length ? [] : ["paste"]),
           ]} onAction={(key) => {
             if (key === "undo") undo();
@@ -1678,6 +1809,8 @@ export default function OverlayEditor({
             else if (key === "paste") pasteClipboard();
             else if (key === "duplicate") duplicateSelected();
             else if (key === "delete") deleteSelected();
+            else if (key === "group") groupSelected();
+            else if (key === "ungroup") ungroupSelected();
             else if (key === "selectAll") setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id));
             else if (key === "selectNone") setSelectedIds([]);
           }}>
@@ -1693,6 +1826,10 @@ export default function OverlayEditor({
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="duplicate" textValue={t("ovlMenuDuplicate")}><Copy size={13} />{t("ovlMenuDuplicate")}</DropdownItem>
               <DropdownItem id="delete" textValue={t("ovlMenuDelete")}><Trash size={13} />{t("ovlMenuDelete")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="group" textValue={t("ovlGroup")}><ObjectGroup size={13} />{t("ovlGroup")}</DropdownItem>
+              <DropdownItem id="ungroup" textValue={t("ovlUngroup")}><ObjectUngroup size={13} />{t("ovlUngroup")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="selectAll" textValue={t("ovlSelectAll")}><CursorArrow size={13} />{t("ovlSelectAll")}</DropdownItem>
@@ -1810,8 +1947,11 @@ export default function OverlayEditor({
             <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlLayers")}</span>
           </div>
           <div className="flex flex-col gap-0.5 px-[10px] py-1.5 overflow-y-auto min-h-0">
-            {orderedDesc.length === 0 && <div className="text-[length:var(--t11)] text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
-            {orderedDesc.map((l, rowIdx) => {
+            {panelRows.length === 0 && <div className="text-[length:var(--t11)] text-muted px-1.5 py-2">{t("ovlEmptyLayers")}</div>}
+            {panelRows.map((row, rowIdx) => {
+              if (row.kind === "group") return renderGroupRow(row, rowIdx);
+              const l = layerById.get(row.id);
+              if (!l) return null;
               const M = TYPE_META[l.type] || TYPE_META.shape; const Icon = M.icon; const active = selectedIds.includes(l.id);
               const isDragging = dragId === l.id;
               // A chip stays out on its own account: locked shows the lock, hidden shows the
@@ -1820,19 +1960,20 @@ export default function OverlayEditor({
               const eyeShown = l.visible === false;
               const chipsShown = lockShown || eyeShown;
               return (
-                <div key={l.id} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}>
+                <div key={l.id} data-layer-index={rowIdx} className={`group flex items-center relative ${isDragging ? "opacity-40" : ""}`}
+                  style={row.group ? { paddingLeft: GROUP_INDENT } : undefined}>
                   {/* The drop line sits IN the gap, so it says where the row lands instead of
                       which row you are over -- an outline leaves you guessing above or below.
                       Zero height and absolutely placed, so showing it never nudges the list. */}
                   {dropIndex === rowIdx && (
                     <div className="absolute -top-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
                   )}
-                  {dropIndex === rowIdx + 1 && rowIdx === orderedDesc.length - 1 && (
+                  {dropIndex === rowIdx + 1 && rowIdx === panelRows.length - 1 && (
                     <div className="absolute -bottom-[3px] left-0 right-0 h-[2px] rounded-full bg-accent pointer-events-none z-10" />
                   )}
                   <div
                     data-layer-id={l.id}
-                    onPointerDown={(e) => onRowPointerDown(e, l.id)}
+                    onPointerDown={(e) => onRowPointerDown(e, { kind: "layer", id: l.id })}
                     onClick={() => {
                       if (suppressLayerClickRef.current) { suppressLayerClickRef.current = false; return; }
                       setSelectedId(l.id);
@@ -1944,6 +2085,7 @@ export default function OverlayEditor({
                   if (e.button !== 0) return;
                   startGesture(e, "move", null, l);
                 } : undefined}
+                onDoubleClick={interactive ? (e) => { e.stopPropagation(); setSelectedId(l.id); } : undefined}
                 onPointerEnter={interactive ? () => setHoveredId(l.id) : undefined}
                 onPointerLeave={interactive ? () => setHoveredId((h) => (h === l.id ? null : h)) : undefined}
                 style={{
@@ -1952,7 +2094,7 @@ export default function OverlayEditor({
                   cursor: "default",
                   pointerEvents: interactive ? "auto" : "none",
                   boxShadow: isSel
-                    ? `0 0 0 ${BW}px var(--accent)`
+                    ? `0 0 0 ${BW}px ${selGroup ? "color-mix(in srgb, var(--accent) 40%, transparent)" : "var(--accent)"}`
                     : (hoveredId === l.id ? `0 0 0 ${BW}px rgba(255,255,255,0.4)` : "none"),
                 }}
               >
@@ -2018,6 +2160,14 @@ export default function OverlayEditor({
               </div>
             );
           })}
+          {/* A selected group reads as one object: one box around all of it. */}
+          {selGroup && (() => {
+            const bb = boundsOf(doc.layers.filter((l) => l.group === selGroup.id));
+            return bb && (
+              <div style={{ position: "absolute", left: bb.x, top: bb.y, width: bb.w, height: bb.h,
+                boxShadow: `0 0 0 ${BW}px var(--accent)`, pointerEvents: "none" }} />
+            );
+          })()}
           {/* Live draw preview */}
           {drawRect && (
             <div style={{
@@ -2118,15 +2268,61 @@ export default function OverlayEditor({
         <div onPointerDown={(e) => startPanelResize("right", e)}
           className="absolute top-0 left-0 h-full w-1.5 -translate-x-1/2 z-20 cursor-col-resize hover:bg-[var(--accent)]/40" />
         <div className="overflow-y-auto flex-1 min-h-0 px-[26px] py-3">
-          {selectedIds.length > 1 ? (
+          {selectedIds.length > 1 ? (() => {
+            const bb = boundsOf(doc.layers.filter((l) => selectedIds.includes(l.id))) || { x: 0, y: 0, w: 0, h: 0 };
+            return (
             <>
-              <div className="text-[length:var(--t12)] font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
-              <div className="text-[length:var(--t11)] text-muted mb-3 leading-snug">{t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}</div>
-              <Button variant="secondary" size="sm" className="gap-1.5 text-[var(--status-danger)]!" onPress={deleteSelected}>
-                <Trash size={13} /> {t("ovlMenuDelete")}
-              </Button>
+              {selGroup ? (
+                <div className="mb-3 flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <ObjectGroup size={16} className="text-accent shrink-0" />
+                    <TextFieldRoot value={selGroup.name ?? ""} onChange={(v) => liveEdit((b) => setGroup(b, selGroup.id, { name: v }))} aria-label={t("ovlName")} className="flex-1 min-w-0">
+                      <InputRoot className="text-[length:var(--t12)]! h-8! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlGroupName")} />
+                    </TextFieldRoot>
+                    <Button variant="ghost" size="sm" isIconOnly onPress={duplicateSelected} aria-label={t("ovlMenuDuplicate")} className="shrink-0"><Copy size={14} /></Button>
+                    <Button variant="ghost" size="sm" isIconOnly onPress={deleteSelected} aria-label={t("ovlMenuDelete")} className="shrink-0 text-[var(--status-danger)]!"><Trash size={14} /></Button>
+                  </div>
+                  <div className="text-[length:var(--t11)] text-muted leading-snug">{t("ovlGroupHint")}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-[length:var(--t12)] font-semibold text-primary mb-1">{selectedIds.length} {t("ovlSelectedCount") || "selected"}</div>
+                  <div className="text-[length:var(--t11)] text-muted mb-3 leading-snug">{t("ovlMultiHint") || "Drag any of them to move the group. Delete removes all."}</div>
+                </>
+              )}
+              <Section title={t("ovlPosition")}>
+                <SubLabel>{t("ovlAlignment") || "Alignment"}</SubLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  <Segmented value={null} onChange={(w) => alignSelected("x", w)} options={[
+                    { value: "start", icon: ALIGN_GLYPH.hL, aria: t("ovlLeft") }, { value: "center", icon: ALIGN_GLYPH.hC, aria: t("ovlCenter") }, { value: "end", icon: ALIGN_GLYPH.hR, aria: t("ovlRight") },
+                  ]} />
+                  <Segmented value={null} onChange={(w) => alignSelected("y", w)} options={[
+                    { value: "start", icon: ALIGN_GLYPH.vT, aria: t("ovlTop") }, { value: "center", icon: ALIGN_GLYPH.vM, aria: t("ovlMiddle") }, { value: "end", icon: ALIGN_GLYPH.vB, aria: t("ovlBottom") },
+                  ]} />
+                </div>
+                <Field label={t("ovlPosition")}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <PillNum prefix="X" value={bb.x} onChange={(v) => moveSelection((b) => ({ dx: v - b.x }))} />
+                    <PillNum prefix="Y" value={bb.y} onChange={(v) => moveSelection((b) => ({ dy: v - b.y }))} />
+                  </div>
+                </Field>
+                <div className="text-[length:var(--t11)] text-muted tabular-nums">{Math.round(bb.w)} × {Math.round(bb.h)}</div>
+              </Section>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {selGroup ? (
+                  <Button variant="secondary" size="sm" className="gap-1.5" onPress={ungroupSelected}><ObjectUngroup size={13} /> {t("ovlUngroup")}</Button>
+                ) : (
+                  <>
+                    <Button variant="secondary" size="sm" className="gap-1.5" onPress={groupSelected}><ObjectGroup size={13} /> {t("ovlGroup")}</Button>
+                    <Button variant="secondary" size="sm" className="gap-1.5 text-[var(--status-danger)]!" onPress={deleteSelected}>
+                      <Trash size={13} /> {t("ovlMenuDelete")}
+                    </Button>
+                  </>
+                )}
+              </div>
             </>
-          ) : !selected ? (
+            );
+          })() : !selected ? (
             <>
               <div className="text-[length:var(--t12)] font-semibold text-primary mb-1">{t("ovlCanvas")}</div>
               <div className="text-[length:var(--t11)] text-muted mb-3 leading-snug">{t("ovlNoSelection")}</div>
