@@ -120,7 +120,14 @@ const PRESETS = [
 
 // value/onChange are #RRGGBB. `swatch` overrides the trigger's size/style (e.g. a small
 // inline swatch inside a field); default is a standalone 32px chip.
-export function ColorPicker({ value, onChange, swatch }) {
+// Grouped controls in the overlay editor: pill on the free ends, a 6px notch where they touch
+// (the editor's hdrCorners, written out here so this shared file does not pull in window code).
+const _grp = (l, r, h = 30) => { const p = h / 2, a = l ? 6 : p, b = r ? 6 : p; return `${a}px ${b}px ${b}px ${a}px`; };
+
+// `variant="editor"` draws the popover in the overlay editor's language (the canvas card's
+// surface and radius, notched pill groups, round swatches); the settings keep the default look.
+export function ColorPicker({ value, onChange, swatch, variant }) {
+  const ed = variant === "editor";
   const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState(() => _hexToHsv(safe));
@@ -231,9 +238,10 @@ export function ColorPicker({ value, onChange, swatch }) {
       {open && createPortal(
         <div ref={popoverRef} style={{
           position: "fixed", top: popPos.top, left: popPos.left, zIndex: 9999,
-          width: 244, padding: 12, borderRadius: "var(--r-xl)",
-          background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
-          boxShadow: "var(--elevation-4)",
+          width: 244, padding: 12,
+          ...(ed
+            ? { borderRadius: "var(--r-2xl)", background: "#1e1e1e", boxShadow: "var(--elevation-4)" }
+            : { borderRadius: "var(--r-xl)", background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-4)" }),
           userSelect: "none",
         }}>
           {/* Drag header — move the panel (Figma-style), with a close button */}
@@ -241,18 +249,18 @@ export function ColorPicker({ value, onChange, swatch }) {
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 20, marginBottom: 8, cursor: "move", color: "var(--text-muted)" }}>
             <DotsSixVertical size={14} />
             <button data-no-drag onClick={close} aria-label="Close"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: "var(--r-md)", background: "none", border: "none", color: "var(--text-muted)", cursor: "default" }}>
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: ed ? 24 : 20, height: ed ? 24 : 20, borderRadius: ed ? "var(--r-full)" : "var(--r-md)", background: ed ? "var(--surface-2)" : "none", border: "none", color: "var(--text-muted)", cursor: "default" }}>
               <X size={13} />
             </button>
           </div>
           {/* Gradient square */}
           <div ref={gradientRef} onPointerDown={onGradientDrag}
             style={{
-              width: "100%", height: 160, borderRadius: "var(--r-xl)",
+              width: "100%", height: 160, borderRadius: ed ? "var(--r-lg)" : "var(--r-xl)",
               background: `linear-gradient(to right, #fff, ${hueColor})`,
               position: "relative", cursor: "crosshair", marginBottom: 10, overflow: "hidden",
             }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent, #000)", borderRadius: "var(--r-xl)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent, #000)", borderRadius: ed ? "var(--r-lg)" : "var(--r-xl)" }} />
             <div style={{
               position: "absolute",
               left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`,
@@ -281,6 +289,7 @@ export function ColorPicker({ value, onChange, swatch }) {
 
           {/* Eyedropper + format dropdown + value input */}
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: swatchGrid.length ? 12 : 0 }}>
+            {/* In the editor the three read as one notched group: dropper, format, value. */}
             {window.EyeDropper && (
               <button title="Farbpipette"
                 onClick={async () => {
@@ -291,9 +300,11 @@ export function ColorPicker({ value, onChange, swatch }) {
                   } catch {}
                 }}
                 style={{
-                  width: 30, height: 30, flexShrink: 0, borderRadius: "var(--r-lg)",
-                  background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
-                  color: "var(--text-muted)", cursor: "default",
+                  width: 30, height: 30, flexShrink: 0,
+                  ...(ed
+                    ? { borderRadius: _grp(false, true), background: "var(--surface-2)", border: "none", color: "var(--text-secondary)" }
+                    : { borderRadius: "var(--r-lg)", background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)", color: "var(--text-muted)" }),
+                  cursor: "default",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                 <Eyedropper size={15} />
@@ -303,23 +314,27 @@ export function ColorPicker({ value, onChange, swatch }) {
             <div style={{ position: "relative", flexShrink: 0 }}>
               <button onClick={() => setFmtOpen((o) => !o)}
                 style={{
-                  height: 30, padding: "0 8px", borderRadius: "var(--r-lg)", minWidth: 56,
+                  height: 30, padding: "0 10px", minWidth: 56,
                   display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4,
-                  background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
+                  ...(ed
+                    ? { borderRadius: _grp(!!window.EyeDropper, true), background: "var(--surface-2)", border: "none" }
+                    : { borderRadius: "var(--r-lg)", background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)" }),
                   color: "var(--text-primary)", fontSize: "var(--t12)", cursor: "default",
                 }}>
                 {mode.toUpperCase()}<span style={{ color: "var(--text-muted)", fontSize: 10 }}>▾</span>
               </button>
               {fmtOpen && (
                 <div style={{
-                  position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4, borderRadius: "var(--r-lg)",
-                  background: "var(--bg-hover)", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-3)",
+                  position: "absolute", top: 34, left: 0, zIndex: 1, minWidth: 72, padding: 4,
+                  ...(ed
+                    ? { borderRadius: "var(--r-xl)", background: "var(--surface-2)", boxShadow: "var(--elevation-3)" }
+                    : { borderRadius: "var(--r-lg)", background: "var(--bg-hover)", border: "0.5px solid rgba(255,255,255,0.12)", boxShadow: "var(--elevation-3)" }),
                 }}>
                   {["hex", "rgb", "hsl"].map((f) => (
                     <button key={f} onClick={() => { setMode(f); setFmtOpen(false); }}
                       style={{
-                        display: "block", width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: "var(--r-md)",
-                        background: f === mode ? "rgba(255,255,255,0.08)" : "none", border: "none",
+                        display: "block", width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: ed ? "var(--r-full)" : "var(--r-md)",
+                        background: f === mode ? (ed ? "var(--surface-3)" : "rgba(255,255,255,0.08)") : "none", border: "none",
                         color: "var(--text-primary)", fontSize: "var(--t12)", cursor: "default",
                       }}>
                       {f.toUpperCase()}
@@ -340,8 +355,10 @@ export function ColorPicker({ value, onChange, swatch }) {
               onBlur={() => { editing.current = false; setValText(_format(curHexRef.current, mode)); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") { editing.current = false; e.currentTarget.blur(); if (e.key === "Escape") close(); } }}
               style={{
-                flex: 1, minWidth: 0, height: 30, boxSizing: "border-box", padding: "0 10px", borderRadius: "var(--r-lg)",
-                background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
+                flex: 1, minWidth: 0, height: 30, boxSizing: "border-box", padding: "0 10px",
+                ...(ed
+                  ? { borderRadius: _grp(true, false), background: "var(--surface-2)", border: "none" }
+                  : { borderRadius: "var(--r-lg)", background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)" }),
                 color: "var(--text-primary)", fontSize: "var(--t12)", fontFamily: "monospace",
                 outline: "none", letterSpacing: "0.03em",
               }}
@@ -354,7 +371,7 @@ export function ColorPicker({ value, onChange, swatch }) {
               {swatchGrid.map((c) => (
                 <button key={c} title={c} onClick={() => applyHex(c)}
                   style={{
-                    width: "100%", aspectRatio: "1", borderRadius: "var(--r-md)",
+                    width: "100%", aspectRatio: "1", borderRadius: ed ? "var(--r-full)" : "var(--r-md)",
                     background: c,
                     border: c.toLowerCase() === currentHex.toLowerCase() ? "2px solid var(--accent)" : "0.5px solid rgba(255,255,255,0.15)",
                     cursor: "default", padding: 0,

@@ -334,7 +334,7 @@ function ColorField({ label, value, onChange, opacity, onOpacity, corners }) {
   return (
     <div style={{ borderRadius: corners || "var(--r-full)" }}
       className="flex items-center gap-2 h-[30px] pl-2 pr-3 bg-[var(--surface-2)] border border-transparent transition-colors focus-within:border-accent">
-      <ColorPicker value={hex} onChange={onChange} swatch={{ width: 18, height: 18, borderRadius: "var(--r-full)", border: "1px solid var(--border)" }} />
+      <ColorPicker variant="editor" value={hex} onChange={onChange} swatch={{ width: 18, height: 18, borderRadius: "var(--r-full)", border: "1px solid var(--border)" }} />
       <input value={(value ?? "").replace(/^#/, "")} onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
         className="flex-1 min-w-0 bg-transparent outline-none font-mono text-primary uppercase"
         style={{ fontSize: "var(--t13)" }} aria-label={(label || "") + " hex"} />
@@ -610,6 +610,57 @@ const ZOOM_MAX = 32;
 
 const CANVAS_BG = "#1e1e1e";
 
+// The shell every floating panel of the editor uses: the canvas card's surface and radius, no
+// border, a soft shadow. Panels used to wear an older popover shell (hairline border, 12px
+// corners), which read as a different program from the canvas next to them.
+const PANEL_SHELL = { background: CANVAS_BG, borderRadius: "var(--r-2xl)", boxShadow: "var(--elevation-4)" };
+const PANEL_FOOT = "color-mix(in srgb, #000 22%, " + CANVAS_BG + ")";
+const CHECKER = "repeating-conic-gradient(rgba(255,255,255,0.05) 0% 25%, rgba(255,255,255,0.02) 0% 50%) 0 0/16px 16px";
+
+// A row of chips that belong together: pill on the free ends, the notch where they touch, the
+// same rule as the header and the tool row.
+function ChipGroup({ items, height = 30 }) {
+  const shown = items.filter(Boolean);
+  const last = shown.length - 1;
+  return (
+    <div className="flex items-center shrink-0" style={{ gap: HDR_NOTCH }}>
+      {shown.map((it, i) => (
+        <button key={it.key} type="button" onClick={it.onPress} disabled={it.disabled} title={it.title}
+          aria-label={it.aria || (typeof it.label === "string" ? it.label : undefined)}
+          className={[
+            "flex items-center justify-center gap-1.5 border-0 cursor-pointer transition-colors whitespace-nowrap",
+            "disabled:opacity-40 disabled:cursor-default",
+            it.active ? "bg-accent text-white hover:brightness-110"
+              : it.danger ? "bg-[var(--surface-2)] text-[var(--status-danger)] hover:bg-[var(--surface-3)]"
+              : "bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)]",
+          ].join(" ")}
+          style={{ height, minWidth: height, padding: it.label ? "0 12px" : 0, borderRadius: hdrCorners(i > 0, i < last, height), fontSize: "var(--t12)" }}>
+          {it.icon}{it.label}
+          {it.kbd && <span className="opacity-50 ml-1" style={{ fontSize: "var(--t11)" }}>{it.kbd}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// The editor's search field: a pill with the glass, the text, and a clear button once typed in.
+function SearchPill({ value, onChange, placeholder, autoFocus, height = 30, className = "" }) {
+  return (
+    <div className={`flex items-center gap-2 px-3 bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors ${className}`}
+      style={{ height, borderRadius: height / 2 }}>
+      <MagnifyingGlass size={12} className="text-muted shrink-0" />
+      <input autoFocus={autoFocus} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="flex-1 min-w-0 bg-transparent outline-none text-primary placeholder:text-muted" style={{ fontSize: "var(--t12)" }} />
+      {value && (
+        <button type="button" onClick={() => onChange("")} aria-label="Clear"
+          className="w-4 h-4 shrink-0 flex items-center justify-center rounded-full border-0 bg-[var(--surface-3)] text-secondary hover:text-primary cursor-pointer">
+          <X size={8} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Toolbar chip height. hdrCorners turns this into the pill radius (half of it), so changing it
 // here keeps the group's outer curve correct on its own. At 30 the pill value is 15, the same
 // as the header groups.
@@ -874,7 +925,7 @@ function LayerEffectsSection({ t, layer, setStyle, onReplay }) {
 // (no live stream, no active config) and fed the saved document by postMessage, then scaled to
 // fit the card. Nothing here is a second implementation of the renderer, so what the card shows
 // is exactly what the design produces.
-function DesignPreview({ apiBase, doc: rawDoc, box }) {
+function DesignPreview({ apiBase, doc: rawDoc, box, pad = 16, maxScale = 1 }) {
   const ref = useRef(null);
   const [ready, setReady] = useState(false);
   // Same normalisation applyProfile does. Without it a design saved in the older format is
@@ -883,7 +934,7 @@ function DesignPreview({ apiBase, doc: rawDoc, box }) {
   const cw = doc?.canvas?.width || 480;
   const ch = doc?.canvas?.height || 120;
   // 16px of breathing room inside the card, and never blown up past 1:1.
-  const scale = Math.min((box.w - 32) / cw, (box.h - 32) / ch, 1);
+  const scale = Math.max(0.01, Math.min((box.w - 2 * pad) / cw, (box.h - 2 * pad) / ch, maxScale));
 
   useEffect(() => {
     if (!ready) return;
@@ -904,6 +955,10 @@ function DesignPreview({ apiBase, doc: rawDoc, box }) {
             width: cw, height: ch, border: 0, display: "block",
             transform: `scale(${scale})`, transformOrigin: "top left",
             pointerEvents: "none",
+            // The editor runs in a dark colour scheme, the engine page declares none. When the two
+            // differ, Chromium paints the frame opaque white behind the page, which showed as white
+            // corners and gaps in every preview. Matching the scheme keeps the frame see-through.
+            colorScheme: "normal",
           }}
         />
       </div>
@@ -1436,6 +1491,7 @@ export default function OverlayEditor({
       }
       if (e.key === "Escape" && selProp) { e.preventDefault(); setSelProp(null); return; }
       if (e.key === "Escape" && libActionsRef.current.isOpen) { e.preventDefault(); libActionsRef.current.close?.(); return; }
+      if (e.key === "Enter" && libActionsRef.current.isOpen && libActionsRef.current.insertPicked?.()) { e.preventDefault(); return; }
       if (mod && e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); libActionsRef.current.startSave?.(); return; }
       if (e.key === "Escape" && tool) { e.preventDefault(); setTool(null); setDrawRect(null); return; }
       if (mod && e.key.toLowerCase() === "z") {
@@ -1853,6 +1909,7 @@ export default function OverlayEditor({
   const [elDraft, setElDraft] = useState("");
   const [confirmDelEl, setConfirmDelEl] = useState(null);
   const [elDrag, setElDrag] = useState(null);             // { el, x, y, over } while dragging one
+  const [pickedEl, setPickedEl] = useState(null);         // the card selected in the library
   const startSaveElement = () => {
     if (!selectedIds.length) return;
     setLibOpen(true);
@@ -1886,7 +1943,8 @@ export default function OverlayEditor({
     const up = (ev) => {
       window.removeEventListener("pointermove", move);
       setElDrag(null);
-      if (!moved) { insertElement(el, null); return; }
+      // A click picks the card, as in Figma; Enter, the Insert button or a double-click place it.
+      if (!moved) { setPickedEl(el.id); return; }
       if (!inViewport(ev)) return;
       const r = viewportRef.current.getBoundingClientRect();
       insertElement(el, { x: (ev.clientX - r.left - pan.x) / zoom, y: (ev.clientY - r.top - pan.y) / zoom });
@@ -1904,7 +1962,13 @@ export default function OverlayEditor({
     layers: el.layers, groups: el.groups || [],
   }])), [elements]);
   const shownElements = elements.filter((el) => !libQuery.trim() || (el.name || "").toLowerCase().includes(libQuery.trim().toLowerCase()));
-  libActionsRef.current = { isOpen: libOpen, close: () => { setLibOpen(false); setElementName(null); }, startSave: startSaveElement };
+  const insertPicked = () => {
+    const el = elements.find((x) => x.id === pickedEl);
+    if (!el) return false;
+    insertElement(el, null);
+    return true;
+  };
+  libActionsRef.current = { isOpen: libOpen, close: () => { setLibOpen(false); setElementName(null); }, startSave: startSaveElement, insertPicked };
 
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
@@ -1913,6 +1977,7 @@ export default function OverlayEditor({
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [pickedProfileId, setPickedProfileId] = useState(null);   // shown large in My Designs
 
   const persistProfiles = useCallback((next) => {
     setProfiles(next);
@@ -2541,66 +2606,92 @@ export default function OverlayEditor({
       <div className="shrink-0 flex items-center justify-center pt-2.5 relative" style={{ gap: HDR_NOTCH }}>
         {libOpen && (
           <div data-ovl-library data-ovl-panel
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-40 w-[480px] max-w-[calc(100%-24px)] flex flex-col rounded-[var(--r-xl)] border border-border shadow-xl"
-            style={{ background: "var(--bg-elevated)", maxHeight: 380 }}>
-            <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-              <span style={{ fontSize: "var(--t14)" }} className="mr-auto font-semibold text-primary">{t("ovlElements")}</span>
-              <TextFieldRoot value={libQuery} onChange={setLibQuery} aria-label={t("ovlElementsSearch")} className="w-40">
-                <InputRoot className="h-8! text-[length:var(--t12)]! bg-[var(--surface-2)]! border-transparent!" placeholder={t("ovlElementsSearch")} />
-              </TextFieldRoot>
-              <Button variant="secondary" size="sm" className="gap-1.5 h-8!" isDisabled={!selectedIds.length} onPress={startSaveElement}>
-                <Plus size={12} />{t("ovlElementSave")}
-              </Button>
-              <Button isIconOnly variant="ghost" size="sm" className="h-8! w-8! min-w-0!" aria-label={t("close")}
-                onPress={() => { setLibOpen(false); setElementName(null); }}><X size={13} /></Button>
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-40 w-[480px] max-w-[calc(100%-24px)] flex flex-col overflow-hidden"
+            style={{ ...PANEL_SHELL, maxHeight: 440 }}>
+            {/* Search across the top, as in Figma's resource browser */}
+            <div className="flex items-center gap-2 px-3 pt-3 pb-2 shrink-0">
+              <SearchPill value={libQuery} onChange={setLibQuery} placeholder={t("ovlElementsSearch")} className="flex-1" />
+              <ChipGroup items={[{ key: "x", icon: <X size={12} />, aria: t("close"), onPress: () => { setLibOpen(false); setElementName(null); } }]} />
             </div>
-            {elementName !== null && (
-              <div className="flex items-center gap-2 px-3 pb-2"
-                onKeyDown={(e) => { if (e.key === "Enter") saveElement(); if (e.key === "Escape") { e.stopPropagation(); setElementName(null); } }}>
-                <TextFieldRoot value={elementName} onChange={setElementName} aria-label={t("ovlElementName")} className="flex-1">
-                  <InputRoot autoFocus className="h-8! text-[length:var(--t12)]! bg-[var(--surface-2)]! border-border!" placeholder={t("ovlElementName")} />
-                </TextFieldRoot>
-                <Button variant="flat" color="primary" size="sm" className="h-8! gap-1.5" onPress={saveElement}><Check size={12} />{t("ovlSave")}</Button>
-                <Button isIconOnly variant="ghost" size="sm" className="h-8! w-8! min-w-0!" aria-label={t("close")} onPress={() => setElementName(null)}><X size={12} /></Button>
-              </div>
-            )}
-            <div className="overflow-y-auto min-h-0 px-3 pb-3 grid grid-cols-3 gap-2">
+            <div className="flex items-center px-4 pt-1 pb-2 shrink-0">
+              <span style={{ fontSize: "var(--t12)" }} className="font-semibold text-secondary">{t("ovlElementsMine")}</span>
+              <span style={{ fontSize: "var(--t12)" }} className="ml-1.5 text-muted tabular-nums">{shownElements.length}</span>
+            </div>
+            <div className="overflow-y-auto min-h-0 px-3 pb-3 grid grid-cols-4 gap-x-2 gap-y-3 content-start">
               {shownElements.length === 0 && (
-                <div className="col-span-3 py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
+                <div className="col-span-4 py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
                   {elements.length ? t("ovlElementsNoMatch") : t("ovlElementsEmpty")}
                 </div>
               )}
-              {shownElements.map((el) => (
-                <div key={el.id} title={t("ovlElementHint")}
-                  onPointerDown={(e) => { if (!e.target.closest("button,input")) startElementDrag(e, el); }}
-                  className="group/el relative flex flex-col rounded-[var(--r-lg)] border border-border bg-[var(--surface-1)] hover:border-accent/60 transition-colors cursor-grab select-none overflow-hidden">
-                  <div className="relative h-[84px]" style={{ background: "var(--surface-2)" }}>
-                    <DesignPreview apiBase={apiBase} doc={elementDocs[el.id]} box={{ w: 144, h: 84 }} />
+              {shownElements.map((el) => {
+                const picked = pickedEl === el.id;
+                const n = el.layers?.length || 0;
+                return (
+                  <div key={el.id} title={t("ovlElementHint")}
+                    onPointerDown={(e) => { if (!e.target.closest("button,input")) startElementDrag(e, el); }}
+                    onDoubleClick={(e) => { if (!e.target.closest("button,input")) insertElement(el, null); }}
+                    className="group/el relative flex flex-col min-w-0 cursor-grab select-none">
+                    <div className="relative aspect-square overflow-hidden transition-shadow"
+                      style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)",
+                        boxShadow: picked ? "0 0 0 2px var(--accent)" : "none" }}>
+                      <DesignPreview apiBase={apiBase} doc={elementDocs[el.id]} box={{ w: 104, h: 104 }} pad={10} />
+                      <div className="absolute top-1.5 right-1.5 flex opacity-0 group-hover/el:opacity-100 focus-within:opacity-100 transition-opacity"
+                        style={{ gap: HDR_NOTCH }}>
+                        <button type="button" aria-label={t("ovlElementRename")} title={t("ovlElementRename")}
+                          onClick={() => { setRenamingEl(el.id); setElDraft(el.name || ""); }}
+                          className="w-6 h-6 flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary cursor-pointer"
+                          style={{ borderRadius: hdrCorners(false, true, 24) }}><PencilSimple size={11} /></button>
+                        <button type="button" aria-label={t("ovlMenuDelete")} title={confirmDelEl === el.id ? t("ovlElementDeleteConfirm") : t("ovlMenuDelete")}
+                          onClick={() => {
+                            if (confirmDelEl === el.id) { persistElements(elements.filter((x) => x.id !== el.id)); setConfirmDelEl(null); if (picked) setPickedEl(null); }
+                            else { setConfirmDelEl(el.id); setTimeout(() => setConfirmDelEl((c) => (c === el.id ? null : c)), 2500); }
+                          }}
+                          className={`h-6 flex items-center justify-center gap-1 border-0 cursor-pointer ${confirmDelEl === el.id ? "px-2 bg-[var(--status-danger)] text-white" : "w-6 bg-[var(--surface-2)] text-secondary hover:text-[var(--status-danger)]"}`}
+                          style={{ borderRadius: hdrCorners(true, false, 24) }}>
+                          <Trash size={11} />{confirmDelEl === el.id && <span style={{ fontSize: "var(--t11)" }}>{t("ovlElementDeleteConfirm")}</span>}
+                        </button>
+                      </div>
+                    </div>
+                    {renamingEl === el.id ? (
+                      <input autoFocus value={elDraft} onChange={(e) => setElDraft(e.target.value)}
+                        onBlur={() => { const nn = elDraft.trim(); if (nn) persistElements(elements.map((x) => (x.id === el.id ? { ...x, name: nn } : x))); setRenamingEl(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingEl(null); } }}
+                        style={{ fontSize: "var(--t12)" }}
+                        className="mt-1.5 h-6 px-2 rounded-[var(--r-full)] bg-[var(--surface-2)] text-primary border border-accent outline-none" />
+                    ) : (
+                      <div style={{ fontSize: "var(--t12)" }} className="mt-1.5 px-0.5 truncate font-medium text-primary">{el.name}</div>
+                    )}
+                    <div style={{ fontSize: "var(--t11)" }} className="px-0.5 truncate text-muted tabular-nums">
+                      {el.w} × {el.h} · {n} {n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}
+                    </div>
                   </div>
-                  {renamingEl === el.id ? (
-                    <input autoFocus value={elDraft} onChange={(e) => setElDraft(e.target.value)}
-                      onBlur={() => { const n = elDraft.trim(); if (n) persistElements(elements.map((x) => (x.id === el.id ? { ...x, name: n } : x))); setRenamingEl(null); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.stopPropagation(); setRenamingEl(null); } }}
-                      style={{ fontSize: "var(--t12)" }}
-                      className="m-1 h-6 px-1.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] text-primary border border-border outline-none" />
-                  ) : (
-                    <div style={{ fontSize: "var(--t12)" }} className="px-2 py-1.5 truncate text-primary">{el.name}</div>
-                  )}
-                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/el:opacity-100 focus-within:opacity-100 transition-opacity">
-                    <button type="button" aria-label={t("ovlElementRename")} title={t("ovlElementRename")}
-                      onClick={() => { setRenamingEl(el.id); setElDraft(el.name || ""); }}
-                      className="w-6 h-6 flex items-center justify-center rounded-[var(--r-full)] border-0 bg-[var(--bg-elevated)] text-secondary hover:text-primary cursor-pointer"><PencilSimple size={11} /></button>
-                    <button type="button" aria-label={t("ovlMenuDelete")} title={confirmDelEl === el.id ? t("ovlElementDeleteConfirm") : t("ovlMenuDelete")}
-                      onClick={() => {
-                        if (confirmDelEl === el.id) { persistElements(elements.filter((x) => x.id !== el.id)); setConfirmDelEl(null); }
-                        else { setConfirmDelEl(el.id); setTimeout(() => setConfirmDelEl((c) => (c === el.id ? null : c)), 2500); }
-                      }}
-                      className={`h-6 flex items-center justify-center gap-1 rounded-[var(--r-full)] border-0 cursor-pointer ${confirmDelEl === el.id ? "px-2 bg-[var(--status-danger)] text-white" : "w-6 bg-[var(--bg-elevated)] text-secondary hover:text-[var(--status-danger)]"}`}>
-                      <Trash size={11} />{confirmDelEl === el.id && <span style={{ fontSize: "var(--t11)" }}>{t("ovlElementDeleteConfirm")}</span>}
-                    </button>
+                );
+              })}
+            </div>
+            {/* Footer: save on the left, insert on the right. While naming, the name takes its place. */}
+            <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ background: PANEL_FOOT }}
+              onKeyDown={(e) => { if (elementName === null) return; if (e.key === "Enter") saveElement(); if (e.key === "Escape") { e.stopPropagation(); setElementName(null); } }}>
+              {elementName !== null ? (
+                <>
+                  <div className="flex-1 flex items-center h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-accent">
+                    <input autoFocus value={elementName} onChange={(e) => setElementName(e.target.value)} placeholder={t("ovlElementName")}
+                      className="flex-1 min-w-0 bg-transparent outline-none text-primary" style={{ fontSize: "var(--t12)" }} />
                   </div>
-                </div>
-              ))}
+                  <ChipGroup items={[
+                    { key: "save", label: t("ovlSave"), icon: <Check size={12} />, active: true, onPress: saveElement },
+                    { key: "cancel", icon: <X size={12} />, aria: t("close"), onPress: () => setElementName(null) },
+                  ]} />
+                </>
+              ) : (
+                <>
+                  <ChipGroup items={[{ key: "save", label: t("ovlElementSave"), icon: <Plus size={12} />, kbd: "Ctrl+Alt+K",
+                    disabled: !selectedIds.length, onPress: startSaveElement }]} />
+                  <div className="ml-auto">
+                    <ChipGroup items={[{ key: "insert", label: t("ovlElementInsert"), kbd: "↵", active: !!pickedEl,
+                      disabled: !pickedEl, onPress: insertPicked }]} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -2959,6 +3050,8 @@ export default function OverlayEditor({
         </div>
       </div>}
 
+      <input ref={importFileRef} type="file" accept=".json" multiple className="hidden" onChange={handleImportFiles} />
+
       {/* ── Save-as popover ──────────────────────────────────────────────────── */}
       {saveOpen && (
         <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-50 w-64 rounded-xl shadow-xl border border-border p-3 flex flex-col gap-2"
@@ -3042,8 +3135,7 @@ export default function OverlayEditor({
               top: fontPickerPos.top, left: fontPickerPos.left, maxHeight: "68vh",
               // The same shell the colour picker uses, so the two floating panels of the editor
               // are recognisably the same kind of thing.
-              background: "var(--bg-elevated)", border: "0.5px solid rgba(255,255,255,0.12)",
-              borderRadius: "var(--r-xl)", boxShadow: "var(--elevation-4)",
+              ...PANEL_SHELL,
             }}
             onKeyDown={(e) => { if (e.key === "Escape") closePicker(); }}
           >
@@ -3117,191 +3209,105 @@ export default function OverlayEditor({
             if (browserSort === "size") return ((y.doc?.canvas?.width || 0) * (y.doc?.canvas?.height || 0)) - ((x.doc?.canvas?.width || 0) * (x.doc?.canvas?.height || 0));
             return String(y.savedAt || "").localeCompare(String(x.savedAt || ""));
           });
-        // id -> position in the sorted, filtered result. Cards render in the stored order and
-        // take their place from this, so the DOM is never reordered.
-        const rankOf = new Map(shown.map((p, i) => [p.id, i]));
         const closeBrowser = () => { setBrowserOpen(false); setRenamingId(null); setConfirmDeleteId(null); };
-        const sortOpts = [
-          ["recent", t("ovlProfileSortRecent")],
-          ["name", t("ovlProfileSortName")],
-          ["size", t("ovlProfileSortSize")],
-        ];
+        // The design shown large: the one picked, else the first in the list as it is sorted now.
+        const cur = shown.find((p) => p.id === pickedProfileId) || shown[0] || null;
+        const meta = (p) => {
+          const n = p.doc?.layers?.length ?? 0;
+          return `${p.doc?.canvas?.width ?? "?"} × ${p.doc?.canvas?.height ?? "?"} · ${n} ${n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}`;
+        };
+        const date = (p) => (p.savedAt ? new Date(p.savedAt).toLocaleDateString() : "");
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
-          onKeyDown={(e) => { if (e.key === "Escape") closeBrowser(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") closeBrowser();
+            if (e.key === "Enter" && cur && !renamingId && e.target.tagName !== "INPUT") applyProfile(cur);
+          }}
           onClick={(e) => { if (e.target === e.currentTarget) closeBrowser(); }}>
-          <div className="w-[860px] max-w-[92vw] h-[76vh] flex flex-col rounded-2xl shadow-2xl border border-border overflow-hidden"
-            style={{ background: "var(--bg-elevated)" }}>
+          <div className="w-[940px] max-w-[94vw] h-[600px] max-h-[86vh] flex overflow-hidden" style={PANEL_SHELL} tabIndex={-1}>
 
-            {/* Header */}
-            <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 shrink-0">
-              <div className="flex items-center gap-2.5 shrink-0">
-                <Swatches size={16} className="text-accent" />
-                <span className="text-[length:var(--t14)] font-semibold text-primary">{t("ovlProfileBrowse")}</span>
-                {profiles.length > 0 && (
-                  <span className="text-[length:var(--t11)] text-muted">({profiles.length})</span>
-                )}
+            {/* ── Left: the list, built like the layers panel ── */}
+            <div className="w-[270px] shrink-0 flex flex-col min-h-0 pl-3 pr-2 pt-4 pb-3 gap-2">
+              <div className="flex items-baseline gap-2 px-2 pb-1">
+                <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlProfileBrowse")}</span>
+                <span style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums">{profiles.length}</span>
               </div>
-              <div className="flex items-center gap-2">
-                {profiles.length > 1 && (
-                  <>
-                    {/* Search */}
-                    <div className="relative">
-                      <MagnifyingGlass size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                      <input
-                        value={browserQuery}
-                        onChange={(e) => setBrowserQuery(e.target.value)}
-                        placeholder={t("ovlProfileSearch")}
-                        className="h-8 w-[210px] rounded-lg pl-8 pr-2.5 text-[length:var(--t12)] text-primary border border-border outline-none focus:border-accent transition-colors"
-                        style={{ background: "var(--bg-base)" }}
-                      />
+              <SearchPill value={browserQuery} onChange={setBrowserQuery} placeholder={t("ovlProfileSearch")} />
+              <ChipGroup height={26} items={[
+                { key: "recent", label: t("ovlProfileSortRecent"), active: browserSort === "recent", onPress: () => setBrowserSort("recent") },
+                { key: "name", label: t("ovlProfileSortName"), active: browserSort === "name", onPress: () => setBrowserSort("name") },
+                { key: "size", label: t("ovlProfileSortSize"), active: browserSort === "size", onPress: () => setBrowserSort("size") },
+              ]} />
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-0.5 pt-1">
+                {profiles.length === 0 ? (
+                  <div className="px-2 py-6 text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileEmpty")}<br /><span className="opacity-70">{t("ovlProfileEmptyHint")}</span></div>
+                ) : shown.length === 0 ? (
+                  <div className="px-2 py-6 text-muted" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileNoResults")}</div>
+                ) : shown.map((p) => {
+                  const on = cur?.id === p.id;
+                  return (
+                    <div key={p.id} onClick={() => { setPickedProfileId(p.id); setConfirmDeleteId(null); }} onDoubleClick={() => applyProfile(p)}
+                      className={`flex items-center gap-2.5 h-11 pl-1.5 pr-3 rounded-[var(--r-full)] cursor-default select-none transition-colors ${on ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]"}`}>
+                      <div className="relative w-[58px] h-8 shrink-0 overflow-hidden rounded-[var(--r-full)]" style={{ background: CHECKER, backgroundColor: "#262626" }}>
+                        <DesignPreview apiBase={apiBase} doc={p.doc} box={{ w: 58, h: 32 }} pad={3} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div style={{ fontSize: "var(--t13)" }} className="truncate font-medium">{p.name}</div>
+                        <div style={{ fontSize: "var(--t11)" }} className={`truncate tabular-nums ${on ? "text-white/75" : "text-muted"}`}>{date(p)}</div>
+                      </div>
                     </div>
-                    {/* Sort. A plain segmented row rather than a dropdown: three options do not
-                        need a menu, and this keeps the header a single line of controls. */}
-                    <div className="flex items-center gap-[3px] h-8 rounded-lg p-[3px]" style={{ background: "var(--bg-base)" }}>
-                      {sortOpts.map(([id, label]) => (
-                        <button key={id} type="button" onClick={() => setBrowserSort(id)}
-                          className={[
-                            "h-full px-3 rounded-md text-[length:var(--t12)] font-medium border-0 cursor-default transition-colors",
-                            browserSort === id ? "bg-accent text-[var(--accent-foreground)]" : "bg-transparent text-secondary hover:text-primary",
-                          ].join(" ")}
-                        >{label}</button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                <input ref={importFileRef} type="file" accept=".json" multiple className="hidden" onChange={handleImportFiles} />
-                <Button variant="flat" size="sm" className="h-8! gap-1.5 text-[length:var(--t12)]!" onPress={() => importFileRef.current?.click()}>
-                  <UploadSimple size={14} /> {t("ovlProfileImport")}
-                </Button>
-                <Tooltip text={t("close")}>
-                  <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0!" onPress={closeBrowser} aria-label={t("close")}>
-                    <X size={15} />
-                  </Button>
-                </Tooltip>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Grid */}
-            <div className="overflow-y-auto p-4 flex-1 min-h-0">
-              {profiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                  <Swatches size={36} className="text-muted opacity-40" />
-                  <div className="text-[length:var(--t13)] text-muted">{t("ovlProfileEmpty")}</div>
-                  <div className="text-[length:var(--t11)] text-muted opacity-70">{t("ovlProfileEmptyHint")}</div>
-                </div>
-              ) : shown.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                  <MagnifyingGlass size={30} className="text-muted opacity-40" />
-                  <div className="text-[length:var(--t13)] text-muted">{t("ovlProfileNoResults")}</div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  {profiles.map((prof) => {
-                    const rank = rankOf.get(prof.id);
-                    const hidden = rank === undefined;
-                    const layerCount = prof.doc?.layers?.length ?? 0;
-                    const cw = prof.doc?.canvas?.width ?? "?";
-                    const ch = prof.doc?.canvas?.height ?? "?";
-                    const date = prof.savedAt ? new Date(prof.savedAt).toLocaleDateString() : "";
-                    const renaming = renamingId === prof.id;
-                    const confirming = confirmDeleteId === prof.id;
-                    return (
-                      <div key={prof.id}
-                        className="group/design relative flex flex-col rounded-xl border border-border overflow-hidden hover:border-accent/60 transition-colors"
-                        style={{
-                          background: "color-mix(in srgb, var(--bg-elevated) 85%, var(--bg-base))",
-                          order: hidden ? 0 : rank,
-                          display: hidden ? "none" : undefined,
-                        }}>
-
-                        {/* Live preview on a checkerboard, so translucent designs read correctly */}
-                        <div className="relative h-[168px] border-b border-border"
-                          style={{ background: "repeating-conic-gradient(rgba(255,255,255,0.05) 0% 25%, rgba(255,255,255,0.02) 0% 50%) 0 0/16px 16px" }}>
-                          <DesignPreview apiBase={apiBase} doc={prof.doc} box={{ w: 414, h: 168 }} />
-
-                          {/* Actions ride over the preview and only appear on hover, so the card
-                              itself stays quiet. */}
-                          <div className="absolute inset-x-0 bottom-0 p-2 flex items-center gap-1.5 opacity-0 group-hover/design:opacity-100 focus-within:opacity-100 transition-opacity"
-                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0))" }}>
-                            <Button variant="flat" color="primary" size="sm" className="flex-1 h-9! text-[length:var(--t12)]!" onPress={() => applyProfile(prof)}>
-                              {t("ovlProfileApply")}
-                            </Button>
-                            <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)" }}>
-                              <Tooltip text={t("ovlProfileRename")}>
-                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                  onPress={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }} aria-label={t("ovlProfileRename")}>
-                                  <PencilSimple size={14} />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip text={t("ovlProfileDuplicate")}>
-                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                  onPress={() => duplicateProfile(prof)} aria-label={t("ovlProfileDuplicate")}>
-                                  <Copy size={14} />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip text={t("ovlProfileExport")}>
-                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-white!"
-                                  onPress={() => exportProfile(prof)} aria-label={t("ovlProfileExport")}>
-                                  <DownloadSimple size={14} />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip text={t("ovlProfileDelete")}>
-                                <Button variant="ghost" size="sm" isIconOnly className="h-8! w-8! min-w-0! text-danger!"
-                                  onPress={() => setConfirmDeleteId(prof.id)} aria-label={t("ovlProfileDelete")}>
-                                  <Trash size={14} />
-                                </Button>
-                              </Tooltip>
-                            </div>
-                          </div>
-
-                          {/* The delete confirmation covers the preview it belongs to, rather than
-                              opening a second modal over the first. */}
-                          {confirming && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center"
-                              style={{ background: "rgba(0,0,0,0.74)", backdropFilter: "blur(4px)" }}>
-                              <div className="text-[length:var(--t12)] text-white">{t("ovlProfileDeleteConfirm")}</div>
-                              <div className="flex items-center gap-2">
-                                <Button variant="flat" size="sm" className="h-8! text-[length:var(--t12)]!" onPress={() => setConfirmDeleteId(null)}>
-                                  {t("cancel")}
-                                </Button>
-                                <Button variant="flat" color="danger" size="sm" className="h-8! text-[length:var(--t12)]!"
-                                  onPress={() => { deleteProfile(prof.id); setConfirmDeleteId(null); }}>
-                                  {t("ovlProfileDelete")}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="px-3 py-2.5">
-                          {renaming ? (
-                            <input
-                              autoFocus
-                              value={renameDraft}
-                              onChange={(e) => setRenameDraft(e.target.value)}
-                              onBlur={() => { renameProfile(prof.id, renameDraft); setRenamingId(null); }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") { renameProfile(prof.id, renameDraft); setRenamingId(null); }
-                                if (e.key === "Escape") setRenamingId(null);
-                              }}
-                              className="w-full h-6 rounded-md px-1.5 text-[length:var(--t12)] font-medium text-primary border border-accent outline-none"
-                              style={{ background: "var(--bg-base)" }}
-                            />
-                          ) : (
-                            <div className="text-[length:var(--t12)] font-medium text-primary truncate cursor-default"
-                              onDoubleClick={() => { setRenamingId(prof.id); setRenameDraft(prof.name); }}
-                              title={prof.name}>{prof.name}</div>
-                          )}
-                          <div className="text-[length:var(--t10)] text-muted mt-0.5 tabular-nums">
-                            {cw} × {ch} · {layerCount} {t("ovlLayers").toLowerCase()} · {date}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* ── Right: the chosen design, large, with everything that can be done with it ── */}
+            <div className="flex-1 min-w-0 flex flex-col pr-4 pl-2 pt-4 pb-4 gap-3">
+              <div className="flex items-center justify-end">
+                <ChipGroup items={[
+                  { key: "import", label: t("ovlProfileImport"), icon: <UploadSimple size={12} />, onPress: () => importFileRef.current?.click() },
+                  { key: "close", icon: <X size={12} />, aria: t("close"), onPress: closeBrowser },
+                ]} />
+              </div>
+              <div className="relative flex-1 min-h-0 overflow-hidden" style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)" }}>
+                {/* Up to 2.5x here: an overlay is wide and flat, and at 1:1 it sat small in an empty field. */}
+                {cur && <DesignPreview key={cur.id} apiBase={apiBase} doc={cur.doc} box={{ w: 620, h: 400 }} pad={28} maxScale={2.5} />}
+              </div>
+              {cur && (
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="min-w-0 flex-1">
+                    {renamingId === cur.id ? (
+                      <input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
+                        onBlur={() => { renameProfile(cur.id, renameDraft); setRenamingId(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { renameProfile(cur.id, renameDraft); setRenamingId(null); } if (e.key === "Escape") { e.stopPropagation(); setRenamingId(null); } }}
+                        style={{ fontSize: "var(--t14)" }}
+                        className="w-full h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] text-primary font-semibold border border-accent outline-none" />
+                    ) : (
+                      <div style={{ fontSize: "var(--t15)" }} className="truncate font-semibold text-primary" title={cur.name}
+                        onDoubleClick={() => { setRenamingId(cur.id); setRenameDraft(cur.name); }}>{cur.name}</div>
+                    )}
+                    <div style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums mt-0.5">{meta(cur)} · {date(cur)}</div>
+                  </div>
+                  {confirmDeleteId === cur.id ? (
+                    <>
+                      <span style={{ fontSize: "var(--t12)" }} className="text-secondary">{t("ovlProfileDeleteConfirm")}</span>
+                      <ChipGroup items={[
+                        { key: "no", label: t("cancel"), onPress: () => setConfirmDeleteId(null) },
+                        { key: "yes", label: t("ovlProfileDelete"), danger: true, onPress: () => { deleteProfile(cur.id); setConfirmDeleteId(null); setPickedProfileId(null); } },
+                      ]} />
+                    </>
+                  ) : (
+                    <>
+                      <ChipGroup items={[
+                        { key: "rename", icon: <PencilSimple size={13} />, aria: t("ovlProfileRename"), title: t("ovlProfileRename"), onPress: () => { setRenamingId(cur.id); setRenameDraft(cur.name); } },
+                        { key: "dup", icon: <Copy size={13} />, aria: t("ovlProfileDuplicate"), title: t("ovlProfileDuplicate"), onPress: () => duplicateProfile(cur) },
+                        { key: "export", icon: <DownloadSimple size={13} />, aria: t("ovlProfileExport"), title: t("ovlProfileExport"), onPress: () => exportProfile(cur) },
+                        { key: "del", icon: <Trash size={13} />, aria: t("ovlProfileDelete"), title: t("ovlProfileDelete"), danger: true, onPress: () => setConfirmDeleteId(cur.id) },
+                      ]} />
+                      <ChipGroup items={[{ key: "open", label: t("ovlProfileApply"), kbd: "↵", active: true, onPress: () => applyProfile(cur) }]} />
+                    </>
+                  )}
                 </div>
               )}
             </div>
