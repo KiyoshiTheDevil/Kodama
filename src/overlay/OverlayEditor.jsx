@@ -23,7 +23,7 @@ import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../u
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
-  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play,
+  ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
@@ -36,6 +36,7 @@ import {
   setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf, pickOnClick, pickOnDoubleClick,
   groupsToUngroup, placeAbove, selectionColors, replaceColor, chainOf, findGroup,
 } from "./groups.js";
+import { copyProps, pasteProps } from "./style-clipboard.js";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -1180,6 +1181,9 @@ export default function OverlayEditor({
   const clipboardRef = useRef([]);
   const saveActionsRef = useRef({});        // Save / Save as, defined further down with the profiles
   const clipboardGroupsRef = useRef([]);   // names of the groups the copied layers were in
+  // "Copy properties": how one layer or group looks, kept apart from the layer clipboard so
+  // copying a look does not throw away copied layers and the other way round.
+  const [propsClip, setPropsClip] = useState(null);
   const pasteCountRef = useRef(0);
 
   const copySelected = useCallback(() => {
@@ -1211,6 +1215,14 @@ export default function OverlayEditor({
     commit({ ...doc, layers: [...doc.layers, ...clones], groups: [...groupsOf(doc), ...newGroups] }, doc);
     setSelectedIds(clones.map((c) => c.id));
   }, [doc, commit]);
+
+  const copySelectedProps = () => { const c = copyProps(doc, selectedIds); if (c) setPropsClip(c); };
+  const pasteSelectedProps = (what = "all") => {
+    if (!propsClip || !selectedIds.length) return;
+    const next = pasteProps(doc, selectedIds, propsClip, what);
+    if (next !== doc) commit(next, doc);
+  };
+  const canCopyProps = !!copyProps(doc, selectedIds);
 
   const groupSelected = useCallback(() => {
     const ids = doc.layers.filter((l) => selectedIds.includes(l.id)).map((l) => l.id);
@@ -1376,6 +1388,10 @@ export default function OverlayEditor({
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault(); if (e.shiftKey) redo(); else undo();
+      } else if (mod && e.altKey && e.key.toLowerCase() === "c") {
+        e.preventDefault(); copySelectedProps();
+      } else if (mod && e.altKey && e.key.toLowerCase() === "v") {
+        e.preventDefault(); pasteSelectedProps("all");
       } else if (mod && e.key.toLowerCase() === "c") {
         e.preventDefault(); copySelected();
       } else if (mod && e.key.toLowerCase() === "x") {
@@ -1954,6 +1970,9 @@ export default function OverlayEditor({
             ...(future.length ? [] : ["redo"]),
             ...(selectedIds.length ? [] : ["duplicate", "delete", "selectNone", "copy", "cut", "group"]),
             ...(canUngroup ? [] : ["ungroup"]),
+            ...(canCopyProps ? [] : ["copyProps"]),
+            ...(propsClip && selectedIds.length ? [] : ["pasteProps", "pasteColors", "pasteEffects", "pasteAnims"]),
+            ...(propsClip?.from === "group" ? ["pasteColors", "pasteEffects"] : []),
             ...(clipboardRef.current.length ? [] : ["paste"]),
           ]} onAction={(key) => {
             if (key === "undo") undo();
@@ -1964,6 +1983,11 @@ export default function OverlayEditor({
             else if (key === "duplicate") duplicateSelected();
             else if (key === "delete") deleteSelected();
             else if (key === "group") groupSelected();
+            else if (key === "copyProps") copySelectedProps();
+            else if (key === "pasteProps") pasteSelectedProps("all");
+            else if (key === "pasteColors") pasteSelectedProps("colors");
+            else if (key === "pasteEffects") pasteSelectedProps("effects");
+            else if (key === "pasteAnims") pasteSelectedProps("animations");
             else if (key === "ungroup") ungroupSelected();
             else if (key === "selectAll") setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id));
             else if (key === "selectNone") setSelectedIds([]);
@@ -1984,6 +2008,13 @@ export default function OverlayEditor({
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="group" textValue={t("ovlGroup")}><ObjectGroup size={13} />{t("ovlGroup")}</DropdownItem>
               <DropdownItem id="ungroup" textValue={t("ovlUngroup")}><ObjectUngroup size={13} />{t("ovlUngroup")}</DropdownItem>
+            </DropdownSection>
+            <DropdownSection className="border-t border-border mt-1 pt-1">
+              <DropdownItem id="copyProps" textValue={t("ovlCopyProps")}><PaintRoller size={13} />{t("ovlCopyProps")}<span className="ml-auto pl-4 text-muted text-[length:var(--t11)]">Ctrl+Alt+C</span></DropdownItem>
+              <DropdownItem id="pasteProps" textValue={t("ovlPasteProps")}><Clipboard size={13} />{t("ovlPasteProps")}<span className="ml-auto pl-4 text-muted text-[length:var(--t11)]">Ctrl+Alt+V</span></DropdownItem>
+              <DropdownItem id="pasteColors" textValue={t("ovlPasteColors")}><span className="w-[13px]" />{t("ovlPasteColors")}</DropdownItem>
+              <DropdownItem id="pasteEffects" textValue={t("ovlPasteEffects")}><span className="w-[13px]" />{t("ovlPasteEffects")}</DropdownItem>
+              <DropdownItem id="pasteAnims" textValue={t("ovlPasteAnims")}><span className="w-[13px]" />{t("ovlPasteAnims")}</DropdownItem>
             </DropdownSection>
             <DropdownSection className="border-t border-border mt-1 pt-1">
               <DropdownItem id="selectAll" textValue={t("ovlSelectAll")}><CursorArrow size={13} />{t("ovlSelectAll")}</DropdownItem>
