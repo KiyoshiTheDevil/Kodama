@@ -273,6 +273,42 @@ export function groupsToUngroup(doc, ids) {
   return [...new Set(doc.layers.filter((l) => ids.includes(l.id) && l.group).map((l) => l.group))];
 }
 
+/**
+ * Arrange: move the selection to the front or back, or one step, among its siblings (the items
+ * in the same group, or at the top level). A layer inside a group moves within that group, a
+ * group moves as one item. A selection spread over different groups is left alone.
+ */
+export function reorderNodes(doc, ids, where) {
+  const nodes = liftNodes(doc, ids);
+  if (!nodes.length) return doc;
+  const keyOf = (n) => (n.kind === "layer" ? "l:" + n.id : "g:" + n.gid);
+  const parentOf = (n) => (n.kind === "layer"
+    ? (doc.layers.find((l) => l.id === n.id)?.group || null)
+    : (findGroup(doc, n.gid)?.parent || null));
+  const p = parentOf(nodes[0]);
+  if (nodes.some((n) => parentOf(n) !== p)) return doc;
+  const kids = [];
+  walk(doc, (node) => { if ((node.parent || null) === p) kids.push(keyOf(node)); });
+  const sel = new Set(nodes.map(keyOf));
+  let seq = [...kids];
+  if (where === "front") seq = [...seq.filter((k) => sel.has(k)), ...seq.filter((k) => !sel.has(k))];
+  else if (where === "back") seq = [...seq.filter((k) => !sel.has(k)), ...seq.filter((k) => sel.has(k))];
+  else if (where === "forward") {
+    for (let i = 1; i < seq.length; i++) if (sel.has(seq[i]) && !sel.has(seq[i - 1])) [seq[i - 1], seq[i]] = [seq[i], seq[i - 1]];
+  } else if (where === "backward") {
+    for (let i = seq.length - 2; i >= 0; i--) if (sel.has(seq[i]) && !sel.has(seq[i + 1])) [seq[i], seq[i + 1]] = [seq[i + 1], seq[i]];
+  }
+  // The parent's content is one block in the paint order; lay it out again in the new sequence.
+  const idsOf = (k) => (k.startsWith("l:") ? [k.slice(2)] : membersOf(doc, k.slice(2)).map((l) => l.id));
+  const block = seq.flatMap(idsOf);
+  const inBlock = new Set(block);
+  const cur = topFirst(doc.layers).map((l) => l.id);
+  const at = cur.findIndex((id) => inBlock.has(id));
+  const rest = cur.filter((id) => !inBlock.has(id));
+  rest.splice(at === -1 ? 0 : at, 0, ...block);
+  return tidyGroups(withOrder(doc, rest));
+}
+
 export function setGroup(doc, gid, patch) {
   return { ...doc, groups: groupsOf(doc).map((g) => (g.id === gid ? { ...g, ...patch } : g)) };
 }

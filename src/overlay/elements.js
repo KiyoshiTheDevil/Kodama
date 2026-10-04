@@ -16,9 +16,20 @@ const KEY = "kiyoshi-overlay-elements";
 // so there is nothing to create or clean up, and dissolving one deletes no element.
 export const cleanFolder = (f) => (typeof f === "string" ? f.trim().slice(0, 40) : "");
 
-/** The folders in use, in alphabetical order. */
-export function foldersOf(list) {
-  return [...new Set(list.map((e) => cleanFolder(e.folder)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+// Folders made with "New folder" before anything is in them are kept in a list of their own;
+// a folder with elements in it needs no entry there.
+const FOLDERS_KEY = "kiyoshi-overlay-element-folders";
+export function readFolderList() {
+  try { const v = JSON.parse(localStorage.getItem(FOLDERS_KEY) || "[]"); return Array.isArray(v) ? v.map(cleanFolder).filter(Boolean) : []; }
+  catch { return []; }
+}
+export function writeFolderList(list) {
+  try { localStorage.setItem(FOLDERS_KEY, JSON.stringify([...new Set(list.map(cleanFolder).filter(Boolean))])); } catch { /* full */ }
+}
+
+/** The folders in use (plus `extra`, the empty ones), in alphabetical order. */
+export function foldersOf(list, extra = []) {
+  return [...new Set([...list.map((e) => cleanFolder(e.folder)), ...extra.map(cleanFolder)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 export function moveToFolder(list, id, folder) {
   const f = cleanFolder(folder);
