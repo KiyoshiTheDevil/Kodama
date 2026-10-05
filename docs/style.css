@@ -13,7 +13,7 @@
   color-scheme:dark;
 }
 * { box-sizing:border-box; }
-html { scroll-behavior:smooth; }
+html { scroll-behavior:smooth; background:var(--bg); }
 body {
   margin:0; font-family:var(--font); color:var(--t1); line-height:1.5; min-height:100vh;
   background:radial-gradient(70% 45% at 75% -5%, rgba(155,227,109,0.09), transparent 60%),
@@ -255,11 +255,16 @@ footer a:hover { color:var(--t1); }
 .detail.swap-in { animation:swap-in .3s ease-out; }
 @keyframes swap-in { from { opacity:0; transform:translateY(6px); } }
 
-/* Page to page: the header stays, the page slides over (Chrome, Edge; others just switch). */
+/* Page to page (Chrome, Edge; others just switch). The background and the header stay put and
+   only the content moves. Moving the whole page faded two copies of the background against each
+   other, and for a moment both were half see-through: the page dimmed, a flicker on every click. */
 @view-transition { navigation:auto; }
 header.top { view-transition-name:site-header; }
-::view-transition-old(root) { animation:vt-out .22s cubic-bezier(.4,0,1,1) both; }
-::view-transition-new(root) { animation:vt-in .36s cubic-bezier(.2,.8,.2,1) both; }
+body > .wrap { view-transition-name:page; }
+::view-transition-old(root), ::view-transition-new(root) { animation:none; }
+::view-transition-group(page) { animation:none; }
+::view-transition-old(page) { animation:vt-out .18s cubic-bezier(.4,0,1,1) both; }
+::view-transition-new(page) { animation:vt-in .34s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes vt-out { to { opacity:0; transform:translateX(-24px); } }
 @keyframes vt-in { from { opacity:0; transform:translateX(24px); } }
 
