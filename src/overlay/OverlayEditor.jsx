@@ -477,6 +477,104 @@ function PropRow({ kind, index = 0, className = "", children }) {
   );
 }
 
+// ── Paints: solid colour or gradient ─────────────────────────────────────────
+// A paint is { type: "solid", color, opacity } or { type: "linear" | "radial", stops: [{ color,
+// pos }], angle, opacity }; the renderer (server.py, paintCss / svgPaint) draws the same shape.
+const gradDefaultStops = (c) => [{ color: c || "#ffffff", pos: 0 }, { color: "#000000", pos: 100 }];
+const isGradient = (p) => p?.type === "linear" || p?.type === "radial";
+function paintPreviewCss(p) {
+  const st = (p.stops && p.stops.length > 1 ? p.stops : gradDefaultStops(p.color))
+    .slice().sort((a, b) => (a.pos || 0) - (b.pos || 0)).map((x) => `${x.color} ${x.pos ?? 0}%`).join(", ");
+  return p.type === "radial" ? `radial-gradient(ellipse at center, ${st})` : `linear-gradient(${p.angle ?? 90}deg, ${st})`;
+}
+function PaintTypeGlyph({ type }) {
+  const bg = type === "linear" ? "linear-gradient(90deg, currentColor, transparent)"
+    : type === "radial" ? "radial-gradient(circle, currentColor 15%, transparent 75%)" : "currentColor";
+  return <span className="inline-block w-3 h-3 shrink-0 rounded-[3px]" style={{ background: bg, boxShadow: "inset 0 0 0 1px currentColor" }} />;
+}
+
+// The colour field with a fill-type switch in front of it. For a gradient the field shows the
+// gradient itself; its stops and angle are edited below (GradientFields).
+function PaintField({ t, paint, onChange, rightNotch = false, opacity, onOpacity }) {
+  const type = isGradient(paint) ? paint.type : "solid";
+  const setType = (ty) => {
+    if (ty === "solid") onChange({ type: "solid" });
+    else onChange({ type: ty, stops: paint?.stops?.length > 1 ? paint.stops : gradDefaultStops(paint?.color), angle: paint?.angle ?? 90 });
+  };
+  const fieldCorners = hdrCorners(true, rightNotch, 30);
+  return (
+    <div className="flex items-center min-w-0" style={{ gap: HDR_NOTCH }}>
+      <Dropdown>
+        <DropdownTrigger aria-label={t("ovlPaintType")}
+          className="shrink-0 h-[30px] w-[30px] flex items-center justify-center border-0 bg-[var(--surface-2)] text-secondary hover:text-primary hover:bg-[var(--surface-3)] cursor-pointer"
+          style={{ borderRadius: hdrCorners(false, true, 30) }}>
+          <PaintTypeGlyph type={type} />
+        </DropdownTrigger>
+        <DropdownPopover placement="bottom start" className="[--dd-min-w:11rem]">
+          <DropdownMenu aria-label={t("ovlPaintType")} onAction={(k) => setType(String(k))}>
+            {["solid", "linear", "radial"].map((v) => (
+              <DropdownItem key={v} id={v} textValue={t("ovlPaint_" + v)}>
+                <PaintTypeGlyph type={v} />{t("ovlPaint_" + v)}{type === v && <Check size={11} className="ml-auto" />}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
+        </DropdownPopover>
+      </Dropdown>
+      <div className="flex-1 min-w-0">
+        {type === "solid" ? (
+          <ColorField corners={fieldCorners} value={paint?.color} onChange={(c) => onChange({ color: c })} opacity={opacity} onOpacity={onOpacity} />
+        ) : (
+          <div className="h-[30px] flex items-center gap-2 pl-2 pr-3 bg-[var(--surface-2)]" style={{ borderRadius: fieldCorners }}>
+            <div className="flex-1 h-[16px] rounded-[var(--r-full)]" style={{ background: paintPreviewCss({ ...paint, type }), boxShadow: "inset 0 0 0 1px var(--border)" }} />
+            {onOpacity && (
+              <div className="flex items-center shrink-0">
+                <input value={opacity ?? 100} onChange={(e) => onOpacity(clamp(parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10), 0, 100))}
+                  className="w-7 bg-transparent outline-none text-muted text-right tabular-nums" style={{ fontSize: "var(--t12)" }} aria-label={t("ovlOpacity")} />
+                <span className="text-muted" style={{ fontSize: "var(--t12)" }}>%</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// A gradient's angle (linear) and its colour stops, each a colour and a position.
+function GradientFields({ t, paint, onChange }) {
+  if (!isGradient(paint)) return null;
+  const stops = paint.stops?.length > 1 ? paint.stops : gradDefaultStops(paint.color);
+  const setStop = (i, patch) => onChange({ stops: stops.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  const addStop = () => {
+    const sorted = [...stops].sort((a, b) => (a.pos || 0) - (b.pos || 0));
+    // Into the widest gap, in the colour of its left end.
+    let at = 0, gap = -1;
+    for (let i = 0; i < sorted.length - 1; i++) { const g = (sorted[i + 1].pos ?? 0) - (sorted[i].pos ?? 0); if (g > gap) { gap = g; at = i; } }
+    const pos = Math.round(((sorted[at].pos ?? 0) + (sorted[at + 1]?.pos ?? 100)) / 2);
+    onChange({ stops: [...stops, { color: sorted[at].color, pos }] });
+  };
+  return (
+    <div className="flex flex-col gap-1.5 pl-[36px]">
+      {paint.type === "linear" && (
+        <PillNum prefix="∠" ariaLabel={t("ovlAngle")} value={paint.angle ?? 90} min={0} max={360} onChange={(v) => onChange({ angle: v })} />
+      )}
+      {stops.map((st, i) => (
+        <div key={i} className="flex items-center" style={{ gap: HDR_NOTCH }}>
+          <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={st.color} onChange={(c) => setStop(i, { color: c })} /></div>
+          <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlStopPos")} value={st.pos ?? 0} onChange={(v) => setStop(i, { pos: v })} />
+          {stops.length > 2 ? (
+            <button type="button" onClick={() => onChange({ stops: stops.filter((_, j) => j !== i) })} aria-label={t("ovlRemove") || "Remove"}
+              className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
+          ) : <span className="w-7 shrink-0" />}
+        </div>
+      ))}
+      <button type="button" onClick={addStop}
+        className="self-start h-[26px] px-3 rounded-[var(--r-full)] border-0 bg-transparent text-secondary hover:text-primary hover:bg-[var(--surface-2)] cursor-pointer"
+        style={{ fontSize: "var(--t12)" }}>{t("ovlAddStop")}</button>
+    </div>
+  );
+}
+
 // Figma-style fill list: ordered solid paints (index 0 = front). Add / reorder via the
 // header "+", toggle visibility (eye), remove (−). Each row edits color + opacity.
 function FillList({ t, fills, onChange }) {
@@ -490,14 +588,17 @@ function FillList({ t, fills, onChange }) {
       <button type="button" onClick={add} aria-label={t("ovlAddFill") || "Add fill"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((f, i) => (
-        <PropRow key={f.id || i} kind="fill" index={i} className="group/frow flex items-center gap-1.5">
-          <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={f.color} onChange={(c) => set(i, { color: c })} /></div>
+        <PropRow key={f.id || i} kind="fill" index={i} className="group/frow flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+          <div className="flex-1 min-w-0"><PaintField t={t} paint={f} rightNotch onChange={(patch) => set(i, patch)} /></div>
           <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={f.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
           <BareIconBtn onPress={() => set(i, { visible: f.visible === false })} label={t("ovlVisible")}>
             {f.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
           </BareIconBtn>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
             className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
+          </div>
+          <GradientFields t={t} paint={f} onChange={(patch) => set(i, patch)} />
         </PropRow>
       ))}
     </Section>
@@ -845,7 +946,22 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
       <Section title={t("ovlStyle")}>
         <SelectField label={t("ovlProgStyle")} value={ps} onChange={(v) => setStyle(id, { progressStyle: v })}
           options={["bar", "knob", "glow", "segments", "dots", "wave"].map((v) => ({ value: v, label: t("ovlProgStyle_" + v) }))} />
-        <ColorField label={t("ovlFill")} value={s.fillColor} onChange={(v) => setStyle(id, { fillColor: v })} opacity={s.fillOpacity ?? 100} onOpacity={(v) => setStyle(id, { fillOpacity: v })} />
+        {(() => {
+          // The progress fill keeps its flat keys; mapped to a paint here and back.
+          const paint = { type: s.fillType || "solid", color: s.fillColor, stops: s.fillStops, angle: s.fillAngle };
+          const toStyle = (patch) => {
+            const out = {};
+            if ("type" in patch) out.fillType = patch.type;
+            if ("color" in patch) out.fillColor = patch.color;
+            if ("stops" in patch) out.fillStops = patch.stops;
+            if ("angle" in patch) out.fillAngle = patch.angle;
+            setStyle(id, out);
+          };
+          return (<>
+            <PaintField t={t} paint={paint} onChange={toStyle} opacity={s.fillOpacity ?? 100} onOpacity={(v) => setStyle(id, { fillOpacity: v })} />
+            <GradientFields t={t} paint={paint} onChange={toStyle} />
+          </>);
+        })()}
         <ColorField label={t("ovlTrackColor")} value={s.trackColor} onChange={(v) => setStyle(id, { trackColor: v })} />
         {(ps === "knob" || ps === "glow" || ps === "wave") && (
           <NumField label={t("ovlProgLine")} value={s.lineWidth ?? (ps === "glow" ? 2 : 4)} min={1} max={40} onChange={(v) => setStyle(id, { lineWidth: v })} />
@@ -3221,8 +3337,9 @@ export default function OverlayEditor({
                 </Field>
               </Section>
               <Section title={t("ovlBackground")}>
-                <ColorField label={t("ovlColor")} value={doc.canvas.bg?.color} onChange={(v) => updateCanvasBg({ color: v })}
+                <PaintField t={t} paint={doc.canvas.bg} onChange={(patch) => updateCanvasBg(patch)}
                   opacity={doc.canvas.bg?.opacity} onOpacity={(v) => updateCanvasBg({ opacity: v })} />
+                <GradientFields t={t} paint={doc.canvas.bg} onChange={(patch) => updateCanvasBg(patch)} />
                 <SwitchField label={t("ovlBlurFromCover")} checked={doc.canvas.bg?.blurFromCover} onChange={(v) => updateCanvasBg({ blurFromCover: v })} />
                 {doc.canvas.bg?.blurFromCover && (
                   <PillNum prefix={t("ovlBlur")} value={doc.canvas.bg?.blur} min={0} max={60} onChange={(v) => updateCanvasBg({ blur: v })} />

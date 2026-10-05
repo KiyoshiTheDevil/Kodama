@@ -6569,7 +6569,7 @@ function applyCanvas(cv){
     const clip=`path('${outer}')`;bg.style.clipPath=clip;blur.style.clipPath=clip;layers.style.clipPath=clip;
   }
   const b=cv.bg||{};
-  bg.style.background=rgba(b.color||'#1a1a1a',(b.opacity==null?90:b.opacity)/100);
+  bg.style.background=isGrad(b)?paintCss({...b,opacity:(b.opacity==null?90:b.opacity)}):rgba(b.color||'#1a1a1a',(b.opacity==null?90:b.opacity)/100);
   if(b.blurFromCover&&(b.blur||0)>0){
     blur.style.filter=`blur(${b.blur}px)`;blur.style.opacity=state.cover?'1':'0';
     if(state.cover)blur.style.backgroundImage=`url(${state.cover})`;
@@ -6595,6 +6595,10 @@ function buildText(el,L,rec){
   inner.style.fontSize=(s.fontSize||14)+'px';
   inner.style.fontWeight=s.fontWeight||400;
   inner.style.color=topFillColor(s,s.color||'#fff');
+  const tfill=visFills(s)[0];
+  if(isGrad(tfill)){
+    inner.style.backgroundImage=paintCss(tfill);inner.style.webkitBackgroundClip='text';inner.style.backgroundClip='text';inner.style.color='transparent';
+  }
   // Outline: the first visible stroke. "Outside" is a stroke twice as wide painted UNDER the
   // fill, so only its outer half shows; text has no inside stroke to offer.
   const tst=(Array.isArray(s.strokes)?s.strokes:[]).find(p=>p&&p.visible!==false);
@@ -6617,9 +6621,13 @@ const ovlDiv=(cls)=>{const d=document.createElement('div');if(cls)d.className=cl
 function progressFx(fill,s,fillCol){
   const fx=s.progressAnim||'none';
   if(fx==='cane'){
-    fill.style.backgroundImage='linear-gradient(45deg,rgba(255,255,255,.45) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.45) 50%,rgba(255,255,255,.45) 75%,transparent 75%,transparent)';
-    fill.style.backgroundSize='16px 16px';
-    fill.style.animation=`ovl-cane ${(s.progressAnimSpeed||1)*0.9}s linear infinite`;
+    // Over the fill rather than as its background, so a gradient fill shows through the stripes.
+    fill.style.overflow='hidden';
+    const c=ovlDiv('prog-fx');c.style.left='0';c.style.right='0';
+    c.style.backgroundImage='linear-gradient(45deg,rgba(255,255,255,.45) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.45) 50%,rgba(255,255,255,.45) 75%,transparent 75%,transparent)';
+    c.style.backgroundSize='16px 16px';
+    c.style.animation=`ovl-cane ${(s.progressAnimSpeed||1)*0.9}s linear infinite`;
+    fill.appendChild(c);
   }else if(fx==='shimmer'||fx==='comet'){
     fill.style.overflow='hidden';
     const g=ovlDiv('prog-fx');g.style.width='35%';
@@ -6639,6 +6647,9 @@ function buildProgress(el,L,rec){
   const s=L.style||{},kind=s.progressStyle||'bar',W=L.w||0,H=L.h||0;
   const fillCol=rgba(s.fillColor||'#EEA8FF',(s.fillOpacity==null?100:s.fillOpacity)/100);
   const trackCol=s.trackColor||'rgba(255,255,255,.12)';
+  // The fill as a paint: solid fillColor, or a gradient (fillType/fillStops/fillAngle).
+  const fillPaint={type:s.fillType||'solid',color:s.fillColor||'#EEA8FF',opacity:(s.fillOpacity==null?100:s.fillOpacity),stops:s.fillStops,angle:s.fillAngle};
+  const gradFill=isGrad(fillPaint)?paintCss(fillPaint):'';
   rec.kind=kind;
   if(kind==='segments'||kind==='dots'){
     const n=Math.max(2,Math.min(60,Math.round(s.segCount||(kind==='dots'?16:10))));
@@ -6651,6 +6662,7 @@ function buildProgress(el,L,rec){
       if(kind==='segments'){seg.style.cssText=`flex:1;height:${H}px;border-radius:${H/2}px;background:${trackCol};position:relative;overflow:hidden`;}
       else{seg.style.cssText=`width:${dot}px;height:${dot}px;border-radius:50%;background:${trackCol};position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s`;}
       const f=ovlDiv();f.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:0;background:${fillCol}`;
+      if(gradFill&&kind==='segments'){f.style.background='';f.style.backgroundImage=gradFill;}
       if(s.progressAnim==='breathe'||s.progressAnim==='rainbow'||s.progressAnim==='cane')progressFx(f,s,fillCol);
       seg.appendChild(f);row.appendChild(seg);parts.push([seg,f]);
     }
@@ -6677,7 +6689,7 @@ function buildProgress(el,L,rec){
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');svg.setAttribute('width',W);svg.setAttribute('height',H);svg.style.cssText='position:absolute;inset:0;overflow:visible';
     const sw=Math.max(1,s.lineWidth||4);
-    const path=document.createElementNS(ns,'path');path.setAttribute('fill','none');path.setAttribute('stroke',fillCol);path.setAttribute('stroke-width',sw);path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');
+    const path=document.createElementNS(ns,'path');path.setAttribute('fill','none');path.setAttribute('stroke',svgPaint(svg,fillPaint,W,H,fillCol));path.setAttribute('stroke-width',sw);path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');
     const tr=document.createElementNS(ns,'line');tr.setAttribute('stroke',trackCol);tr.setAttribute('stroke-width',sw);tr.setAttribute('stroke-linecap','round');tr.setAttribute('y1',H/2);tr.setAttribute('y2',H/2);
     const end=document.createElementNS(ns,'circle');end.setAttribute('cy',H/2);end.setAttribute('r',sw/2);end.setAttribute('fill',fillCol);end.setAttribute('cx',W-sw/2);
     svg.appendChild(path);svg.appendChild(tr);svg.appendChild(end);el.appendChild(svg);
@@ -6693,6 +6705,8 @@ function buildProgress(el,L,rec){
   if(kind==='bar')el.style.clipPath=`path('${cornerPath(W,H,s.corners,0,0)}')`;
   const track=ovlDiv('prog-track');track.style.background=trackCol;
   const fill=ovlDiv('prog-fill');fill.style.backgroundColor=fillCol;
+  // A gradient spans the whole bar, not the filled part, so it does not squash as the bar fills.
+  if(gradFill){fill.style.backgroundImage=gradFill;fill.style.backgroundSize=W+'px 100%';fill.style.backgroundRepeat='no-repeat';}
   if(kind!=='bar'){
     [track,fill].forEach(d=>{d.style.top=top+'px';d.style.height=lw+'px';d.style.borderRadius=(lw/2)+'px';});
   }
@@ -6792,10 +6806,41 @@ function visFills(s){
   var fl=(s&&s.fills&&s.fills.length)?s.fills:(s&&s.fill!=null?[{color:s.fill,opacity:(s.fillOpacity==null?100:s.fillOpacity)}]:[]);
   return fl.filter(function(f){return f&&f.visible!==false;});
 }
-// Stacked solid fills as a background-image list (index 0 = front).
+// A paint is solid ({color, opacity}) or a gradient ({type:'linear'|'radial', stops:[{color,
+// opacity, pos}], angle, opacity}). A gradient without stops starts from its colour to black.
+function isGrad(f){return !!f&&(f.type==='linear'||f.type==='radial');}
+function gradStops(f){
+  var st=(f.stops&&f.stops.length>1)?f.stops:[{color:f.color||'#ffffff',pos:0},{color:'#000000',pos:100}];
+  var o=(f.opacity==null?100:f.opacity)/100;
+  return st.slice().sort(function(a,b){return (a.pos||0)-(b.pos||0);})
+    .map(function(x){return {c:rgba(x.color||'#000000',o*((x.opacity==null?100:x.opacity)/100)),p:(x.pos==null?0:x.pos)};});
+}
+function paintCss(f){
+  if(f&&f.type==='linear')return 'linear-gradient('+(f.angle==null?90:f.angle)+'deg,'+gradStops(f).map(function(x){return x.c+' '+x.p+'%';}).join(',')+')';
+  if(f&&f.type==='radial')return 'radial-gradient(ellipse at center,'+gradStops(f).map(function(x){return x.c+' '+x.p+'%';}).join(',')+')';
+  var c=rgba((f&&f.color)||'#000',((f&&f.opacity!=null)?f.opacity:100)/100);return 'linear-gradient('+c+','+c+')';
+}
+// The same paint for SVG, which needs a gradient element; in user space, so a flat line (whose
+// bounding box has no height) still gets one.
+var svgGradN=0;
+function svgPaint(svg,f,W,H,fallback){
+  if(!isGrad(f))return f?rgba(f.color||'#000',(f.opacity==null?100:f.opacity)/100):fallback;
+  var ns='http://www.w3.org/2000/svg';
+  var defs=svg.querySelector('defs');if(!defs){defs=document.createElementNS(ns,'defs');svg.insertBefore(defs,svg.firstChild);}
+  var id='ovlg'+(++svgGradN),g=document.createElementNS(ns,f.type==='radial'?'radialGradient':'linearGradient');
+  g.setAttribute('id',id);g.setAttribute('gradientUnits','userSpaceOnUse');
+  if(f.type==='linear'){
+    // CSS angles: 0deg points up, 90deg to the right.
+    var a=(f.angle==null?90:f.angle)*Math.PI/180,dx=Math.sin(a),dy=-Math.cos(a),half=(Math.abs(W*dx)+Math.abs(H*dy))/2;
+    g.setAttribute('x1',W/2-dx*half);g.setAttribute('y1',H/2-dy*half);g.setAttribute('x2',W/2+dx*half);g.setAttribute('y2',H/2+dy*half);
+  }else{g.setAttribute('cx',W/2);g.setAttribute('cy',H/2);g.setAttribute('r',Math.max(W,H)/2);}
+  gradStops(f).forEach(function(x){var st=document.createElementNS(ns,'stop');st.setAttribute('offset',x.p+'%');st.setAttribute('stop-color',x.c);g.appendChild(st);});
+  defs.appendChild(g);return 'url(#'+id+')';
+}
+// Stacked fills as a background-image list (index 0 = front).
 function fillStack(s){
   var v=visFills(s);if(!v.length)return '';
-  return v.map(function(f){var c=rgba(f.color||'#000',(f.opacity==null?100:f.opacity)/100);return 'linear-gradient('+c+','+c+')';}).join(',');
+  return v.map(paintCss).join(',');
 }
 // Top visible fill as a single rgba color (for text + SVG shapes).
 function topFillColor(s,fallback){
@@ -6880,14 +6925,14 @@ function buildShape(el,L,rec){
   if(shp==='line'){
     const ln=document.createElementNS(NS,'line');
     ln.setAttribute('x1',0);ln.setAttribute('y1',H/2);ln.setAttribute('x2',W);ln.setAttribute('y2',H/2);
-    ln.setAttribute('stroke',topFillColor(s,rgba(s.fill||'#EEA8FF',fa)));
+    ln.setAttribute('stroke',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
     ln.setAttribute('stroke-width',s.strokeWidth||Math.max(2,H));
     ln.setAttribute('stroke-linecap',s.lineCap||'round');
     svg.appendChild(ln);
   }else{
     const pg=document.createElementNS(NS,'polygon');
     pg.setAttribute('points',shapePoints(shp,W,H,s));
-    pg.setAttribute('fill',topFillColor(s,rgba(s.fill||'#EEA8FF',fa)));
+    pg.setAttribute('fill',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
     var ts=visStrokes(s)[0];
     if(ts){pg.setAttribute('stroke',ts.color||'#fff');pg.setAttribute('stroke-width',(s.strokeWeight!=null?s.strokeWeight:(bd.width||1.5)));pg.setAttribute('stroke-opacity',(ts.opacity==null?100:ts.opacity)/100);pg.setAttribute('stroke-linejoin','round');}
     svg.appendChild(pg);

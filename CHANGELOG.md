@@ -28,6 +28,7 @@ Changes:
 - Overlay editor: text can have an outline, and scrolling titles glide back and forth instead of jumping back
 - Overlay editor: progress bars come in six looks (bar, knob, glowing line, segments, dots, Material 3 wave) with effects such as candy cane, shimmer and rainbow
 - Overlay progress bars move smoothly instead of in once-a-second steps
+- Overlay editor: fills can be linear or radial gradients, on shapes, text, the canvas background and progress bars
 - Overlay editor: an element library above the tool row: save a selection (Ctrl+Alt+K), sort it into folders and drag it onto the canvas again
 - Overlay editor: the element library, My Designs, the colour picker and the font picker share one look
 - Overlay editor: My Designs shows cards beside a large preview, in sections by date, and designs can be tagged and found by tag
