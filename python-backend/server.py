@@ -6625,7 +6625,11 @@ function buildText(el,L,rec){
   inner.style.color=topFillColor(s,s.color||'#fff');
   const tfill=visFills(s)[0];
   if(isGrad(tfill)){
-    inner.style.backgroundImage=paintCss(tfill);inner.style.webkitBackgroundClip='text';inner.style.backgroundClip='text';inner.style.color='transparent';
+    // A marquee moves the span inside the line. Clipped to text on the line, the gradient's mask
+    // stayed where the text was before it moved, and the title showed up shifted and cut. So a
+    // moving text carries its own gradient (set on the span below).
+    if(s.marquee){rec.spanPaint=paintCss(tfill);inner.style.color='transparent';}
+    else{inner.style.backgroundImage=paintCss(tfill);inner.style.webkitBackgroundClip='text';inner.style.backgroundClip='text';inner.style.color='transparent';}
   }
   // Outline: the first visible stroke. "Outside" is a stroke twice as wide painted UNDER the
   // fill, so only its outer half shows; text has no inside stroke to offer.
@@ -6663,6 +6667,7 @@ function buildText(el,L,rec){
   const span=document.createElement('span');const tn=document.createTextNode('');span.appendChild(tn);
   inner.appendChild(span);box.appendChild(inner);el.appendChild(box);
   rec.span=span;rec.inner=inner;rec.tnode=tn;rec.full=null;
+  if(rec.spanPaint&&!rec.outline){span.style.backgroundImage=rec.spanPaint;span.style.webkitBackgroundClip='text';span.style.backgroundClip='text';span.style.color='transparent';}
   if(rec.outline){
     const ns='http://www.w3.org/2000/svg';
     span.style.position='relative';span.style.display='inline-block';

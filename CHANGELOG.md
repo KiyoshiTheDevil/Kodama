@@ -51,6 +51,7 @@ Fixes:
 - Overlay editor: design previews showed white corners and gaps; the Import button in the header did nothing while My Designs was closed
 - Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Overlay text was cut off at its outline, and tall letters or descenders at the edge of the text box
+- Overlay marquee text with a gradient fill showed up shifted and cut off
 - Turning a switch on in the overlay editor could slide the whole window content up
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
