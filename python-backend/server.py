@@ -6495,7 +6495,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 .txt-inner.scroll span{display:inline-block}
 .prog-track,.prog-fill{position:absolute;top:0;height:100%}
 .prog-track{left:0;right:0}
-.prog-fill{left:0;width:0;transition:width .8s linear}
+.prog-fill{left:0;width:0}
 .prog-fx{position:absolute;top:0;bottom:0;pointer-events:none}
 @keyframes ovl-cane{from{background-position:0 0}to{background-position:16px 0}}
 @keyframes ovl-glint{0%,60%{left:-35%}100%{left:110%}}
@@ -6650,7 +6650,7 @@ function buildProgress(el,L,rec){
       const seg=ovlDiv();
       if(kind==='segments'){seg.style.cssText=`flex:1;height:${H}px;border-radius:${H/2}px;background:${trackCol};position:relative;overflow:hidden`;}
       else{seg.style.cssText=`width:${dot}px;height:${dot}px;border-radius:50%;background:${trackCol};position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s`;}
-      const f=ovlDiv();f.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:0;background:${fillCol};transition:width .8s linear`;
+      const f=ovlDiv();f.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:0;background:${fillCol}`;
       if(s.progressAnim==='breathe'||s.progressAnim==='rainbow'||s.progressAnim==='cane')progressFx(f,s,fillCol);
       seg.appendChild(f);row.appendChild(seg);parts.push([seg,f]);
     }
@@ -6702,13 +6702,40 @@ function buildProgress(el,L,rec){
   let head=null;
   if(kind==='knob'||s.progressAnim==='pulse'){
     const k=kind==='knob'?Math.max(lw,Math.min(H,s.knobSize||H)):Math.max(lw*2,6);
-    head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0;transition:left .8s linear`;
+    head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0`;
     head.style.background=kind==='knob'?(s.knobColor||'#ffffff'):fillCol;
     head.style.boxShadow=s.progressAnim==='pulse'?`0 0 ${k}px ${k/3}px ${fillCol}`:'0 1px 4px rgba(0,0,0,.45)';
     if(s.progressAnim==='pulse')head.style.animation='ovl-breathe 1.2s ease-in-out infinite';
     el.appendChild(head);
   }
   rec.set=(pct)=>{fill.style.width=pct+'%';if(head)head.style.left=pct+'%';};
+}
+
+// The position, counted here between the backend's once-a-second reports: from the last report
+// and the time since, every frame. Without it the bar moved in steps (a glide, a stop, a glide).
+// A report that is only a little behind what is shown does not pull the bar backwards; a seek, a
+// new song or a pause/resume is taken as it comes.
+let progAnchor={sec:0,t:0},progShown=0,progRaf=0;
+function noteProgress(){
+  const sec=state.progress||0;
+  if(Math.abs(sec-progShown)>1.5)progShown=sec;
+  progAnchor={sec,t:performance.now()};
+  startProgressClock();
+}
+function startProgressClock(){
+  if(progRaf)return;
+  const tick=()=>{
+    const dur=state.duration||0;
+    let sec=progAnchor.sec+(state.isPlaying?(performance.now()-progAnchor.t)/1000:0);
+    if(dur>0)sec=Math.min(sec,dur);
+    if(sec<progShown&&progShown-sec<1.5)sec=progShown;
+    progShown=sec;
+    const pct=dur>0?Math.max(0,Math.min(100,sec/dur*100)):0;
+    let any=false;
+    for(const id in layerEls){const r=layerEls[id];if(r.type==='progress'&&r.set){any=true;r.set(pct);}}
+    progRaf=any?requestAnimationFrame(tick):0;
+  };
+  progRaf=requestAnimationFrame(tick);
 }
 
 // One clock for every wave on the page: eases the shown position toward the real one (the
@@ -6726,7 +6753,7 @@ function startWaves(){
       const playing=!!state.isPlaying;
       w.amp+=((playing?w.ampMax:0)-w.amp)*Math.min(1,dt*6);
       if(playing)w.phase+=dt*w.speed;
-      w.shown=w.shown==null?w.target:w.shown+(w.target-w.shown)*Math.min(1,dt*2);
+      w.shown=w.target;
       const pad=w.sw/2,x0=pad,x1=pad+Math.max(0,Math.min(100,w.shown))/100*(w.W-2*pad),cy=w.H/2;
       let d='';
       for(let x=x0;x<=x1+0.01;x+=1.5){const y=cy+Math.sin((x-x0)/w.wl*2*Math.PI-w.phase)*w.amp;d+=(d?' L':'M')+x.toFixed(1)+' '+y.toFixed(2);}
@@ -7117,8 +7144,7 @@ function renderData(){
         if(rec.layer.style&&rec.layer.style.marquee)requestAnimationFrame(()=>requestAnimationFrame(()=>applyMarquee(rec)));
       }
     }else if(rec.type==='progress'){
-      const pct=state.duration>0?(state.progress/state.duration*100):0;
-      if(rec.set)rec.set(Math.max(0,Math.min(100,pct)));
+      startProgressClock();
     }
   }
   applyAutoHide();
@@ -7134,6 +7160,7 @@ function updateState(s){
   if(s._configUpdate){applyDoc(s.config);return;}
   if(s._config)applyDoc(s._config);
   ['title','artist','album','cover','progress','duration','isPlaying'].forEach(f=>{if(f in s)state[f]=s[f];});
+  if('progress' in s||'isPlaying' in s)noteProgress();
   const key=(state.title||'')+'|'+(state.artist||'');
   const newSong=trackKey!==null&&key!==trackKey&&!!state.title&&((doc&&doc.canvas&&doc.canvas.entranceOn)||'track')==='track';
   trackKey=key;
