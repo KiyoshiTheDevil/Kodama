@@ -6865,6 +6865,166 @@ function startWaves(){
   waveRaf=requestAnimationFrame(tick);
 }
 
+// ── Shader layers (experimental) ──────────────────────────────────────────────
+// A shader is a WebGL canvas running one of a fixed set of presets, each fed three colours.
+// The GL context is kept per layer across rebuilds: the editor rebuilds the page on every drag
+// step, and a new context each time would soon pass the browser's limit and lose the oldest.
+const SHADER_HEAD=`precision mediump float;
+uniform vec2 uR;uniform float uS;uniform float t;uniform vec3 c1,c2,c3;
+#define r (uR/uS)
+#define FC (gl_FragCoord.xy/uS)
+float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+vec2 h2(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
+float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p*=2.;a*=.5;}return v;}
+vec3 pal3(float x){x=fract(x)*3.;return x<1.?mix(c1,c2,x):(x<2.?mix(c2,c3,x-1.):mix(c3,c1,x-2.));}
+`;
+const SHADER_SRC={
+  aurora:`void main(){vec2 u=FC/r;vec3 col=vec3(.02,.02,.06);for(int i=0;i<3;i++){float fi=float(i);float y=.5+.18*sin(u.x*3.+t*.6+fi*2.)+.1*fbm(vec2(u.x*2.+t*.2,fi));float b=exp(-pow((u.y-y)*7.,2.));vec3 cc=i==0?c1:(i==1?c2:c3);col+=cc*b*(.6+.4*fbm(vec2(u.x*6.,t*.3+fi)));}gl_FragColor=vec4(col,1.);}`,
+  plasma:`void main(){vec2 u=FC/r*vec2(r.x/r.y,1.)*3.;float v=sin(u.x+t)+sin(u.y*1.3+t*.8)+sin((u.x+u.y)*.7+t*1.1)+sin(length(u-vec2(2.,1.5))*2.-t);v=v*.25+.5;vec3 col=mix(mix(c1,c2,smoothstep(0.,.5,v)),c3,smoothstep(.5,1.,v));gl_FragColor=vec4(col,1.);}`,
+  mesh:`void main(){vec2 u=FC/r;vec2 p1=vec2(.2+.15*sin(t*.5),.3+.2*cos(t*.4)),p2=vec2(.8+.1*cos(t*.3),.7+.2*sin(t*.5)),p3=vec2(.5+.3*sin(t*.27),.5+.3*cos(t*.33));float w1=1./pow(length(u-p1)+.05,2.),w2=1./pow(length(u-p2)+.05,2.),w3=1./pow(length(u-p3)+.05,2.);vec3 col=(c1*w1+c2*w2+c3*w3)/(w1+w2+w3);gl_FragColor=vec4(col,1.);}`,
+  smoke:`void main(){vec2 u=FC/r*vec2(r.x/r.y,1.)*2.;vec2 q=vec2(fbm(u+t*.1),fbm(u+vec2(5.2,1.3)-t*.08));float v=fbm(u+2.*q+vec2(t*.15,0.));vec3 col=mix(vec3(.02),c1,smoothstep(.2,.6,v));col=mix(col,c2,smoothstep(.5,.8,q.x));col=mix(col,c3,smoothstep(.6,.9,v)*.6);gl_FragColor=vec4(col*.9,1.);}`,
+  silk:`void main(){vec2 u=FC/r;vec3 col=vec3(.02);for(int i=0;i<4;i++){float fi=float(i);float y=.5+.25*sin(u.x*(2.+fi*.7)+t*(.4+fi*.15)+fi*1.7)*cos(u.x*1.3-t*.2+fi);float d=abs(u.y-y);float w=.06+.04*sin(t*.5+fi+u.x*3.);float band=smoothstep(w,0.,d);vec3 cc=fi<1.?c1:(fi<2.?c2:(fi<3.?c3:mix(c1,c3,.5)));col+=cc*band*(.35+.65*smoothstep(0.,w,w-d))*.7;}gl_FragColor=vec4(col,1.);}`,
+  rays:`void main(){vec2 u=FC/r;vec2 src=vec2(.5+.2*sin(t*.2),1.15);vec2 d=u-src;float a=atan(d.x,-d.y);float rays=.5+.5*sin(a*14.+t*.6)*sin(a*7.-t*.4);float fall=smoothstep(1.4,0.,length(d));vec3 col=mix(vec3(.02),mix(c1,c2,u.x),.2)+mix(c3,c2,rays)*pow(rays,2.)*fall*.9;gl_FragColor=vec4(col,1.);}`,
+  starfield:`void main(){vec2 u=FC;vec3 col=mix(vec3(.01,.01,.04),c1*.15,FC.y/r.y);for(int l=0;l<3;l++){float fl=float(l);vec2 p=u/(10.+fl*6.)+vec2(t*(.3+fl*.25),0.);vec2 id=floor(p),f=fract(p)-.5;float s=h(id+fl*7.);if(s>.86){vec2 o=vec2(h(id+3.),h(id+5.))-.5;float d=length(f-o*.6);float tw=.6+.4*sin(t*3.+s*40.);col+=mix(c2,c3,h(id))*smoothstep(.08,0.,d)*tw*(1.-fl*.25);}}gl_FragColor=vec4(col,1.);}`,
+  fire:`void main(){vec2 u=FC/r;vec2 p=vec2(u.x*3.*r.x/r.y,u.y*2.-t*1.2);float f=fbm(p+fbm(p*1.5));float flame=f*1.6-u.y*1.4;flame=clamp(flame,0.,1.);vec3 col=mix(vec3(0.),c2,smoothstep(.1,.45,flame));col=mix(col,c3,smoothstep(.45,.75,flame));col=mix(col,vec3(1.),smoothstep(.85,1.,flame));gl_FragColor=vec4(col,1.);}`,
+  halftone:`void main(){vec2 u=FC/r;float g=fbm(u*2.5+vec2(t*.15,-t*.1));vec3 base=pal3(g*1.2+t*.05);vec2 cell=FC/7.;vec2 f=fract(cell)-.5;float rad=.15+.4*g;float dot1=smoothstep(rad,rad-.08,length(f));gl_FragColor=vec4(mix(base*.15,base,dot1),1.);}`,
+  retro:`void main(){vec2 u=FC/r;vec3 col=mix(c2*.25,vec3(.02),u.y);float hz=.45;if(u.y<hz){float z=hz/(hz-u.y+.001);float x=(u.x-.5)*z;float gx=abs(fract(x*2.)-.5),gz=abs(fract(z*.6-t*.8)-.5);float g=max(smoothstep(.04*z,.0,gx),smoothstep(.05*z,.0,gz));col=mix(vec3(.02,0.,.05),c1,g*smoothstep(0.,.25,hz-u.y+.02)*1.2);}else{float sun=smoothstep(.22,.21,length((u-vec2(.5,.62))*vec2(r.x/r.y,1.)));float stripes=step(.5,fract(u.y*28.));col=mix(col,mix(c3,c2,(u.y-.45)*3.),sun*mix(1.,stripes,smoothstep(.62,.5,u.y)));}col+=c1*.4*smoothstep(.02,0.,abs(u.y-hz));gl_FragColor=vec4(col,1.);}`,
+  matrix:`void main(){vec2 u=FC/r;float N=r.x/7.;float i=floor(u.x*N);float sp=.4+h(vec2(i,1.))*.8;float y=fract(u.y+t*sp*.4+h(vec2(i,2.)));float trail=pow(y,6.);float cell=step(.3,h(vec2(i,floor(u.y*r.y/9.)+floor(t*6.*sp))));vec3 col=mix(c1,c3,trail)*trail*(.4+.6*cell)+vec3(1.)*pow(y,60.)*.8;gl_FragColor=vec4(col,1.);}`,
+  equalizer:`void main(){vec2 u=FC/r;float N=24.;float i=floor(u.x*N);float f=fract(u.x*N);float lv=.15+.75*n(vec2(i*.7,t*2.5))*(.6+.4*sin(t*3.+i*.4));float bar=step(.12,f)*step(f,.88)*step(u.y,lv);float seg=step(.25,fract(u.y*18.));vec3 col=mix(mix(c1,c2,u.y/max(lv,.01)),c3,step(lv-.04,u.y))*bar*seg;col+=c1*.05;gl_FragColor=vec4(col,1.);}`,
+  glitch:`void main(){vec2 u=FC/r;float tk=floor(t*8.);float band=step(.85,h(vec2(floor(u.y*14.),tk)));float sh=band*(h(vec2(tk,floor(u.y*14.)))-.5)*.15;float g=fbm(vec2(u.x*2.+t*.2,u.y*3.));vec3 col=vec3(pal3(g+u.x*.5+sh+.02).x,pal3(g+u.x*.5+sh).y,pal3(g+u.x*.5+sh-.02).z);col*=.75+.25*sin(FC.y*1.6);col+=(h(u*r+t)-.5)*.12;col*=1.-band*.2*h(vec2(tk));gl_FragColor=vec4(col*.85,1.);}`
+};
+const SHADER_DEF_COLORS=['#7c4dff','#e040fb','#00e5ff'];
+const shaderCache={}; // layer id -> {cv, gl, preset, u, t, cur}
+let shaderRaf=0,shaderRate=1,coverPal=null,coverPalSrc='';
+function hexRgb(c){
+  const m=/^#?([0-9a-f]{6})$/i.exec(String(c||'').trim());
+  if(!m)return [1,1,1];
+  const v=parseInt(m[1],16);return [(v>>16&255)/255,(v>>8&255)/255,(v&255)/255];
+}
+function dropShader(id){
+  const c=shaderCache[id];if(!c)return;
+  const x=c.gl.getExtension('WEBGL_lose_context');if(x)x.loseContext();
+  delete shaderCache[id];
+}
+function shaderGL(id,preset){
+  let c=shaderCache[id];
+  if(c&&c.preset===preset&&!c.gl.isContextLost())return c;
+  const keepT=c?c.t:0,keepCur=c?c.cur:null;
+  if(c)dropShader(id);
+  const cv=document.createElement('canvas');cv.style.cssText='display:block;width:100%;height:100%';
+  const gl=cv.getContext('webgl',{antialias:false,preserveDrawingBuffer:STILL});
+  if(!gl)return null;
+  const sh=(ty,src)=>{const o=gl.createShader(ty);gl.shaderSource(o,src);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;};
+  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,SHADER_HEAD+SHADER_SRC[preset]);
+  if(!vs||!fs)return null;
+  const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))return null;
+  gl.useProgram(p);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(p,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const U=(k)=>gl.getUniformLocation(p,k);
+  c={cv,gl,preset,u:{R:U('uR'),S:U('uS'),t:U('t'),c1:U('c1'),c2:U('c2'),c3:U('c3')},t:keepT,cur:keepCur};
+  cv.addEventListener('webglcontextlost',(e)=>{e.preventDefault();if(shaderCache[id]===c)delete shaderCache[id];});
+  shaderCache[id]=c;return c;
+}
+function shaderColors(s){
+  const own=(Array.isArray(s.shaderColors)&&s.shaderColors.length?s.shaderColors:SHADER_DEF_COLORS);
+  if(s.coverColors&&coverPal)return coverPal;
+  return [0,1,2].map((i)=>hexRgb(own[i]||own[own.length-1]));
+}
+function drawShader(rec){
+  const sh=rec.shader,c=sh.c,gl=c.gl,s=sh.style;
+  if(gl.isContextLost())return;
+  if(!c.cur)c.cur=shaderColors(s);
+  gl.viewport(0,0,c.cv.width,c.cv.height);
+  gl.uniform2f(c.u.R,c.cv.width,c.cv.height);
+  gl.uniform1f(c.u.S,sh.dpr*Math.max(0.1,s.scale==null?1:s.scale));
+  gl.uniform1f(c.u.t,c.t);
+  gl.uniform3fv(c.u.c1,c.cur[0]);gl.uniform3fv(c.u.c2,c.cur[1]);gl.uniform3fv(c.u.c3,c.cur[2]);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+function buildShader(el,L,rec){
+  const s=L.style||{};
+  el.style.clipPath=`path('${cornerPath(L.w||0,L.h||0,s.corners,0,0)}')`;
+  const preset=SHADER_SRC[s.preset]?s.preset:'aurora';
+  const c=shaderGL(L.id,preset);
+  if(!c){
+    // No WebGL (or the preset would not compile): the three colours as a plain gradient.
+    const col=(Array.isArray(s.shaderColors)&&s.shaderColors.length?s.shaderColors:SHADER_DEF_COLORS);
+    el.style.background=`linear-gradient(120deg,${col.join(',')})`;return;
+  }
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=Math.max(1,Math.round((L.w||1)*dpr)),H=Math.max(1,Math.round((L.h||1)*dpr));
+  if(c.cv.width!==W)c.cv.width=W;
+  if(c.cv.height!==H)c.cv.height=H;
+  el.appendChild(c.cv);
+  rec.shader={c,dpr,style:s};
+  if(STILL){
+    // A thumbnail: one frame a few seconds in, kept as a picture; the context is given back.
+    c.t=4;c.cur=shaderColors(s);drawShader(rec);
+    const img=document.createElement('img');img.className='layer-img';img.src=c.cv.toDataURL();
+    el.replaceChild(img,c.cv);dropShader(L.id);rec.shader=null;return;
+  }
+  startShaders();
+}
+// One clock for every shader. On pause they slow to a crawl rather than freezing, so the
+// widget stays alive; colours glide to a new cover's instead of switching in one frame.
+function startShaders(){
+  if(shaderRaf)return;
+  let last=performance.now();
+  const tick=(now)=>{
+    const dt=Math.min(0.1,(now-last)/1000);last=now;
+    const goal=(EDITOR||state.isPlaying)?1:0.15;
+    shaderRate+=(goal-shaderRate)*Math.min(1,dt*2);
+    let any=false;
+    for(const id in layerEls){
+      const rec=layerEls[id];if(!rec.shader)continue;any=true;
+      const c=rec.shader.c,s=rec.shader.style;
+      c.t+=dt*shaderRate*(s.speed==null?1:s.speed);
+      const want=shaderColors(s),k=Math.min(1,dt*3);
+      if(!c.cur)c.cur=want;
+      else for(let i=0;i<3;i++)for(let j=0;j<3;j++)c.cur[i][j]+=(want[i][j]-c.cur[i][j])*k;
+      drawShader(rec);
+    }
+    shaderRaf=any?requestAnimationFrame(tick):0;
+  };
+  shaderRaf=requestAnimationFrame(tick);
+}
+// "Colours from the cover": the three strongest hues of the current cover, weighted by how
+// colourful and bright they are, lifted a little so a dull cover still gives a living shader.
+function paletteOf(img){
+  const N=32,cv=document.createElement('canvas');cv.width=cv.height=N;
+  const x=cv.getContext('2d');x.drawImage(img,0,0,N,N);
+  const d=x.getImageData(0,0,N,N).data,B=[];
+  for(let i=0;i<12;i++)B.push({w:0,r:0,g:0,b:0});
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),dl=mx-mn;
+    if(mx<.12)continue;
+    let hue=0;if(dl){hue=mx===r?((g-b)/dl)%6:mx===g?(b-r)/dl+2:(r-g)/dl+4;hue=(hue*60+360)%360;}
+    const sat=mx?dl/mx:0,w=sat*sat*mx+.01,k=Math.floor(hue/30)%12;
+    B[k].w+=w;B[k].r+=r*w;B[k].g+=g*w;B[k].b+=b*w;
+  }
+  const top=B.filter((q)=>q.w>0).sort((a,q)=>q.w-a.w).slice(0,3).map((q)=>{
+    const c=[q.r/q.w,q.g/q.w,q.b/q.w],m=Math.max(...c);
+    return m>0&&m<.6?c.map((v)=>v*.6/m):c;
+  });
+  if(!top.length)return null;
+  while(top.length<3){const p=top[top.length-1];top.push(p.map((v)=>Math.min(1,v*1.3+.12)));}
+  return top;
+}
+function sampleCover(){
+  const src=state.cover||'';
+  if(src===coverPalSrc)return;
+  coverPalSrc=src;
+  if(!src){coverPal=null;return;}
+  const img=new Image();
+  try{if(new URL(src,location.href).origin!==location.origin)img.crossOrigin='anonymous';}catch(_){}
+  img.onload=()=>{if(coverPalSrc!==src)return;try{coverPal=paletteOf(img);}catch(_){coverPal=null;}};
+  img.onerror=()=>{if(coverPalSrc===src)coverPal=null;};
+  img.src=src;
+}
+
 function buildImage(el,L,rec){
   const s=L.style||{};
   el.style.clipPath=`path('${cornerPath(L.w||0,L.h||0,s.corners,0,0)}')`;
@@ -7025,7 +7185,7 @@ function buildShape(el,L,rec){
   el.appendChild(svg);
 }
 
-const BUILDERS={albumArt:buildAlbumArt,text:buildText,progress:buildProgress,image:buildImage,shape:buildShape};
+const BUILDERS={albumArt:buildAlbumArt,text:buildText,progress:buildProgress,image:buildImage,shape:buildShape,shader:buildShader};
 
 function applyFx(el,entr,loopw,L){
   const st=(L.style||{});
@@ -7188,6 +7348,8 @@ function buildLayers(dc){
     }else host.appendChild(el);
     layerEls[L.id]=rec;
   }
+  // Shaders whose layer is gone (deleted, or no longer a shader) give their GL context back.
+  for(const id in shaderCache)if(!layerEls[id]||!layerEls[id].shader)dropShader(id);
 }
 
 function textForBind(bind,style){
@@ -7294,6 +7456,7 @@ function updateState(s){
   if(s._config)applyDoc(s._config);
   ['title','artist','album','cover','progress','duration','isPlaying'].forEach(f=>{if(f in s)state[f]=s[f];});
   if('progress' in s||'isPlaying' in s)noteProgress();
+  if('cover' in s)sampleCover();
   const key=(state.title||'')+'|'+(state.artist||'');
   const newSong=trackKey!==null&&key!==trackKey&&!!state.title&&((doc&&doc.canvas&&doc.canvas.entranceOn)||'track')==='track';
   trackKey=key;

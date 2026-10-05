@@ -17,7 +17,7 @@ export const OVERLAY_DOC_VERSION = 2;
 // Bindable now-playing data fields a layer can subscribe to.
 // `subtitle` is a composite (artist · album) that preserves the old sub-line.
 export const TEXT_BINDS = ["title", "subtitle", "artist", "album", "position", "duration", "static"];
-export const LAYER_TYPES = ["albumArt", "text", "progress", "image", "shape"];
+export const LAYER_TYPES = ["albumArt", "text", "progress", "image", "shape", "shader"];
 
 let _idCounter = 0;
 export function makeId(prefix = "l") {
@@ -190,12 +190,31 @@ export function makeShapeLayer(over = {}) {
   });
 }
 
+// Experimental: a WebGL shader from a fixed set of presets (server.py, SHADER_SRC).
+export const SHADER_PRESETS = ["aurora",  "plasma",  "mesh",  "smoke",  "silk",  "rays",  "starfield",  "fire",  "halftone",  "retro",  "matrix",  "equalizer",  "glitch"];
+export function makeShaderLayer(over = {}) {
+  return baseLayer("shader", {
+    name: "Shader",
+    w: 400, h: 80,
+    style: {
+      preset: "aurora",
+      shaderColors: ["#7c4dff", "#e040fb", "#00e5ff"],
+      coverColors: false,         // take the three colours from the current cover instead
+      speed: 1,
+      scale: 1,
+      corners: uniformCorners(0, "r"),
+    },
+    ...over,
+  });
+}
+
 export const LAYER_FACTORIES = {
   albumArt: makeAlbumArtLayer,
   text: makeTextLayer,
   progress: makeProgressLayer,
   image: makeImageLayer,
   shape: makeShapeLayer,
+  shader: makeShaderLayer,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

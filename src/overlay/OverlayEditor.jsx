@@ -22,14 +22,14 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
 import {
-  ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad,
+  ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad, Sparkles,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
   ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller, Shapes, Folder,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
   OvlOpacity, OvlCornerRadius, OvlCornerSingle, OvlStrokeWeight, OvlDropShadow, OvlGlow, OvlLayerBlur, OvlInnerShadow,
 } from "../icons.jsx";
 import {
-  isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners, defaultCanvas,
+  isV2Doc, normalizeOverlayDoc, defaultOverlayDoc, LAYER_FACTORIES, uniformCorners, defaultCanvas, SHADER_PRESETS,
 } from "./schema.js";
 import { readElements, writeElements, makeElement, placeElement, foldersOf, moveToFolder, renameFolder, dissolveFolder, cleanFolder, readFolderList, writeFolderList } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
@@ -46,8 +46,9 @@ const TYPE_META = {
   progress: { icon: WaveformLines, label: "Progress" },
   image:    { icon: ImageSquare, label: "Image" },
   shape:    { icon: PaintBrushBroad, label: "Shape" },
+  shader:   { icon: Sparkles, label: "Shader" },
 };
-const ADD_TYPES = ["text", "albumArt", "progress", "image", "shape"];
+const ADD_TYPES = ["text", "albumArt", "progress", "image", "shape", "shader"];
 const PAN_SPEED = 0.5; // wheel-scroll pan damping (raw wheel deltas feel too coarse at 1:1)
 
 // Fonts preloaded by the engine HTML (must match the <link> in server.py).
@@ -860,6 +861,7 @@ const TOOLBAR_ITEMS = (t) => [
   { key: "albumArt", label: TYPE_META.albumArt.label, icon: <VinylRecord size={16} />, tool: { type: "albumArt" }, isActive: (tool) => tool?.type === "albumArt" },
   { key: "progress", label: TYPE_META.progress.label, icon: <WaveformLines size={16} />, tool: { type: "progress" }, isActive: (tool) => tool?.type === "progress" },
   { key: "image", label: TYPE_META.image.label, icon: <ImageSquare size={16} />, tool: { type: "image" }, isActive: (tool) => tool?.type === "image" },
+  { key: "shader", label: TYPE_META.shader.label, icon: <Sparkles size={16} />, tool: { type: "shader" }, isActive: (tool) => tool?.type === "shader" },
 ];
 
 // ── Font Picker trigger (panel is lifted to OverlayEditor level) ──────────────
@@ -1003,6 +1005,28 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
           )}
         </Section>
       )}
+    </>);
+  }
+  if (layer.type === "shader") {
+    const cols = Array.isArray(s.shaderColors) && s.shaderColors.length ? s.shaderColors : ["#7c4dff", "#e040fb", "#00e5ff"];
+    const setCol = (i, c) => setStyle(id, { shaderColors: [0, 1, 2].map((j) => (j === i ? c : cols[j] || cols[cols.length - 1])) });
+    return (<>
+      <Section title={t("ovlShader")} right={
+        <span className="px-2 h-[18px] inline-flex items-center rounded-[var(--r-full)] bg-[var(--surface-2)] text-muted" style={{ fontSize: "var(--t11)" }}>{t("ovlExperimental")}</span>}>
+        <SelectField label={t("ovlShaderPreset")} value={SHADER_PRESETS.includes(s.preset) ? s.preset : "aurora"}
+          options={SHADER_PRESETS.map((v) => ({ value: v, label: t("ovlShader_" + v) }))} onChange={(v) => setStyle(id, { preset: v })} />
+        <div className="grid grid-cols-2 gap-1.5">
+          <NumField label={t("ovlSpeed")} value={s.speed ?? 1} min={0} max={5} step={0.1} onChange={(v) => setStyle(id, { speed: v })} />
+          <NumField label={t("ovlShaderScale")} value={s.scale ?? 1} min={0.25} max={4} step={0.05} onChange={(v) => setStyle(id, { scale: v })} />
+        </div>
+      </Section>
+      <Section title={t("ovlShaderColors")}>
+        <SwitchField label={t("ovlShaderCoverColors")} checked={!!s.coverColors} onChange={(v) => setStyle(id, { coverColors: v })} />
+        {[0, 1, 2].map((i) => (
+          <ColorField key={i} value={cols[i] || cols[cols.length - 1]} onChange={(c) => setCol(i, c)} />
+        ))}
+        {s.coverColors && <p className="m-0 text-muted" style={{ fontSize: "var(--t11)" }}>{t("ovlShaderCoverHint")}</p>}
+      </Section>
     </>);
   }
   if (layer.type === "image") {

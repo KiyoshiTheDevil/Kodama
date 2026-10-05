@@ -9,7 +9,7 @@
 import { LAYER_FACTORIES } from "./schema.js";
 import { selectedGroup, membersOf } from "./groups.js";
 
-const COLOR_KEYS = ["fills", "fill", "fillOpacity", "color", "fillColor", "trackColor", "strokes", "strokeWeight", "strokePosition", "border"];
+const COLOR_KEYS = ["fills", "fill", "fillOpacity", "color", "fillColor", "trackColor", "strokes", "strokeWeight", "strokePosition", "border", "shaderColors"];
 const LOOK_KEYS = ["corners"];
 const TEXT_KEYS = ["fontFamily", "fontSize", "fontWeight", "letterSpacing", "lineHeight", "align", "valign"];
 const ANIM_KEYS = ["entrance", "loop"];

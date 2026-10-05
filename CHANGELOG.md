@@ -36,6 +36,7 @@ Changes:
 - Overlay editor: copy the look of a layer or group and paste it onto others, whole or just its colors, effects or animations (Ctrl+Alt+C, Ctrl+Alt+V)
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
+- Overlay editor: new experimental Shader layer with 13 animated presets, own colors or colors from the cover
 
 Fixes:
 - Shutting down Windows with Kodama open showed a taskkill error that held up the shutdown
