@@ -16,6 +16,7 @@ import {
   ListBox, ListBoxItem,
   SeparatorRoot,
   Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection,
+  ScrollShadowRoot,
 } from "@heroui/react";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
@@ -2886,7 +2887,7 @@ export default function OverlayEditor({
               </div>
             )}
             {/* pt: the picked card's ring sits outside the card, and the scroll box clipped it at the top. */}
-            <div className="overflow-y-auto min-h-0 px-3 pt-1 pb-3 flex flex-col gap-3">
+            <ScrollShadowRoot size={24} className="overflow-y-auto min-h-0 px-3 pt-1 pb-3 flex flex-col gap-3">
               {inFolder.length === 0 && (
                 <div className="py-8 text-center text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>
                   {elements.length ? t("ovlElementsNoMatch") : t("ovlElementsEmpty")}
@@ -2912,7 +2913,7 @@ export default function OverlayEditor({
                   </div>
                 );
               })}
-            </div>
+            </ScrollShadowRoot>
             {/* Footer: save on the left, insert on the right. While naming, the name takes its place. */}
             <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ background: PANEL_FOOT }}
               onKeyDown={(e) => {
@@ -3581,7 +3582,7 @@ export default function OverlayEditor({
 
             <div className="flex-1 min-h-0 flex gap-4 px-4 pb-4">
               {/* ── Left: the designs as cards, in sections ── */}
-              <div className="w-[330px] shrink-0 overflow-y-auto min-h-0 pt-1 pr-1 flex flex-col gap-4">
+              <ScrollShadowRoot size={28} className="w-[338px] shrink-0 overflow-y-auto min-h-0 -m-1 p-1 pr-2 flex flex-col gap-4">
                 {profiles.length === 0 ? (
                   <div className="px-1 py-6 text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileEmpty")}<br /><span className="opacity-70">{t("ovlProfileEmptyHint")}</span></div>
                 ) : shown.length === 0 ? (
@@ -3612,7 +3613,7 @@ export default function OverlayEditor({
                     </div>
                   </div>
                 ))}
-              </div>
+              </ScrollShadowRoot>
 
               {/* ── Right: the picked design, large, with its name, details and tags ── */}
               <div className="flex-1 min-w-0 flex flex-col gap-3 pt-1">
