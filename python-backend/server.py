@@ -6496,6 +6496,12 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 .prog-track,.prog-fill{position:absolute;top:0;height:100%}
 .prog-track{left:0;right:0}
 .prog-fill{left:0;width:0;transition:width .8s linear}
+.prog-fx{position:absolute;top:0;bottom:0;pointer-events:none}
+@keyframes ovl-cane{from{background-position:0 0}to{background-position:16px 0}}
+@keyframes ovl-glint{0%,60%{left:-35%}100%{left:110%}}
+@keyframes ovl-comet{from{left:-35%}to{left:100%}}
+@keyframes ovl-breathe{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ovl-hue{to{filter:hue-rotate(360deg)}}
 </style></head>
 <body>
 <div id="stage"><div id="border"></div><div id="bg"></div><div id="blur"></div><div id="layers"></div><div id="layers-free"></div></div>
@@ -6605,12 +6611,132 @@ function buildText(el,L,rec){
   rec.span=span;rec.inner=inner;
 }
 
+// Progress bars. One builder per look; each leaves rec.set(pct) behind for renderData, and an
+// effect (progressAnim) is laid over the filled part where that look has one.
+const ovlDiv=(cls)=>{const d=document.createElement('div');if(cls)d.className=cls;return d;};
+function progressFx(fill,s,fillCol){
+  const fx=s.progressAnim||'none';
+  if(fx==='cane'){
+    fill.style.backgroundImage='linear-gradient(45deg,rgba(255,255,255,.45) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.45) 50%,rgba(255,255,255,.45) 75%,transparent 75%,transparent)';
+    fill.style.backgroundSize='16px 16px';
+    fill.style.animation=`ovl-cane ${(s.progressAnimSpeed||1)*0.9}s linear infinite`;
+  }else if(fx==='shimmer'||fx==='comet'){
+    fill.style.overflow='hidden';
+    const g=ovlDiv('prog-fx');g.style.width='35%';
+    g.style.background=fx==='shimmer'
+      ?'linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent)'
+      :'linear-gradient(90deg,transparent,rgba(255,255,255,.35) 60%,#fff)';
+    g.style.animation=fx==='shimmer'?`ovl-glint ${(s.progressAnimSpeed||1)*2.4}s ease-in-out infinite`:`ovl-comet ${(s.progressAnimSpeed||1)*1.6}s linear infinite`;
+    fill.appendChild(g);
+  }else if(fx==='breathe'){
+    fill.style.animation=`ovl-breathe ${(s.progressAnimSpeed||1)*2.2}s ease-in-out infinite`;
+  }else if(fx==='rainbow'){
+    fill.style.backgroundImage='linear-gradient(90deg,#ff5f6d,#ffc371,#7cff6b,#4fc3f7,#b388ff)';
+    fill.style.animation=`ovl-hue ${(s.progressAnimSpeed||1)*4}s linear infinite`;
+  }
+}
 function buildProgress(el,L,rec){
-  const s=L.style||{};
-  el.style.clipPath=`path('${cornerPath(L.w||0,L.h||0,s.corners,0,0)}')`;
-  const track=document.createElement('div');track.className='prog-track';track.style.background=s.trackColor||'rgba(255,255,255,.12)';
-  const fill=document.createElement('div');fill.className='prog-fill';fill.style.background=rgba(s.fillColor||'#EEA8FF',(s.fillOpacity==null?100:s.fillOpacity)/100);
+  const s=L.style||{},kind=s.progressStyle||'bar',W=L.w||0,H=L.h||0;
+  const fillCol=rgba(s.fillColor||'#EEA8FF',(s.fillOpacity==null?100:s.fillOpacity)/100);
+  const trackCol=s.trackColor||'rgba(255,255,255,.12)';
+  rec.kind=kind;
+  if(kind==='segments'||kind==='dots'){
+    const n=Math.max(2,Math.min(60,Math.round(s.segCount||(kind==='dots'?16:10))));
+    const row=ovlDiv();row.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between';
+    if(kind==='segments')row.style.gap=(s.segGap==null?4:s.segGap)+'px';
+    const parts=[];
+    const dot=Math.max(2,Math.min(H,s.dotSize||Math.round(H*0.5)));
+    for(let i=0;i<n;i++){
+      const seg=ovlDiv();
+      if(kind==='segments'){seg.style.cssText=`flex:1;height:${H}px;border-radius:${H/2}px;background:${trackCol};position:relative;overflow:hidden`;}
+      else{seg.style.cssText=`width:${dot}px;height:${dot}px;border-radius:50%;background:${trackCol};position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s`;}
+      const f=ovlDiv();f.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:0;background:${fillCol};transition:width .8s linear`;
+      if(s.progressAnim==='breathe'||s.progressAnim==='rainbow'||s.progressAnim==='cane')progressFx(f,s,fillCol);
+      seg.appendChild(f);row.appendChild(seg);parts.push([seg,f]);
+    }
+    el.appendChild(row);
+    rec.set=(pct)=>{
+      const p=pct/100*n;
+      parts.forEach(([seg,f],i)=>{
+        if(kind==='segments')f.style.width=Math.max(0,Math.min(1,p-i))*100+'%';
+        else{
+          const on=i<Math.floor(p),cur=i===Math.min(n-1,Math.floor(p));
+          f.style.width=(on||cur)?'100%':'0';
+          seg.style.transform=cur?'scale(2)':'';
+          // The glow is a shadow, which sits outside the dot anyway; the dot keeps clipping its
+          // square fill to the circle.
+          seg.style.boxShadow=cur?`0 0 ${dot}px ${fillCol}`:'';
+        }
+      });
+    };
+    return;
+  }
+  if(kind==='wave'){
+    // Material 3 Expressive: the filled part is a flowing sine with round caps, flattening while
+    // paused; then a gap, the straight track, and a stop dot at the end.
+    const ns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(ns,'svg');svg.setAttribute('width',W);svg.setAttribute('height',H);svg.style.cssText='position:absolute;inset:0;overflow:visible';
+    const sw=Math.max(1,s.lineWidth||4);
+    const path=document.createElementNS(ns,'path');path.setAttribute('fill','none');path.setAttribute('stroke',fillCol);path.setAttribute('stroke-width',sw);path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');
+    const tr=document.createElementNS(ns,'line');tr.setAttribute('stroke',trackCol);tr.setAttribute('stroke-width',sw);tr.setAttribute('stroke-linecap','round');tr.setAttribute('y1',H/2);tr.setAttribute('y2',H/2);
+    const end=document.createElementNS(ns,'circle');end.setAttribute('cy',H/2);end.setAttribute('r',sw/2);end.setAttribute('fill',fillCol);end.setAttribute('cx',W-sw/2);
+    svg.appendChild(path);svg.appendChild(tr);svg.appendChild(end);el.appendChild(svg);
+    rec.wave={path,tr,W,H,sw,amp:0,shown:null,target:0,phase:0,
+      ampMax:(s.waveAmp==null?Math.max(1,(H-sw)/2):s.waveAmp),wl:Math.max(8,s.waveLength||36),speed:(s.waveSpeed==null?4:s.waveSpeed)};
+    rec.set=(pct)=>{rec.wave.target=pct;};
+    startWaves();
+    return;
+  }
+  // bar, knob, glow: a track and a fill; knob and glow are a centred rounded line.
+  const lw=kind==='bar'?H:Math.max(1,Math.min(H,s.lineWidth||(kind==='glow'?2:4)));
+  const top=(H-lw)/2;
+  if(kind==='bar')el.style.clipPath=`path('${cornerPath(W,H,s.corners,0,0)}')`;
+  const track=ovlDiv('prog-track');track.style.background=trackCol;
+  const fill=ovlDiv('prog-fill');fill.style.backgroundColor=fillCol;
+  if(kind!=='bar'){
+    [track,fill].forEach(d=>{d.style.top=top+'px';d.style.height=lw+'px';d.style.borderRadius=(lw/2)+'px';});
+  }
+  if(kind==='glow')fill.style.boxShadow=`0 0 ${s.glow==null?8:s.glow}px ${Math.max(1,lw/2)}px ${fillCol}`;
+  progressFx(fill,s,fillCol);
   el.appendChild(track);el.appendChild(fill);rec.fill=fill;
+  let head=null;
+  if(kind==='knob'||s.progressAnim==='pulse'){
+    const k=kind==='knob'?Math.max(lw,Math.min(H,s.knobSize||H)):Math.max(lw*2,6);
+    head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0;transition:left .8s linear`;
+    head.style.background=kind==='knob'?(s.knobColor||'#ffffff'):fillCol;
+    head.style.boxShadow=s.progressAnim==='pulse'?`0 0 ${k}px ${k/3}px ${fillCol}`:'0 1px 4px rgba(0,0,0,.45)';
+    if(s.progressAnim==='pulse')head.style.animation='ovl-breathe 1.2s ease-in-out infinite';
+    el.appendChild(head);
+  }
+  rec.set=(pct)=>{fill.style.width=pct+'%';if(head)head.style.left=pct+'%';};
+}
+
+// One clock for every wave on the page: eases the shown position toward the real one (the
+// stream only reports whole seconds), advances the phase while playing, and lets the
+// amplitude settle to zero on pause, the Material 3 behaviour.
+let waveRaf=0;
+function startWaves(){
+  if(waveRaf)return;
+  let last=performance.now();
+  const tick=(t)=>{
+    const dt=Math.min(0.05,(t-last)/1000);last=t;
+    let any=false;
+    for(const id in layerEls){
+      const w=layerEls[id].wave;if(!w)continue;any=true;
+      const playing=!!state.isPlaying;
+      w.amp+=((playing?w.ampMax:0)-w.amp)*Math.min(1,dt*6);
+      if(playing)w.phase+=dt*w.speed;
+      w.shown=w.shown==null?w.target:w.shown+(w.target-w.shown)*Math.min(1,dt*2);
+      const pad=w.sw/2,x0=pad,x1=pad+Math.max(0,Math.min(100,w.shown))/100*(w.W-2*pad),cy=w.H/2;
+      let d='';
+      for(let x=x0;x<=x1+0.01;x+=1.5){const y=cy+Math.sin((x-x0)/w.wl*2*Math.PI-w.phase)*w.amp;d+=(d?' L':'M')+x.toFixed(1)+' '+y.toFixed(2);}
+      w.path.setAttribute('d',d||`M${x0} ${cy}`);
+      const gap=w.sw*2,ts=Math.min(x1+gap,w.W-w.sw*2.5),te=Math.max(ts,w.W-w.sw*2.5);
+      w.tr.setAttribute('x1',ts);w.tr.setAttribute('x2',te);
+    }
+    waveRaf=any?requestAnimationFrame(tick):0;
+  };
+  waveRaf=requestAnimationFrame(tick);
 }
 
 function buildImage(el,L,rec){
@@ -6992,7 +7118,7 @@ function renderData(){
       }
     }else if(rec.type==='progress'){
       const pct=state.duration>0?(state.progress/state.duration*100):0;
-      rec.fill.style.width=Math.max(0,Math.min(100,pct))+'%';
+      if(rec.set)rec.set(Math.max(0,Math.min(100,pct)));
     }
   }
   applyAutoHide();

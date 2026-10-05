@@ -151,6 +151,8 @@ export function makeProgressLayer(over = {}) {
       trackColor: "rgba(255,255,255,0.12)",
       corners: uniformCorners(0, "r"),
       shape: "bar",               // bar | ring (ring = Phase 4)
+      progressStyle: "bar",       // bar | knob | glow | segments | dots | wave
+      progressAnim: "none",       // none | cane | shimmer | breathe | rainbow | comet | pulse
     },
     ...over,
   });

@@ -834,10 +834,47 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
     </Section>);
   }
   if (layer.type === "progress") {
-    return (<Section title={t("ovlStyle")}>
-      <ColorField label={t("ovlFill")} value={s.fillColor} onChange={(v) => setStyle(id, { fillColor: v })} opacity={s.fillOpacity ?? 100} onOpacity={(v) => setStyle(id, { fillOpacity: v })} />
-      <ColorField label={t("ovlTrackColor")} value={s.trackColor} onChange={(v) => setStyle(id, { trackColor: v })} />
-    </Section>);
+    const ps = s.progressStyle || "bar";
+    const anim = s.progressAnim || "none";
+    // Which effects a look can carry: the line looks take all of them; segments and dots only
+    // those that work on many small parts.
+    const animOpts = ["none", "cane", "shimmer", "breathe", "rainbow", "comet", "pulse"]
+      .filter((v) => ps === "wave" ? v === "none" : (ps === "segments" || ps === "dots") ? ["none", "cane", "breathe", "rainbow"].includes(v) : true)
+      .map((v) => ({ value: v, label: t("ovlProgAnim_" + v) }));
+    return (<>
+      <Section title={t("ovlStyle")}>
+        <SelectField label={t("ovlProgStyle")} value={ps} onChange={(v) => setStyle(id, { progressStyle: v })}
+          options={["bar", "knob", "glow", "segments", "dots", "wave"].map((v) => ({ value: v, label: t("ovlProgStyle_" + v) }))} />
+        <ColorField label={t("ovlFill")} value={s.fillColor} onChange={(v) => setStyle(id, { fillColor: v })} opacity={s.fillOpacity ?? 100} onOpacity={(v) => setStyle(id, { fillOpacity: v })} />
+        <ColorField label={t("ovlTrackColor")} value={s.trackColor} onChange={(v) => setStyle(id, { trackColor: v })} />
+        {(ps === "knob" || ps === "glow" || ps === "wave") && (
+          <NumField label={t("ovlProgLine")} value={s.lineWidth ?? (ps === "glow" ? 2 : 4)} min={1} max={40} onChange={(v) => setStyle(id, { lineWidth: v })} />
+        )}
+        {ps === "knob" && (<>
+          <NumField label={t("ovlProgKnobSize")} value={s.knobSize ?? layer.h} min={2} max={80} onChange={(v) => setStyle(id, { knobSize: v })} />
+          <ColorField label={t("ovlProgKnobColor")} value={s.knobColor || "#ffffff"} onChange={(v) => setStyle(id, { knobColor: v })} />
+        </>)}
+        {ps === "glow" && <NumField label={t("ovlProgGlow")} value={s.glow ?? 8} min={0} max={40} onChange={(v) => setStyle(id, { glow: v })} />}
+        {(ps === "segments" || ps === "dots") && (
+          <NumField label={ps === "dots" ? t("ovlProgDots") : t("ovlProgSegments")} value={s.segCount ?? (ps === "dots" ? 16 : 10)} min={2} max={60} onChange={(v) => setStyle(id, { segCount: v })} />
+        )}
+        {ps === "segments" && <NumField label={t("ovlProgGap")} value={s.segGap ?? 4} min={0} max={40} onChange={(v) => setStyle(id, { segGap: v })} />}
+        {ps === "dots" && <NumField label={t("ovlProgDotSize")} value={s.dotSize ?? Math.round(layer.h * 0.5)} min={2} max={40} onChange={(v) => setStyle(id, { dotSize: v })} />}
+        {ps === "wave" && (<>
+          <NumField label={t("ovlProgWaveAmp")} value={s.waveAmp ?? Math.max(1, Math.round((layer.h - (s.lineWidth ?? 4)) / 2))} min={0} max={40} onChange={(v) => setStyle(id, { waveAmp: v })} />
+          <NumField label={t("ovlProgWaveLength")} value={s.waveLength ?? 36} min={8} max={200} onChange={(v) => setStyle(id, { waveLength: v })} />
+          <NumField label={t("ovlSpeed")} value={s.waveSpeed ?? 4} min={0} max={20} step={0.5} onChange={(v) => setStyle(id, { waveSpeed: v })} />
+        </>)}
+      </Section>
+      {ps !== "wave" && (
+        <Section title={t("ovlProgAnim")}>
+          <SelectField value={animOpts.some((o) => o.value === anim) ? anim : "none"} options={animOpts} onChange={(v) => setStyle(id, { progressAnim: v })} />
+          {anim !== "none" && anim !== "pulse" && (
+            <NumField label={t("ovlProgAnimSpeed")} value={s.progressAnimSpeed ?? 1} min={0.2} max={5} step={0.1} onChange={(v) => setStyle(id, { progressAnimSpeed: v })} />
+          )}
+        </Section>
+      )}
+    </>);
   }
   if (layer.type === "image") {
     return (<Section title={t("ovlStyle")}>
