@@ -6589,6 +6589,14 @@ function buildText(el,L,rec){
   inner.style.fontSize=(s.fontSize||14)+'px';
   inner.style.fontWeight=s.fontWeight||400;
   inner.style.color=topFillColor(s,s.color||'#fff');
+  // Outline: the first visible stroke. "Outside" is a stroke twice as wide painted UNDER the
+  // fill, so only its outer half shows; text has no inside stroke to offer.
+  const tst=(Array.isArray(s.strokes)?s.strokes:[]).find(p=>p&&p.visible!==false);
+  if(tst){
+    const w=(s.strokeWeight==null?2:s.strokeWeight),out=(s.strokePosition||'outside')!=='center';
+    inner.style.webkitTextStroke=(out?w*2:w)+'px '+rgba(tst.color||'#000000',(tst.opacity==null?100:tst.opacity)/100);
+    inner.style.paintOrder=out?'stroke fill':'normal';
+  }
   inner.style.textAlign=s.align||'left';
   inner.style.letterSpacing=(s.letterSpacing||0)+'px';
   inner.style.lineHeight=s.lineHeight||1.3;
@@ -6929,9 +6937,19 @@ function applyMarquee(rec){
     const name='kf_'+L.id.replace(/[^a-z0-9_]/gi,'');
     let kf=document.getElementById(name);
     if(!kf){kf=document.createElement('style');kf.id=name;document.head.appendChild(kf);}
-    kf.textContent=`@keyframes ${name}{0%,${p1}%{transform:translateX(0)}${p2}%,100%{transform:translateX(${-overflow}px)}}`;
     inner.classList.add('scroll');
-    span.style.animation=`${name} ${total.toFixed(1)}s ease-in-out infinite`;
+    if((s.marqueeMode||'bounce')==='bounce'){
+      // Back and forth: a short rest at each end and an eased glide between them, so the text
+      // never jumps. The easing sits on the keyframes because each leg is its own movement.
+      const hold=1.2,tot=hold+scrollSec+hold+scrollSec;
+      const a=Math.round(hold/tot*1000)/10,b=Math.round((hold+scrollSec)/tot*1000)/10,c=Math.round((2*hold+scrollSec)/tot*1000)/10;
+      const ez='animation-timing-function:ease-in-out';
+      kf.textContent=`@keyframes ${name}{0%,${a}%{transform:translateX(0);${ez}}${b}%,${c}%{transform:translateX(${-overflow}px);${ez}}100%{transform:translateX(0)}}`;
+      span.style.animation=`${name} ${tot.toFixed(1)}s linear infinite`;
+    }else{
+      kf.textContent=`@keyframes ${name}{0%,${p1}%{transform:translateX(0)}${p2}%,100%{transform:translateX(${-overflow}px)}}`;
+      span.style.animation=`${name} ${total.toFixed(1)}s ease-in-out infinite`;
+    }
   }
 }
 

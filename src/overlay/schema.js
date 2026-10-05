@@ -131,6 +131,10 @@ export function makeTextLayer(over = {}) {
       maxLines: 1,
       marquee: false,
       marqueeSpeed: 80,
+      marqueeMode: "bounce",      // bounce = back and forth | loop = run through, then start over
+      strokes: [],                // outline (the first visible one is drawn)
+      strokeWeight: 2,
+      strokePosition: "outside",  // outside | center (text has no inside stroke)
     },
     ...over,
   });

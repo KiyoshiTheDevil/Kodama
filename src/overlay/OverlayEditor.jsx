@@ -506,14 +506,14 @@ function FillList({ t, fills, onChange }) {
 
 // Figma-style stroke list: multiple stroke paints (colour + opacity each) sharing a
 // single weight + position. Add via header "+", toggle/remove per row.
-function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPosition }) {
+function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPosition, positions, title }) {
   const list = Array.isArray(strokes) ? strokes : [];
   const set = (i, patch) => onChange(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const add = () => onChange([{ id: Math.random().toString(36).slice(2), color: "#ffffff", opacity: 100, visible: true }, ...list]);
   const ps = useContext(PropSelCtx);
   const remove = (i) => { onChange(list.filter((_, j) => j !== i)); ps?.select(null); };
   return (
-    <Section title={t("ovlStroke") || t("ovlBorder")} right={
+    <Section title={title || t("ovlStroke") || t("ovlBorder")} right={
       <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((s, i) => (
@@ -530,7 +530,7 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
       {list.length > 0 && (
         <div className="grid grid-cols-2 gap-2 items-end">
           <Field label={t("ovlStrokePosition") || "Position"}>
-            <SelectField value={position} options={STROKE_POS_OPTS(t)} onChange={onPosition} />
+            <SelectField value={position} options={STROKE_POS_OPTS(t).filter((o) => !positions || positions.includes(o.value))} onChange={onPosition} />
           </Field>
           <Field label={t("ovlStrokeWeight") || "Weight"}>
             <PillNum prefix={<OvlStrokeWeight size={12} />} ariaLabel={t("ovlStrokeWeight") || "Weight"} value={weight} min={0} max={40} step={0.5} onChange={onWeight} />
@@ -800,6 +800,12 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
         <SelectField label={t("ovlWeight")} value={String(s.fontWeight || 400)} options={WEIGHT_OPTS(t)} onChange={(v) => setStyle(id, { fontWeight: Number(v) })} />
       </Section>
       <FillList t={t} fills={s.fills} onChange={(fills) => setStyle(id, { fills })} />
+      {/* Outline: outside or centred; the browser cannot draw a stroke inside a glyph. */}
+      <StrokeList t={t} title={t("ovlTextOutline")} strokes={s.strokes} weight={s.strokeWeight ?? 2}
+        position={s.strokePosition === "center" ? "center" : "outside"} positions={["outside", "center"]}
+        onChange={(strokes) => setStyle(id, { strokes })}
+        onWeight={(v) => setStyle(id, { strokeWeight: v })}
+        onPosition={(v) => setStyle(id, { strokePosition: v })} />
       <Section title={t("ovlAlign")}>
         <div className="grid grid-cols-2 gap-1.5">
           <SelectField label={t("ovlAlign")} value={s.align || "left"} options={ALIGN_OPTS(t)} onChange={(v) => setStyle(id, { align: v })} />
@@ -813,6 +819,9 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
       </Section>
       <Section title={t("ovlMarquee")}>
         <SwitchField label={t("ovlMarquee")} checked={s.marquee} onChange={(v) => setStyle(id, { marquee: v })} />
+        {s.marquee && <SelectField label={t("ovlMarqueeMode")} value={s.marqueeMode || "bounce"}
+          options={[{ value: "bounce", label: t("ovlMarquee_bounce") }, { value: "loop", label: t("ovlMarquee_loop") }]}
+          onChange={(v) => setStyle(id, { marqueeMode: v })} />}
         {s.marquee && <NumField label={t("ovlSpeed")} value={s.marqueeSpeed ?? 80} min={10} max={300} step={10} onChange={(v) => setStyle(id, { marqueeSpeed: v })} />}
       </Section>
     </>);

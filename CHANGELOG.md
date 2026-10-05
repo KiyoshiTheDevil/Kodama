@@ -25,6 +25,7 @@ Changes:
 - Overlay editor: groups can have entrance and loop animations, with a stagger that brings their contents in one after another
 - Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
 - Overlay editor: new entrance animations: drive in from outside the canvas at an even speed, blur, pop, zoom out, flip, rotate, drop and reveal
+- Overlay editor: text can have an outline, and scrolling titles glide back and forth instead of jumping back
 - Overlay editor: an element library above the tool row: save a selection (Ctrl+Alt+K), sort it into folders and drag it onto the canvas again
 - Overlay editor: the element library, My Designs, the colour picker and the font picker share one look
 - Overlay editor: My Designs shows cards beside a large preview, in sections by date, and designs can be tagged and found by tag
