@@ -38,7 +38,7 @@ Changes:
 - Big Picture mode has been removed
 - Overlay editor: new experimental Shader layer with 13 animated presets, own colors or colors from the cover, optionally reacting to the music live
 - Overlay editor: any color can follow the cover of the current song (light, normal or dark), changing smoothly with each track
-- The store moved to the website: browse at kodama.kiyoshi.dev/store, "Open in Kodama" opens the entry in the app
+- The store moved to the website: browse at kodama.kiyoshi.dev/store, "Add to Kodama" installs themes and presets right away
 - The store window now lists what is installed, with updates and a way to the website
 - Overlay editor: My Designs links to more designs in the store
 

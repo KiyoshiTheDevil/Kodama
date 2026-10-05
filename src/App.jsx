@@ -28,6 +28,7 @@ import { allThemes } from "./themes.js";
 import { onThemesChanged, onThemeSelected } from "./store/sync.js";
 import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
+import { addFromLink } from "./store/link-install.js";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -4585,7 +4586,20 @@ export default function App() {
       const m = String(url || "").match(/^kodama:\/\/song\/([A-Za-z0-9_-]{6,})/i);
       if (m) { playByVideoId(m[1]); return; }
       const entry = parseStoreLink(url);
-      if (entry) openStoreWindow(entry);
+      if (entry) addFromLink(entry).then((r) => {
+        // Said in the app, since the click happened in the browser.
+        const tr = (k, v) => translate(localStorage.getItem("kiyoshi-lang") || "de", k, v);
+        const msg = {
+          installed: ["success", "storeLinkAdded"], updated: ["success", "storeLinkUpdated"],
+          already: ["info", "storeLinkAlready"], needsNewer: ["error", "storeLinkNeedsNewer"],
+          missing: ["error", "storeLinkMissingShort"], failed: ["error", "storeLinkFailed"],
+        }[r.status];
+        if (!msg) return;
+        const text = tr(msg[1], { title: r.title || "", min: r.min || "" });
+        if (msg[0] === "success") toast.success(text, { timeout: 4000 });
+        else if (msg[0] === "error") toast.danger(text, { timeout: 6000 });
+        else toast(text, { timeout: 4000 });
+      }).catch(() => {});
     };
     (async () => {
       try {

@@ -5,9 +5,10 @@
 //      store/?c=themes   one category, as a grid with the selected entry beside it
 //      store/?c=themes&id=grove, store/?id=grove, store/?q=dark
 //
-// "Open in Kodama" is a kodama://store/<kind>/<id> link. It carries nothing but the id: the app
+// "Add to Kodama" is a kodama://store/<kind>/<id> link. It carries nothing but the id: the app
 // looks the entry up in the same official catalogue, so a link can never bring in anything that
-// is not published there.
+// is not published there. Themes and presets install at once; an extension opens its page in the
+// app first, so its permissions are seen before it is installed.
 import { drawSpectrum } from "./vendor/viz-draw.js";
 import { VIZ_DEFAULTS } from "./vendor/viz-defaults.js";
 
@@ -205,7 +206,7 @@ function detail(e) {
     <div class="big">${previewHtml(e)}</div>
     <div class="row">
       <div><h2>${esc(e.title)}</h2><div class="by">${esc(K.one)}${(e.creators || []).length ? " by " + esc(e.creators.join(", ")) : ""}</div></div>
-      <a class="btn primary small" id="open" href="kodama://store/${e._kind}/${encodeURIComponent(e.id)}">Open in Kodama</a>
+      <a class="btn primary small" id="open" href="kodama://store/${e._kind}/${encodeURIComponent(e.id)}">Add to Kodama</a>
     </div>
     ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ""}
     ${(e.tags || []).length ? `<div class="tags">${e.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
