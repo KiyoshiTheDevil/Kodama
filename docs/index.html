@@ -6,22 +6,22 @@
   <title>Kodama: A desktop player for YouTube Music</title>
   <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/spirit.js"></script>
 </head>
 <body>
-  <canvas class="hero-viz" aria-hidden="true"></canvas>
   <div class="wrap">
-    <header>
-      <img src="s/Kodama-Logo-Full.svg" alt="Kodama">
+    <header class="top">
+      <a class="logo" href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
       <div class="hdr-right">
         <span class="hstats" id="stats" hidden>
           <span id="statMauBox"><b id="statMau">–</b> active this month</span>
           <span id="statSep">·</span>
           <span id="statDlBox"><b id="statDl">–</b> downloads</span>
         </span>
-        <nav>
+        <nav class="links">
+          <a href="store/">Store</a>
           <a href="versions.html">Changelog</a>
           <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
           <span class="ai-notice" tabindex="0">
             AI notice
             <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
@@ -30,53 +30,70 @@
       </div>
     </header>
 
-    <div class="hero">
-      <p class="tagline">A desktop player for <b>YouTube Music</b><br>Synced lyrics, personalization, and more.</p>
-      <div class="device">
-        <!-- WebP first (204 KB against the PNG's 1.5 MB, indistinguishable at 3x on the
-             sidebar text), PNG kept as the fallback. -->
-        <picture>
-          <source srcset="shots/home.webp" type="image/webp">
-          <img class="shot" src="shots/home.png" alt="Kodama — Home view" width="1920" height="1048" loading="eager">
-        </picture>
+    <section class="hero">
+      <div>
+        <h1>A desktop player for <span class="grad">YouTube Music</span></h1>
+        <p class="tagline">Synced lyrics, personalization, and more.</p>
+        <div class="cta">
+          <a class="btn primary" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Download Kodama</a>
+          <a class="btn secondary" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <div class="dl-version" id="dlVersion"></div>
+        <div class="platforms">Windows &amp; macOS · Free · Open alpha</div>
       </div>
-    </div>
-  </div>
+      <div class="stage">
+        <svg class="trees" viewBox="0 0 600 220" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+          <g fill="#17301f"><rect x="58" y="120" width="10" height="100" rx="4"/><circle cx="63" cy="105" r="42"/><circle cx="40" cy="132" r="28"/><circle cx="88" cy="130" r="30"/>
+          <rect x="520" y="70" width="12" height="150" rx="5"/><circle cx="526" cy="62" r="52"/><circle cx="494" cy="100" r="34"/><circle cx="560" cy="98" r="36"/></g>
+          <g fill="#132719"><rect x="140" y="150" width="8" height="70" rx="3"/><circle cx="144" cy="140" r="30"/><rect x="440" y="140" width="8" height="80" rx="3"/><circle cx="444" cy="128" r="34"/></g>
+        </svg>
+        <div class="device">
+          <picture>
+            <source srcset="shots/home.webp" type="image/webp">
+            <img class="shot" src="shots/home.png" alt="Kodama, home view" width="1920" height="1048" loading="eager">
+          </picture>
+        </div>
+        <kodama-spirit class="hero-spirit" pose="listen" size="118" follow></kodama-spirit>
+      </div>
+    </section>
 
-  <div class="wrap below">
-    <div class="dl-version" id="dlVersion"></div>
-    <div class="cta">
-      <a class="btn primary" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Download Kodama</a>
-      <a class="btn secondary" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">View on GitHub</a>
-    </div>
-    <div class="platforms">Windows &amp; macOS · Free · Open alpha</div>
-  </div>
+    <section class="section">
+      <h2>Look! Features!</h2>
+      <p class="sub">A full-screen now-playing view with a real-time audio visualizer and word-synced lyrics, romaji and translations included.</p>
+      <div class="showcase">
+        <video class="scv" autoplay muted loop playsinline poster="shots/loop-poster.jpg" aria-label="Kodama, audio visualizer in motion">
+          <source src="shots/loop.mp4" type="video/mp4">
+        </video>
+        <img class="scv-static" src="shots/loop-poster.jpg" alt="Kodama, audio visualizer">
+      </div>
+      <a class="song-credit" href="https://kodama.kiyoshi.dev/s/?cENYLTXTOQ4"><b>最低界隈 - Saitei Kaiwai</b> by <b>tuki.</b></a>
 
-  <section class="wrap section">
-    <h2>Look! Features!</h2>
-    <p class="sub">A full-screen now-playing view with a real-time audio visualizer and word-synced lyrics — romaji and translations included.</p>
-    <div class="showcase">
-      <video class="scv" autoplay muted loop playsinline poster="shots/loop-poster.jpg" aria-label="Kodama — audio visualizer in motion">
-        <source src="shots/loop.mp4" type="video/mp4">
-      </video>
-      <img class="scv-static" src="shots/loop-poster.jpg" alt="Kodama — audio visualizer">
-    </div>
-    <spacer style="display:block; height:20px;"></spacer>
-    <a class="sub" href="https://kodama.kiyoshi.dev/s/?cENYLTXTOQ4"><b>最低界隈 - Saitei Kaiwai</b> by <b>tuki.</b></a>
-    <div class="feat-grid">
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm3 4v2h10V7H7zm0 4v2h7v-2H7z"/></svg></span><h3>Synced lyrics</h3><p>Line, Word- and syllable-level synchronized lyrics, with translations and romaji for Japanese songs</p></div>
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="10" width="3" height="10" rx="1.2"/><rect x="8.5" y="5" width="3" height="15" rx="1.2"/><rect x="14" y="8" width="3" height="12" rx="1.2"/><rect x="19.5" y="3" width="3" height="17" rx="1.2"/></svg></span><h3>Audio visualizer</h3><p>A reactive, fully customizable visualizer with savable presets.</p></div>
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-7v2h3v2H8v-2h3v-2H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg></span><h3>Overlay for OBS</h3><p>A dedicated widget to put your now-playing track on stream.</p></div>
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span><h3>Remote control</h3><p>Control playback from your phone over your local network.</p></div>
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.9-.5-1.25-.3-.35-.5-.8-.5-1.25 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 22 9.8 9 9 0 0 0 12 3zM6.5 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm2.7-4.2a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5.6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></span><h3>Personalization</h3><p>Dynamic accent colors drawn from the cover art, themes, and swappable app icons.</p></div>
-      <div class="feat"><span class="feat-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/></svg></span><h3>And even more stuff!</h3><p>Offline downloads, Discord Rich Presence, and Last.fm scrobbling.</p></div>
-    </div>
-  </section>
+      <div class="bento">
+        <div class="tile wide lyrics"><h3>Synced lyrics</h3><p>Line, Word- and syllable-level synchronized lyrics, with translations and romaji for Japanese songs</p>
+          <span class="bubble">♪ la la</span><kodama-spirit pose="happy" size="62"></kodama-spirit></div>
+        <div class="tile"><h3>Audio visualizer</h3><p>A reactive, fully customizable visualizer with savable presets.</p></div>
+        <div class="tile tall obs"><h3>Overlay for OBS</h3><p>A dedicated widget to put your now-playing track on stream.</p>
+          <span class="peekbox"><kodama-spirit pose="peek" size="54"></kodama-spirit></span>
+          <div class="mini-widget"><i></i><span>最低界隈<small>tuki.</small></span></div></div>
+        <div class="tile"><h3>Remote control</h3><p>Control playback from your phone over your local network.</p></div>
+        <div class="tile"><h3>Personalization</h3><p>Dynamic accent colors drawn from the cover art, themes, and swappable app icons.</p></div>
+        <div class="tile"><h3>And even more stuff!</h3><p>Offline downloads, Discord Rich Presence, and Last.fm scrobbling.</p>
+          <kodama-spirit pose="sleep" size="58"></kodama-spirit></div>
+      </div>
+
+      <a class="store-teaser" href="store/">
+        <kodama-spirit pose="idle" size="64" follow></kodama-spirit>
+        <div><h3>Store</h3><p>Themes, visualizer and equalizer presets, overlay designs and extensions.</p></div>
+        <span class="btn secondary small">Open the store</span>
+      </a>
+    </section>
+  </div>
 
   <footer>
     <div class="wrap">
       <span>Kodama, an independent project. Not affiliated with YouTube or Google.</span>
-      <span>
+      <span class="flinks">
+        <a href="store/">Store</a>
         <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
         <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
         <a href="terms.html">Terms</a>
@@ -84,52 +101,6 @@
       </span>
     </div>
   </footer>
-  <script>
-  (function(){
-    var c = document.querySelector('.hero-viz');
-    if (!c) return;
-    var ctx = c.getContext('2d');
-    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var W, H, dpr, bars, accent, dev;
-    function resize(){
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      W = c.clientWidth; H = c.clientHeight;
-      c.width = W * dpr; c.height = H * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      bars = Math.max(24, Math.floor(W / 16));
-      accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e040fb';
-      dev = document.querySelector('.device');
-    }
-    function bar(x, y, w, h, r){
-      if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
-      else { ctx.fillRect(x, y, w, h); }
-    }
-    function frame(t){
-      ctx.clearRect(0, 0, W, H);
-      // Centre the mirrored bars on the hero image's vertical middle.
-      var r = dev && dev.getBoundingClientRect();
-      var cy = r ? (r.top + (window.scrollY || window.pageYOffset || 0) + r.height / 2) : H * 0.5;
-      var gap = W / bars, bw = Math.max(2.5, gap * 0.44);
-      ctx.fillStyle = accent;              // follows the page's --accent
-      for (var i = 0; i < bars; i++){
-        var n = i / (bars - 1);              // 0..1 across the width
-        var edge = Math.sin(Math.PI * n);    // taper to 0 at both ends
-        var s = Math.sin(n*7 + t*0.0016) * 0.5
-              + Math.sin(n*13 - t*0.0011) * 0.3
-              + Math.sin(n*3.3 + t*0.0024) * 0.2;
-        var h = (0.10 + 0.52 * Math.abs(s)) * edge * H * 0.42;
-        ctx.globalAlpha = 0.05 + 0.17 * edge;  // fainter at the edges
-        var x = i * gap + gap / 2;
-        bar(x - bw/2, cy - h, bw, h * 2, bw/2);
-      }
-      ctx.globalAlpha = 1;
-      if (!reduce) requestAnimationFrame(frame);
-    }
-    resize();
-    window.addEventListener('resize', function(){ resize(); if (reduce) frame(0); });
-    frame(0); // initial synchronous draw; frame() self-schedules the RAF loop when animated
-  })();
-  </script>
   <script>
   (function(){
     var STATS_URL = 'https://kodama-stats.kiyoshidesign.workers.dev';

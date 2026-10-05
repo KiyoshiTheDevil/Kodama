@@ -9,13 +9,19 @@
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <a href="index.html"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
-      <nav>
-        <a href="index.html">Home</a>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-        <a href="privacy.html">Privacy</a>
-      </nav>
+    <header class="top">
+      <a class="logo" href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
+      <div class="hdr-right">
+        <nav class="links">
+          <a href="store/">Store</a>
+          <a href="versions.html">Changelog</a>
+          <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+          <span class="ai-notice" tabindex="0">
+            AI notice
+            <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
+          </span>
+        </nav>
+      </div>
     </header>
 
     <div class="vhead">
@@ -67,9 +73,11 @@
 
   <footer>
     <div class="wrap">
-      <span>Kodama, an independent project. Not affiliated with YouTube, Google or Discord.</span>
-      <span>
-        <a href="index.html">Home</a>
+      <span>Kodama, an independent project. Not affiliated with YouTube or Google.</span>
+      <span class="flinks">
+        <a href="./">Home</a>
+        <a href="store/">Store</a>
+        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
         <a href="terms.html">Terms</a>
         <a href="privacy.html">Privacy</a>
       </span>
