@@ -79,6 +79,15 @@ class KodamaSpirit extends HTMLElement {
 <g class="look"><g class="${eyeKind === "open" ? "blink" : ""}">${eyes(eyeKind)}</g></g>${hp}</g>${extra}</svg>`;
     this._look = this.shadowRoot.querySelector(".look");
   }
+  /** A short happy hop, then back to whatever it was doing. Peeking and listening spirits stay put:
+   *  a hop would leave the box one peeks from, and a listener is already moving. */
+  cheer() {
+    const pose = this.getAttribute("pose") || "idle";
+    if (this._cheering || pose === "peek" || pose === "listen") return;
+    this._cheering = true;
+    this.setAttribute("pose", "happy");
+    setTimeout(() => { this.setAttribute("pose", pose); this._cheering = false; }, 1100);
+  }
   _aim(x, y) {
     if (!this._look) return;
     const r = this.getBoundingClientRect();

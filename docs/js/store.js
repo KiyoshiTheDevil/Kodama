@@ -63,7 +63,9 @@ function go(p, push = true) {
   for (const [k, v] of Object.entries(p)) if (v) q.set(k, v);
   const url = location.pathname + (q.toString() ? "?" + q : "");
   if (push) history.pushState(null, "", url); else history.replaceState(null, "", url);
-  render();
+  // A step to another view (category, back) slides like a page change; typing a search does not.
+  if (push && document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(render);
+  else render();
 }
 window.addEventListener("popstate", render);
 
@@ -232,12 +234,37 @@ function browse(kind, id, q) {
         : `<kodama-spirit pose="sleep" size="76"></kodama-spirit><p>Nothing here yet.</p>`}</div>`
     : `<div class="browse"><div class="grid">${list.map((e) => card(e, e === sel)).join("")}</div>${detail(sel)}</div>`;
   app.innerHTML = `<a class="back" href="./">← All categories</a>${chips}${body}`;
+  // The cards come in one after another.
+  app.querySelectorAll(".card").forEach((c, i) => { c.classList.add("enter"); c.style.animationDelay = `${Math.min(i, 12) * 0.045}s`; });
   $(".back", app).addEventListener("click", (ev) => { ev.preventDefault(); go({}); });
   app.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => go({ c: b.dataset.c, q })));
   app.querySelectorAll(".card").forEach((b) => b.addEventListener("click", () => {
-    go({ c: kind, q, id: b.dataset.id }, false);
+    select(b.dataset.id, kind, q);
     if (innerWidth < 900) $(".detail", app).scrollIntoView({ behavior: "smooth", block: "start" });
   }));
+  wireOpen();
+  paintCanvases();
+}
+
+// Picking another card swaps only the detail, which fades in; the grid stays as it is.
+function select(id, kind, q) {
+  const e = all().find((x) => x.id === id);
+  const old = $(".detail", app);
+  if (!e || !old) return;
+  const p = new URLSearchParams();
+  if (kind) p.set("c", kind); if (q) p.set("q", q); p.set("id", id);
+  history.replaceState(null, "", location.pathname + "?" + p);
+  app.querySelectorAll(".card").forEach((c) => c.classList.toggle("on", c.dataset.id === id));
+  const tmp = document.createElement("div");
+  tmp.innerHTML = detail(e);
+  const nd = tmp.firstElementChild;
+  nd.classList.add("swap-in");
+  old.replaceWith(nd);
+  wireOpen();
+  paintCanvases();
+}
+
+function wireOpen() {
   const open = $("#open", app);
   if (open) open.addEventListener("click", () => {
     // A registered app takes the focus away from the page. If the page keeps it, there is most
@@ -247,7 +274,6 @@ function browse(kind, id, q) {
     window.addEventListener("blur", onBlur, { once: true });
     setTimeout(() => { window.removeEventListener("blur", onBlur); if (!left) $("#hint", app).hidden = false; }, 1600);
   });
-  paintCanvases();
 }
 
 function render() {
