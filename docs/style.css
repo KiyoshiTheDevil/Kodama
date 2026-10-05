@@ -268,3 +268,14 @@ header.top { view-transition-name:site-header; }
   .card.enter, .cat.enter, .detail.swap-in { animation:none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation:none !important; }
 }
+
+/* ── Scrollbar (js/site.js) ─────────────────────────────────────────── */
+/* The native bar is hidden only once ours is there (mouse devices with the script running). */
+html.own-scrollbar { scrollbar-width:none; }
+html.own-scrollbar::-webkit-scrollbar { display:none; }
+.sbar { position:fixed; top:6px; right:3px; bottom:6px; width:14px; z-index:100; opacity:0; transition:opacity .35s; view-transition-name:site-scrollbar; }
+.sbar.on, .sbar.drag { opacity:1; }
+.sbar.off { display:none; }
+.sbar-thumb { position:absolute; top:0; right:3px; width:6px; border-radius:99px; background:rgba(234,245,236,.28); transition:width .15s, background .15s; cursor:default; }
+.sbar:hover .sbar-thumb, .sbar.drag .sbar-thumb { width:10px; background:rgba(155,227,109,.6); }
+.sbar.drag .sbar-thumb { background:var(--accent); }
