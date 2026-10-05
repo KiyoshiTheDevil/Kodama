@@ -1,5 +1,5 @@
 use rodio::Source;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 
@@ -9,6 +9,12 @@ use tauri::Emitter;
 /// WebView still had to parse every message, which competed with frame delivery and made CSS
 /// animations visibly stutter. The frontend refcounts its visualizers and flips this.
 static LEVELS_WANTED: AtomicBool = AtomicBool::new(false);
+
+/// The UDP port on which the backend takes levels for the OBS overlay, or 0 while no overlay
+/// is listening. Kept apart from LEVELS_WANTED: the overlay gets its levels straight from here
+/// over the loopback, never through the WebView, so a music-reactive overlay costs the UI
+/// nothing. Asked of the backend once a second (see the demand thread).
+static OVERLAY_LEVELS_PORT: AtomicU16 = AtomicU16::new(0);
 
 use super::analyzer;
 use super::decoder::StreamingSource;
@@ -187,6 +193,25 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
     let current_analysis: Arc<Mutex<Option<Arc<analyzer::AnalysisBuffer>>>> =
         Arc::new(Mutex::new(None));
 
+    // ── Overlay demand: is an overlay (OBS or the editor preview) listening for levels? ──
+    // The backend knows, since the overlay page connects to it; one small request a second.
+    std::thread::spawn(|| {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_millis(800))
+            .build()
+            .ok();
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            let port = client
+                .as_ref()
+                .and_then(|c| c.get("http://127.0.0.1:9847/overlay/levels/demand").send().ok())
+                .and_then(|r| r.json::<serde_json::Value>().ok())
+                .and_then(|v| v.get("port").and_then(|p| p.as_u64()))
+                .unwrap_or(0);
+            OVERLAY_LEVELS_PORT.store(u16::try_from(port).unwrap_or(0), Ordering::Relaxed);
+        }
+    });
+
     // ── Visualizer analysis thread: snapshot → FFT → bands, emit ~30fps ──
     {
         let app = app.clone();
@@ -197,10 +222,24 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             let mut bands = [0.0f32; analyzer::NUM_BANDS];
             let mut last_written = 0usize;
             let mut idle_zeros = 0u32;
+            let udp = std::net::UdpSocket::bind("127.0.0.1:0").ok();
+            // One frame to whoever wants it: the UI as an event, the overlay as a datagram.
+            let send = |msg: serde_json::Value, ui: bool, port: u16| {
+                if port != 0 {
+                    if let Some(sock) = &udp {
+                        let _ = sock.send_to(msg.to_string().as_bytes(), ("127.0.0.1", port));
+                    }
+                }
+                if ui {
+                    let _ = app.emit("audio-levels", msg);
+                }
+            };
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(33));
+                let ui = LEVELS_WANTED.load(Ordering::Relaxed);
+                let port = OVERLAY_LEVELS_PORT.load(Ordering::Relaxed);
                 // Nobody is drawing the spectrum — skip the FFT and the emit entirely.
-                if !LEVELS_WANTED.load(Ordering::Relaxed) {
+                if !ui && port == 0 {
                     continue;
                 }
                 let buf = { cur.lock().unwrap().clone() };
@@ -218,9 +257,10 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     bands.copy_from_slice(&raw); // keep last frame for the decay path
                     idle_zeros = 0;
                     let payload: Vec<f32> = raw.iter().map(|b| (b * 1000.0).round() / 1000.0).collect();
-                    let _ = app.emit(
-                        "audio-levels",
+                    send(
                         serde_json::json!({ "bands": payload, "level": (level * 1000.0).round() / 1000.0 }),
+                        ui,
+                        port,
                     );
                 } else {
                     // Paused / nothing playing → decay toward zero, then stop emitting.
@@ -231,7 +271,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     if any || idle_zeros < 2 {
                         if !any { idle_zeros += 1; }
                         let payload: Vec<f32> = bands.iter().map(|b| (b * 1000.0).round() / 1000.0).collect();
-                        let _ = app.emit("audio-levels", serde_json::json!({ "bands": payload, "level": 0.0 }));
+                        send(serde_json::json!({ "bands": payload, "level": 0.0 }), ui, port);
                     }
                 }
             }

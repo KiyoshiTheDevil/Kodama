@@ -551,7 +551,7 @@ class _RingBufferHandler(_logging.Handler):
 # second /overlay/push alone filled 81% of the ring — leaving bug reports with two minutes of
 # it and nothing else. Dropped from the ring only; real log records are unaffected.
 _NOISY_PATHS = (
-    "/overlay/push", "/overlay/state", "/status", "/imgproxy",
+    "/overlay/push", "/overlay/state", "/overlay/levels/demand", "/status", "/imgproxy",
     "/remote/_sync", "/remote/_poll", "/remote/_status",
 )
 
@@ -6871,6 +6871,8 @@ function startWaves(){
 // step, and a new context each time would soon pass the browser's limit and lose the oldest.
 const SHADER_HEAD=`precision mediump float;
 uniform vec2 uR;uniform float uS;uniform float t;uniform vec3 c1,c2,c3;
+uniform sampler2D uBands;uniform float uAudio,uPulse;
+float band(float x){return texture2D(uBands,vec2(clamp(x,0.,1.),.5)).x;}
 #define r (uR/uS)
 #define FC (gl_FragCoord.xy/uS)
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -6891,10 +6893,39 @@ const SHADER_SRC={
   halftone:`void main(){vec2 u=FC/r;float g=fbm(u*2.5+vec2(t*.15,-t*.1));vec3 base=pal3(g*1.2+t*.05);vec2 cell=FC/7.;vec2 f=fract(cell)-.5;float rad=.15+.4*g;float dot1=smoothstep(rad,rad-.08,length(f));gl_FragColor=vec4(mix(base*.15,base,dot1),1.);}`,
   retro:`void main(){vec2 u=FC/r;vec3 col=mix(c2*.25,vec3(.02),u.y);float hz=.45;if(u.y<hz){float z=hz/(hz-u.y+.001);float x=(u.x-.5)*z;float gx=abs(fract(x*2.)-.5),gz=abs(fract(z*.6-t*.8)-.5);float g=max(smoothstep(.04*z,.0,gx),smoothstep(.05*z,.0,gz));col=mix(vec3(.02,0.,.05),c1,g*smoothstep(0.,.25,hz-u.y+.02)*1.2);}else{float sun=smoothstep(.22,.21,length((u-vec2(.5,.62))*vec2(r.x/r.y,1.)));float stripes=step(.5,fract(u.y*28.));col=mix(col,mix(c3,c2,(u.y-.45)*3.),sun*mix(1.,stripes,smoothstep(.62,.5,u.y)));}col+=c1*.4*smoothstep(.02,0.,abs(u.y-hz));gl_FragColor=vec4(col,1.);}`,
   matrix:`void main(){vec2 u=FC/r;float N=r.x/7.;float i=floor(u.x*N);float sp=.4+h(vec2(i,1.))*.8;float y=fract(u.y+t*sp*.4+h(vec2(i,2.)));float trail=pow(y,6.);float cell=step(.3,h(vec2(i,floor(u.y*r.y/9.)+floor(t*6.*sp))));vec3 col=mix(c1,c3,trail)*trail*(.4+.6*cell)+vec3(1.)*pow(y,60.)*.8;gl_FragColor=vec4(col,1.);}`,
-  equalizer:`void main(){vec2 u=FC/r;float N=24.;float i=floor(u.x*N);float f=fract(u.x*N);float lv=.15+.75*n(vec2(i*.7,t*2.5))*(.6+.4*sin(t*3.+i*.4));float bar=step(.12,f)*step(f,.88)*step(u.y,lv);float seg=step(.25,fract(u.y*18.));vec3 col=mix(mix(c1,c2,u.y/max(lv,.01)),c3,step(lv-.04,u.y))*bar*seg;col+=c1*.05;gl_FragColor=vec4(col,1.);}`,
+  equalizer:`void main(){vec2 u=FC/r;float N=24.;float i=floor(u.x*N);float f=fract(u.x*N);float lv=mix(.15+.75*n(vec2(i*.7,t*2.5))*(.6+.4*sin(t*3.+i*.4)),.04+.94*band((i+.5)/N),uAudio);float bar=step(.12,f)*step(f,.88)*step(u.y,lv);float seg=step(.25,fract(u.y*18.));vec3 col=mix(mix(c1,c2,u.y/max(lv,.01)),c3,step(lv-.04,u.y))*bar*seg;col+=c1*.05;gl_FragColor=vec4(col,1.);}`,
   glitch:`void main(){vec2 u=FC/r;float tk=floor(t*8.);float band=step(.85,h(vec2(floor(u.y*14.),tk)));float sh=band*(h(vec2(tk,floor(u.y*14.)))-.5)*.15;float g=fbm(vec2(u.x*2.+t*.2,u.y*3.));vec3 col=vec3(pal3(g+u.x*.5+sh+.02).x,pal3(g+u.x*.5+sh).y,pal3(g+u.x*.5+sh-.02).z);col*=.75+.25*sin(FC.y*1.6);col+=(h(u*r+t)-.5)*.12;col*=1.-band*.2*h(vec2(tk));gl_FragColor=vec4(col*.85,1.);}`
 };
 const SHADER_DEF_COLORS=['#7c4dff','#e040fb','#00e5ff'];
+// Live audio levels from the player (48 bands, 0..1). Only connected while the design has a
+// shader that uses them, so a plain overlay never makes the player run its analysis.
+const audio={bands:new Float32Array(48),level:0,shown:new Float32Array(48),tex:new Uint8Array(48),fast:0,slow:0,live:0,ts:0,es:null};
+function wantsAudio(dc){
+  return !!(dc&&(dc.layers||[]).some((L)=>L.type==='shader'&&L.visible!==false&&((L.style||{}).preset==='equalizer'||(L.style||{}).reactive)));
+}
+function syncAudioStream(){
+  const want=!STILL&&wantsAudio(doc);
+  if(want&&!audio.es){
+    const es=new EventSource(API+'/overlay/levels');
+    es.onmessage=(e)=>{try{const d=JSON.parse(e.data),b=d.bands||[];for(let i=0;i<48;i++)audio.bands[i]=+b[i]||0;audio.level=+d.level||0;audio.ts=performance.now();}catch(_){}};
+    audio.es=es;
+  }else if(!want&&audio.es){audio.es.close();audio.es=null;audio.bands.fill(0);audio.level=0;}
+}
+// Once per frame: the 30 fps stream eased to the frame rate (fast up, slower down, like a
+// meter), and a beat value: how far the current level is above its own recent average.
+function stepAudio(dt){
+  const fresh=audio.es&&performance.now()-audio.ts<1500;
+  audio.live+=((fresh?1:0)-audio.live)*Math.min(1,dt*3);
+  const up=1-Math.exp(-dt*30),down=1-Math.exp(-dt*8);
+  for(let i=0;i<48;i++){
+    const want=fresh?audio.bands[i]:0,v=audio.shown[i];
+    audio.shown[i]=v+(want-v)*(want>v?up:down);
+    audio.tex[i]=Math.max(0,Math.min(255,Math.round(audio.shown[i]*255)));
+  }
+  const lv=fresh?audio.level:0;
+  audio.fast+=(lv-audio.fast)*(1-Math.exp(-dt*(lv>audio.fast?25:6)));
+  audio.slow+=(lv-audio.slow)*(1-Math.exp(-dt*1.2));
+}
 const shaderCache={}; // layer id -> {cv, gl, preset, u, t, cur}
 let shaderRaf=0,shaderRate=1,coverPal=null,coverPalSrc='';
 function hexRgb(c){
@@ -6916,7 +6947,8 @@ function shaderGL(id,preset){
   const gl=cv.getContext('webgl',{antialias:false,preserveDrawingBuffer:STILL});
   if(!gl)return null;
   const sh=(ty,src)=>{const o=gl.createShader(ty);gl.shaderSource(o,src);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;};
-  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,SHADER_HEAD+SHADER_SRC[preset]);
+  const body=SHADER_SRC[preset].replace('void main(){','void main0(){')+'void main(){main0();gl_FragColor.rgb*=1.+uPulse*.6;}';
+  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,SHADER_HEAD+body);
   if(!vs||!fs)return null;
   const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);
   if(!gl.getProgramParameter(p,gl.LINK_STATUS))return null;
@@ -6924,7 +6956,14 @@ function shaderGL(id,preset){
   const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
   const loc=gl.getAttribLocation(p,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
   const U=(k)=>gl.getUniformLocation(p,k);
-  c={cv,gl,preset,u:{R:U('uR'),S:U('uS'),t:U('t'),c1:U('c1'),c2:U('c2'),c3:U('c3')},t:keepT,cur:keepCur};
+  // The bands as a 48x1 texture: a shader can read any band, between two bands too.
+  const tx=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tx);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.LUMINANCE,48,1,0,gl.LUMINANCE,gl.UNSIGNED_BYTE,audio.tex);
+  gl.uniform1i(U('uBands'),0);
+  c={cv,gl,preset,u:{R:U('uR'),S:U('uS'),t:U('t'),c1:U('c1'),c2:U('c2'),c3:U('c3'),A:U('uAudio'),P:U('uPulse')},t:keepT,cur:keepCur};
   cv.addEventListener('webglcontextlost',(e)=>{e.preventDefault();if(shaderCache[id]===c)delete shaderCache[id];});
   shaderCache[id]=c;return c;
 }
@@ -6942,7 +6981,15 @@ function drawShader(rec){
   gl.uniform1f(c.u.S,sh.dpr*Math.max(0.1,s.scale==null?1:s.scale));
   gl.uniform1f(c.u.t,c.t);
   gl.uniform3fv(c.u.c1,c.cur[0]);gl.uniform3fv(c.u.c2,c.cur[1]);gl.uniform3fv(c.u.c3,c.cur[2]);
+  gl.uniform1f(c.u.A,audio.live);
+  gl.uniform1f(c.u.P,s.reactive?pulseOf(s):0);
+  if(audio.es)gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,48,1,gl.LUMINANCE,gl.UNSIGNED_BYTE,audio.tex);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+// How hard a reactive shader reacts right now: the beat, plus a little of the plain loudness.
+function pulseOf(s){
+  const amt=(s.reactAmount==null?100:s.reactAmount)/100;
+  return Math.min(1.5,(Math.max(0,audio.fast-audio.slow)*2.5+audio.fast*.25)*amt)*audio.live;
 }
 function buildShader(el,L,rec){
   const s=L.style||{};
@@ -6977,11 +7024,13 @@ function startShaders(){
     const dt=Math.min(0.1,(now-last)/1000);last=now;
     const goal=(EDITOR||state.isPlaying)?1:0.15;
     shaderRate+=(goal-shaderRate)*Math.min(1,dt*2);
+    stepAudio(dt);
     let any=false;
     for(const id in layerEls){
       const rec=layerEls[id];if(!rec.shader)continue;any=true;
       const c=rec.shader.c,s=rec.shader.style;
-      c.t+=dt*shaderRate*(s.speed==null?1:s.speed);
+      // A reactive shader also moves faster on the beat, not just brighter.
+      c.t+=dt*shaderRate*(s.speed==null?1:s.speed)*(1+(s.reactive?pulseOf(s)*1.5:0));
       const want=shaderColors(s),k=Math.min(1,dt*3);
       if(!c.cur)c.cur=want;
       else for(let i=0;i<3;i++)for(let j=0;j<3;j++)c.cur[i][j]+=(want[i][j]-c.cur[i][j])*k;
@@ -7446,7 +7495,7 @@ function renderData(){
 
 function applyDoc(dc){
   if(!dc||!dc.canvas)return;
-  doc=dc;applyCanvas(dc.canvas);buildLayers(dc);renderData();
+  doc=dc;applyCanvas(dc.canvas);buildLayers(dc);renderData();syncAudioStream();
   setTimeout(()=>{for(const id in layerEls){const rec=layerEls[id];if(rec.type==='text')applyMarquee(rec);}},60);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{for(const id in layerEls){const rec=layerEls[id];if(rec.outline){if(!(rec.layer.style||{}).marquee&&rec.full!=null)fitOutlined(rec,rec.full);syncOutline(rec);}}});
 }
@@ -7532,6 +7581,70 @@ def _ov_stream_resp():
     return Response(_gen(), content_type="text/event-stream",
                     headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no",
                              "Access-Control-Allow-Origin":"*"})
+
+# ── Live audio levels for music-reactive overlays ─────────────────────────────
+# The Rust player sends a frame of 48 bands + level ~30x a second as a UDP datagram, but only
+# while some overlay listens: it asks /overlay/levels/demand once a second, and gets a port only
+# while a /overlay/levels stream is open. The stream is its own, not part of /overlay/stream:
+# that one queues every message, and at 30 a second a source that stalls for a moment would
+# fill its queue and be dropped. Here a client only ever gets the newest frame.
+import socket as _socket
+_ov_lv = threading.Condition()
+_ov_lv_state = {"seq": 0, "data": "", "clients": 0, "port": 0}
+
+def _ov_levels_port() -> int:
+    with _ov_lv:
+        if _ov_lv_state["port"]:
+            return _ov_lv_state["port"]
+        sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+        sock.bind(("127.0.0.1", 0))
+        _ov_lv_state["port"] = sock.getsockname()[1]
+    def _recv():
+        while True:
+            try:
+                data = sock.recv(8192).decode("utf-8", "replace")
+            except OSError:
+                break
+            with _ov_lv:
+                _ov_lv_state["seq"] += 1
+                _ov_lv_state["data"] = data
+                _ov_lv.notify_all()
+    threading.Thread(target=_recv, daemon=True, name="kiyoshi-overlay-levels").start()
+    return _ov_lv_state["port"]
+
+def _ov_levels_resp():
+    def _gen():
+        with _ov_lv:
+            _ov_lv_state["clients"] += 1
+            seq = _ov_lv_state["seq"]
+        try:
+            yield "retry: 2000\n\n"
+            while True:
+                with _ov_lv:
+                    _ov_lv.wait_for(lambda: _ov_lv_state["seq"] != seq, timeout=5)
+                    fresh = _ov_lv_state["seq"] != seq
+                    seq, data = _ov_lv_state["seq"], _ov_lv_state["data"]
+                yield ("data: " + data + "\n\n") if fresh and data else ": ping\n\n"
+        finally:
+            with _ov_lv:
+                _ov_lv_state["clients"] -= 1
+    return Response(_gen(), content_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                             "Access-Control-Allow-Origin": "*"})
+
+@app.route("/overlay/levels/demand")
+def _ov_levels_demand():
+    with _ov_lv:
+        listening = _ov_lv_state["clients"] > 0
+    return jsonify({"port": _ov_levels_port() if listening else 0})
+
+@app.route("/overlay/levels")
+def _ov_levels_main():
+    return _ov_levels_resp()
+
+@_ov_app.route("/overlay/levels")
+def _ov_levels():
+    return _ov_levels_resp()
 
 @_ov_app.route("/overlay")
 def _ov_page():

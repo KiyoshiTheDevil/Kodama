@@ -1019,6 +1019,9 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
           <NumField label={t("ovlSpeed")} value={s.speed ?? 1} min={0} max={5} step={0.1} onChange={(v) => setStyle(id, { speed: v })} />
           <NumField label={t("ovlShaderScale")} value={s.scale ?? 1} min={0.25} max={4} step={0.05} onChange={(v) => setStyle(id, { scale: v })} />
         </div>
+        <SwitchField label={t("ovlShaderReactive")} checked={!!s.reactive} onChange={(v) => setStyle(id, { reactive: v })} />
+        {s.reactive && <NumField label={t("ovlShaderReactAmount")} value={s.reactAmount ?? 100} min={0} max={300} step={10} onChange={(v) => setStyle(id, { reactAmount: v })} />}
+        {(s.reactive || s.preset === "equalizer") && <p className="m-0 text-muted" style={{ fontSize: "var(--t11)" }}>{t("ovlShaderReactiveHint")}</p>}
       </Section>
       <Section title={t("ovlShaderColors")}>
         <SwitchField label={t("ovlShaderCoverColors")} checked={!!s.coverColors} onChange={(v) => setStyle(id, { coverColors: v })} />

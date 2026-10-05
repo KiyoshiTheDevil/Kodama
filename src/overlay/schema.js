@@ -200,6 +200,8 @@ export function makeShaderLayer(over = {}) {
       preset: "aurora",
       shaderColors: ["#7c4dff", "#e040fb", "#00e5ff"],
       coverColors: false,         // take the three colours from the current cover instead
+      reactive: false,            // pulse with the music (live levels from the player)
+      reactAmount: 100,
       speed: 1,
       scale: 1,
       corners: uniformCorners(0, "r"),
