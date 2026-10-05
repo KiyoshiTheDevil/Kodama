@@ -607,7 +607,7 @@ function FillList({ t, fills, onChange }) {
 
 // Figma-style stroke list: multiple stroke paints (colour + opacity each) sharing a
 // single weight + position. Add via header "+", toggle/remove per row.
-function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPosition, positions, title }) {
+function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPosition, positions, title, gradients = false, join, onJoin }) {
   const list = Array.isArray(strokes) ? strokes : [];
   const set = (i, patch) => onChange(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const add = () => onChange([{ id: Math.random().toString(36).slice(2), color: "#ffffff", opacity: 100, visible: true }, ...list]);
@@ -618,14 +618,20 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
       <button type="button" onClick={add} aria-label={t("ovlAddStroke") || "Add stroke"} className="w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-secondary hover:text-primary transition-colors"><Plus size={13} /></button>
     }>
       {list.map((s, i) => (
-        <PropRow key={s.id || i} kind="stroke" index={i} className="group/srow flex items-center gap-1.5">
-          <div className="flex-1 min-w-0"><ColorField corners={hdrCorners(false, true, 30)} value={s.color} onChange={(c) => set(i, { color: c })} /></div>
+        <PropRow key={s.id || i} kind="stroke" index={i} className="group/srow flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+          {/* A gradient only where the renderer can draw one (the text outline, which is SVG). */}
+          <div className="flex-1 min-w-0">{gradients
+            ? <PaintField t={t} paint={s} rightNotch onChange={(patch) => set(i, patch)} />
+            : <ColorField corners={hdrCorners(false, true, 30)} value={s.color} onChange={(c) => set(i, { color: c })} />}</div>
           <PercentField corners={hdrCorners(true, false, 30)} label={t("ovlOpacity")} value={s.opacity ?? 100} onChange={(o) => set(i, { opacity: o })} />
           <BareIconBtn onPress={() => set(i, { visible: s.visible === false })} label={t("ovlVisible")}>
             {s.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
           </BareIconBtn>
           <button type="button" onClick={() => remove(i)} aria-label={t("ovlRemove") || "Remove"} title={t("ovlRemove") || "Remove"}
             className="shrink-0 w-7 h-7 flex items-center justify-center border-0 bg-transparent cursor-pointer text-muted hover:text-[var(--status-danger)] transition-colors"><Minus size={13} /></button>
+          </div>
+          {gradients && <GradientFields t={t} paint={s} onChange={(patch) => set(i, patch)} />}
         </PropRow>
       ))}
       {list.length > 0 && (
@@ -637,6 +643,13 @@ function StrokeList({ t, strokes, weight, position, onChange, onWeight, onPositi
             <PillNum prefix={<OvlStrokeWeight size={12} />} ariaLabel={t("ovlStrokeWeight") || "Weight"} value={weight} min={0} max={40} step={0.5} onChange={onWeight} />
           </Field>
         </div>
+      )}
+      {list.length > 0 && onJoin && (
+        /* Corners, as in Figma: round, sharp (miter) or bevelled. */
+        <Field label={t("ovlStrokeJoin")}>
+          <SelectField value={join || "round"} onChange={onJoin}
+            options={["round", "miter", "bevel"].map((v) => ({ value: v, label: t("ovlStrokeJoin_" + v) }))} />
+        </Field>
       )}
     </Section>
   );
@@ -902,7 +915,7 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
       </Section>
       <FillList t={t} fills={s.fills} onChange={(fills) => setStyle(id, { fills })} />
       {/* Outline: outside or centred; the browser cannot draw a stroke inside a glyph. */}
-      <StrokeList t={t} title={t("ovlTextOutline")} strokes={s.strokes} weight={s.strokeWeight ?? 2}
+      <StrokeList t={t} title={t("ovlTextOutline")} gradients join={s.strokeJoin} onJoin={(v) => setStyle(id, { strokeJoin: v })} strokes={s.strokes} weight={s.strokeWeight ?? 2}
         position={s.strokePosition === "center" ? "center" : "outside"} positions={["outside", "center"]}
         onChange={(strokes) => setStyle(id, { strokes })}
         onWeight={(v) => setStyle(id, { strokeWeight: v })}
@@ -2505,7 +2518,10 @@ export default function OverlayEditor({
   return (
     <div
       data-overlay-editor
-      className={`flex flex-col w-full overflow-hidden select-none${standalone ? "" : " rounded-xl"}`}
+      // overflow: clip, not hidden. A hidden overflow still scrolls when the browser brings a
+      // focused element into view (a switch's hidden input, a new field), and then the whole
+      // editor slid up by hundreds of pixels; clip cannot be scrolled at all.
+      className={`flex flex-col w-full overflow-clip select-none${standalone ? "" : " rounded-xl"}`}
       style={{ height: standalone ? "100vh" : "78vh", minHeight: standalone ? undefined : 480 }}
     >
       {/* ── Top bar (doubles as the custom title bar in standalone) ────────────────

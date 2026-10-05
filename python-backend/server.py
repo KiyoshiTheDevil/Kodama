@@ -6601,13 +6601,25 @@ function buildText(el,L,rec){
   }
   // Outline: the first visible stroke. "Outside" is a stroke twice as wide painted UNDER the
   // fill, so only its outer half shows; text has no inside stroke to offer.
+  //
+  // The browser's own text stroke can only do sharp (miter) corners, which spike on digits and
+  // diagonals, and cannot take a gradient. So a single line with an outline is drawn as SVG
+  // text, glyphs and outline both, with the corner style and paints of the layer; the HTML text
+  // stays underneath, invisible, for the layout, the marquee and the ellipsis. Several lines
+  // cannot be SVG text (it does not wrap) and keep the browser's stroke.
   const tst=(Array.isArray(s.strokes)?s.strokes:[]).find(p=>p&&p.visible!==false);
   let reach=0;
+  const multi=(s.maxLines||1)>1;
   if(tst){
     const w=(s.strokeWeight==null?2:s.strokeWeight),out=(s.strokePosition||'outside')!=='center';
-    inner.style.webkitTextStroke=(out?w*2:w)+'px '+rgba(tst.color||'#000000',(tst.opacity==null?100:tst.opacity)/100);
-    inner.style.paintOrder=out?'stroke fill':'normal';
     reach=out?w:w/2;
+    if(multi){
+      inner.style.webkitTextStroke=(out?w*2:w)+'px '+rgba(tst.color||'#000000',(tst.opacity==null?100:tst.opacity)/100);
+      inner.style.paintOrder=out?'stroke fill':'normal';
+    }else{
+      rec.outline={w,out,stroke:tst,fill:tfill||{color:s.color||'#ffffff',opacity:100},join:s.strokeJoin||'round'};
+      inner.style.color='transparent';inner.style.backgroundImage='';
+    }
   }
   // The line clips its content (for the ellipsis and the marquee), and that clipped the outline
   // and any glyph reaching past the line box: tall caps, descenders, overhanging letters. Room
@@ -6620,8 +6632,48 @@ function buildText(el,L,rec){
   inner.style.letterSpacing=(s.letterSpacing||0)+'px';
   inner.style.lineHeight=s.lineHeight||1.3;
   if((s.maxLines||1)>1){inner.style.whiteSpace='normal';inner.style.display='-webkit-box';inner.style.webkitBoxOrient='vertical';inner.style.webkitLineClamp=s.maxLines;}
-  const span=document.createElement('span');inner.appendChild(span);box.appendChild(inner);el.appendChild(box);
-  rec.span=span;rec.inner=inner;
+  const span=document.createElement('span');const tn=document.createTextNode('');span.appendChild(tn);
+  inner.appendChild(span);box.appendChild(inner);el.appendChild(box);
+  rec.span=span;rec.inner=inner;rec.tnode=tn;rec.full=null;
+  if(rec.outline){
+    const ns='http://www.w3.org/2000/svg';
+    span.style.position='relative';span.style.display='inline-block';
+    const svg=document.createElementNS(ns,'svg');svg.style.cssText='position:absolute;left:0;top:0;overflow:visible;pointer-events:none';
+    const t=document.createElementNS(ns,'text');t.setAttribute('x','0');
+    t.style.fontFamily=inner.style.fontFamily;t.style.fontSize=inner.style.fontSize;t.style.fontWeight=inner.style.fontWeight;
+    t.style.letterSpacing=(s.letterSpacing||0)+'px';t.style.whiteSpace='pre';
+    svg.appendChild(t);span.appendChild(svg);rec.osvg=svg;rec.otext=t;
+  }
+}
+
+// Lay the SVG copy over the invisible line: same text, same baseline, paints and corners.
+function syncOutline(rec){
+  const o=rec.outline;if(!o||!rec.osvg)return;
+  const span=rec.span,svg=rec.osvg,t=rec.otext;
+  const probe=document.createElement('i');probe.style.cssText='display:inline-block;width:0;height:0;vertical-align:baseline';
+  span.insertBefore(probe,svg);const base=probe.offsetTop;span.removeChild(probe);
+  const W=Math.max(1,span.offsetWidth),H=Math.max(1,span.offsetHeight);
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  t.setAttribute('y',base);t.textContent=rec.tnode.data;
+  const old=svg.querySelector('defs');if(old)svg.removeChild(old);
+  t.setAttribute('fill',svgPaint(svg,o.fill,W,H,'#ffffff'));
+  t.setAttribute('stroke',svgPaint(svg,o.stroke,W,H,'#000000'));
+  t.setAttribute('stroke-width',o.out?o.w*2:o.w);
+  t.setAttribute('stroke-linejoin',o.join==='bevel'?'bevel':o.join==='miter'?'miter':'round');
+  t.setAttribute('stroke-linecap','round');
+  t.setAttribute('paint-order',o.out?'stroke fill':'fill stroke');
+}
+// SVG text cannot end in an ellipsis on its own, so an outlined line is shortened here, the
+// same way the browser would: as many characters as fit, then "…".
+function fitOutlined(rec,full){
+  // Measured on the text box (the layer's width): the line itself shrinks to its content, so
+  // measuring it chased its own tail down to a lone ellipsis.
+  const avail=rec.inner.parentElement.clientWidth;
+  rec.tnode.data=full;
+  if(rec.span.offsetWidth<=avail+0.5)return;
+  let lo=0,hi=full.length;
+  while(lo<hi){const mid=Math.ceil((lo+hi)/2);rec.tnode.data=full.slice(0,mid).trimEnd()+'\u2026';if(rec.span.offsetWidth<=avail+0.5)lo=mid;else hi=mid-1;}
+  rec.tnode.data=full.slice(0,lo).trimEnd()+'\u2026';
 }
 
 // Progress bars. One builder per look; each leaves rec.set(pct) behind for renderData, and an
@@ -6738,22 +6790,26 @@ function buildProgress(el,L,rec){
 // and the time since, every frame. Without it the bar moved in steps (a glide, a stop, a glide).
 // A report that is only a little behind what is shown does not pull the bar backwards; a seek, a
 // new song or a pause/resume is taken as it comes.
-let progAnchor={sec:0,t:0},progShown=0,progRaf=0;
+let progShown=0,progRate=1,progRateUntil=0,progRaf=0,progLast=0;
 function noteProgress(){
-  const sec=state.progress||0;
-  if(Math.abs(sec-progShown)>1.5)progShown=sec;
-  progAnchor={sec,t:performance.now()};
+  const sec=state.progress||0,err=sec-progShown;
+  // Far off (a seek, a new song) or not playing: take the report as it is. A little off: run a
+  // bit faster or slower for the next second instead of stopping or jumping. Holding still
+  // until the time caught up, as before, stopped the bar briefly after every report.
+  if(!state.isPlaying||Math.abs(err)>1.5){progShown=sec;progRate=1;}
+  else{progRate=1+Math.max(-0.35,Math.min(0.35,err));progRateUntil=performance.now()+1000;}
   startProgressClock();
 }
 function startProgressClock(){
   if(progRaf)return;
-  const tick=()=>{
+  progLast=performance.now();
+  const tick=(t)=>{
+    const dt=Math.min(0.1,(t-progLast)/1000);progLast=t;
+    if(t>progRateUntil)progRate=1;
     const dur=state.duration||0;
-    let sec=progAnchor.sec+(state.isPlaying?(performance.now()-progAnchor.t)/1000:0);
-    if(dur>0)sec=Math.min(sec,dur);
-    if(sec<progShown&&progShown-sec<1.5)sec=progShown;
-    progShown=sec;
-    const pct=dur>0?Math.max(0,Math.min(100,sec/dur*100)):0;
+    if(state.isPlaying)progShown+=dt*progRate;
+    if(dur>0)progShown=Math.max(0,Math.min(progShown,dur));
+    const pct=dur>0?progShown/dur*100:0;
     let any=false;
     for(const id in layerEls){const r=layerEls[id];if(r.type==='progress'&&r.set){any=true;r.set(pct);}}
     progRaf=any?requestAnimationFrame(tick):0;
@@ -7192,9 +7248,11 @@ function renderData(){
       else{rec.img.style.display='none';rec.ph.style.display='';}
     }else if(rec.type==='text'){
       const txt=textForBind(rec.bind,rec.layer.style);
-      if(rec.span.textContent!==txt){
+      if(rec.full!==txt){
+        rec.full=txt;
         rec.span.style.animation='';rec.inner.classList.remove('scroll');
-        rec.span.textContent=txt;
+        if(rec.outline&&!(rec.layer.style||{}).marquee)fitOutlined(rec,txt);else rec.tnode.data=txt;
+        syncOutline(rec);
         if(rec.layer.style&&rec.layer.style.marquee)requestAnimationFrame(()=>requestAnimationFrame(()=>applyMarquee(rec)));
       }
     }else if(rec.type==='progress'){
@@ -7208,6 +7266,7 @@ function applyDoc(dc){
   if(!dc||!dc.canvas)return;
   doc=dc;applyCanvas(dc.canvas);buildLayers(dc);renderData();
   setTimeout(()=>{for(const id in layerEls){const rec=layerEls[id];if(rec.type==='text')applyMarquee(rec);}},60);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{for(const id in layerEls){const rec=layerEls[id];if(rec.outline){if(!(rec.layer.style||{}).marquee&&rec.full!=null)fitOutlined(rec,rec.full);syncOutline(rec);}}});
 }
 
 function updateState(s){

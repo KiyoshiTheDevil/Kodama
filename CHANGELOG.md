@@ -25,7 +25,7 @@ Changes:
 - Overlay editor: groups can have entrance and loop animations, with a stagger that brings their contents in one after another
 - Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
 - Overlay editor: new entrance animations: drive in from outside the canvas at an even speed, blur, pop, zoom out, flip, rotate, drop and reveal
-- Overlay editor: text can have an outline, and scrolling titles glide back and forth instead of jumping back
+- Overlay editor: text can have an outline with round, sharp or bevelled corners and a gradient, and scrolling titles glide back and forth instead of jumping back
 - Overlay editor: progress bars come in six looks (bar, knob, glowing line, segments, dots, Material 3 wave) with effects such as candy cane, shimmer and rainbow
 - Overlay progress bars move smoothly instead of in once-a-second steps
 - Overlay editor: fills can be linear or radial gradients, on shapes, text, the canvas background and progress bars
@@ -46,6 +46,7 @@ Fixes:
 - Overlay editor: design previews showed white corners and gaps; the Import button in the header did nothing while My Designs was closed
 - Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Overlay text was cut off at its outline, and tall letters or descenders at the edge of the text box
+- Turning a switch on in the overlay editor could slide the whole window content up
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 
 ## [1.0.0-alpha.41] - 2026-09-22
