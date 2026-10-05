@@ -263,10 +263,13 @@ header.top { view-transition-name:site-header; }
 body > .wrap { view-transition-name:page; }
 ::view-transition-old(root), ::view-transition-new(root) { animation:none; }
 ::view-transition-group(page) { animation:none; }
-::view-transition-old(page) { animation:vt-out .18s cubic-bezier(.4,0,1,1) both; }
-::view-transition-new(page) { animation:vt-in .34s cubic-bezier(.2,.8,.2,1) both; }
-@keyframes vt-out { to { opacity:0; transform:translateX(-24px); } }
-@keyframes vt-in { from { opacity:0; transform:translateX(24px); } }
+/* One crossfade: the same length and curve both ways, so at every moment the two add up to a
+   whole page. With the old one gone sooner than the new one arrived, the content area stood
+   empty for a moment and looked like a page loading. */
+::view-transition-old(page) { animation:vt-out .3s ease both; }
+::view-transition-new(page) { animation:vt-in .3s ease both; }
+@keyframes vt-out { to { opacity:0; transform:translateX(-12px); } }
+@keyframes vt-in { from { opacity:0; transform:translateX(12px); } }
 
 @media (prefers-reduced-motion: reduce) {
   .pre { opacity:1; transform:none; }
