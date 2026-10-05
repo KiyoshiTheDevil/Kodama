@@ -2112,69 +2112,6 @@ export default function OverlayEditor({
   };
   libActionsRef.current = { isOpen: libOpen, close: () => { setLibOpen(false); setElementName(null); }, startSave: startSaveElement, insertPicked };
 
-  // The right-click menus' items (see ContextMenu), by where the menu was opened.
-  const menuItems = (m) => {
-    if (m.kind === "layer") {
-      const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
-      const allLocked = picked.length > 0 && picked.every((l) => l.locked);
-      const allHidden = picked.length > 0 && picked.every((l) => l.visible === false);
-      return [
-        { key: "cut", label: t("ovlMenuCut"), icon: <Scissors size={12} />, kbd: "Ctrl+X", onSelect: cutSelected },
-        { key: "copy", label: t("ovlMenuCopy"), icon: <Copy size={12} />, kbd: "Ctrl+C", onSelect: copySelected },
-        { key: "paste", label: t("ovlMenuPaste"), icon: <Clipboard size={12} />, kbd: "Ctrl+V", disabled: !clipboardRef.current.length, onSelect: pasteClipboard },
-        { key: "dup", label: t("ovlMenuDuplicate"), icon: <Copy size={12} />, kbd: "Ctrl+D", onSelect: duplicateSelected },
-        { key: "del", label: t("ovlMenuDelete"), icon: <Trash size={12} />, kbd: "Entf", danger: true, onSelect: deleteSelected },
-        "-",
-        { key: "group", label: t("ovlGroup"), icon: <ObjectGroup size={12} />, kbd: "Ctrl+G", onSelect: groupSelected },
-        { key: "ungroup", label: t("ovlUngroup"), icon: <ObjectUngroup size={12} />, kbd: "Ctrl+Shift+G", disabled: !canUngroup, onSelect: ungroupSelected },
-        { key: "arrange", label: t("ovlArrange"), icon: <span className="w-3" />, children: [
-          { key: "front", label: t("ovlArrangeFront"), onSelect: () => arrange("front") },
-          { key: "forward", label: t("ovlArrangeForward"), onSelect: () => arrange("forward") },
-          { key: "backward", label: t("ovlArrangeBackward"), onSelect: () => arrange("backward") },
-          { key: "back", label: t("ovlArrangeBack"), onSelect: () => arrange("back") },
-        ] },
-        "-",
-        { key: "cprops", label: t("ovlCopyProps"), icon: <PaintRoller size={12} />, kbd: "Ctrl+Alt+C", disabled: !canCopyProps, onSelect: copySelectedProps },
-        { key: "pprops", label: t("ovlPasteProps"), icon: <Clipboard size={12} />, kbd: "Ctrl+Alt+V", disabled: !propsClip, onSelect: () => pasteSelectedProps("all") },
-        "-",
-        { key: "lock", label: allLocked ? t("ovlUnlock") : t("ovlLock"), icon: allLocked ? <LockOpen size={12} /> : <Lock size={12} />, onSelect: () => setOnSelection({ locked: !allLocked }) },
-        { key: "hide", label: allHidden ? t("ovlShow") : t("ovlHide"), icon: allHidden ? <Eye size={12} /> : <EyeSlash size={12} />, onSelect: () => setOnSelection({ visible: allHidden }) },
-        "-",
-        { key: "element", label: t("ovlElementSaveAs"), icon: <Shapes size={12} />, kbd: "Ctrl+Alt+K", onSelect: startSaveElement },
-      ];
-    }
-    if (m.kind === "canvas") {
-      return [
-        { key: "paste", label: t("ovlMenuPaste"), icon: <Clipboard size={12} />, kbd: "Ctrl+V", disabled: !clipboardRef.current.length, onSelect: pasteClipboard },
-        { key: "all", label: t("ovlSelectAll"), icon: <CursorArrow size={12} />, onSelect: () => setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id)) },
-        { key: "fit", label: t("ovlZoomFit"), icon: <ArrowsOut size={12} />, onSelect: () => fit() },
-      ];
-    }
-    if (m.kind === "element") {
-      const el = elements.find((x) => x.id === m.data);
-      if (!el) return null;
-      return [
-        { key: "insert", label: t("ovlElementInsert"), icon: <Plus size={12} />, kbd: "↵", onSelect: () => insertElement(el, null) },
-        { key: "rename", label: t("ovlElementRename"), icon: <PencilSimple size={12} />, onSelect: () => { setRenamingEl(el.id); setElDraft(el.name || ""); } },
-        { key: "move", label: t("ovlElementMoveTo"), icon: <Folder size={12} />, children: [
-          ...libFolders.map((f) => ({ key: f, label: f, icon: cleanFolder(el.folder) === f ? <Check size={11} /> : <Folder size={11} />, onSelect: () => moveElementTo(el.id, f) })),
-          { key: "__none__", label: t("ovlElementsNoFolder"), icon: !cleanFolder(el.folder) ? <Check size={11} /> : null, onSelect: () => moveElementTo(el.id, "__none__") },
-          "-",
-          { key: "__new__", label: t("ovlElementNewFolder"), icon: <Plus size={11} />, onSelect: () => moveElementTo(el.id, "__new__") },
-        ] },
-        "-",
-        { key: "del", label: t("ovlMenuDelete"), icon: <Trash size={12} />, danger: true, onSelect: () => { persistElements(elements.filter((x) => x.id !== el.id)); setPickedEl(null); } },
-      ];
-    }
-    if (m.kind === "folder") {
-      return [
-        { key: "rename", label: t("ovlFolderRename"), icon: <PencilSimple size={12} />, onSelect: () => { setRenamingFolder(m.data); setFolderDraft(m.data); } },
-        { key: "dissolve", label: t("ovlFolderDissolve"), icon: <X size={12} />, onSelect: () => dissolveLibFolder(m.data) },
-      ];
-    }
-    return null;
-  };
-
   // ── Profile management ───────────────────────────────────────────────────────
   const importFileRef = useRef(null);
   const [browserQuery, setBrowserQuery] = useState("");
@@ -2236,6 +2173,22 @@ export default function OverlayEditor({
     persistProfiles(profiles.filter((p) => p.id !== id));
   }, [profiles, persistProfiles]);
 
+  // Tags: free words on a design, for finding it again. Stored on the profile, compared without
+  // case, so "Tetris" and "tetris" are one tag.
+  const [tagFilter, setTagFilter] = useState(null);
+  const [tagDraft, setTagDraft] = useState("");
+  const addTag = (id, raw) => {
+    const tag = String(raw || "").trim().replace(/^#/, "").slice(0, 24);
+    if (!tag) return;
+    persistProfiles(profiles.map((p) => {
+      if (p.id !== id) return p;
+      const tags = Array.isArray(p.tags) ? p.tags : [];
+      return tags.some((x) => x.toLowerCase() === tag.toLowerCase()) ? p : { ...p, tags: [...tags, tag] };
+    }));
+  };
+  const removeTag = (id, tag) => persistProfiles(profiles.map((p) => (p.id === id ? { ...p, tags: (p.tags || []).filter((x) => x !== tag) } : p)));
+  const allTags = [...new Map(profiles.flatMap((p) => p.tags || []).map((x) => [x.toLowerCase(), x])).values()].sort((a, b) => a.localeCompare(b));
+
   const renameProfile = useCallback((id, name) => {
     const clean = name.trim();
     if (!clean) return;
@@ -2289,6 +2242,81 @@ export default function OverlayEditor({
       if (imported.length > 0) persistProfiles([...imported, ...profiles]);
     });
   }, [profiles, persistProfiles, t]);
+
+  // The right-click menus' items (see ContextMenu), by where the menu was opened.
+  const menuItems = (m) => {
+    if (m.kind === "layer") {
+      const picked = doc.layers.filter((l) => selectedIds.includes(l.id));
+      const allLocked = picked.length > 0 && picked.every((l) => l.locked);
+      const allHidden = picked.length > 0 && picked.every((l) => l.visible === false);
+      return [
+        { key: "cut", label: t("ovlMenuCut"), icon: <Scissors size={12} />, kbd: "Ctrl+X", onSelect: cutSelected },
+        { key: "copy", label: t("ovlMenuCopy"), icon: <Copy size={12} />, kbd: "Ctrl+C", onSelect: copySelected },
+        { key: "paste", label: t("ovlMenuPaste"), icon: <Clipboard size={12} />, kbd: "Ctrl+V", disabled: !clipboardRef.current.length, onSelect: pasteClipboard },
+        { key: "dup", label: t("ovlMenuDuplicate"), icon: <Copy size={12} />, kbd: "Ctrl+D", onSelect: duplicateSelected },
+        { key: "del", label: t("ovlMenuDelete"), icon: <Trash size={12} />, kbd: "Entf", danger: true, onSelect: deleteSelected },
+        "-",
+        { key: "group", label: t("ovlGroup"), icon: <ObjectGroup size={12} />, kbd: "Ctrl+G", onSelect: groupSelected },
+        { key: "ungroup", label: t("ovlUngroup"), icon: <ObjectUngroup size={12} />, kbd: "Ctrl+Shift+G", disabled: !canUngroup, onSelect: ungroupSelected },
+        { key: "arrange", label: t("ovlArrange"), icon: <span className="w-3" />, children: [
+          { key: "front", label: t("ovlArrangeFront"), onSelect: () => arrange("front") },
+          { key: "forward", label: t("ovlArrangeForward"), onSelect: () => arrange("forward") },
+          { key: "backward", label: t("ovlArrangeBackward"), onSelect: () => arrange("backward") },
+          { key: "back", label: t("ovlArrangeBack"), onSelect: () => arrange("back") },
+        ] },
+        "-",
+        { key: "cprops", label: t("ovlCopyProps"), icon: <PaintRoller size={12} />, kbd: "Ctrl+Alt+C", disabled: !canCopyProps, onSelect: copySelectedProps },
+        { key: "pprops", label: t("ovlPasteProps"), icon: <Clipboard size={12} />, kbd: "Ctrl+Alt+V", disabled: !propsClip, onSelect: () => pasteSelectedProps("all") },
+        "-",
+        { key: "lock", label: allLocked ? t("ovlUnlock") : t("ovlLock"), icon: allLocked ? <LockOpen size={12} /> : <Lock size={12} />, onSelect: () => setOnSelection({ locked: !allLocked }) },
+        { key: "hide", label: allHidden ? t("ovlShow") : t("ovlHide"), icon: allHidden ? <Eye size={12} /> : <EyeSlash size={12} />, onSelect: () => setOnSelection({ visible: allHidden }) },
+        "-",
+        { key: "element", label: t("ovlElementSaveAs"), icon: <Shapes size={12} />, kbd: "Ctrl+Alt+K", onSelect: startSaveElement },
+      ];
+    }
+    if (m.kind === "canvas") {
+      return [
+        { key: "paste", label: t("ovlMenuPaste"), icon: <Clipboard size={12} />, kbd: "Ctrl+V", disabled: !clipboardRef.current.length, onSelect: pasteClipboard },
+        { key: "all", label: t("ovlSelectAll"), icon: <CursorArrow size={12} />, onSelect: () => setSelectedIds(doc.layers.filter((l) => l.visible !== false && !l.locked).map((l) => l.id)) },
+        { key: "fit", label: t("ovlZoomFit"), icon: <ArrowsOut size={12} />, onSelect: () => fit() },
+      ];
+    }
+    if (m.kind === "element") {
+      const el = elements.find((x) => x.id === m.data);
+      if (!el) return null;
+      return [
+        { key: "insert", label: t("ovlElementInsert"), icon: <Plus size={12} />, kbd: "↵", onSelect: () => insertElement(el, null) },
+        { key: "rename", label: t("ovlElementRename"), icon: <PencilSimple size={12} />, onSelect: () => { setRenamingEl(el.id); setElDraft(el.name || ""); } },
+        { key: "move", label: t("ovlElementMoveTo"), icon: <Folder size={12} />, children: [
+          ...libFolders.map((f) => ({ key: f, label: f, icon: cleanFolder(el.folder) === f ? <Check size={11} /> : <Folder size={11} />, onSelect: () => moveElementTo(el.id, f) })),
+          { key: "__none__", label: t("ovlElementsNoFolder"), icon: !cleanFolder(el.folder) ? <Check size={11} /> : null, onSelect: () => moveElementTo(el.id, "__none__") },
+          "-",
+          { key: "__new__", label: t("ovlElementNewFolder"), icon: <Plus size={11} />, onSelect: () => moveElementTo(el.id, "__new__") },
+        ] },
+        "-",
+        { key: "del", label: t("ovlMenuDelete"), icon: <Trash size={12} />, danger: true, onSelect: () => { persistElements(elements.filter((x) => x.id !== el.id)); setPickedEl(null); } },
+      ];
+    }
+    if (m.kind === "design") {
+      const p = profiles.find((x) => x.id === m.data);
+      if (!p) return null;
+      return [
+        { key: "apply", label: t("ovlProfileApply"), icon: <Check size={12} />, kbd: "↵", onSelect: () => applyProfile(p) },
+        { key: "rename", label: t("ovlProfileRename"), icon: <PencilSimple size={12} />, onSelect: () => { setRenamingId(p.id); setRenameDraft(p.name); } },
+        { key: "dup", label: t("ovlProfileDuplicate"), icon: <Copy size={12} />, onSelect: () => duplicateProfile(p) },
+        { key: "export", label: t("ovlProfileExport"), icon: <DownloadSimple size={12} />, onSelect: () => exportProfile(p) },
+        "-",
+        { key: "del", label: t("ovlProfileDelete"), icon: <Trash size={12} />, danger: true, onSelect: () => setConfirmDeleteId(p.id) },
+      ];
+    }
+    if (m.kind === "folder") {
+      return [
+        { key: "rename", label: t("ovlFolderRename"), icon: <PencilSimple size={12} />, onSelect: () => { setRenamingFolder(m.data); setFolderDraft(m.data); } },
+        { key: "dissolve", label: t("ovlFolderDissolve"), icon: <X size={12} />, onSelect: () => dissolveLibFolder(m.data) },
+      ];
+    }
+    return null;
+  };
 
   // Selection chrome lives inside the stage, which is scaled by `zoom`. Dividing its sizes by
   // the zoom keeps it visually constant — until the numbers go below a pixel: at 3200% a handle
@@ -3491,22 +3519,35 @@ export default function OverlayEditor({
 
       {/* ── Widget Browser modal ─────────────────────── */}
       {browserOpen && (() => {
-        const q = browserQuery.trim().toLowerCase();
+        // Search matches the name or a tag; "#word" looks at tags only.
+        const raw = browserQuery.trim().toLowerCase();
+        const tagOnly = raw.startsWith("#");
+        const q = tagOnly ? raw.slice(1) : raw;
+        const hasTag = (p, x) => (p.tags || []).some((tg) => tg.toLowerCase() === x.toLowerCase());
         const shown = profiles
-          .filter((p) => !q || p.name.toLowerCase().includes(q))
+          .filter((p) => !tagFilter || hasTag(p, tagFilter))
+          .filter((p) => !q || (!tagOnly && p.name.toLowerCase().includes(q)) || (p.tags || []).some((tg) => tg.toLowerCase().includes(q)))
           .sort((x, y) => {
             if (browserSort === "name") return x.name.localeCompare(y.name);
             if (browserSort === "size") return ((y.doc?.canvas?.width || 0) * (y.doc?.canvas?.height || 0)) - ((x.doc?.canvas?.width || 0) * (x.doc?.canvas?.height || 0));
             return String(y.savedAt || "").localeCompare(String(x.savedAt || ""));
           });
         const closeBrowser = () => { setBrowserOpen(false); setRenamingId(null); setConfirmDeleteId(null); };
-        // The design shown large: the one picked, else the first in the list as it is sorted now.
         const cur = shown.find((p) => p.id === pickedProfileId) || shown[0] || null;
-        const meta = (p) => {
-          const n = p.doc?.layers?.length ?? 0;
-          return `${p.doc?.canvas?.width ?? "?"} × ${p.doc?.canvas?.height ?? "?"} · ${n} ${n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}`;
-        };
+        const layersOf = (p) => { const n = p.doc?.layers?.length ?? 0; return `${n} ${n === 1 ? t("ovlElementLayer") : t("ovlElementLayers")}`; };
+        const sizeOf = (p) => `${p.doc?.canvas?.width ?? "?"} × ${p.doc?.canvas?.height ?? "?"}`;
         const date = (p) => (p.savedAt ? new Date(p.savedAt).toLocaleDateString() : "");
+        // Sorted by recency, the list falls into time sections, as in the library's folders.
+        const sections = (() => {
+          if (browserSort !== "recent") return [{ key: "all", label: t("ovlDesignsAll"), items: shown }];
+          const now = Date.now(), day = 86400000;
+          const age = (p) => now - (Date.parse(p.savedAt || "") || 0);
+          return [
+            { key: "week", label: t("ovlDesignsThisWeek"), items: shown.filter((p) => age(p) < 7 * day) },
+            { key: "month", label: t("ovlDesignsThisMonth"), items: shown.filter((p) => age(p) >= 7 * day && age(p) < 31 * day) },
+            { key: "older", label: t("ovlDesignsOlder"), items: shown.filter((p) => age(p) >= 31 * day) },
+          ].filter((sec) => sec.items.length);
+        })();
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
@@ -3515,58 +3556,71 @@ export default function OverlayEditor({
             if (e.key === "Enter" && cur && !renamingId && e.target.tagName !== "INPUT") applyProfile(cur);
           }}
           onClick={(e) => { if (e.target === e.currentTarget) closeBrowser(); }}>
-          <div className="w-[940px] max-w-[94vw] h-[600px] max-h-[86vh] flex overflow-hidden" style={PANEL_SHELL} tabIndex={-1}>
+          <div className="w-[960px] max-w-[94vw] h-[620px] max-h-[88vh] flex flex-col overflow-hidden" style={PANEL_SHELL} tabIndex={-1}>
 
-            {/* ── Left: the list, built like the layers panel ── */}
-            <div className="w-[270px] shrink-0 flex flex-col min-h-0 pl-3 pr-2 pt-4 pb-3 gap-2">
-              <div className="flex items-baseline gap-2 px-2 pb-1">
-                <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary">{t("ovlProfileBrowse")}</span>
-                <span style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums">{profiles.length}</span>
-              </div>
-              <SearchPill value={browserQuery} onChange={setBrowserQuery} placeholder={t("ovlProfileSearch")} />
-              <ChipGroup height={26} items={[
-                { key: "recent", label: t("ovlProfileSortRecent"), active: browserSort === "recent", onPress: () => setBrowserSort("recent") },
-                { key: "name", label: t("ovlProfileSortName"), active: browserSort === "name", onPress: () => setBrowserSort("name") },
-                { key: "size", label: t("ovlProfileSortSize"), active: browserSort === "size", onPress: () => setBrowserSort("size") },
-              ]} />
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-0.5 pt-1">
-                {profiles.length === 0 ? (
-                  <div className="px-2 py-6 text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileEmpty")}<br /><span className="opacity-70">{t("ovlProfileEmptyHint")}</span></div>
-                ) : shown.length === 0 ? (
-                  <div className="px-2 py-6 text-muted" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileNoResults")}</div>
-                ) : shown.map((p) => {
-                  const on = cur?.id === p.id;
-                  return (
-                    <div key={p.id} onClick={() => { setPickedProfileId(p.id); setConfirmDeleteId(null); }} onDoubleClick={() => applyProfile(p)}
-                      className={`flex items-center gap-2.5 h-11 pl-1.5 pr-3 rounded-[var(--r-full)] cursor-default select-none transition-colors ${on ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]"}`}>
-                      <div className="relative w-[58px] h-8 shrink-0 overflow-hidden rounded-[var(--r-full)]" style={{ background: CHECKER, backgroundColor: "#262626" }}>
-                        <DesignPreview apiBase={apiBase} doc={p.doc} box={{ w: 58, h: 32 }} pad={3} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div style={{ fontSize: "var(--t13)" }} className="truncate font-medium">{p.name}</div>
-                        <div style={{ fontSize: "var(--t11)" }} className={`truncate tabular-nums ${on ? "text-white/75" : "text-muted"}`}>{date(p)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* ── Head: search across the top, sorting and tags under it, as in the library ── */}
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2 shrink-0">
+              <span style={{ fontSize: "var(--t15)" }} className="font-semibold text-primary mr-1">{t("ovlProfileBrowse")}</span>
+              <span style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums mr-2">{profiles.length}</span>
+              <SearchPill value={browserQuery} onChange={setBrowserQuery} placeholder={t("ovlProfileSearchTags")} className="flex-1" />
+              <ChipGroup items={[{ key: "x", icon: <X size={12} />, aria: t("close"), onPress: closeBrowser }]} />
+            </div>
+            <div className="flex items-center gap-1.5 px-4 pb-3 overflow-x-auto shrink-0">
+              {[["recent", t("ovlProfileSortRecent")], ["name", t("ovlProfileSortName")], ["size", t("ovlProfileSortSize")]].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setBrowserSort(k)}
+                  className={`h-[26px] px-3 shrink-0 rounded-[var(--r-full)] border-0 cursor-pointer transition-colors ${browserSort === k ? "bg-[var(--surface-3)] text-primary" : "bg-transparent text-secondary hover:text-primary hover:bg-[var(--surface-2)]"}`}
+                  style={{ fontSize: "var(--t12)" }}>{label}</button>
+              ))}
+              {allTags.length > 0 && <div className="w-px h-4 bg-border mx-1.5 shrink-0" />}
+              {allTags.map((tg) => (
+                <button key={tg} type="button" onClick={() => setTagFilter(tagFilter === tg ? null : tg)}
+                  className={`h-[26px] px-3 shrink-0 rounded-[var(--r-full)] border-0 cursor-pointer transition-colors ${tagFilter === tg ? "bg-accent text-white" : "bg-transparent text-secondary hover:text-primary hover:bg-[var(--surface-2)]"}`}
+                  style={{ fontSize: "var(--t12)" }}>#{tg}</button>
+              ))}
             </div>
 
-            {/* ── Right: the chosen design, large, with everything that can be done with it ── */}
-            <div className="flex-1 min-w-0 flex flex-col pr-4 pl-2 pt-4 pb-4 gap-3">
-              <div className="flex items-center justify-end">
-                <ChipGroup items={[
-                  { key: "import", label: t("ovlProfileImport"), icon: <UploadSimple size={12} />, onPress: () => importFileRef.current?.click() },
-                  { key: "close", icon: <X size={12} />, aria: t("close"), onPress: closeBrowser },
-                ]} />
+            <div className="flex-1 min-h-0 flex gap-4 px-4 pb-4">
+              {/* ── Left: the designs as cards, in sections ── */}
+              <div className="w-[330px] shrink-0 overflow-y-auto min-h-0 pt-1 pr-1 flex flex-col gap-4">
+                {profiles.length === 0 ? (
+                  <div className="px-1 py-6 text-muted leading-snug" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileEmpty")}<br /><span className="opacity-70">{t("ovlProfileEmptyHint")}</span></div>
+                ) : shown.length === 0 ? (
+                  <div className="px-1 py-6 text-muted" style={{ fontSize: "var(--t12)" }}>{t("ovlProfileNoResults")}</div>
+                ) : sections.map((sec) => (
+                  <div key={sec.key} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5 px-1">
+                      <span style={{ fontSize: "var(--t12)" }} className="font-semibold text-secondary">{sec.label}</span>
+                      <span style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums">{sec.items.length}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                      {sec.items.map((p) => {
+                        const on = cur?.id === p.id;
+                        return (
+                          <div key={p.id} className="min-w-0 cursor-default select-none"
+                            onClick={() => { setPickedProfileId(p.id); setConfirmDeleteId(null); }}
+                            onDoubleClick={() => applyProfile(p)}
+                            onContextMenu={(e) => { setPickedProfileId(p.id); openMenu(e, "design", p.id); }}>
+                            <div className="relative h-[72px] overflow-hidden transition-shadow"
+                              style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)", boxShadow: on ? "0 0 0 2px var(--accent)" : "none" }}>
+                              <DesignPreview apiBase={apiBase} doc={p.doc} box={{ w: 154, h: 72 }} pad={8} />
+                            </div>
+                            <div style={{ fontSize: "var(--t12)" }} className="mt-1.5 px-0.5 truncate font-medium text-primary" title={p.name}>{p.name}</div>
+                            <div style={{ fontSize: "var(--t11)" }} className="px-0.5 truncate text-muted tabular-nums">{sizeOf(p)} · {date(p)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="relative flex-1 min-h-0 overflow-hidden" style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)" }}>
-                {/* Up to 2.5x here: an overlay is wide and flat, and at 1:1 it sat small in an empty field. */}
-                {cur && <DesignPreview key={cur.id} apiBase={apiBase} doc={cur.doc} box={{ w: 620, h: 400 }} pad={28} maxScale={2.5} />}
-              </div>
-              {cur && (
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="min-w-0 flex-1">
+
+              {/* ── Right: the picked design, large, with its name, details and tags ── */}
+              <div className="flex-1 min-w-0 flex flex-col gap-3 pt-1">
+                <div className="relative flex-1 min-h-0 overflow-hidden" style={{ background: CHECKER, backgroundColor: "#262626", borderRadius: "var(--r-xl)" }}>
+                  {cur && <DesignPreview key={cur.id} apiBase={apiBase} doc={cur.doc} box={{ w: 560, h: 380 }} pad={28} maxScale={2.5} />}
+                </div>
+                {cur && (
+                  <div className="shrink-0 flex flex-col gap-2">
                     {renamingId === cur.id ? (
                       <input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
                         onBlur={() => { renameProfile(cur.id, renameDraft); setRenamingId(null); }}
@@ -3577,29 +3631,50 @@ export default function OverlayEditor({
                       <div style={{ fontSize: "var(--t15)" }} className="truncate font-semibold text-primary" title={cur.name}
                         onDoubleClick={() => { setRenamingId(cur.id); setRenameDraft(cur.name); }}>{cur.name}</div>
                     )}
-                    <div style={{ fontSize: "var(--t12)" }} className="text-muted tabular-nums mt-0.5">{meta(cur)} · {date(cur)}</div>
+                    <div style={{ fontSize: "var(--t12)" }} className="-mt-1 text-muted tabular-nums">{sizeOf(cur)} · {layersOf(cur)} · {date(cur)}</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(cur.tags || []).map((tg) => (
+                        <span key={tg} className="h-[24px] pl-2.5 pr-1 flex items-center gap-1 rounded-[var(--r-full)] bg-[var(--surface-2)] text-secondary" style={{ fontSize: "var(--t11)" }}>
+                          #{tg}
+                          <button type="button" aria-label={t("ovlTagRemove")} onClick={() => removeTag(cur.id, tg)}
+                            className="w-4 h-4 flex items-center justify-center rounded-full border-0 bg-transparent text-muted hover:text-primary hover:bg-[var(--surface-3)] cursor-pointer"><X size={8} /></button>
+                        </span>
+                      ))}
+                      <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder={t("ovlTagAdd")}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); e.stopPropagation(); addTag(cur.id, tagDraft); setTagDraft(""); } if (e.key === "Escape") { e.stopPropagation(); setTagDraft(""); e.currentTarget.blur(); } }}
+                        onBlur={() => { if (tagDraft.trim()) { addTag(cur.id, tagDraft); setTagDraft(""); } }}
+                        style={{ fontSize: "var(--t11)" }}
+                        className="h-[24px] w-[96px] px-2.5 rounded-[var(--r-full)] bg-transparent text-primary border border-dashed border-border focus:border-accent focus:border-solid outline-none placeholder:text-muted" />
+                    </div>
                   </div>
-                  {confirmDeleteId === cur.id ? (
-                    <>
-                      <span style={{ fontSize: "var(--t12)" }} className="text-secondary">{t("ovlProfileDeleteConfirm")}</span>
-                      <ChipGroup items={[
-                        { key: "no", label: t("cancel"), onPress: () => setConfirmDeleteId(null) },
-                        { key: "yes", label: t("ovlProfileDelete"), danger: true, onPress: () => { deleteProfile(cur.id); setConfirmDeleteId(null); setPickedProfileId(null); } },
-                      ]} />
-                    </>
-                  ) : (
-                    <>
-                      <ChipGroup items={[
-                        { key: "rename", icon: <PencilSimple size={13} />, aria: t("ovlProfileRename"), title: t("ovlProfileRename"), onPress: () => { setRenamingId(cur.id); setRenameDraft(cur.name); } },
-                        { key: "dup", icon: <Copy size={13} />, aria: t("ovlProfileDuplicate"), title: t("ovlProfileDuplicate"), onPress: () => duplicateProfile(cur) },
-                        { key: "export", icon: <DownloadSimple size={13} />, aria: t("ovlProfileExport"), title: t("ovlProfileExport"), onPress: () => exportProfile(cur) },
-                        { key: "del", icon: <Trash size={13} />, aria: t("ovlProfileDelete"), title: t("ovlProfileDelete"), danger: true, onPress: () => setConfirmDeleteId(cur.id) },
-                      ]} />
-                      <ChipGroup items={[{ key: "open", label: t("ovlProfileApply"), kbd: "↵", active: true, onPress: () => applyProfile(cur) }]} />
-                    </>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* ── Footer, as in the library: file actions left, the picked design's actions and Apply right ── */}
+            <div className="flex items-center gap-2 px-4 py-3 shrink-0" style={{ background: PANEL_FOOT }}>
+              <ChipGroup items={[
+                { key: "import", label: t("ovlProfileImport"), icon: <UploadSimple size={12} />, onPress: () => importFileRef.current?.click() },
+                { key: "export", label: t("ovlProfileExport"), icon: <DownloadSimple size={12} />, disabled: !cur, onPress: () => cur && exportProfile(cur) },
+              ]} />
+              <div className="ml-auto flex items-center gap-2">
+                {cur && (confirmDeleteId === cur.id ? (
+                  <>
+                    <span style={{ fontSize: "var(--t12)" }} className="text-secondary">{t("ovlProfileDeleteConfirm")}</span>
+                    <ChipGroup items={[
+                      { key: "no", label: t("cancel"), onPress: () => setConfirmDeleteId(null) },
+                      { key: "yes", label: t("ovlProfileDelete"), danger: true, onPress: () => { deleteProfile(cur.id); setConfirmDeleteId(null); setPickedProfileId(null); } },
+                    ]} />
+                  </>
+                ) : (
+                  <ChipGroup items={[
+                    { key: "rename", icon: <PencilSimple size={13} />, aria: t("ovlProfileRename"), title: t("ovlProfileRename"), onPress: () => { setRenamingId(cur.id); setRenameDraft(cur.name); } },
+                    { key: "dup", icon: <Copy size={13} />, aria: t("ovlProfileDuplicate"), title: t("ovlProfileDuplicate"), onPress: () => duplicateProfile(cur) },
+                    { key: "del", icon: <Trash size={13} />, aria: t("ovlProfileDelete"), title: t("ovlProfileDelete"), danger: true, onPress: () => setConfirmDeleteId(cur.id) },
+                  ]} />
+                ))}
+                <ChipGroup items={[{ key: "open", label: t("ovlProfileApply"), kbd: "↵", active: !!cur, disabled: !cur, onPress: () => cur && applyProfile(cur) }]} />
+              </div>
             </div>
           </div>
         </div>

@@ -26,7 +26,8 @@ Changes:
 - Overlay editor: entrance and loop animations have a delay, and entrances can be played in the editor
 - Overlay editor: new entrance animations: drive in from outside the canvas at an even speed, blur, pop, zoom out, flip, rotate, drop and reveal
 - Overlay editor: an element library above the tool row: save a selection (Ctrl+Alt+K), sort it into folders and drag it onto the canvas again
-- Overlay editor: the element library, My Designs, the colour picker and the font picker share one look; My Designs shows a list beside a large preview
+- Overlay editor: the element library, My Designs, the colour picker and the font picker share one look
+- Overlay editor: My Designs shows cards beside a large preview, in sections by date, and designs can be tagged and found by tag
 - Overlay editor: click a fill, stroke, effect or animation in the inspector, then Ctrl+C and Ctrl+V to copy it onto other elements
 - Overlay editor: copy the look of a layer or group and paste it onto others, whole or just its colors, effects or animations (Ctrl+Alt+C, Ctrl+Alt+V)
 - Terms of Service and Privacy Policy can be found under About
