@@ -6731,7 +6731,7 @@ function buildProgress(el,L,rec){
     rec.set=(pct)=>{
       const p=pct/100*n;
       parts.forEach(([seg,f],i)=>{
-        if(kind==='segments')f.style.width=Math.max(0,Math.min(1,p-i))*100+'%';
+        if(kind==='segments'){f.style.width='100%';f.style.transformOrigin='left center';f.style.transform=`scaleX(${Math.max(0,Math.min(1,p-i)).toFixed(4)})`;}
         else{
           const on=i<Math.floor(p),cur=i===Math.min(n-1,Math.floor(p));
           f.style.width=(on||cur)?'100%':'0';
@@ -6771,19 +6771,35 @@ function buildProgress(el,L,rec){
   if(kind!=='bar'){
     [track,fill].forEach(d=>{d.style.top=top+'px';d.style.height=lw+'px';d.style.borderRadius=(lw/2)+'px';});
   }
-  if(kind==='glow')fill.style.boxShadow=`0 0 ${s.glow==null?8:s.glow}px ${Math.max(1,lw/2)}px ${fillCol}`;
+  // The fill is always the full width and is uncovered by a clip. A width snaps to whole pixels,
+  // and a four-minute song on a 300 px bar moves about one pixel a second, so it advanced in
+  // visible steps; a clip edge is anti-aliased and moves in fractions of a pixel. A gradient
+  // also stays put on the bar this way.
+  fill.style.width='100%';
   progressFx(fill,s,fillCol);
-  el.appendChild(track);el.appendChild(fill);rec.fill=fill;
+  el.appendChild(track);
+  if(kind==='glow'){
+    // The glow on a wrapper: a clip cuts away everything outside it, a shadow included.
+    const wrap=ovlDiv();wrap.style.cssText='position:absolute;inset:0';
+    wrap.style.filter=`drop-shadow(0 0 ${Math.max(1,(s.glow==null?8:s.glow)/2)}px ${fillCol}) drop-shadow(0 0 ${s.glow==null?8:s.glow}px ${fillCol})`;
+    wrap.appendChild(fill);el.appendChild(wrap);
+  }else el.appendChild(fill);
+  rec.fill=fill;
+  const radius=kind==='bar'?0:lw/2;
   let head=null;
   if(kind==='knob'||s.progressAnim==='pulse'){
     const k=kind==='knob'?Math.max(lw,Math.min(H,s.knobSize||H)):Math.max(lw*2,6);
-    head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0`;
+    head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0;will-change:transform`;
     head.style.background=kind==='knob'?(s.knobColor||'#ffffff'):fillCol;
     head.style.boxShadow=s.progressAnim==='pulse'?`0 0 ${k}px ${k/3}px ${fillCol}`:'0 1px 4px rgba(0,0,0,.45)';
     if(s.progressAnim==='pulse')head.style.animation='ovl-breathe 1.2s ease-in-out infinite';
     el.appendChild(head);
   }
-  rec.set=(pct)=>{fill.style.width=pct+'%';if(head)head.style.left=pct+'%';};
+  rec.set=(pct)=>{
+    const x=pct/100*W;
+    fill.style.clipPath=`inset(0 ${Math.max(0,W-x).toFixed(3)}px 0 0 round ${radius}px)`;
+    if(head)head.style.transform=`translateX(${x.toFixed(3)}px)`;
+  };
 }
 
 // The position, counted here between the backend's once-a-second reports: from the last report
@@ -6835,7 +6851,11 @@ function startWaves(){
       w.shown=w.target;
       const pad=w.sw/2,x0=pad,x1=pad+Math.max(0,Math.min(100,w.shown))/100*(w.W-2*pad),cy=w.H/2;
       let d='';
-      for(let x=x0;x<=x1+0.01;x+=1.5){const y=cy+Math.sin((x-x0)/w.wl*2*Math.PI-w.phase)*w.amp;d+=(d?' L':'M')+x.toFixed(1)+' '+y.toFixed(2);}
+      const wy=(x)=>cy+Math.sin((x-x0)/w.wl*2*Math.PI-w.phase)*w.amp;
+      for(let x=x0;x<x1;x+=1.5)d+=(d?' L':'M')+x.toFixed(2)+' '+wy(x).toFixed(2);
+      // ...and end exactly at the position, not on the 1.5 px sampling grid, which made the
+      // wave grow in visible steps.
+      d+=(d?' L':'M')+x1.toFixed(3)+' '+wy(x1).toFixed(3);
       w.path.setAttribute('d',d||`M${x0} ${cy}`);
       const gap=w.sw*2,ts=Math.min(x1+gap,w.W-w.sw*2.5),te=Math.max(ts,w.W-w.sw*2.5);
       w.tr.setAttribute('x1',ts);w.tr.setAttribute('x2',te);
