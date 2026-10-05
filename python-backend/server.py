@@ -6489,7 +6489,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;min
 @keyframes ovl-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 .layer-img{width:100%;height:100%;display:block}
 .layer-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-.txt{display:flex;width:100%;height:100%;overflow:hidden}
+.txt{display:flex;width:100%;height:100%}
 .txt-inner{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .txt-inner.scroll{text-overflow:clip}
 .txt-inner.scroll span{display:inline-block}
@@ -6602,11 +6602,20 @@ function buildText(el,L,rec){
   // Outline: the first visible stroke. "Outside" is a stroke twice as wide painted UNDER the
   // fill, so only its outer half shows; text has no inside stroke to offer.
   const tst=(Array.isArray(s.strokes)?s.strokes:[]).find(p=>p&&p.visible!==false);
+  let reach=0;
   if(tst){
     const w=(s.strokeWeight==null?2:s.strokeWeight),out=(s.strokePosition||'outside')!=='center';
     inner.style.webkitTextStroke=(out?w*2:w)+'px '+rgba(tst.color||'#000000',(tst.opacity==null?100:tst.opacity)/100);
     inner.style.paintOrder=out?'stroke fill':'normal';
+    reach=out?w:w/2;
   }
+  // The line clips its content (for the ellipsis and the marquee), and that clipped the outline
+  // and any glyph reaching past the line box: tall caps, descenders, overhanging letters. Room
+  // inside the clip, given back as negative margin, keeps the text exactly where it was.
+  const px=Math.ceil(reach)+2,py=`calc(0.25em + ${Math.ceil(reach)}px)`;
+  inner.style.padding=`${py} ${px}px`;
+  inner.style.margin=`calc(-0.25em - ${Math.ceil(reach)}px) -${px}px`;
+  inner.style.maxWidth=`calc(100% + ${2*px}px)`;
   inner.style.textAlign=s.align||'left';
   inner.style.letterSpacing=(s.letterSpacing||0)+'px';
   inner.style.lineHeight=s.lineHeight||1.3;
