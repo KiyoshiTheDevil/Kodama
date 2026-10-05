@@ -6,7 +6,9 @@
   <title>Kodama: A desktop player for YouTube Music</title>
   <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
   <link rel="stylesheet" href="style.css">
-  <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__siteMotion)document.documentElement.classList.add('reveal-all')},2500)</script>
+  <!-- The font in before the first paint, so a page change does not show the fallback first. -->
+  <link rel="preload" href="s/MiSansLatin-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="s/MiSansLatin-Semibold.ttf" as="font" type="font/ttf" crossorigin>
   <script type="module" src="js/site.js"></script>
   <script type="module" src="js/spirit.js"></script>
 </head>

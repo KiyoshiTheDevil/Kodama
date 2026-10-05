@@ -64,9 +64,7 @@ function go(p, push = true) {
   for (const [k, v] of Object.entries(p)) if (v) q.set(k, v);
   const url = location.pathname + (q.toString() ? "?" + q : "");
   if (push) history.pushState(null, "", url); else history.replaceState(null, "", url);
-  // A step to another view (category, back) slides like a page change; typing a search does not.
-  if (push && document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(render);
-  else render();
+  render();
 }
 window.addEventListener("popstate", render);
 
@@ -182,7 +180,10 @@ function home() {
       ${tile("widgets", "", n("widgets") ? "" : `<kodama-spirit pose="sleep" size="64"></kodama-spirit>`)}
       ${tile("extensions", "", `<div class="art" style="display:flex;gap:8px">${exts}</div>`)}
     </div>`;
-  app.querySelectorAll(".cat").forEach((a) => a.addEventListener("click", (ev) => { ev.preventDefault(); go({ c: a.dataset.c }); }));
+  app.querySelectorAll(".cat").forEach((a, i) => {
+    a.classList.add("enter"); a.style.animationDelay = `${i * 0.05}s`;
+    a.addEventListener("click", (ev) => { ev.preventDefault(); go({ c: a.dataset.c }); });
+  });
   paintCanvases();
 }
 

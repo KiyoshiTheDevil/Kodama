@@ -246,16 +246,11 @@ footer a:hover { color:var(--t1); }
 @media (max-width:560px) { .legal { padding:20px; } }
 
 /* ── Motion ─────────────────────────────────────────────────────────── */
-/* Reveal on scroll (js/site.js). Hidden only while the script is there to show it again; if it
-   never runs, html.reveal-all (set by the inline fallback in each page) shows everything. */
-html.js:not(.reveal-all) :is(.section > h2, .section > .sub, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead, .cat):not(.in) {
-  opacity:0; transform:translateY(18px);
-}
-html.js :is(.section > h2, .section > .sub, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead, .cat).in:not(.settled) {
-  transition:opacity .6s cubic-bezier(.2,.8,.2,1) var(--d,0s), transform .6s cubic-bezier(.2,.8,.2,1) var(--d,0s);
-}
+/* Reveal on scroll (js/site.js): .pre is only ever set on what starts below the fold. */
+.pre { opacity:0; transform:translateY(18px); }
+.pre.in { opacity:1; transform:none; transition:opacity .6s cubic-bezier(.2,.8,.2,1) var(--d,0s), transform .6s cubic-bezier(.2,.8,.2,1) var(--d,0s); }
 /* Store: cards pop in one after another; a newly picked entry fades in. */
-.card.enter { animation:card-in .42s cubic-bezier(.3,1.35,.5,1) both; }
+.card.enter, .cat.enter { animation:card-in .42s cubic-bezier(.3,1.35,.5,1) both; }
 @keyframes card-in { from { opacity:0; transform:scale(.92); } }
 .detail.swap-in { animation:swap-in .3s ease-out; }
 @keyframes swap-in { from { opacity:0; transform:translateY(6px); } }
@@ -269,7 +264,7 @@ header.top { view-transition-name:site-header; }
 @keyframes vt-in { from { opacity:0; transform:translateX(24px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  html.js :is(.section > h2, .section > .sub, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead, .cat) { opacity:1 !important; transform:none !important; }
-  .card.enter, .detail.swap-in { animation:none; }
+  .pre { opacity:1; transform:none; }
+  .card.enter, .cat.enter, .detail.swap-in { animation:none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation:none !important; }
 }
