@@ -1,14 +1,15 @@
 /**
- * The store: published themes, and the ones this installation has.
+ * The store window: what this installation has, and the page of one entry.
  *
- * Two categories, not five. An empty "Extensions" or "Visualizer presets" entry would teach a
- * first-time visitor that the shop is bare, which is worse than not offering the entry at all,
- * so a category appears here once it has something in it.
+ * Browsing moved to the website (kodama.kiyoshi.dev/store/, see web.js). What stays here is what
+ * only the app can do: list and remove what is installed, update it, and install an entry when
+ * the website sends one over with a kodama://store link, which opens that entry's page here.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, Button } from "@heroui/react";
-import { ArrowsClockwise, ArrowLeft, ArrowRight, Check, House, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
-  GridTwo, Storefront, MagnifyingGlass } from "../icons.jsx";
+import { ArrowsClockwise, ArrowLeft, ArrowRight, Check, Palette, PuzzlePiece, WaveformLines, EqualizerIcon,
+  GridTwo, Storefront, MagnifyingGlass, ArrowSquareOut } from "../icons.jsx";
+import { openStoreWeb, STORE_OPEN_ENTRY } from "./web.js";
 import { fetchCatalogue, annotateThemes, annotatePresets, annotateExtensions } from "./catalogue.js";
 import { PRESET_KINDS, installPresetEverywhere, uninstallPresetEverywhere, onPresetsChanged } from "./presets.js";
 import { PresetCard, PresetDetail } from "./preset-views.jsx";
@@ -28,29 +29,23 @@ import { Tooltip } from "../ui/tooltip.jsx";
 const BUILTIN_IDS = new Set(["dark", "oled", "light"]);
 const ROW_H = 30;   // the equaliser preset row, so the two windows read as one application
 
-// The whole shape of the shop, including the shelves that are still empty.
-//
-// An empty shelf is a promise, and a promise has to say what it is waiting for. Each category
-// that carries nothing yet names what will live there and why it is not there, rather than
-// showing a blank pane that reads as a broken page.
+// What is installed, all of it or one kind. Every section shows installed entries only: the
+// shelves of the shop are on the website now.
 const CATEGORIES = [
-  { id: "start",      icon: House,         label: "storeStart" },
+  { id: "mine",       icon: GridTwo,       label: "storeInstalled" },
   { id: "themes",     icon: Palette,       label: "storeThemes" },
   { id: "extensions", icon: PuzzlePiece,   label: "storeExtensions" },
-  { id: "visualizer", icon: WaveformLines, label: "storeVisualizer", kind: "visualizer" },
-  { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer",  kind: "equalizer" },
-  { id: "widgets",    icon: GridTwo,       label: "storeWidgets",    soon: "storeSoonWidgets" },
+  { id: "visualizer", icon: WaveformLines, label: "storeVisualizer" },
+  { id: "equalizer",  icon: EqualizerIcon, label: "storeEqualizer" },
 ];
 
-/** A shelf with nothing on it yet: what belongs here, and what it is waiting for. */
-function ComingSoon({ icon: Icon, title, line }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 py-16 text-center">
-      <Icon size={30} className="text-muted opacity-40" />
-      <div className="text-[length:var(--t14)] font-medium text-primary">{title}</div>
-      <div className="max-w-[380px] text-[length:var(--t12)] leading-relaxed text-muted">{line}</div>
-    </div>
-  );
+/** A store link's entry as the opening page: "themes:grove" from the window URL. */
+function entryFromUrl() {
+  try {
+    const raw = new URLSearchParams(location.search).get("entry") || "";
+    const i = raw.indexOf(":");
+    return i > 0 ? { kind: raw.slice(0, i), id: raw.slice(i + 1) } : null;
+  } catch { return null; }
 }
 
 /** A theme drawn as the app would draw it: ground, a panel, a line of text, three tiles. */
@@ -261,8 +256,12 @@ export default function Store({ t, language }) {
   // Where the shop has been. A shop is a place you walk through, and the two arrows in the header
   // promise that; without a stack they would be decoration. One entry is a shelf plus whichever
   // page was open on it, because those are the two things that make a view.
-  const [hist, setHist] = useState([{ section: "start", detailId: null }]);
-  const [at, setAt] = useState(0);
+  // A store link opens on its entry, with Installed one step back.
+  const [hist, setHist] = useState(() => {
+    const e = entryFromUrl();
+    return e ? [{ section: "mine", detailId: null }, { section: "link", detailId: e.id }] : [{ section: "mine", detailId: null }];
+  });
+  const [at, setAt] = useState(() => (entryFromUrl() ? 1 : 0));
   const here = hist[at];
   const section = here.section;
   const detailId = here.detailId;
@@ -272,7 +271,9 @@ export default function Store({ t, language }) {
     setHist(h => [...h.slice(0, at + 1), { ...here, ...next }]);
     setAt(n => n + 1);
   };
-  const setDetailId = (id) => go({ detailId: id });
+  // Leaving a page a store link opened goes to Installed: the "link" section is that one page,
+  // and without its entry it would be the whole catalogue, the shop this window no longer is.
+  const setDetailId = (id) => go(id === null && section === "link" ? { section: "mine", detailId: null } : { detailId: id });
   const canBack = at > 0;
   const canFwd = at < hist.length - 1;
 
@@ -340,6 +341,18 @@ export default function Store({ t, language }) {
   useEffect(() => onPresetsChanged(refresh), [refresh]);
   useEffect(() => onExtensionsChanged(refresh), [refresh]);
 
+  // A store link that arrives while this window is already open.
+  useEffect(() => {
+    let un = null, gone = false;
+    import("@tauri-apps/api/event").then(({ listen }) => listen(STORE_OPEN_ENTRY, (ev) => {
+      const id = ev.payload && ev.payload.id;
+      if (!id) return;
+      setHist(h => [...h.slice(0, at + 1), { section: "link", detailId: id }]);
+      setAt(n => n + 1);
+    })).then(u => { if (gone) u(); else un = u; }).catch(() => {});
+    return () => { gone = true; if (un) un(); };
+  }, [at]);
+
   const apply = (id) => {
     localStorage.setItem("kiyoshi-theme", id);
     applyTheme(id);
@@ -399,7 +412,6 @@ export default function Store({ t, language }) {
   const match = (e) => !q || `${e.title} ${e.description || ""} ${(e.tags || []).join(" ")}`.toLowerCase().includes(q);
 
   const openSection = (id) => go({ section: id, detailId: null });
-  const current = CATEGORIES.find(c => c.id === section);
 
   // A theme installed from a catalogue that has since dropped it has no published entry to draw,
   // but it is still installed and still needs a way out.
@@ -429,12 +441,12 @@ export default function Store({ t, language }) {
     }));
     const exts = { key: "extensions", label: t("storeExtensions"), kind: "extension", items: extensions };
     const all = [themes, ...presets, exts];
-    if (section === "start") return all;
-    if (section === "mine") return all.map(g => ({ ...g, items: g.items.filter(i => i.installed) }));
+    // A store link may point at anything published; every other section is what is installed.
+    if (section === "link") return all;
+    const installed = all.map(g => ({ ...g, items: g.items.filter(i => i.installed) }));
+    if (section === "mine") return installed;
     if (section === "updates") return all.map(g => ({ ...g, items: g.items.filter(i => i.updatable) }));
-    if (section === "themes") return [themes];
-    if (section === "extensions") return [exts];
-    return all.filter(g => g.key === section);
+    return installed.filter(g => g.key === section);
   })().map(g => ({ ...g, items: g.items.filter(match).map(withStats) })).filter(g => g.items.length > 0);
 
   const everything = groups.flatMap(g => g.items.map(i => ({ ...i, _group: g.kind })));
@@ -522,12 +534,12 @@ export default function Store({ t, language }) {
             )}
           </Button>
         </Tooltip>
-        {/* What this installation has, rather than what is on offer: a different question from the
-            shelves, so a different control rather than one more of them. */}
+        {/* Finding new things happens on the website; this window keeps what is installed. */}
         <Button size="sm" variant="ghost"
-          className={cn(HDR_ICON_BTN, "w-auto! px-3!", section === "mine" && "bg-accent! text-white!")}
-          style={{ borderRadius: hdrCorners(true, false) }} onPress={() => openSection("mine")}>
-          <GridTwo size={13} /> <span className="ml-1.5" style={{ fontSize: "var(--t12)" }}>{t("storeLibrary")}</span>
+          className={cn(HDR_ICON_BTN, "w-auto! px-3!")}
+          style={{ borderRadius: hdrCorners(true, false) }} onPress={() => openStoreWeb()}>
+          <Storefront size={13} /> <span className="ml-1.5" style={{ fontSize: "var(--t12)" }}>{t("storeOpenWeb")}</span>
+          <ArrowSquareOut size={11} className="ml-1.5 opacity-60" />
         </Button>
 
         <div className="ml-2"><WindowControls /></div>
@@ -543,6 +555,13 @@ export default function Store({ t, language }) {
             <MagnifyingGlass size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" />
           </div>
           {CATEGORIES.map(c => <RailItem key={c.id} id={c.id} icon={c.icon} label={t(c.label)} />)}
+          <div className="my-2 h-px bg-[var(--stroke)]" />
+          <div onClick={() => openStoreWeb()} style={{ height: ROW_H }}
+            className="flex cursor-default select-none items-center gap-2 rounded-[var(--r-full)] px-4 text-primary transition-colors duration-150 hover:bg-[var(--bg-hover)]">
+            <Storefront size={14} className="shrink-0" />
+            <span className="flex-1 truncate" style={{ fontSize: "var(--t13)" }}>{t("storeOpenWeb")}</span>
+            <ArrowSquareOut size={11} className="shrink-0 text-muted" />
+          </div>
         </div>
 
         {/* ── Content ─────────────────────────────────────────────────────── */}
@@ -578,8 +597,13 @@ export default function Store({ t, language }) {
                 )))}
               </div>
             </div>
-          ) : current?.soon ? (
-            <ComingSoon icon={current.icon} title={t(current.label)} line={t(current.soon)} />
+          ) : section === "link" && cat && cat.ok && !detail ? (
+            // A link to something the catalogue does not carry (any more), or not in this build.
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <Storefront size={30} className="text-muted opacity-40" />
+              <div className="max-w-[380px] text-[length:var(--t12)] leading-relaxed text-muted">{t("storeLinkMissing")}</div>
+              <Button size="sm" variant="secondary" onPress={() => openStoreWeb()}>{t("storeOpenWeb")}</Button>
+            </div>
           ) : detail ? (detail._group === "extension" ? (
             <ExtensionDetail entry={detail} t={t} language={language}
               onBack={() => setDetailId(null)}
@@ -608,11 +632,16 @@ export default function Store({ t, language }) {
               {extProblem}
             </div>
           )}
-          {cat && cat.ok && !everything.length && (
-            <div className="text-[length:var(--t12)] text-muted">
-              {q ? t("storeNoMatches") : t("storeNothingInstalled")}
+          {cat && cat.ok && !everything.length && (q ? (
+            <div className="text-[length:var(--t12)] text-muted">{t("storeNoMatches")}</div>
+          ) : (
+            // Nothing installed yet: the way to the shop, right where the shelf is empty.
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <GridTwo size={30} className="text-muted opacity-40" />
+              <div className="text-[length:var(--t12)] text-muted">{t("storeNothingInstalled")}</div>
+              <Button size="sm" variant="secondary" onPress={() => openStoreWeb(section === "mine" ? undefined : section)}>{t("storeOpenWeb")}</Button>
             </div>
-          )}
+          ))}
 
           {/* A heading only where there is more than one kind on the shelf. On Themes the rail
               already says it, and repeating it would be a heading for the whole page. */}

@@ -27,6 +27,7 @@ import { takeRescueRecord } from "./theme-rescue.js";
 import { allThemes } from "./themes.js";
 import { onThemesChanged, onThemeSelected } from "./store/sync.js";
 import { openStoreWindow } from "./store/window.js";
+import { parseStoreLink } from "./store/web.js";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -4575,13 +4576,16 @@ export default function App() {
     return () => clearInterval(iv);
   }, [demoMode, currentTrack, audioRef]);
 
-  // Deep links: kodama://song/<videoId>. Handles both cold start (getCurrent) and while
-  // the app is already running (onOpenUrl, routed via the single-instance plugin).
+  // Deep links: kodama://song/<videoId>, and kodama://store/<kind>/<id> from the store website.
+  // Handles both cold start (getCurrent) and while the app is already running (onOpenUrl, routed
+  // via the single-instance plugin).
   useEffect(() => {
     let unlisten;
     const handle = (url) => {
       const m = String(url || "").match(/^kodama:\/\/song\/([A-Za-z0-9_-]{6,})/i);
-      if (m) playByVideoId(m[1]);
+      if (m) { playByVideoId(m[1]); return; }
+      const entry = parseStoreLink(url);
+      if (entry) openStoreWindow(entry);
     };
     (async () => {
       try {

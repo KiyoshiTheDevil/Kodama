@@ -22,7 +22,7 @@ import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
 import {
-  ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad, Sparkles,
+  ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad, Sparkles, Storefront,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
   ArrowsOut, ArrowClockwise, CaretDown, CaretRight, CursorArrow, ObjectGroup, ObjectUngroup, Play, PaintRoller, Shapes, Folder,
   X, Minus, UploadSimple, DownloadSimple, FileImport, FileExport, FloppyDisk, Swatches, MagnifyingGlass, DotsSixVertical,
@@ -33,6 +33,7 @@ import {
 } from "./schema.js";
 import { readElements, writeElements, makeElement, placeElement, foldersOf, moveToFolder, renameFolder, dissolveFolder, cleanFolder, readFolderList, writeFolderList } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
+import { openStoreWeb } from "../store/web.js";
 import { useCoverPalette, setCoverPalette, setCoverText, parseCover, resolveColor, coverName, coverPickerProps } from "./cover-colors.js";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
@@ -3879,6 +3880,9 @@ export default function OverlayEditor({
               <ChipGroup items={[
                 { key: "import", label: t("ovlProfileImport"), icon: <UploadSimple size={12} />, onPress: () => importFileRef.current?.click() },
                 { key: "export", label: t("ovlProfileExport"), icon: <DownloadSimple size={12} />, disabled: !cur, onPress: () => cur && exportProfile(cur) },
+              ]} />
+              <ChipGroup items={[
+                { key: "more", label: t("ovlMoreDesigns"), icon: <Storefront size={12} />, onPress: () => openStoreWeb("widgets") },
               ]} />
               <div className="ml-auto flex items-center gap-2">
                 {cur && (confirmDeleteId === cur.id ? (

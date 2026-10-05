@@ -1,23 +1,34 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { storeIsOpen } from "./gate.js";
+import { STORE_OPEN_ENTRY } from "./web.js";
 
 /**
- * Open the store, or focus it if it is already up.
+ * Open the store, or focus it if it is already up. With `entry` ({ kind, id }, from a
+ * kodama://store link) it opens on that entry's page.
  *
  * NOTE: the label must also appear in src-tauri/capabilities/default.json. Capabilities are
  * matched per window label, and a window missing from that list gets no permissions at all,
  * which shows up as a window that cannot be dragged or closed. That has caught this project
  * twice already.
  */
-export async function openStoreWindow() {
+export async function openStoreWindow(entry) {
   // Checked here as well as at the button. The button is the only way in today, but a gate that
   // lives only in the caller is one refactor away from being gone.
   if (!storeIsOpen()) return;
   try {
     const existing = await WebviewWindow.getByLabel("store");
-    if (existing) { await existing.setFocus(); return; }
+    if (existing) {
+      if (entry) {
+        const { emitTo } = await import("@tauri-apps/api/event");
+        await emitTo("store", STORE_OPEN_ENTRY, entry);
+      }
+      await existing.unminimize().catch(() => {});
+      await existing.setFocus();
+      return;
+    }
+    const q = entry ? `&entry=${encodeURIComponent(entry.kind + ":" + entry.id)}` : "";
     new WebviewWindow("store", {
-      url: "/?store=1",
+      url: "/?store=1" + q,
       title: "Store — Kodama",
       width: 1000,
       height: 680,
