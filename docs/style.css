@@ -1,12 +1,12 @@
 /* Shared styles for kodama.kiyoshi.dev: landing, store, versions and the legal pages.
    Forest green with the logo's ring as a little character (js/spirit.js). Round, soft shapes;
-   buttons carry a small ledge underneath, so they read as pressable. */
+   buttons are flat pills, and a pair is joined with a notch where the two meet. */
 @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
 @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Semibold.ttf') format('truetype'); font-weight:600; font-display:swap; }
 :root {
   --bg:#0f1a14; --surface:#17271e; --surface-2:#1b2b22; --surface-3:#22362a; --deep:#1d3a28;
   --t1:#eaf5ec; --t2:#a9c4b2; --t3:#7f9c89;
-  --accent:#9be36d; --accent-ledge:#5d9a3a; --accent-2:#0AFFFB;
+  --accent:#9be36d; --accent-2:#0AFFFB;
   --line:rgba(234,245,236,0.08);
   --r-card:22px; --r-tile:18px;
   --font:'MiSans Latin',-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -57,23 +57,35 @@ nav.links a.on { background:var(--t1); color:var(--bg); }
 /* ── Buttons ────────────────────────────────────────────────────────── */
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:600; font-size:15px;
   padding:12px 22px; border-radius:16px; border:0; cursor:pointer; font-family:inherit; transition:transform .12s, box-shadow .12s, filter .15s, background .15s; }
-.btn.primary { background:var(--accent); color:var(--bg); box-shadow:0 4px 0 var(--accent-ledge); }
-.btn.primary:hover { filter:brightness(1.06); }
-.btn.primary:active { transform:translateY(3px); box-shadow:0 1px 0 var(--accent-ledge); }
-.btn.secondary { background:var(--surface-2); color:var(--t1); font-weight:400; box-shadow:0 4px 0 #0b140f; }
+.btn { border-radius:99px; }
+.btn:active { transform:scale(.97); }
+.btn.primary { background:var(--accent); color:var(--bg); }
+.btn.primary:hover { filter:brightness(1.07); }
+.btn.secondary { background:var(--surface-2); color:var(--t1); font-weight:400; }
 .btn.secondary:hover { background:var(--surface-3); }
-.btn.secondary:active { transform:translateY(3px); box-shadow:0 1px 0 #0b140f; }
-.btn.small { font-size:13px; padding:9px 15px; border-radius:13px; }
+.btn.small { font-size:13px; padding:9px 16px; }
+
+/* The hero download: one big button naming the system and version, joined to GitHub. Round on
+   the outside, notched where the two meet, the way the app joins its header buttons. */
+.dl-pair { display:flex; gap:4px; align-items:stretch; }
+.dl-pair a { transition:filter .15s, background .15s, transform .1s; }
+.dl-pair a:active { transform:scale(.97); }
+.dl-main { display:inline-flex; align-items:center; gap:12px; padding:9px 22px 9px 12px; background:var(--accent); color:var(--bg); border-radius:28px 8px 8px 28px; }
+.dl-main:hover { filter:brightness(1.07); }
+.dl-ic { width:34px; height:34px; border-radius:50%; background:rgba(15,26,20,.12); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.dl-main b { display:block; font-size:15px; line-height:1.2; font-weight:600; }
+.dl-main small { display:block; font-size:12px; opacity:.72; }
+.dl-gh { display:inline-flex; align-items:center; justify-content:center; padding:0 18px 0 15px; background:var(--surface-2); color:var(--t1); border-radius:8px 28px 28px 8px; }
+.dl-gh:hover { background:var(--surface-3); }
+.dl-alt { font-size:13px; color:var(--t3); margin-top:12px; }
+.dl-alt a { color:var(--t2); text-decoration:underline; text-decoration-color:rgba(169,196,178,.35); text-underline-offset:3px; }
+.dl-alt a:hover { color:var(--t1); }
 
 /* ── Landing ────────────────────────────────────────────────────────── */
 .hero { overflow-x:clip; overflow-y:visible; display:grid; grid-template-columns:1fr 1.15fr; gap:36px; align-items:center; padding:30px 0 20px; }
 .hero h1 { font-size:clamp(32px,4.6vw,52px); line-height:1.08; margin:0 0 14px; font-weight:600; letter-spacing:-.01em; }
 .hero h1 .grad { background:linear-gradient(90deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .tagline { font-size:clamp(15px,1.7vw,18px); color:var(--t2); margin:0 0 24px; }
-.cta { display:flex; gap:12px; flex-wrap:wrap; }
-.dl-version { font-size:13px; color:var(--t3); margin:16px 0 0; min-height:1em; }
-.dl-version b { color:var(--t2); font-weight:600; }
-.platforms { font-size:13px; color:var(--t3); margin-top:4px; }
 .stage { position:relative; padding:0 0 0 70px; }
 .device { position:relative; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,0.08);
   box-shadow:0 40px 100px rgba(0,0,0,.55); line-height:0; }
@@ -209,9 +221,10 @@ footer a:hover { color:var(--t1); }
 .rel-body code { background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:5px; font-size:.9em; }
 .rel-body a { color:var(--accent); }
 .rel-dl { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
-.rel-dl a { font-size:13px; font-weight:600; padding:9px 16px; border-radius:13px; background:var(--surface-2); box-shadow:0 3px 0 #0b140f; }
+.rel-dl a { font-size:13px; font-weight:600; padding:9px 16px; border-radius:99px; background:var(--surface-2); transition:background .15s, transform .1s; }
+.rel-dl a:active { transform:scale(.97); }
 .rel-dl a:hover { background:var(--surface-3); }
-.rel.latest .rel-dl a.win { background:var(--accent); color:var(--bg); box-shadow:0 3px 0 var(--accent-ledge); }
+.rel.latest .rel-dl a.win { background:var(--accent); color:var(--bg); }
 .mac-install { display:flex; flex-direction:column; gap:6px; min-width:0; }
 .mac-install code { display:block; font-size:12.5px; color:var(--t1); background:var(--surface-2); border-radius:12px; padding:9px 14px;
   white-space:nowrap; overflow-x:auto; max-width:100%; }
