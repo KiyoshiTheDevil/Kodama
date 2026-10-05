@@ -33,6 +33,7 @@ import {
 } from "./schema.js";
 import { readElements, writeElements, makeElement, placeElement, foldersOf, moveToFolder, renameFolder, dissolveFolder, cleanFolder, readFolderList, writeFolderList } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
+import { useCoverPalette, setCoverPalette, setCoverText, parseCover, resolveColor, coverName, coverPickerProps } from "./cover-colors.js";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
   setGroup, cloneLayers, buildRows, dropRow, boundsOf, membersOf, pickOnClick, pickOnDoubleClick,
@@ -332,14 +333,24 @@ function OvlTextField({ label, value, onChange, placeholder }) {
   );
 }
 function ColorField({ label, value, onChange, opacity, onOpacity, corners }) {
-  const hex = typeof value === "string" && value[0] === "#" ? value.slice(0, 7) : "#000000";
+  const pal = useCoverPalette();
+  // A colour bound to the cover shows its name instead of a hex value; picking an own colour
+  // in the picker (or typing one after clearing) unbinds it.
+  const bound = !!parseCover(value);
+  const hex = bound ? value : typeof value === "string" && value[0] === "#" ? value.slice(0, 7) : "#000000";
   return (
     <div style={{ borderRadius: corners || "var(--r-full)" }}
       className="flex items-center gap-2 h-[30px] pl-2 pr-3 bg-[var(--surface-2)] border border-transparent transition-colors focus-within:border-accent">
-      <ColorPicker variant="editor" value={hex} onChange={onChange} swatch={{ width: 18, height: 18, borderRadius: "var(--r-full)", border: "1px solid var(--border)" }} />
-      <input value={(value ?? "").replace(/^#/, "")} onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
-        className="flex-1 min-w-0 bg-transparent outline-none font-mono text-primary uppercase"
-        style={{ fontSize: "var(--t13)" }} aria-label={(label || "") + " hex"} />
+      <ColorPicker variant="editor" value={hex} onChange={onChange} cover={coverPickerProps(pal)} swatch={{ width: 18, height: 18, borderRadius: "var(--r-full)", border: "1px solid var(--border)" }} />
+      {bound ? (
+        <span className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span className="truncate text-primary" style={{ fontSize: "var(--t13)" }}>{coverName(value)}</span>
+        </span>
+      ) : (
+        <input value={(value ?? "").replace(/^#/, "")} onChange={(e) => onChange("#" + e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
+          className="flex-1 min-w-0 bg-transparent outline-none font-mono text-primary uppercase"
+          style={{ fontSize: "var(--t13)" }} aria-label={(label || "") + " hex"} />
+      )}
       {onOpacity ? (
         <div className="flex items-center shrink-0">
           <input value={opacity ?? 100} onChange={(e) => onOpacity(clamp(parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10), 0, 100))}
@@ -485,7 +496,7 @@ const gradDefaultStops = (c) => [{ color: c || "#ffffff", pos: 0 }, { color: "#0
 const isGradient = (p) => p?.type === "linear" || p?.type === "radial";
 function paintPreviewCss(p) {
   const st = (p.stops && p.stops.length > 1 ? p.stops : gradDefaultStops(p.color))
-    .slice().sort((a, b) => (a.pos || 0) - (b.pos || 0)).map((x) => `${x.color} ${x.pos ?? 0}%`).join(", ");
+    .slice().sort((a, b) => (a.pos || 0) - (b.pos || 0)).map((x) => `${resolveColor(x.color)} ${x.pos ?? 0}%`).join(", ");
   return p.type === "radial" ? `radial-gradient(ellipse at center, ${st})` : `linear-gradient(${p.angle ?? 90}deg, ${st})`;
 }
 function PaintTypeGlyph({ type }) {
@@ -1024,11 +1035,9 @@ function LayerStyleSections({ t, layer, setLayer, setStyle, onPickImage, onOpenF
         {(s.reactive || s.preset === "equalizer") && <p className="m-0 text-muted" style={{ fontSize: "var(--t11)" }}>{t("ovlShaderReactiveHint")}</p>}
       </Section>
       <Section title={t("ovlShaderColors")}>
-        <SwitchField label={t("ovlShaderCoverColors")} checked={!!s.coverColors} onChange={(v) => setStyle(id, { coverColors: v })} />
         {[0, 1, 2].map((i) => (
           <ColorField key={i} value={cols[i] || cols[cols.length - 1]} onChange={(c) => setCol(i, c)} />
         ))}
-        {s.coverColors && <p className="m-0 text-muted" style={{ fontSize: "var(--t11)" }}>{t("ovlShaderCoverHint")}</p>}
       </Section>
     </>);
   }
@@ -1229,6 +1238,13 @@ export default function OverlayEditor({
 }) {
   const [doc, setDoc] = useState(loadInitialDoc);
   const [selectedIds, setSelectedIds] = useState([]);
+  setCoverText(t);
+  // The preview reports the cover's colours as it computes them; every colour field shows them.
+  useEffect(() => {
+    const onMsg = (e) => { if (e.data && e.data.__overlayCoverPal) setCoverPalette(e.data.__overlayCoverPal); };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
   // `selectedId` (compat) is the single selection — non-null only when exactly one layer is
   // selected, so the detailed inspector + resize/rotate handles show for single selection.
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;

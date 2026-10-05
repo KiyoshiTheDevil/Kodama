@@ -199,7 +199,6 @@ export function makeShaderLayer(over = {}) {
     style: {
       preset: "aurora",
       shaderColors: ["#7c4dff", "#e040fb", "#00e5ff"],
-      coverColors: false,         // take the three colours from the current cover instead
       reactive: false,            // pulse with the music (live levels from the player)
       reactAmount: 100,
       speed: 1,
@@ -445,6 +444,10 @@ function migrateLayer(l) {
       strokeWeight: next.strokeWeight ?? b.width ?? 1.5,
       strokePosition: next.strokePosition ?? b.position ?? "inside",
     };
+  }
+  // Shaders had a switch for cover colours before any colour could point at the cover.
+  if (l.type === "shader" && next.coverColors) {
+    next = { ...next, shaderColors: ["cover:1", "cover:2", "cover:3"], coverColors: false };
   }
   if (!Array.isArray(next.effects) && next.fx) {
     const fx = next.fx, eff = [];

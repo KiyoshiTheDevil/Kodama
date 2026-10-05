@@ -126,10 +126,16 @@ const _grp = (l, r, h = 30) => { const p = h / 2, a = l ? 6 : p, b = r ? 6 : p; 
 
 // `variant="editor"` draws the popover in the overlay editor's language (the canvas card's
 // surface and radius, notched pill groups, round swatches); the settings keep the default look.
-export function ColorPicker({ value, onChange, swatch, variant }) {
+//
+// `cover` (overlay editor only) adds a second tab with the current cover's colours, each light,
+// normal and dark. Picking one hands onChange a token ("cover:2:dark") instead of a hex value;
+// `cover.resolve` turns a token into the colour it shows right now.
+export function ColorPicker({ value, onChange, swatch, variant, cover }) {
   const ed = variant === "editor";
-  const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
+  const isTok = !!cover && typeof value === "string" && value.startsWith("cover:");
+  const safe = isTok ? cover.resolve(value) : /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState(isTok ? "cover" : "own");
   const [hsv, setHsv] = useState(() => _hexToHsv(safe));
   const [mode, setMode] = useState("hex");      // hex | rgb | hsl
   const [fmtOpen, setFmtOpen] = useState(false); // format dropdown
@@ -148,8 +154,9 @@ export function ColorPicker({ value, onChange, swatch, variant }) {
 
   // Reflect external value + format changes into the text field (unless the user is typing).
   useEffect(() => {
-    if (/^#[0-9a-fA-F]{6}$/.test(value)) setHsv(_hexToHsv(value));
-  }, [value]);
+    // A cover colour starts the own-colour tab from what it shows now.
+    if (/^#[0-9a-fA-F]{6}$/.test(safe)) setHsv(_hexToHsv(safe));
+  }, [safe]);
   useEffect(() => {
     if (!editing.current) setValText(_format(currentHex, mode));
   }, [currentHex, mode]);
@@ -158,9 +165,10 @@ export function ColorPicker({ value, onChange, swatch, variant }) {
     const r = triggerRef.current.getBoundingClientRect();
     setPopPos({ top: r.bottom + 8, left: Math.max(8, r.right - 244) });
     setRecents(_loadRecents());
+    setTab(isTok ? "cover" : "own");
     setOpen(true);
   };
-  const close = () => { _pushRecent(curHexRef.current); setOpen(false); setFmtOpen(false); };
+  const close = () => { if (!isTok) _pushRecent(curHexRef.current); setOpen(false); setFmtOpen(false); };
 
   useEffect(() => {
     if (!open) return;
@@ -253,6 +261,42 @@ export function ColorPicker({ value, onChange, swatch, variant }) {
               <X size={13} />
             </button>
           </div>
+          {cover && (
+            <div style={{ display: "flex", padding: 2, marginBottom: 10, borderRadius: "var(--r-full)", background: "var(--surface-2)" }}>
+              {[["own", cover.text.own], ["cover", cover.text.cover]].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setTab(k)}
+                  style={{
+                    flex: 1, height: 26, border: "none", borderRadius: "var(--r-full)", cursor: "default",
+                    background: tab === k ? "var(--surface-3)" : "transparent",
+                    color: tab === k ? "var(--text-primary)" : "var(--text-muted)", fontSize: "var(--t12)",
+                  }}>{label}</button>
+              ))}
+            </div>
+          )}
+          {cover && tab === "cover" ? (
+            <div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                {cover.src
+                  ? <img src={cover.src} alt="" style={{ width: 44, height: 44, borderRadius: "var(--r-lg)", objectFit: "cover", flexShrink: 0 }} />
+                  : <div style={{ width: 44, height: 44, borderRadius: "var(--r-lg)", flexShrink: 0, background: `linear-gradient(135deg, ${cover.colors.join(", ")})` }} />}
+                <span style={{ color: "var(--text-muted)", fontSize: "var(--t11)", lineHeight: 1.4 }}>{cover.text.hint}</span>
+              </div>
+              <div style={{ color: "var(--text-muted)", fontSize: "var(--t11)", marginBottom: 6 }}>{cover.text.tones}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {cover.tokens.flat().map((tok) => (
+                  <button key={tok} type="button" title={cover.name(tok)} aria-label={cover.name(tok)} onClick={() => onChange(tok)}
+                    style={{
+                      height: 28, padding: 0, cursor: "default", borderRadius: "var(--r-md)", background: cover.resolve(tok),
+                      border: "none", boxShadow: value === tok ? "0 0 0 2px #1e1e1e, 0 0 0 4px var(--accent)" : "inset 0 0 0 0.5px rgba(255,255,255,0.15)",
+                    }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, height: 30, marginTop: 12, padding: "0 10px 0 6px", borderRadius: "var(--r-full)", background: "var(--surface-2)" }}>
+                <span style={{ width: 18, height: 18, borderRadius: "var(--r-full)", background: safe, flexShrink: 0, border: "1px solid var(--border)" }} />
+                <span style={{ color: isTok ? "var(--text-primary)" : "var(--text-muted)", fontSize: "var(--t12)" }}>{isTok ? cover.name(value) : "—"}</span>
+              </div>
+            </div>
+          ) : (<>
           {/* Gradient square */}
           <div ref={gradientRef} onPointerDown={onGradientDrag}
             style={{
@@ -379,6 +423,7 @@ export function ColorPicker({ value, onChange, swatch, variant }) {
               ))}
             </div>
           )}
+          </>)}
         </div>,
         document.body
       )}

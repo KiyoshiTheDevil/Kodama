@@ -448,6 +448,7 @@ export function selectionColors(layers) {
   const out = new Map();
   for (const l of layers) for (const slot of colorSlots(l)) {
     const c = norm(slot.get());
+    if (!HEX.test(c)) continue;
     out.set(c, (out.get(c) || 0) + 1);
   }
   return [...out].map(([color, count]) => ({ color, count }));

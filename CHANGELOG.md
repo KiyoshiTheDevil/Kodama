@@ -37,6 +37,7 @@ Changes:
 - Terms of Service and Privacy Policy can be found under About
 - Big Picture mode has been removed
 - Overlay editor: new experimental Shader layer with 13 animated presets, own colors or colors from the cover, optionally reacting to the music live
+- Overlay editor: any color can follow the cover of the current song (light, normal or dark), changing smoothly with each track
 
 Fixes:
 - Shutting down Windows with Kodama open showed a taskkill error that held up the shutdown

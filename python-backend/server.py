@@ -6456,6 +6456,19 @@ _OVERLAY_HTML = r"""<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Nunito:wght@400;700&family=Exo+2:wght@400;700&family=Poppins:wght@400;700&family=Raleway:wght@400;700&family=Montserrat:wght@400;700&family=DM+Sans:opsz,wght@9..40,400;9..40,700&family=Ubuntu:wght@400;700&family=Lexend:wght@400;700&family=Space+Grotesk:wght@400;700&family=Sora:wght@400;700&family=Barlow:wght@400;700&family=Figtree:wght@400;700&family=Plus+Jakarta+Sans:wght@400;700&family=Kanit:wght@400;700&family=Oxanium:wght@400;700&family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
 <style>
+/* The three colours of the current cover (0..255 per channel), set by applyCoverPal. Registered
+   so they can be animated: a new song's colours glide in instead of switching. */
+@property --cv1r{syntax:'<number>';inherits:true;initial-value:238}
+@property --cv1g{syntax:'<number>';inherits:true;initial-value:168}
+@property --cv1b{syntax:'<number>';inherits:true;initial-value:255}
+@property --cv2r{syntax:'<number>';inherits:true;initial-value:124}
+@property --cv2g{syntax:'<number>';inherits:true;initial-value:77}
+@property --cv2b{syntax:'<number>';inherits:true;initial-value:255}
+@property --cv3r{syntax:'<number>';inherits:true;initial-value:0}
+@property --cv3g{syntax:'<number>';inherits:true;initial-value:229}
+@property --cv3b{syntax:'<number>';inherits:true;initial-value:255}
+:root{transition:--cv1r 1.2s ease,--cv1g 1.2s ease,--cv1b 1.2s ease,--cv2r 1.2s ease,--cv2g 1.2s ease,--cv2b 1.2s ease,--cv3r 1.2s ease,--cv3g 1.2s ease,--cv3b 1.2s ease}
+
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:transparent;overflow:hidden}
 body{display:flex;align-items:center;justify-content:center;min-height:100vh;min-width:100vw}
@@ -6520,8 +6533,23 @@ const layerEls={}; // id -> record
 // Preview background via ?bg= (light | checkered | dark)
 (()=>{const p=new URLSearchParams(location.search).get('bg');if(p)document.body.style.background=p==='light'?'#efefef':p==='checkered'?'repeating-conic-gradient(#aaa 0% 25%,#ddd 0% 50%) 0 0/20px 20px':'#111';})();
 
+// A colour can point at the cover: "cover:N" (N = 1..3, by how much of the cover it fills),
+// optionally ":light" or ":dark". It resolves to the CSS variables above, so everything drawn
+// with it changes with the song without being rebuilt. The editor mixes the same way
+// (src/overlay/cover-colors.js), keep the two in step.
+function coverChannels(c){
+  const m=/^cover:([123])(?::(light|dark))?$/.exec(c);if(!m)return null;
+  const v=(ch)=>`var(--cv${m[1]}${ch})`;
+  const f=m[2]==='light'?(ch)=>`calc(${v(ch)} + (255 - ${v(ch)}) * .55)`:m[2]==='dark'?(ch)=>`calc(${v(ch)} * .42)`:v;
+  return [f('r'),f('g'),f('b')];
+}
+function svgCol(el,attr,v){
+  if(typeof v==='string'&&v.indexOf('var(')>=0){el.removeAttribute(attr);el.style.setProperty(attr,v);}
+  else{el.style.removeProperty(attr);el.setAttribute(attr,v);}
+}
 function rgba(c,a){
   if(typeof c!=='string')return c;
+  if(c.slice(0,6)==='cover:'){const k=coverChannels(c);return k?`rgba(${k.join(',')},${a==null?1:a})`:'transparent';}
   if(c[0]!=='#')return c;            // already rgba()/named — pass through
   const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
   return a==null?`rgb(${r},${g},${b})`:`rgba(${r},${g},${b},${a})`;
@@ -6548,7 +6576,7 @@ function applyCanvas(cv){
   // Shadow + border glow render on #stage (no clip-path here so they spill outside the shape)
   const sh=cv.shadow&&cv.shadow.on?`drop-shadow(0 8px 32px rgba(0,0,0,${cv.shadow.strength==null?0.35:cv.shadow.strength}))`:'';
   const bd=cv.border||{};
-  const glow=bd.on&&(bd.glow||0)>0?`drop-shadow(0 0 ${(bd.glow||0)*1.5}px ${bd.color||'#EEA8FF'})`:'';
+  const glow=bd.on&&(bd.glow||0)>0?`drop-shadow(0 0 ${(bd.glow||0)*1.5}px ${rgba(bd.color||'#EEA8FF')})`:'';
   stage.style.filter=[sh,glow].filter(Boolean).join(' ')||'none';
   const bw=bd.on?(bd.width||1.5):0;
   const corners=cv.corners||{TL:14,TR:14,BR:14,BL:14,typeTL:'r',typeTR:'r',typeBR:'r',typeBL:'r'};
@@ -6561,7 +6589,7 @@ function applyCanvas(cv){
                  typeTL:corners.typeTL,typeTR:corners.typeTR,typeBR:corners.typeBR,typeBL:corners.typeBL};
     const IW=Math.max(1,W-2*bw),IH=Math.max(1,H-2*bw);
     const innerAt=cornerPath(IW,IH,inner,bw,bw);
-    border.style.display='';border.style.background=bd.color||'#EEA8FF';
+    border.style.display='';border.style.background=rgba(bd.color||'#EEA8FF');
     border.style.clipPath=`path(evenodd,'${outer} ${innerAt}')`;
     const clip=`path('${innerAt}')`;bg.style.clipPath=clip;blur.style.clipPath=clip;layers.style.clipPath=clip;
   }else{
@@ -6578,7 +6606,7 @@ function applyCanvas(cv){
 
 function buildAlbumArt(el,L,rec){
   const s=L.style||{};
-  const ph=document.createElement('div');ph.className='layer-ph';ph.style.background=s.placeholderBg||'rgba(255,255,255,.12)';
+  const ph=document.createElement('div');ph.className='layer-ph';ph.style.background=rgba(s.placeholderBg||'rgba(255,255,255,.12)');
   ph.innerHTML='<svg width="38%" height="38%" viewBox="0 0 24 24" fill="rgba(255,255,255,.4)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
   const img=document.createElement('img');img.className='layer-img';img.style.display='none';img.style.objectFit=s.fit||'cover';
   const cp=`path('${cornerPath(L.w||0,L.h||0,s.corners,0,0)}')`;ph.style.clipPath=cp;img.style.clipPath=cp;
@@ -6656,8 +6684,8 @@ function syncOutline(rec){
   svg.setAttribute('width',W);svg.setAttribute('height',H);
   t.setAttribute('y',base);t.textContent=rec.tnode.data;
   const old=svg.querySelector('defs');if(old)svg.removeChild(old);
-  t.setAttribute('fill',svgPaint(svg,o.fill,W,H,'#ffffff'));
-  t.setAttribute('stroke',svgPaint(svg,o.stroke,W,H,'#000000'));
+  svgCol(t,'fill',svgPaint(svg,o.fill,W,H,'#ffffff'));
+  svgCol(t,'stroke',svgPaint(svg,o.stroke,W,H,'#000000'));
   t.setAttribute('stroke-width',o.out?o.w*2:o.w);
   t.setAttribute('stroke-linejoin',o.join==='bevel'?'bevel':o.join==='miter'?'miter':'round');
   t.setAttribute('stroke-linecap','round');
@@ -6707,7 +6735,7 @@ function progressFx(fill,s,fillCol){
 function buildProgress(el,L,rec){
   const s=L.style||{},kind=s.progressStyle||'bar',W=L.w||0,H=L.h||0;
   const fillCol=rgba(s.fillColor||'#EEA8FF',(s.fillOpacity==null?100:s.fillOpacity)/100);
-  const trackCol=s.trackColor||'rgba(255,255,255,.12)';
+  const trackCol=rgba(s.trackColor||'rgba(255,255,255,.12)');
   // The fill as a paint: solid fillColor, or a gradient (fillType/fillStops/fillAngle).
   const fillPaint={type:s.fillType||'solid',color:s.fillColor||'#EEA8FF',opacity:(s.fillOpacity==null?100:s.fillOpacity),stops:s.fillStops,angle:s.fillAngle};
   const gradFill=isGrad(fillPaint)?paintCss(fillPaint):'';
@@ -6750,9 +6778,9 @@ function buildProgress(el,L,rec){
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');svg.setAttribute('width',W);svg.setAttribute('height',H);svg.style.cssText='position:absolute;inset:0;overflow:visible';
     const sw=Math.max(1,s.lineWidth||4);
-    const path=document.createElementNS(ns,'path');path.setAttribute('fill','none');path.setAttribute('stroke',svgPaint(svg,fillPaint,W,H,fillCol));path.setAttribute('stroke-width',sw);path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');
-    const tr=document.createElementNS(ns,'line');tr.setAttribute('stroke',trackCol);tr.setAttribute('stroke-width',sw);tr.setAttribute('stroke-linecap','round');tr.setAttribute('y1',H/2);tr.setAttribute('y2',H/2);
-    const end=document.createElementNS(ns,'circle');end.setAttribute('cy',H/2);end.setAttribute('r',sw/2);end.setAttribute('fill',fillCol);end.setAttribute('cx',W-sw/2);
+    const path=document.createElementNS(ns,'path');svgCol(path,'fill','none');svgCol(path,'stroke',svgPaint(svg,fillPaint,W,H,fillCol));path.setAttribute('stroke-width',sw);path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');
+    const tr=document.createElementNS(ns,'line');svgCol(tr,'stroke',trackCol);tr.setAttribute('stroke-width',sw);tr.setAttribute('stroke-linecap','round');tr.setAttribute('y1',H/2);tr.setAttribute('y2',H/2);
+    const end=document.createElementNS(ns,'circle');end.setAttribute('cy',H/2);end.setAttribute('r',sw/2);svgCol(end,'fill',fillCol);end.setAttribute('cx',W-sw/2);
     svg.appendChild(path);svg.appendChild(tr);svg.appendChild(end);el.appendChild(svg);
     rec.wave={path,tr,W,H,sw,amp:0,shown:null,target:0,phase:0,
       ampMax:(s.waveAmp==null?Math.max(1,(H-sw)/2):s.waveAmp),wl:Math.max(8,s.waveLength||36),speed:(s.waveSpeed==null?4:s.waveSpeed)};
@@ -6790,7 +6818,7 @@ function buildProgress(el,L,rec){
   if(kind==='knob'||s.progressAnim==='pulse'){
     const k=kind==='knob'?Math.max(lw,Math.min(H,s.knobSize||H)):Math.max(lw*2,6);
     head=ovlDiv();head.style.cssText=`position:absolute;top:${(H-k)/2}px;width:${k}px;height:${k}px;margin-left:${-k/2}px;border-radius:50%;left:0;will-change:transform`;
-    head.style.background=kind==='knob'?(s.knobColor||'#ffffff'):fillCol;
+    head.style.background=kind==='knob'?rgba(s.knobColor||'#ffffff'):fillCol;
     head.style.boxShadow=s.progressAnim==='pulse'?`0 0 ${k}px ${k/3}px ${fillCol}`:'0 1px 4px rgba(0,0,0,.45)';
     if(s.progressAnim==='pulse')head.style.animation='ovl-breathe 1.2s ease-in-out infinite';
     el.appendChild(head);
@@ -6897,6 +6925,23 @@ const SHADER_SRC={
   glitch:`void main(){vec2 u=FC/r;float tk=floor(t*8.);float band=step(.85,h(vec2(floor(u.y*14.),tk)));float sh=band*(h(vec2(tk,floor(u.y*14.)))-.5)*.15;float g=fbm(vec2(u.x*2.+t*.2,u.y*3.));vec3 col=vec3(pal3(g+u.x*.5+sh+.02).x,pal3(g+u.x*.5+sh).y,pal3(g+u.x*.5+sh-.02).z);col*=.75+.25*sin(FC.y*1.6);col+=(h(u*r+t)-.5)*.12;col*=1.-band*.2*h(vec2(tk));gl_FragColor=vec4(col*.85,1.);}`
 };
 const SHADER_DEF_COLORS=['#7c4dff','#e040fb','#00e5ff'];
+// Stand-ins while there is no cover (and in still previews). Same in cover-colors.js.
+const COVER_FALLBACK=[[238/255,168/255,1],[124/255,77/255,1],[0,229/255,1]];
+function applyCoverPal(){
+  const pal=coverPal||COVER_FALLBACK,root=document.documentElement.style;
+  pal.forEach((c,i)=>{['r','g','b'].forEach((ch,j)=>root.setProperty(`--cv${i+1}${ch}`,String(Math.round(c[j]*255))));});
+  // The editor shows the same colours in its fields and picker.
+  if(EDITOR&&window.parent!==window){
+    const hex=pal.map((c)=>'#'+c.map((v)=>Math.round(v*255).toString(16).padStart(2,'0')).join(''));
+    try{window.parent.postMessage({__overlayCoverPal:{colors:hex,cover:state.cover||'',live:!!coverPal}},'*');}catch(_){}
+  }
+}
+// A cover colour for a shader, mixed as the CSS above mixes it.
+function coverRgbJs(tok){
+  const m=/^cover:([123])(?::(light|dark))?$/.exec(tok);if(!m)return null;
+  const c=(coverPal||COVER_FALLBACK)[+m[1]-1];
+  return m[2]==='light'?c.map((v)=>v+(1-v)*.55):m[2]==='dark'?c.map((v)=>v*.42):c.slice();
+}
 // Live audio levels from the player (48 bands, 0..1). Only connected while the design has a
 // shader that uses them, so a plain overlay never makes the player run its analysis.
 const audio={bands:new Float32Array(48),level:0,shown:new Float32Array(48),tex:new Uint8Array(48),fast:0,slow:0,live:0,ts:0,es:null};
@@ -6969,8 +7014,8 @@ function shaderGL(id,preset){
 }
 function shaderColors(s){
   const own=(Array.isArray(s.shaderColors)&&s.shaderColors.length?s.shaderColors:SHADER_DEF_COLORS);
-  if(s.coverColors&&coverPal)return coverPal;
-  return [0,1,2].map((i)=>hexRgb(own[i]||own[own.length-1]));
+  if(s.coverColors)return (coverPal||COVER_FALLBACK).map((c)=>c.slice());
+  return [0,1,2].map((i)=>{const c=own[i]||own[own.length-1];return coverRgbJs(c)||hexRgb(c);});
 }
 function drawShader(rec){
   const sh=rec.shader,c=sh.c,gl=c.gl,s=sh.style;
@@ -7066,11 +7111,11 @@ function sampleCover(){
   const src=state.cover||'';
   if(src===coverPalSrc)return;
   coverPalSrc=src;
-  if(!src){coverPal=null;return;}
+  if(!src){coverPal=null;applyCoverPal();return;}
   const img=new Image();
   try{if(new URL(src,location.href).origin!==location.origin)img.crossOrigin='anonymous';}catch(_){}
-  img.onload=()=>{if(coverPalSrc!==src)return;try{coverPal=paletteOf(img);}catch(_){coverPal=null;}};
-  img.onerror=()=>{if(coverPalSrc===src)coverPal=null;};
+  img.onload=()=>{if(coverPalSrc!==src)return;try{coverPal=paletteOf(img);}catch(_){coverPal=null;}applyCoverPal();};
+  img.onerror=()=>{if(coverPalSrc===src){coverPal=null;applyCoverPal();}};
   img.src=src;
 }
 
@@ -7128,7 +7173,7 @@ function svgPaint(svg,f,W,H,fallback){
     var a=(f.angle==null?90:f.angle)*Math.PI/180,dx=Math.sin(a),dy=-Math.cos(a),half=(Math.abs(W*dx)+Math.abs(H*dy))/2;
     g.setAttribute('x1',W/2-dx*half);g.setAttribute('y1',H/2-dy*half);g.setAttribute('x2',W/2+dx*half);g.setAttribute('y2',H/2+dy*half);
   }else{g.setAttribute('cx',W/2);g.setAttribute('cy',H/2);g.setAttribute('r',Math.max(W,H)/2);}
-  gradStops(f).forEach(function(x){var st=document.createElementNS(ns,'stop');st.setAttribute('offset',x.p+'%');st.setAttribute('stop-color',x.c);g.appendChild(st);});
+  gradStops(f).forEach(function(x){var st=document.createElementNS(ns,'stop');st.setAttribute('offset',x.p+'%');svgCol(st,'stop-color',x.c);g.appendChild(st);});
   defs.appendChild(g);return 'url(#'+id+')';
 }
 // Stacked fills as a background-image list (index 0 = front).
@@ -7219,16 +7264,16 @@ function buildShape(el,L,rec){
   if(shp==='line'){
     const ln=document.createElementNS(NS,'line');
     ln.setAttribute('x1',0);ln.setAttribute('y1',H/2);ln.setAttribute('x2',W);ln.setAttribute('y2',H/2);
-    ln.setAttribute('stroke',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
+    svgCol(ln,'stroke',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
     ln.setAttribute('stroke-width',s.strokeWidth||Math.max(2,H));
     ln.setAttribute('stroke-linecap',s.lineCap||'round');
     svg.appendChild(ln);
   }else{
     const pg=document.createElementNS(NS,'polygon');
     pg.setAttribute('points',shapePoints(shp,W,H,s));
-    pg.setAttribute('fill',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
+    svgCol(pg,'fill',svgPaint(svg,visFills(s)[0],W,H,rgba(s.fill||'#EEA8FF',fa)));
     var ts=visStrokes(s)[0];
-    if(ts){pg.setAttribute('stroke',ts.color||'#fff');pg.setAttribute('stroke-width',(s.strokeWeight!=null?s.strokeWeight:(bd.width||1.5)));pg.setAttribute('stroke-opacity',(ts.opacity==null?100:ts.opacity)/100);pg.setAttribute('stroke-linejoin','round');}
+    if(ts){svgCol(pg,'stroke',rgba(ts.color||'#fff'));pg.setAttribute('stroke-width',(s.strokeWeight!=null?s.strokeWeight:(bd.width||1.5)));pg.setAttribute('stroke-opacity',(ts.opacity==null?100:ts.opacity)/100);pg.setAttribute('stroke-linejoin','round');}
     svg.appendChild(pg);
   }
   el.appendChild(svg);
@@ -7245,7 +7290,7 @@ function applyFx(el,entr,loopw,L){
     eff.forEach(function(e){
       if(!e||e.visible===false)return;
       if(e.type==='shadow')f.push('drop-shadow('+(e.x||0)+'px '+(e.y==null?2:e.y)+'px '+(e.blur==null?8:e.blur)+'px '+rgba(e.color||'#000000',(e.opacity==null?50:e.opacity)/100)+')');
-      else if(e.type==='glow')f.push('drop-shadow(0 0 '+(e.blur==null?10:e.blur)+'px '+(e.color||'#ffffff')+')');
+      else if(e.type==='glow')f.push('drop-shadow(0 0 '+(e.blur==null?10:e.blur)+'px '+rgba(e.color||'#ffffff')+')');
       else if(e.type==='blur')f.push('blur('+(e.amount==null?4:e.amount)+'px)');
       // Not a filter: an inner shadow only exists as box-shadow: inset, and that property
       // already carries the strokes -- hence the stashed base below.
@@ -7253,7 +7298,7 @@ function applyFx(el,entr,loopw,L){
     });
   }else{
     if(fx.shadow&&fx.shadow.on)f.push(`drop-shadow(${fx.shadow.x||0}px ${fx.shadow.y==null?2:fx.shadow.y}px ${fx.shadow.blur==null?8:fx.shadow.blur}px ${rgba(fx.shadow.color||'#000000',fx.shadow.opacity==null?0.5:fx.shadow.opacity)})`);
-    if(fx.glow&&fx.glow.on)f.push(`drop-shadow(0 0 ${fx.glow.blur==null?10:fx.glow.blur}px ${fx.glow.color||'#ffffff'})`);
+    if(fx.glow&&fx.glow.on)f.push(`drop-shadow(0 0 ${fx.glow.blur==null?10:fx.glow.blur}px ${rgba(fx.glow.color||'#ffffff')})`);
     if(fx.blur&&fx.blur.on)f.push(`blur(${fx.blur.amount==null?4:fx.blur.amount}px)`);
   }
   el.style.filter=f.join(' ')||'';
@@ -7530,6 +7575,7 @@ function connect(){
   es.onmessage=e=>{try{updateState(JSON.parse(e.data));}catch(_){}};
   es.onerror=()=>{es.close();setTimeout(connect,3000);};
 }
+applyCoverPal();
 if(STILL){Object.assign(state,{title:'Song Title',artist:'Artist',album:'Album',progress:66,duration:180,isPlaying:true});}
 else{fetch(API+'/overlay/config').then(r=>r.json()).then(c=>{applyDoc(c);connect();}).catch(()=>connect());}
 </script></body></html>"""
