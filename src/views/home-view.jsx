@@ -37,6 +37,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   const [podcastLoading, setPodcastLoading] = useState(null); // playlistId being fetched
   const [speedDialPage, setSpeedDialPage] = useState(0);
   const sdTrackRef = useRef(null);   // the speed dial's horizontal track of pages
+  const sdDotsRef = useRef(null);    // its page dots, moved by hand while the track slides
   const t = useLang();
 
   const homeCancelledRef = useRef(false);
@@ -384,9 +385,21 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
           else setSpeedDialPage(to);
         };
         const goPage = (dir) => showPage(curPage + dir);
+        // While the track slides only the dots follow, set directly: a state change here re-rendered
+        // the whole home view halfway through the slide, every carousel with it, and the slide
+        // stuttered. The page is put into state once the track has come to rest.
+        const pageOf = (tr) => Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth));
         const onTrackScroll = (e) => {
-          const tr = e.currentTarget;
-          const pi = Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth));
+          const pi = pageOf(e.currentTarget);
+          const dots = sdDotsRef.current;
+          if (!dots) return;
+          [...dots.children].forEach((d, k) => {
+            d.style.width = k === pi ? "18px" : "7px";
+            d.style.background = k === pi ? "var(--accent)" : "color-mix(in srgb, var(--text-muted) 55%, transparent)";
+          });
+        };
+        const onTrackRest = (e) => {
+          const pi = pageOf(e.currentTarget);
           if (pi !== speedDialPage) setSpeedDialPage(pi);
         };
 
@@ -438,7 +451,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
                     </div>
                   )}
                 </div>
-                <div ref={sdTrackRef} className="sd-track" onScroll={onTrackScroll}
+                <div ref={sdTrackRef} className="sd-track" onScroll={onTrackScroll} onScrollEnd={onTrackRest}
                   style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", overscrollBehaviorX: "contain" }}>
                   {pages.map((page, pi) => (
                     <div key={pi} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", display: "flex", flexDirection: "column", gap: 2, padding: "0 8px 10px" }}>
@@ -453,7 +466,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
                           style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 10, padding: "0 8px", borderRadius: "var(--r-lg)", cursor: "default", minWidth: 0 }}>
                           <div style={{ position: "relative", width: 40, height: 40, borderRadius: "var(--r-md)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
                             {item.thumbnail
-                              ? <img src={thumbHi(item.thumbnail, 120)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ? <img src={thumbHi(item.thumbnail, 120)} alt="" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                               : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}
                             <div className="sd-play" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity .15s" }}>
                               <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
@@ -471,7 +484,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
                 </div>
                 {/* Pagination dots */}
                 {pages.length > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 14 }}>
+                  <div ref={sdDotsRef} style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 14 }}>
                     {pages.map((_, pi) => (
                       <button key={pi} onClick={() => showPage(pi)} style={{
                         width: pi === curPage ? 18 : 7, height: 7, borderRadius: "var(--r-sm)", border: "none", padding: 0,
