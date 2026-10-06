@@ -1329,6 +1329,9 @@ export default function OverlayEditor({
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const [fontPickerSearch, setFontPickerSearch] = useState("");
   const [fontPickerCategory, setFontPickerCategory] = useState("all");
+  const [fontHover, setFontHover] = useState(null);   // the font under the pointer, previewed but not applied
+  // The last fonts picked, newest first, across sessions.
+  const [recentFonts, setRecentFonts] = useState(() => { try { const a = JSON.parse(localStorage.getItem("kodama-ovl-recent-fonts") || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } });
   // The font panel floats and can be dragged, like the colour picker. Its position survives
   // closing and reopening, so once it is out of the way it stays out of the way.
   const fontPanelRef = useRef(null);
@@ -1730,7 +1733,7 @@ export default function OverlayEditor({
   // Lazy-load local system fonts the first time the font picker opens.
   useEffect(() => {
     if (!fontPickerOpen) return;
-    setFontPickerPos((pos) => (pos.left ? pos : { top: 88, left: Math.max(8, window.innerWidth - rightW - 264) }));
+    setFontPickerPos((pos) => (pos.left ? pos : { top: 88, left: Math.max(8, window.innerWidth - rightW - 484) }));
     // A backdrop would lock the canvas while the panel is open; the panel is meant to sit
     // beside the work, not in front of it.
     const onDown = (e) => { if (!fontPanelRef.current?.contains(e.target)) { setFontPickerOpen(false); setFontPickerSearch(""); } };
@@ -3651,91 +3654,135 @@ export default function OverlayEditor({
       {/* ── Font Picker panel ────────────────────────────────────────────────── */}
       {fontPickerOpen && selected && (() => {
         const currentValue = selected.style?.fontFamily || "system-ui, sans-serif";
+        const currentWeight = Number(selected.style?.fontWeight || 400);
         // Local fonts: deduplicate against FONT_LIST labels
         const localFontItems = (localFonts || [])
           .filter((name) => !FONT_LIST.some((f) => f.label.toLowerCase() === name.toLowerCase()))
           .map((name) => ({ value: `'${name}'`, label: name, category: "local" }));
         const allFonts = [...FONT_LIST, ...localFontItems];
-        const filtered = allFonts.filter((f) => {
-          if (fontPickerCategory === "google" && f.category !== "google") return false;
-          if (fontPickerCategory === "system" && f.category !== "system") return false;
-          if (fontPickerCategory === "local" && f.category !== "local") return false;
-          return f.label.toLowerCase().includes(fontPickerSearch.toLowerCase());
-        });
-        const closePicker = () => { setFontPickerOpen(false); setFontPickerSearch(""); };
-        const CAT_OPTS = [
-          { value: "all", label: t("ovlFontAll") },
-          { value: "google", label: t("ovlFontGoogle") },
-          { value: "system", label: t("ovlFontSystem") },
-          { value: "local", label: t("ovlFontLocal") + (localFonts === null ? " …" : localFontItems.length > 0 ? ` (${localFontItems.length})` : "") },
-        ];
+        const q = fontPickerSearch.toLowerCase();
+        const match = (f) => f.label.toLowerCase().includes(q);
+        const inCat = (f) => fontPickerCategory === "all" || f.category === fontPickerCategory;
+        const recent = recentFonts.map((v) => allFonts.find((f) => f.value === v)).filter(Boolean).filter(inCat).filter(match);
+        const sections = [
+          { key: "google", label: t("ovlFontGoogle"), items: allFonts.filter((f) => f.category === "google") },
+          { key: "system", label: t("ovlFontSystem"), items: allFonts.filter((f) => f.category === "system") },
+          { key: "local", label: t("ovlFontLocal"), items: localFontItems },
+        ].filter((sec) => fontPickerCategory === "all" || sec.key === fontPickerCategory)
+          .map((sec) => ({ ...sec, items: sec.items.filter(match) }))
+          .filter((sec) => sec.items.length || (sec.key === "local" && localFonts === null));
+        const shownFont = allFonts.find((f) => f.value === (fontHover || currentValue)) || { value: fontHover || currentValue, label: (fontHover || currentValue).replace(/'/g, "").split(",")[0] };
+        // Hovering shows the font on the layer in the canvas without touching the document: only
+        // the preview gets a copy. Leaving the list puts the real one back.
+        const previewFont = (value) => {
+          setFontHover(value);
+          liveToIframe(value ? { ...doc, layers: doc.layers.map((l) => (l.id === selected.id ? { ...l, style: { ...l.style, fontFamily: value } } : l)) } : doc);
+        };
+        const closePicker = () => { previewFont(null); setFontPickerOpen(false); setFontPickerSearch(""); };
+        const pick = (value) => {
+          setFontHover(null);
+          setStyle(selected.id, { fontFamily: value });
+          const next = [value, ...recentFonts.filter((v) => v !== value)].slice(0, 5);
+          setRecentFonts(next);
+          try { localStorage.setItem("kodama-ovl-recent-fonts", JSON.stringify(next)); } catch { /* storage full: the list is a convenience */ }
+          setFontPickerOpen(false); setFontPickerSearch("");
+        };
+        const sample = selected.bind === "static" && selected.style?.content ? selected.style.content : t("ovlFontSample");
+        const Row = ({ f }) => (
+          <div onClick={() => pick(f.value)} onMouseEnter={() => previewFont(f.value)}
+            className={[
+              "flex items-center gap-2 h-8 px-3 rounded-[var(--r-full)] cursor-pointer leading-none transition-colors",
+              f.value === currentValue ? "text-accent bg-accent-dim" : fontHover === f.value ? "text-primary bg-[var(--surface-2)]" : "text-primary hover:bg-[var(--surface-2)]",
+            ].join(" ")}
+            style={{ fontFamily: f.value, fontSize: "var(--t14)" }}>
+            <span className="truncate">{f.label}</span>
+            {f.value === currentValue && <Check size={12} className="ml-auto shrink-0" />}
+          </div>
+        );
+        const SecHead = ({ label, count }) => (
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 text-muted uppercase tracking-[0.06em]" style={{ fontSize: "var(--t10)", fontFamily: "var(--font)" }}>
+            <span>{label}</span>{count != null && <span>{count}</span>}
+          </div>
+        );
         return (
           <div
             ref={fontPanelRef}
-            className="fixed z-50 w-60 flex flex-col overflow-hidden select-none"
+            className="fixed z-50 flex overflow-hidden select-none"
             style={{
-              top: fontPickerPos.top, left: fontPickerPos.left, maxHeight: "68vh",
+              top: fontPickerPos.top, left: fontPickerPos.left, width: 470, height: "min(560px, 72vh)",
               // The same shell the colour picker uses, so the two floating panels of the editor
               // are recognisably the same kind of thing.
               ...PANEL_SHELL,
             }}
             onKeyDown={(e) => { if (e.key === "Escape") closePicker(); }}
           >
-            {/* Drag header. The panel used to be pinned under the toolbar, which put it on top
-                of the inspector it belongs to and nowhere near the text being styled. */}
-            <div onPointerDown={startFontPanelDrag}
-              className="flex items-center gap-2 px-3 h-9 shrink-0 text-muted" style={{ cursor: "move" }}>
-              <DotsSixVertical size={13} />
-              <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t13)" }}>{t("ovlFont")}</span>
-              <button data-no-drag type="button" onClick={closePicker} aria-label={t("close")}
-                className="w-6 h-6 flex items-center justify-center rounded-[var(--r-md)] border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer">
-                <X size={13} />
-              </button>
-            </div>
-
-            {/* Search + category, both in the editor's field shape */}
-            <div className="px-2.5 pb-2 flex flex-col gap-1.5 shrink-0">
-              <div className="flex items-center gap-2 h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
-                <MagnifyingGlass size={12} className="text-muted shrink-0" />
-                <input
-                  autoFocus
-                  value={fontPickerSearch}
-                  onChange={(e) => setFontPickerSearch(e.target.value)}
-                  placeholder={t("ovlFontSearch")}
-                  style={{ fontSize: "var(--t13)" }}
-                  className="flex-1 min-w-0 bg-transparent text-primary outline-none placeholder:text-muted"
-                />
-                {fontPickerSearch && (
-                  <button type="button" onClick={() => setFontPickerSearch("")} aria-label={t("close")}
-                    className="w-4 h-4 shrink-0 flex items-center justify-center rounded-full border-0 bg-transparent text-muted hover:text-primary transition-colors cursor-pointer">
-                    <X size={10} />
-                  </button>
+            {/* ── List: search, kind, sections ── */}
+            <div className="flex flex-col min-w-0" style={{ width: 240 }}>
+              {/* Drag header. The panel used to be pinned under the toolbar, which put it on top
+                  of the inspector it belongs to and nowhere near the text being styled. */}
+              <div onPointerDown={startFontPanelDrag}
+                className="flex items-center gap-2 px-3 h-9 shrink-0 text-muted" style={{ cursor: "move" }}>
+                <DotsSixVertical size={13} />
+                <span className="flex-1 font-semibold text-primary" style={{ fontSize: "var(--t13)" }}>{t("ovlFont")}</span>
+              </div>
+              <div className="px-2.5 pb-2 flex flex-col gap-1.5 shrink-0">
+                <div className="flex items-center gap-2 h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--surface-2)] border border-transparent focus-within:border-accent transition-colors">
+                  <MagnifyingGlass size={12} className="text-muted shrink-0" />
+                  <input autoFocus value={fontPickerSearch} onChange={(e) => setFontPickerSearch(e.target.value)}
+                    placeholder={t("ovlFontSearch")} style={{ fontSize: "var(--t13)" }}
+                    className="flex-1 min-w-0 bg-transparent text-primary outline-none placeholder:text-muted" />
+                  {fontPickerSearch && (
+                    <button type="button" onClick={() => setFontPickerSearch("")} aria-label={t("close")}
+                      className="w-4 h-4 shrink-0 flex items-center justify-center rounded-full border-0 bg-transparent text-muted hover:text-primary transition-colors cursor-pointer">
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+                <ChipGroup items={[
+                  { key: "all", label: t("ovlFontAllShort"), active: fontPickerCategory === "all", onPress: () => setFontPickerCategory("all") },
+                  { key: "google", label: "Google", active: fontPickerCategory === "google", onPress: () => setFontPickerCategory("google") },
+                  { key: "system", label: t("ovlFontSystem"), active: fontPickerCategory === "system", onPress: () => setFontPickerCategory("system") },
+                  { key: "local", label: t("ovlFontLocalShort"), active: fontPickerCategory === "local", onPress: () => setFontPickerCategory("local") },
+                ]} />
+              </div>
+              <div className="overflow-y-auto flex-1 min-h-0 px-1.5 pb-2" onMouseLeave={() => previewFont(null)}>
+                {recent.length > 0 && (<>
+                  <SecHead label={t("ovlFontRecent")} />
+                  {recent.map((f) => <Row key={"r" + f.value} f={f} />)}
+                </>)}
+                {sections.map((sec) => (
+                  <div key={sec.key}>
+                    <SecHead label={sec.label} count={sec.key === "local" && localFonts === null ? "…" : sec.items.length} />
+                    {sec.key === "local" && localFonts === null
+                      ? <div className="text-muted px-3 py-2" style={{ fontSize: "var(--t12)" }}>{t("ovlFontLocalLoading")}</div>
+                      : sec.items.map((f) => <Row key={f.value} f={f} />)}
+                  </div>
+                ))}
+                {!recent.length && !sections.length && (
+                  <div className="text-muted text-center py-4" style={{ fontSize: "var(--t12)" }}>{t("ovlFontNoResults")}</div>
                 )}
               </div>
-              <SelectField value={fontPickerCategory} options={CAT_OPTS} onChange={setFontPickerCategory} />
             </div>
 
-            {/* Font list */}
-            <div className="overflow-y-auto flex-1 min-h-0 px-1.5 pb-2">
-              {fontPickerCategory === "local" && localFonts === null ? (
-                <div className="text-muted text-center py-4" style={{ fontSize: "var(--t12)" }}>{t("ovlFontLocalLoading")}</div>
-              ) : filtered.length === 0 ? (
-                <div className="text-muted text-center py-4" style={{ fontSize: "var(--t12)" }}>{t("ovlFontNoResults")}</div>
-              ) : filtered.map((f) => (
-                <div
-                  key={f.value}
-                  onClick={() => { setStyle(selected.id, { fontFamily: f.value }); closePicker(); }}
-                  className={[
-                    "flex items-center h-8 px-3 rounded-[var(--r-full)] cursor-pointer leading-none transition-colors",
-                    f.value === currentValue
-                      ? "text-accent bg-accent-dim"
-                      : "text-primary hover:bg-[var(--surface-2)]",
-                  ].join(" ")}
-                  style={{ fontFamily: f.value, fontSize: "var(--t14)" }}
-                >
-                  <span className="truncate">{f.label}</span>
-                </div>
-              ))}
+            {/* ── Preview: the font under the pointer, or the current one ── */}
+            <div className="flex flex-col gap-3 min-w-0 flex-1 px-4 py-3" style={{ borderLeft: "1px solid var(--surface-2)" }}>
+              <div className="flex justify-end">
+                <button type="button" onClick={closePicker} aria-label={t("close")}
+                  className="w-6 h-6 flex items-center justify-center rounded-[var(--r-md)] border-0 bg-transparent text-muted hover:text-primary hover:bg-hover transition-colors cursor-pointer">
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="text-primary leading-none" style={{ fontFamily: shownFont.value, fontSize: 64, fontWeight: currentWeight }}>Aa</div>
+              <div className="font-semibold text-primary truncate" style={{ fontSize: "var(--t13)" }}>{shownFont.label}</div>
+              {/* The two weights every listed font is loaded in; set straight on the layer. */}
+              <ChipGroup items={[
+                { key: "400", label: t("ovlRegular"), active: currentWeight < 600, onPress: () => setStyle(selected.id, { fontWeight: 400 }) },
+                { key: "700", label: t("ovlBold"), active: currentWeight >= 600, onPress: () => setStyle(selected.id, { fontWeight: 700 }) },
+              ]} />
+              <div className="text-primary break-words" style={{ fontFamily: shownFont.value, fontWeight: currentWeight, fontSize: "var(--t16)", lineHeight: 1.3 }}>{sample}</div>
+              <div className="text-muted break-all" style={{ fontFamily: shownFont.value, fontSize: "var(--t12)", lineHeight: 1.5 }}>
+                ABCDEFGHIJKLM abcdefghijklm 0123456789 ?!&amp;@
+              </div>
             </div>
           </div>
         );

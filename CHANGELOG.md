@@ -41,6 +41,7 @@ Changes:
 - The store moved to the website: browse at kodama.kiyoshi.dev/store, "Add to Kodama" installs themes and presets right away
 - The store window now lists what is installed, with updates and a way to the website
 - Overlay editor: My Designs links to more designs in the store
+- Overlay editor: new font browser with sections, recently used fonts and a live preview on hover
 - A song played on its own (search, home, speed dial, shared link) fills the queue with related songs
 - Speed dial is a list, so titles are readable
 - Moods & Genres on the home page: large colour cards instead of a boxed panel of chips
