@@ -43,6 +43,7 @@ Changes:
 - Overlay editor: My Designs links to more designs in the store
 - A song played on its own (search, home, speed dial, shared link) fills the queue with related songs
 - Speed dial is a list, so titles are readable
+- Moods & Genres on the home page: large colour cards instead of a boxed panel of chips
 - Library covers no longer lift or cast a shadow on hover
 - Copy Lyrics and Save as .lrc left the song menu; both are in the lyrics browser
 

@@ -4,6 +4,15 @@ import { API, thumb, thumbHi, useLang } from "../context.jsx";
 import { ArrowsClockwise, CaretLeft, CaretRight, CloudSun, Headphones, Moon, MoonStars, MusicNote, Play, PodcastIcon, Sun, SunHorizon } from "../icons.jsx";
 import { ExplicitBadge } from "../ui/rows.jsx";
 
+// Moods & genres come without colours (ytmusicapi drops them), so each gets one from its name:
+// the same category always has the same colour, and neighbours rarely match.
+const MOOD_COLORS = ["#7c4dff", "#e53935", "#00acc1", "#fb8c00", "#d81b60", "#43a047", "#3949ab", "#8e24aa", "#00897b", "#f4511e", "#5e35b1", "#c2185b"];
+function moodColor(title) {
+  let h = 0;
+  for (const ch of String(title || "")) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return MOOD_COLORS[h % MOOD_COLORS.length];
+}
+
 function Carousel({ children, style, insetX = 0 }) {
   // overflowX:auto clips the tiles' drop-shadow at the scroll edges (visible as a hard cut on the
   // first/last tile). Pad the scroll box by the shadow's reach and pull it back out with an equal
@@ -34,6 +43,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   const [activeMoodChip, setActiveMoodChip] = useState(null);
   const [moodPlaylists, setMoodPlaylists] = useState([]);
   const [moodLoading, setMoodLoading] = useState(false);
+  const [moodShowAll, setMoodShowAll] = useState(false);
   const [podcastLoading, setPodcastLoading] = useState(null); // playlistId being fetched
   const [speedDialPage, setSpeedDialPage] = useState(0);
   const sdTrackRef = useRef(null);   // the speed dial's horizontal track of pages
@@ -351,6 +361,8 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         .home-card:hover .home-card-play{opacity:1!important;transform:translateY(0)!important}
         .home-card:hover .home-card-img{transform:scale(1.04)}
         .sd-track::-webkit-scrollbar{display:none}
+        .mood-card{transition:filter .15s}
+        .mood-card:hover{filter:brightness(1.1)}
         .sd-row:hover{background:var(--bg-hover)}
         .sd-row:hover .sd-play{opacity:1!important}
       `}</style>
@@ -512,59 +524,76 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         </div>
       ))}
 
-      {/* ── Moods & Genres (full grid, tabbed) ── */}
-      {Object.keys(moodGroups).length > 0 && (
-        <div style={{ paddingLeft: 28, paddingRight: 28, marginTop: 8 }}>
-          <CardRoot variant="secondary" className="overflow-hidden gap-0! p-0!">
-            {/* Header + group selector (HeroUI segmented ToggleButtonGroup) */}
-            <div style={{ padding: "16px 20px 14px", borderBottom: "1.5px solid var(--border-subtle, var(--bg-elevated))" }}>
-              <div style={{ fontSize: "var(--t16)", fontWeight: 700, marginBottom: 12 }}>{t("moodsGenres")}</div>
-              <ToggleButtonGroupRoot aria-label={t("moodsGenres")} selectionMode="single" disallowEmptySelection size="sm"
-                selectedKeys={[activeMoodTab]}
-                onSelectionChange={(keys) => { const k = [...keys][0]; if (k != null) { setActiveMoodTab(String(k)); setActiveMoodChip(null); setMoodPlaylists([]); } }}>
-                {Object.keys(moodGroups).map(tabKey => (
-                  <ToggleButton key={tabKey} id={tabKey}>{tabKey}</ToggleButton>
-                ))}
-              </ToggleButtonGroupRoot>
-            </div>
+      {/* ── Moods & Genres: a section like the others, its categories as large coloured cards ── */}
+      {Object.keys(moodGroups).length > 0 && (() => {
+        const chips = moodGroups[activeMoodTab] || [];
+        const MOOD_FIRST = 8;   // two rows on a usual window; the rest behind "Show all"
+        const shown = moodShowAll ? chips : chips.slice(0, MOOD_FIRST);
+        return (
+        <div style={{ paddingLeft: 28, paddingRight: 28, marginTop: 8, marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: "var(--t16)", fontWeight: 700 }}>{t("moodsGenres")}</span>
+            <ToggleButtonGroupRoot aria-label={t("moodsGenres")} selectionMode="single" disallowEmptySelection size="sm"
+              selectedKeys={[activeMoodTab]}
+              onSelectionChange={(keys) => { const k = [...keys][0]; if (k != null) { setActiveMoodTab(String(k)); setActiveMoodChip(null); setMoodPlaylists([]); setMoodShowAll(false); } }}>
+              {Object.keys(moodGroups).map(tabKey => (
+                <ToggleButton key={tabKey} id={tabKey}>{tabKey}</ToggleButton>
+              ))}
+            </ToggleButtonGroupRoot>
+          </div>
 
-            {/* Genre/mood toggle buttons */}
-            <div style={{ padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {(moodGroups[activeMoodTab] || []).map((chip, i) => {
-                const active = activeMoodChip?.params === chip.params;
-                return (
-                  <ToggleButton key={i} size="md" variant="default" isSelected={active}
-                    onChange={() => handleMoodChipClick(chip)}>
-                    {chip.title}
-                  </ToggleButton>
-                );
-              })}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 10 }}>
+            {shown.map((chip, i) => {
+              const active = activeMoodChip?.params === chip.params;
+              const c = moodColor(chip.title);
+              return (
+                <button key={chip.params || i} type="button" className="mood-card" onClick={() => handleMoodChipClick(chip)}
+                  aria-pressed={active}
+                  style={{
+                    height: 84, border: "none", padding: "10px 14px", borderRadius: "var(--r-xl)", cursor: "default",
+                    display: "flex", alignItems: "flex-end", textAlign: "left",
+                    background: `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 38%, var(--bg-base)))`,
+                    boxShadow: active ? "inset 0 0 0 2px rgba(255,255,255,0.9)" : "none",
+                    color: "#fff", fontSize: "var(--t14)", fontWeight: 700, lineHeight: 1.2,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                  }}>
+                  {chip.title}
+                </button>
+              );
+            })}
+          </div>
+          {chips.length > MOOD_FIRST && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+              <Button size="sm" variant="secondary" className="rounded-[var(--r-full)]" onPress={() => setMoodShowAll(v => !v)}>
+                {moodShowAll ? t("showLess") : t("showAll")}
+              </Button>
             </div>
+          )}
 
-            {/* Mood / genre results */}
-            {activeMoodChip && (
-              <div style={{ borderTop: "1.5px solid var(--border-subtle, var(--bg-elevated))", padding: "14px 20px 18px" }}>
-                <div style={{ fontSize: "var(--t14)", fontWeight: 700, marginBottom: 14 }}>{activeMoodChip.title}</div>
-                {moodLoading
-                  ? <div style={{ display: "flex", gap: 14 }}>
-                      {[1,2,3,4].map(i => (
-                        <div key={i} style={{ flexShrink: 0, width: 148 }}>
-                          <Skeleton className="w-[148px] h-[148px] rounded-[var(--r-lg)]" />
-                          <Skeleton className="h-[11px] w-[72%] rounded-sm mt-2.5" />
-                        </div>
-                      ))}
-                    </div>
-                  : moodPlaylists.length === 0
-                    ? <div style={{ fontSize: "var(--t13)", color: "var(--text-muted)" }}>{t("noSuggestions")}</div>
-                    : <Carousel style={{ gap: 14, paddingBottom: 4 }}>
-                        {moodPlaylists.map((item, i) => <MediaCard key={i} item={item} section={{ items: moodPlaylists }} size={148} />)}
-                      </Carousel>
-                }
-              </div>
-            )}
-          </CardRoot>
+          {/* The picked category's playlists, as a section of their own below */}
+          {activeMoodChip && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ fontSize: "var(--t16)", fontWeight: 700, marginBottom: 12 }}>{activeMoodChip.title}</div>
+              {moodLoading
+                ? <div style={{ display: "flex", gap: 14 }}>
+                    {[1,2,3,4].map(i => (
+                      <div key={i} style={{ flexShrink: 0, width: 148 }}>
+                        <Skeleton className="w-[148px] h-[148px] rounded-[var(--r-lg)]" />
+                        <Skeleton className="h-[11px] w-[72%] rounded-sm mt-2.5" />
+                      </div>
+                    ))}
+                  </div>
+                : moodPlaylists.length === 0
+                  ? <div style={{ fontSize: "var(--t13)", color: "var(--text-muted)" }}>{t("noSuggestions")}</div>
+                  : <Carousel style={{ gap: 14, paddingBottom: 4 }}>
+                      {moodPlaylists.map((item, i) => <MediaCard key={i} item={item} section={{ items: moodPlaylists }} size={148} />)}
+                    </Carousel>
+              }
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
