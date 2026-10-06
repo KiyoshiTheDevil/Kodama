@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- The page colour before anything else loads: the very first frame of a new page is drawn
+       before the stylesheet, and without this it was the browser's own dark grey, a flash on
+       every page change. -->
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0f1a14">
+  <style>html{background:#0f1a14;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kodama: A desktop player for YouTube Music</title>
   <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
