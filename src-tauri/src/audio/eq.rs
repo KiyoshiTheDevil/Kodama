@@ -101,6 +101,45 @@ fn peaking(freq: f32, gain_db: f32, q: f32, sample_rate: f32) -> Coeffs {
     Coeffs { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 }
 }
 
+/// Both channels mixed into each: for listening with one ear or one earbud. Global like the curve,
+/// so it reaches every source, including both during a crossfade.
+static MONO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_mono(on: bool) {
+    MONO.store(on, Ordering::Relaxed);
+}
+
+/// Folds a stereo stream to mono, one interleaved sample at a time. The left sample goes out as
+/// the previous frame's mix and the right one as this frame's: one sample between the ears
+/// (about 20 microseconds), far below anything audible, and no buffering. The channel cursor
+/// counts all the time, so switching it on mid-song lands on the right channel.
+#[derive(Default)]
+pub struct MonoFold {
+    ch: usize,
+    left: f32,
+    last: f32,
+}
+
+impl MonoFold {
+    #[inline]
+    pub fn process(&mut self, sample: f32, channels: usize) -> f32 {
+        let channels = channels.max(1);
+        let ch = self.ch;
+        self.ch = (self.ch + 1) % channels;
+        if channels != 2 || !MONO.load(Ordering::Relaxed) {
+            return sample;
+        }
+        if ch == 0 {
+            self.left = sample;
+            self.last
+        } else {
+            let m = (self.left + sample) * 0.5;
+            self.last = m;
+            m
+        }
+    }
+}
+
 /// Per-source filter bank. Interleaved samples arrive one at a time, so it keeps its own
 /// channel cursor and a separate set of filter memories per channel.
 pub struct EqChain {
@@ -331,5 +370,29 @@ mod tests {
             let y = c.process((i as f32 * 0.05).sin() * 0.3);
             assert!(y.is_finite(), "filter blew up at a low sample rate");
         }
+    }
+
+    #[test]
+    fn mono_folds_both_channels_into_each() {
+        let _g = lock();
+        // Left only: with mono on, both ears get half of it (left one frame late).
+        set_mono(true);
+        let mut m = MonoFold::default();
+        let mut out = Vec::new();
+        for _ in 0..4 {
+            out.push(m.process(1.0, 2));
+            out.push(m.process(0.0, 2));
+        }
+        set_mono(false);
+        assert_eq!(out[1], 0.5, "right gets the mix of its frame");
+        assert!(out[2..].iter().all(|&x| x == 0.5), "from the second frame on, both are the mix: {out:?}");
+        // Switched off it is untouched, and mono sources are never folded.
+        let mut m = MonoFold::default();
+        assert_eq!(m.process(1.0, 2), 1.0);
+        assert_eq!(m.process(0.0, 2), 0.0);
+        set_mono(true);
+        let mut m = MonoFold::default();
+        assert_eq!(m.process(0.7, 1), 0.7, "a mono source passes through");
+        set_mono(false);
     }
 }

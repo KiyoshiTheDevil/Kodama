@@ -44,6 +44,10 @@ Changes:
 - A song played on its own (search, home, speed dial, shared link) fills the queue with related songs
 - Speed dial is a list, so titles are readable
 - Moods & Genres on the home page: large colour cards instead of a boxed panel of chips
+- Accessibility: reduce motion, following the system by default
+- Accessibility: mono audio
+- Accessibility: readable accent keeps the accent colour at 3:1 contrast
+- Accessibility: screen readers announce the new song
 - Library covers no longer lift or cast a shadow on hover
 - Copy Lyrics and Save as .lrc left the song menu; both are in the lyrics browser
 

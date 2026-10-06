@@ -88,7 +88,7 @@ function tick(now) {
 
 export function particleBurst(el, opts = {}) {
   if (!el || typeof window === "undefined") return;
-  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if ((document.documentElement.dataset.reduceMotion === "true" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches))) return;
   const rect = el.getBoundingClientRect();
   if (rect.width < 2 || rect.height < 2) return;
   // Off-screen? skip.
@@ -134,7 +134,7 @@ export function particleBurst(el, opts = {}) {
 // Convenience: burst the element AND fade/shrink it out, then run `done` (e.g. the actual
 // state removal) after the short fade so the element visibly dissolves into the particles.
 export function dissolve(el, done, opts = {}) {
-  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduce = (document.documentElement.dataset.reduceMotion === "true" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches));
   if (!el || reduce) { if (done) done(); return; }
   particleBurst(el, opts);
   try {

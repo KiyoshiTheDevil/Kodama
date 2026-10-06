@@ -1062,6 +1062,17 @@ button:not([class]) {
   transform: scaleX(-1);
 }
 
+/* ── Reduce motion (accessibility) ────────────────────────────────────────────
+   Set on <html> by App from the setting or the OS. What keeps moving, or travels far, stops;
+   plain fades stay. These animations are written inline on their elements, so they are matched
+   by name in the style attribute rather than chased through every component. */
+html[data-reduce-motion="true"] [style*="blobDrift"],
+html[data-reduce-motion="true"] .agent-tag-active::before { animation: none !important; }
+html[data-reduce-motion="true"] [style*="fadeSlideIn"] { animation-name: rmFadeIn !important; }
+html[data-reduce-motion="true"] [style*="fadeSlideOut"] { animation-name: rmFadeOut !important; }
+@keyframes rmFadeIn  { from { opacity: 0; } }
+@keyframes rmFadeOut { to   { opacity: 0; } }
+
 /* ── Settings rows ────────────────────────────────────────────────────────────
    Rows fuse into groups by ADJACENCY, with no wrapper element and no change at
    any of the ~70 call sites. Two rows that sit next to each other in the JSX

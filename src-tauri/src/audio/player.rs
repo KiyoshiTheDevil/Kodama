@@ -766,6 +766,12 @@ pub fn audio_set_levels_enabled(enabled: bool) {
 /// sources in eight different places, and two of them exist at once during a crossfade.
 /// Sources pick the change up on their next sample, so moving a slider is audible immediately
 /// without restarting anything.
+/// Mono audio (accessibility): both channels mixed into each.
+#[tauri::command]
+pub fn audio_set_mono(enabled: bool) {
+    super::eq::set_mono(enabled);
+}
+
 #[tauri::command]
 pub fn audio_set_eq(enabled: bool, preamp_db: f32, gains_db: Vec<f32>) -> Result<(), String> {
     if gains_db.len() != super::eq::BANDS {

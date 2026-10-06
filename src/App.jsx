@@ -1394,7 +1394,30 @@ function hexToRgb(str) {
 // and then never applied it.
 let accentFadeRaf = 0;
 
+// Minimum contrast for the accent (accessibility). A colour taken from the cover can come out too
+// dark on a dark theme or too pale on a light one. With the switch on, the accent is moved along
+// its lightness until it stands at 3:1 against the page, the WCAG floor for interface parts.
+// Set by the accent effect in App before it applies a colour.
+let accentMinContrast = false;
+function luminance([r, g, b]) {
+  const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+function readableAccent(hex) {
+  if (!accentMinContrast) return hex;
+  const c = hexToRgb(hex), bg = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue("--bg-base"));
+  if (!c || !bg) return hex;
+  const lb = luminance(bg), ratio = (rgb) => { const l = luminance(rgb); return (Math.max(l, lb) + 0.05) / (Math.min(l, lb) + 0.05); };
+  if (ratio(c) >= 3) return hex;
+  // Toward white on a dark page, toward black on a light one, keeping the hue.
+  const to = lb < 0.5 ? 255 : 0;
+  let out = c;
+  for (let k = 1; k <= 20 && ratio(out) < 3; k++) out = c.map(v => v + (to - v) * (k / 20));
+  return "#" + out.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
+
 function setAccentSmooth(toHex, duration = 380) {
+  toHex = readableAccent(toHex);
   const root = document.documentElement;
   const a = hexToRgb(getComputedStyle(root).getPropertyValue("--accent"));
   const b = hexToRgb(toHex);
@@ -3908,14 +3931,46 @@ export default function App() {
   // — separate from Kodama's own local History list, which always works regardless of this.
   const [ytmusicHistorySync, setYtmusicHistorySync] = usePersistedState("kiyoshi-ytmusic-history-sync", false);
 
+  // ── Accessibility ──────────────────────────────────────────────────────────
+  // Reduce motion: "system" follows the OS setting, "on"/"off" overrule it. Gentler than the
+  // animations switch, which stops everything: here what keeps moving or travels far stops
+  // (cover pulse, drifting colour, fluid lyrics, the letter wave, sliding views), fades stay.
+  const [reduceMotionPref, setReduceMotionPref] = usePersistedState("kodama-reduce-motion", "system");
+  const [systemReduce, setSystemReduce] = useState(() => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mq) return;
+    const on = (e) => setSystemReduce(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const reduceMotion = reduceMotionPref === "on" || (reduceMotionPref === "system" && systemReduce);
+  useEffect(() => { document.documentElement.dataset.reduceMotion = String(reduceMotion); }, [reduceMotion]);
+  // Mono audio: both channels into each ear, mixed in the Rust core.
+  const [monoAudio, setMonoAudio] = usePersistedState("kodama-mono-audio", false);
+  useEffect(() => {
+    import("@tauri-apps/api/core").then(({ invoke }) => invoke("audio_set_mono", { enabled: !!monoAudio })).catch(() => {});
+  }, [monoAudio]);
+  // Minimum contrast for the accent (see readableAccent).
+  const [accentContrast, setAccentContrast] = usePersistedState("kodama-accent-contrast", false);
+  // Say the new song to screen readers when it changes.
+  const [announceTracks, setAnnounceTracks] = usePersistedState("kodama-announce-tracks", true);
+  const [trackAnnouncement, setTrackAnnouncement] = useState("");
+  useEffect(() => {
+    if (!announceTracks || !currentTrack?.title) { setTrackAnnouncement(""); return; }
+    const artists = Array.isArray(currentTrack.artists) ? currentTrack.artists.map(a => a?.name || a).join(", ") : (currentTrack.artists || "");
+    setTrackAnnouncement(translate(localStorage.getItem("kiyoshi-lang") || "de", artists ? "announceNowPlaying" : "announceNowPlayingNoArtist", { title: currentTrack.title, artist: artists }));
+  }, [announceTracks, currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Dynamic accent: when enabled, derive --accent live from the current cover; otherwise
   // fall back to the fixed accent. Re-runs whenever the track or the mode changes.
   useEffect(() => {
+    accentMinContrast = accentContrast;
     if (!accentDynamic) {
       // No pick of their own: take the inline value away entirely so the theme's own --accent
       // applies. Setting it to the state's fallback would look identical on the default themes
       // and quietly defeat every theme that proposes one.
-      if (accentCustom) document.documentElement.style.setProperty("--accent", accent);
+      if (accentCustom) document.documentElement.style.setProperty("--accent", readableAccent(accent));
       else document.documentElement.style.removeProperty("--accent");
       return;
     }
@@ -3943,7 +3998,7 @@ export default function App() {
     };
     img.src = url;
     return () => { cancelled = true; };
-  }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight, accentCustom]);
+  }, [accentDynamic, currentTrack?.thumbnail, accent, accentSat, accentLight, accentCustom, accentContrast]);
 
   // ─── Usage stats: total app usage time + total song playtime (persisted, global) ───
   const usageSecRef = useRef(Number(localStorage.getItem("kiyoshi-total-usage") || 0));
@@ -5899,14 +5954,14 @@ export default function App() {
     romajiFontSize: lyricsRomajiFontSize,
     showAgentTags,
     syllableZoom,
-    fluidLyrics,
+    fluidLyrics: fluidLyrics && !reduceMotion,
     ambientVisualizer,
     ambientBackground,
     braccatoLyrics,
-    braccatoLetterWave,
+    braccatoLetterWave: braccatoLetterWave && !reduceMotion,
   }), [showLyricsTranslation, setShowLyricsTranslation, lyricsTranslationLang, setLyricsTranslationLang,
        lyricsTranslationFontSize, showRomaji, setShowRomaji, lyricsRomajiFontSize, showAgentTags, syllableZoom,
-       fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics, braccatoLetterWave]);
+       fluidLyrics, ambientVisualizer, ambientBackground, braccatoLyrics, braccatoLetterWave, reduceMotion]);
 
   const playbackPrefs = useMemo(() => ({
     crossfade,
@@ -5939,6 +5994,8 @@ export default function App() {
       {!animations && (
         <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
       )}
+      {/* Screen readers hear the new song; nothing on screen. */}
+      <div role="status" aria-live="polite" className="sr-only">{trackAnnouncement}</div>
       {showSplash && <SplashScreen fading={splashFading} />}
       {/* Language picker first on very first launch, before FFmpeg setup */}
       {showLangPicker && !showLogin && (
@@ -6307,7 +6364,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
               }}>
-                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={vizConfig} />
+                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={reduceMotion ? { ...vizConfig, coverPulse: false, blobs: false } : vizConfig} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
@@ -6318,7 +6375,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave} language={language} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && (
@@ -6526,6 +6583,10 @@ export default function App() {
             onLyricsEngineChange={setLyricsEngine}
             braccatoLetterWave={braccatoLetterWave}
             onToggleBraccatoLetterWave={() => setBraccatoLetterWave(v => !v)}
+            reduceMotionPref={reduceMotionPref} onReduceMotionChange={setReduceMotionPref}
+            monoAudio={monoAudio} onToggleMonoAudio={() => setMonoAudio(v => !v)}
+            accentContrast={accentContrast} onToggleAccentContrast={() => setAccentContrast(v => !v)}
+            announceTracks={announceTracks} onToggleAnnounceTracks={() => setAnnounceTracks(v => !v)}
             videoSyncEnabled={videoSyncEnabled}
             onToggleVideoSync={() => setVideoSyncEnabled(v => !v)}
             videoSyncQuality={videoSyncQuality}

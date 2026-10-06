@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";
 import {
-  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Globe, HardDrives, ImageSquare, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh, PuzzlePiece } from "../icons.jsx";
+  ArrowCircleUp, ArrowClockwise, ArrowSquareOut, ArrowsClockwise, ArrowsLeftRight, BrandBluesky, BrandDiscord, BrandGithub, BrandLastfm, BrandTiktok, BrandTwitch, BrandYoutube, Bug, CaretDown, CaretUp, ChatText, Check, CheckCircle, CircleHalf, ClapperboardPlay, ClockCounterClockwise, Columns, Copy, DeviceMobile, DownloadSimple, Eye, EyeSlash, Eyedropper, Flask, Globe, HardDrives, ImageSquare, Info, Key, Keyboard, Link, Lock, LockOpen, MagnifyingGlass, MugHot, MusicNote, PaintBrushBroad, PencilSimple, PersonArmsSpread, Play, PlayCircle, ScreencastSimple, ShareNodes, Sliders, Sparkles, Tag, TextSize, Translate, Trash, UserCircle, Users, WaveformLines, X, EqualizerIcon, Pause, Microphone, SpeakerHigh, PuzzlePiece, Wind, EarListen, Bullhorn } from "../icons.jsx";
 import { DEFAULT_LYRICS_PROVIDERS } from "../lyrics/providers.js";
 import { renderNewsBody } from "../modals/news-modal.jsx";
 import { RemoteControlPanel } from "../ui/remote-control.jsx";
@@ -340,7 +340,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
   autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
   audioOutput, onAudioOutputChange,
-  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, lyricsEngine = "braccato", onLyricsEngineChange, braccatoLetterWave, onToggleBraccatoLetterWave, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, sharpCorners, onToggleSharpCorners, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
+  theme, onThemeChange, animations, onAnimationsChange, lyricsFontSize, onLyricsFontSizeChange, lyricsTranslationFontSize, onLyricsTranslationFontSizeChange, lyricsRomajiFontSize, onLyricsRomajiFontSizeChange, lyricsProviders, onLyricsProvidersChange, autoplay, onAutoplayChange, crossfade, onCrossfadeChange, crossfadeOverrides = {}, onRemoveCrossfadeOverride, playbackProgressive, onPlaybackProgressiveChange, closeTray, onCloseTrayChange, discordRpc, onDiscordRpcChange, discordClearOnPause, onDiscordClearOnPauseChange, discordStatusDisplay = "song", onDiscordStatusDisplayChange, ytmusicHistorySync, onYtmusicHistorySyncChange, language, onLanguageChange, updateInfo, onCheckUpdate, updateDownloading, updateDownloadProgress, updateDownloaded, onDownloadUpdate, onInstallUpdate, onCancelDownload, hideExplicit, onHideExplicitChange, showTrackNumbers, onTrackNumbersChange, showSpeedDial, onSpeedDialChange, anonStats, onAnonStatsChange, hideUserHandle, onToggleHideUserHandle, uiZoom, onUiZoomChange, appFontScale, onFontScaleChange, showRomaji, onToggleRomaji, showAgentTags, onToggleAgentTags, syllableZoom, onToggleSyllableZoom, fluidLyrics, onToggleFluidLyrics, lyricsEngine = "braccato", onLyricsEngineChange, braccatoLetterWave, onToggleBraccatoLetterWave, reduceMotionPref = "system", onReduceMotionChange, monoAudio, onToggleMonoAudio, accentContrast, onToggleAccentContrast, announceTracks, onToggleAnnounceTracks, videoSyncEnabled, onToggleVideoSync, videoSyncQuality = "auto", onVideoSyncQualityChange, videoLyricsStyle = "split", onVideoLyricsStyleChange, highContrast, onToggleHighContrast, rtlLayout, onToggleRtlLayout, sharpCorners, onToggleSharpCorners, appFont, onAppFontChange, ambientVisualizer, onToggleAmbientVisualizer, instrumentalViz, onToggleInstrumentalViz, vizConfig, onUpdateViz, vizPreviewTrack, vizPreviewPlaying, ambientBackground, onToggleAmbientBackground,
   obsEnabled, obsPort, obsPortInput, setObsPortInput, toggleObs, onObsPortSave,
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
@@ -1543,6 +1543,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SettingRow label={t("highContrast")} description={t("highContrastDesc")} icon={<CircleHalf />}>
                   <Toggle value={highContrast} onChange={onToggleHighContrast} />
                 </SettingRow>
+                <SettingRow label={t("reduceMotion")} description={t("reduceMotionDesc")} icon={<Wind />}>
+                  <ToggleButtonGroupRoot aria-label={t("reduceMotion")} selectionMode="single" disallowEmptySelection size="sm"
+                    selectedKeys={[reduceMotionPref]} onSelectionChange={(keys) => { const v = [...keys][0]; if (v) onReduceMotionChange?.(v); }}>
+                    <ToggleButton id="system">{t("reduceMotionSystem")}</ToggleButton>
+                    <ToggleButton id="on">{t("reduceMotionOn")}</ToggleButton>
+                    <ToggleButton id="off">{t("reduceMotionOff")}</ToggleButton>
+                  </ToggleButtonGroupRoot>
+                </SettingRow>
+                <SettingRow label={t("accentContrast")} description={t("accentContrastDesc")} icon={<CircleHalf />}>
+                  <Toggle value={accentContrast} onChange={onToggleAccentContrast} />
+                </SettingRow>
                 <SettingRow label={t("ambientBackground")} description={t("ambientBackgroundDesc")} icon={<Sparkles />}>
                   <Toggle value={ambientBackground} onChange={onToggleAmbientBackground} />
                 </SettingRow>
@@ -1572,6 +1583,16 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SectionLabel>{t("behaviour")}</SectionLabel>
                 <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
                   <Toggle value={closeTray} onChange={onCloseTrayChange} />
+                </SettingRow>
+                <SettingRow label={t("announceTracks")} description={t("announceTracksDesc")} icon={<Bullhorn />}>
+                  <Toggle value={announceTracks} onChange={onToggleAnnounceTracks} />
+                </SettingRow>
+                </div>
+
+                <div id="set-sec-acc-hearing" data-settings-section="acc-hearing" style={{ scrollMarginTop: 8 }}>
+                <SectionLabel>{t("accHearing")}</SectionLabel>
+                <SettingRow label={t("monoAudio")} description={t("monoAudioDesc")} icon={<EarListen />}>
+                  <Toggle value={monoAudio} onChange={onToggleMonoAudio} />
                 </SettingRow>
                 </div>
               </>

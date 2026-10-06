@@ -69,6 +69,7 @@ pub struct StreamingSource {
     // Built on first use: every constructor would otherwise have to remember to make one,
     // and the sample rate is only settled once the stream has been probed.
     eq: Option<super::eq::EqChain>,
+    mono: super::eq::MonoFold,
     tap_pos: u64,
 }
 
@@ -484,6 +485,7 @@ impl StreamingSource {
             total_duration: info.total_duration,
             analysis: None,
             eq: None,
+            mono: Default::default(),
             tap_pos: 0,
         })
     }
@@ -515,6 +517,7 @@ impl StreamingSource {
             total_duration: info.total_duration,
             analysis: None,
             eq: None,
+            mono: Default::default(),
             tap_pos: 0,
         })
     }
@@ -539,6 +542,7 @@ impl Iterator for StreamingSource {
                     .eq
                     .get_or_insert_with(|| super::eq::EqChain::new(self.sample_rate, self.channels))
                     .process(s);
+                let s = self.mono.process(s, self.channels as usize);
                 if let Some(a) = &self.analysis {
                     // Tap left channel only → mono stream at sample_rate.
                     if self.channels <= 1 || self.tap_pos % self.channels as u64 == 0 {
