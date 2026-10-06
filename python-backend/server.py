@@ -7131,10 +7131,15 @@ function sampleCover(){
   coverPalSrc=src;
   if(!src){coverPal=null;applyCoverPal();return;}
   const img=new Image();
-  try{if(new URL(src,location.href).origin!==location.origin)img.crossOrigin='anonymous';}catch(_){}
+  // Its own address for the palette: the album art loads the same cover as a plain image, and a
+  // browser that cached that copy (OBS keeps its cache for days) hands it to this CORS request
+  // too, which then fails and leaves the stand-in colours. A marker no one else uses keeps the
+  // two apart; the proxy ignores it.
+  let palSrc=src;
+  try{if(new URL(src,location.href).origin!==location.origin){img.crossOrigin='anonymous';palSrc=src+(src.indexOf('?')>=0?'&':'?')+'pal=1';}}catch(_){}
   img.onload=()=>{if(coverPalSrc!==src)return;try{coverPal=paletteOf(img);}catch(_){coverPal=null;}applyCoverPal();};
   img.onerror=()=>{if(coverPalSrc===src){coverPal=null;applyCoverPal();}};
-  img.src=src;
+  img.src=palSrc;
 }
 
 function buildImage(el,L,rec){
