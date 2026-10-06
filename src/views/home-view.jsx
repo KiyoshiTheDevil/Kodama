@@ -36,6 +36,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   const [moodLoading, setMoodLoading] = useState(false);
   const [podcastLoading, setPodcastLoading] = useState(null); // playlistId being fetched
   const [speedDialPage, setSpeedDialPage] = useState(0);
+  const sdTrackRef = useRef(null);   // the speed dial's horizontal track of pages
   const t = useLang();
 
   const homeCancelledRef = useRef(false);
@@ -348,6 +349,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         .carousel[data-right-scroll="true"],.carousel[data-left-right-scroll="true"]{--fade-r:28px}
         .home-card:hover .home-card-play{opacity:1!important;transform:translateY(0)!important}
         .home-card:hover .home-card-img{transform:scale(1.04)}
+        .sd-track::-webkit-scrollbar{display:none}
         .sd-row:hover{background:var(--bg-hover)}
         .sd-row:hover .sd-play{opacity:1!important}
       `}</style>
@@ -372,10 +374,21 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         const curPage = Math.min(speedDialPage, Math.max(0, pages.length - 1));
         const hasSpeedDial = speedDialItems.length > 0;
         const hasLeft = leftSections.length > 0;
-        const goPage = (dir) => setSpeedDialPage(p => {
-          const cur = Math.min(p, pages.length - 1);
-          return Math.max(0, Math.min(pages.length - 1, cur + dir));
-        });
+        // The pages sit side by side on a track that scrolls and snaps, so changing page slides
+        // (and a touchpad can swipe). The arrows and dots scroll the track; the page shown is read
+        // back from where it stopped.
+        const showPage = (pi) => {
+          const tr = sdTrackRef.current;
+          const to = Math.max(0, Math.min(pages.length - 1, pi));
+          if (tr) tr.scrollTo({ left: to * tr.clientWidth, behavior: "smooth" });
+          else setSpeedDialPage(to);
+        };
+        const goPage = (dir) => showPage(curPage + dir);
+        const onTrackScroll = (e) => {
+          const tr = e.currentTarget;
+          const pi = Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth));
+          if (pi !== speedDialPage) setSpeedDialPage(pi);
+        };
 
         return (
           <div style={{ display: "grid", gridTemplateColumns: hasLeft && hasSpeedDial ? "1fr minmax(0, 460px)" : hasSpeedDial ? "minmax(0, 460px)" : "1fr", gap: 16, paddingLeft: 28, paddingRight: 28, marginBottom: 32, alignItems: "start" }}>
@@ -425,37 +438,42 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 8px 10px" }}>
-                  {Array.from({ length: pages.length > 1 ? PER_PAGE : (pages[0]?.length || 0) }).map((_, i) => {
-                    const item = (pages[curPage] || [])[i];
-                    // An empty row keeps the list at a constant height on the last page.
-                    if (!item) return <div key={i} aria-hidden style={{ height: ROW_H }} />;
-                    return (
-                    <div key={i} className="sd-row"
-                      onClick={() => (onPlaySong || onPlay)(item)}
-                      onContextMenu={(e) => { e.preventDefault(); onTrackContextMenu?.(e, item); }}
-                      style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 10, padding: "0 8px", borderRadius: "var(--r-lg)", cursor: "default", minWidth: 0 }}>
-                      <div style={{ position: "relative", width: 40, height: 40, borderRadius: "var(--r-md)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
-                        {item.thumbnail
-                          ? <img src={thumbHi(item.thumbnail, 120)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}
-                        <div className="sd-play" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity .15s" }}>
-                          <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
+                <div ref={sdTrackRef} className="sd-track" onScroll={onTrackScroll}
+                  style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", overscrollBehaviorX: "contain" }}>
+                  {pages.map((page, pi) => (
+                    <div key={pi} style={{ flex: "0 0 100%", minWidth: 0, scrollSnapAlign: "start", display: "flex", flexDirection: "column", gap: 2, padding: "0 8px 10px" }}>
+                      {Array.from({ length: pages.length > 1 ? PER_PAGE : page.length }).map((_, i) => {
+                        const item = page[i];
+                        // An empty row keeps every page at the same height.
+                        if (!item) return <div key={i} aria-hidden style={{ height: ROW_H, flexShrink: 0 }} />;
+                        return (
+                        <div key={i} className="sd-row"
+                          onClick={() => (onPlaySong || onPlay)(item)}
+                          onContextMenu={(e) => { e.preventDefault(); onTrackContextMenu?.(e, item); }}
+                          style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 10, padding: "0 8px", borderRadius: "var(--r-lg)", cursor: "default", minWidth: 0 }}>
+                          <div style={{ position: "relative", width: 40, height: 40, borderRadius: "var(--r-md)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
+                            {item.thumbnail
+                              ? <img src={thumbHi(item.thumbnail, 120)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}
+                            <div className="sd-play" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity .15s" }}>
+                              <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
+                            </div>
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: "var(--t13)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
+                            <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{item.artists}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: "var(--t13)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
-                        <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{item.artists}</div>
-                      </div>
+                        );
+                      })}
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
                 {/* Pagination dots */}
                 {pages.length > 1 && (
                   <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 14 }}>
                     {pages.map((_, pi) => (
-                      <button key={pi} onClick={() => setSpeedDialPage(pi)} style={{
+                      <button key={pi} onClick={() => showPage(pi)} style={{
                         width: pi === curPage ? 18 : 7, height: 7, borderRadius: "var(--r-sm)", border: "none", padding: 0,
                         background: pi === curPage ? "var(--accent)" : "color-mix(in srgb, var(--text-muted) 55%, transparent)",
                         cursor: "default", transition: "width 0.2s, background 0.2s",
