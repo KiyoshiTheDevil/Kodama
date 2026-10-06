@@ -5,6 +5,7 @@ import { API, useLang } from "../context.jsx";
 import { ArrowClockwise, ArrowSquareOut, Bug, CaretDown, Check, Copy, Flask, WarningCircle, X } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
 import { frontendLogs as _frontendLogs } from "../debug/console-log.js";
+import { TogetherDebug } from "../together/TogetherDebug.jsx";
 
 const _debugLevelColor = (level) => {
   if (level === "ERROR") return "var(--status-danger)";
@@ -290,6 +291,8 @@ export function DebugTab({ t }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+
+      <TogetherDebug />
 
       {/* ── System Info ── */}
       <div>

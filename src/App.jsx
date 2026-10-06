@@ -29,6 +29,8 @@ import { onThemesChanged, onThemeSelected } from "./store/sync.js";
 import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
+import { useTogetherSync } from "./together/use-together-sync.js";
+import { join as joinTogether } from "./together/together.js";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -4626,6 +4628,9 @@ export default function App() {
     } catch { /* the song plays; there is just nothing queued after it */ }
   }, [handlePlay]);
 
+  // ListenTogether: follow the room's playback, or report it as host.
+  useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay });
+
   // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
   // metadata so the player has a title/cover, then play. Falls back to a bare track.
   const playByVideoId = useCallback(async (videoId) => {
@@ -4661,6 +4666,8 @@ export default function App() {
     const handle = (url) => {
       const m = String(url || "").match(/^kodama:\/\/song\/([A-Za-z0-9_-]{6,})/i);
       if (m) { playByVideoId(m[1]); return; }
+      const room = String(url || "").match(/^kodama:\/\/together\/([a-z0-9]{4,16})/i);
+      if (room) { joinTogether(room[1].toLowerCase(), localStorage.getItem("kodama-together-name") || "Kodama"); return; }
       const entry = parseStoreLink(url);
       if (entry) addFromLink(entry).then((r) => {
         // Said in the app, since the click happened in the browser.
