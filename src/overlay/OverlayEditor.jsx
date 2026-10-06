@@ -304,6 +304,7 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
   const fmtNum = (v) => (v == null || Number.isNaN(v)) ? "0" : String(step < 1 ? Math.round(v * 100) / 100 : Math.round(v));
   const [text, setText] = useState(() => fmtNum(value));
   const focused = useRef(false);
+  const inputRef = useRef(null);
   useEffect(() => { if (!focused.current) setText(fmtNum(value)); }, [value]);
   const clampN = (n) => {
     if (min != null) n = Math.max(min, n);
@@ -325,11 +326,17 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
   // Drag the prefix horizontally to scrub the value (Figma-style).
   const onScrub = (e) => {
     e.preventDefault();
+    // A field the cursor was in keeps its focus through the drag (the pointerdown is prevented),
+    // so its number stood still while the value moved, and leaving the field afterwards wrote the
+    // stale number back. Leave the field first, and show every step of the drag in it.
+    if (focused.current) inputRef.current?.blur();
     const startX = e.clientX;
     const startVal = (value == null || Number.isNaN(value)) ? 0 : value;
     const move = (ev) => {
       const n = Math.round((startVal + (ev.clientX - startX) * step) / step) * step;
-      onChange(clampN(Math.round(n * 100) / 100));
+      const c = clampN(Math.round(n * 100) / 100);
+      setText(fmtNum(c));
+      onChange(c);
     };
     const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); document.body.style.cursor = ""; };
     document.body.style.cursor = "ew-resize";
@@ -344,6 +351,7 @@ function PillNum({ prefix, ariaLabel, value, onChange, min, max, step = 1 }) {
           style={{ cursor: "ew-resize", fontSize: "var(--t12)" }}>{prefix}</span>
       )}
       <input
+        ref={inputRef}
         value={text}
         inputMode="numeric"
         aria-label={ariaLabel || (typeof prefix === "string" ? prefix : undefined)}
