@@ -2169,8 +2169,8 @@ export default function OverlayEditor({
           onContextMenu={(e) => menuOnLayers(e, members.map((m) => m.id))}
           className={[
             "flex-1 min-w-0 flex items-center gap-1.5 pl-1.5 pr-4 cursor-default select-none",
-            "transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-full)]",
-            chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]",
+            "transition-[background-color,border-radius] duration-150 rounded-s-[15px]",
+            chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[15px] group-hover:rounded-e-[var(--r-md)]",
             active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
           ].join(" ")}
           style={{ height: LAYER_ROW_H }}>
@@ -2198,7 +2198,7 @@ export default function OverlayEditor({
           <button type="button"
             onClick={(e) => { e.stopPropagation(); setMembers(g.id, { locked: !allLocked }); }}
             aria-label={t("ovlLocked")} aria-pressed={allLocked}
-            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${allLocked ? "text-primary" : "text-secondary"} ${allHidden ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]"}`}
+            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${allLocked ? "text-primary" : "text-secondary"} ${allHidden ? "rounded-e-[var(--r-md)]" : "rounded-e-[15px] group-hover:rounded-e-[var(--r-md)]"}`}
             style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
             {allLocked ? <Lock size={13} /> : <LockOpen size={13} />}
           </button>
@@ -2207,7 +2207,7 @@ export default function OverlayEditor({
           <button type="button"
             onClick={(e) => { e.stopPropagation(); setMembers(g.id, { visible: allHidden }); }}
             aria-label={t("ovlVisible")} aria-pressed={!allHidden}
-            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[var(--r-full)] ${allHidden ? "text-primary" : "text-secondary"}`}
+            className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[15px] ${allHidden ? "text-primary" : "text-secondary"}`}
             style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
             {allHidden ? <EyeSlash size={13} /> : <Eye size={13} />}
           </button>
@@ -2859,10 +2859,10 @@ export default function OverlayEditor({
                       // Still written out in full: Tailwind only sees class names it can read in
                       // the source, so the name may not be built at runtime - but an arbitrary
                       // value holding a variable reads fine.
-                      "rounded-s-[var(--r-full)]",
+                      "rounded-s-[15px]",
                       // The notch appears exactly when a neighbour does, so the pill is whole
                       // whenever it stands alone -- including on the selected row.
-                      chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]",
+                      chipsShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[15px] group-hover:rounded-e-[var(--r-md)]",
                       active ? "bg-accent text-white" : "text-primary hover:bg-[var(--bg-hover)]",
                     ].filter(Boolean).join(" ")}
                     style={{ height: LAYER_ROW_H }}>
@@ -2879,12 +2879,14 @@ export default function OverlayEditor({
                       name pill on hover made the list twitch. A chip stays out permanently when
                       it has something to report: a row must be able to say it is locked or
                       hidden without being hovered. 15px is half the row height, as a literal
-                      because Tailwind only sees class names it can read. */}
+                      because Tailwind only sees class names it can read. Never --r-full here: a
+                      browser scales all of a box's radii down once two on one side exceed it, and
+                      9999px next to a 6px notch flattened the notch to nothing. */}
                   <span className={`shrink-0 overflow-hidden transition-[width] duration-150 ${lockShown ? "w-[36px]" : "w-0 group-hover:w-[36px]"}`}>
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { locked: !l.locked }); }}
                       aria-label={t("ovlLocked")} aria-pressed={!!l.locked}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[var(--r-full)] group-hover:rounded-e-[var(--r-md)]"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-[background-color,border-radius] duration-150 rounded-s-[var(--r-md)] ${l.locked ? "text-primary" : "text-secondary"} ${eyeShown ? "rounded-e-[var(--r-md)]" : "rounded-e-[15px] group-hover:rounded-e-[var(--r-md)]"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.locked ? <Lock size={13} /> : <LockOpen size={13} />}
                     </button>
@@ -2893,7 +2895,7 @@ export default function OverlayEditor({
                     <button type="button"
                       onClick={(e) => { e.stopPropagation(); toggleLayer(l.id, { visible: l.visible === false }); }}
                       aria-label={t("ovlVisible")} aria-pressed={l.visible !== false}
-                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[var(--r-full)] ${l.visible === false ? "text-primary" : "text-secondary"}`}
+                      className={`ml-1.5 flex items-center justify-center border-0 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors duration-150 rounded-s-[var(--r-md)] rounded-e-[15px] ${l.visible === false ? "text-primary" : "text-secondary"}`}
                       style={{ width: LAYER_ROW_H, height: LAYER_ROW_H }}>
                       {l.visible === false ? <EyeSlash size={13} /> : <Eye size={13} />}
                     </button>
