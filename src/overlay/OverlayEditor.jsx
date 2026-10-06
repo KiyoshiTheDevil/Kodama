@@ -34,6 +34,7 @@ import {
 import { readElements, writeElements, makeElement, placeElement, foldersOf, moveToFolder, renameFolder, dissolveFolder, cleanFolder, readFolderList, writeFolderList } from "./elements.js";
 import { ColorPicker } from "../ui/color-picker.jsx";
 import { openStoreWeb } from "../store/web.js";
+import { measure } from "./measure.js";
 import { useCoverPalette, setCoverPalette, setCoverText, parseCover, resolveColor, coverName, coverPickerProps } from "./cover-colors.js";
 import {
   tidyGroups, groupsOf, expandToGroups, selectedGroup, nextGroupName, groupLayers, ungroupLayers,
@@ -1325,6 +1326,26 @@ export default function OverlayEditor({
   const [drawRect, setDrawRect] = useState(null); // live preview while drawing
   const [marquee, setMarquee] = useState(null);   // left-drag selection box (canvas coords)
   const [hoveredId, setHoveredId] = useState(null); // canvas hover → show grey outline only then
+  // Alt held with nothing pressed: measure from the selection to what the pointer is over, as in
+  // Figma. While dragging, Alt keeps its other job (no snapping), so the measuring waits.
+  const [measuring, setMeasuring] = useState(false);
+  useEffect(() => {
+    let alt = false, down = false;
+    const sync = () => setMeasuring(alt && !down);
+    const kd = (e) => { if (e.key === "Alt") { alt = true; e.preventDefault(); sync(); } };
+    const ku = (e) => { if (e.key === "Alt") { alt = false; e.preventDefault(); sync(); } };
+    const pd = () => { down = true; sync(); };
+    const pu = () => { down = false; sync(); };
+    const reset = () => { alt = false; down = false; sync(); };
+    window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
+    window.addEventListener("pointerdown", pd, true); window.addEventListener("pointerup", pu, true);
+    window.addEventListener("blur", reset);
+    return () => {
+      window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku);
+      window.removeEventListener("pointerdown", pd, true); window.removeEventListener("pointerup", pu, true);
+      window.removeEventListener("blur", reset);
+    };
+  }, []);
   const [leftW, setLeftW] = useState(() => Number(localStorage.getItem("ovl-left-w")) || 184);   // layers panel width
   const [rightW, setRightW] = useState(() => Number(localStorage.getItem("ovl-right-w")) || 248); // inspector width
   useEffect(() => { localStorage.setItem("ovl-left-w", String(leftW)); }, [leftW]);
@@ -3069,6 +3090,42 @@ export default function OverlayEditor({
             }} />
           )}
         </div>
+
+        {/* Alt measuring: from the selection to the hovered layer, or to the canvas edges. */}
+        {measuring && selectedIds.length > 0 && (() => {
+          const sel = boundsOf(doc.layers.filter((l) => selectedIds.includes(l.id)));
+          const target = hoveredId && !selectedIds.includes(hoveredId) ? doc.layers.find((l) => l.id === hoveredId) : null;
+          const tb = target ? { x: target.x, y: target.y, w: target.w, h: target.h } : { x: 0, y: 0, w: doc.canvas.width, h: doc.canvas.height };
+          const MEASURE = "#f24822";
+          const lw = 1 / zoom;
+          return (
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 6 }}>
+              {target && <div style={{ position: "absolute", left: tb.x, top: tb.y, width: tb.w, height: tb.h, boxShadow: `0 0 0 ${lw}px ${MEASURE}` }} />}
+              {measure(sel, tb).map((m, i) => {
+                const horiz = m.y1 === m.y2;
+                const box = horiz
+                  ? { left: Math.min(m.x1, m.x2), top: m.y1 - lw / 2, width: Math.abs(m.x2 - m.x1), height: lw }
+                  : { left: m.x1 - lw / 2, top: Math.min(m.y1, m.y2), width: lw, height: Math.abs(m.y2 - m.y1) };
+                const line = m.guide
+                  ? { backgroundImage: `repeating-linear-gradient(${horiz ? "90deg" : "180deg"}, ${MEASURE} 0 ${3 * lw}px, transparent ${3 * lw}px ${6 * lw}px)` }
+                  : { background: MEASURE };
+                return (
+                  <div key={i}>
+                    <div style={{ position: "absolute", ...box, ...line }} />
+                    {!m.guide && (
+                      <div style={{
+                        position: "absolute", left: (m.x1 + m.x2) / 2, top: (m.y1 + m.y2) / 2,
+                        ...unscale(horiz ? " translate(-50%, 6px)" : " translate(6px, -50%)"),
+                        background: MEASURE, color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: "16px",
+                        padding: "0 5px", borderRadius: 4, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+                      }}>{m.value}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Snap guide lines (span the canvas; counter-scaled to ~1px) */}
         {(snapLines.x != null || snapLines.y != null) && (
