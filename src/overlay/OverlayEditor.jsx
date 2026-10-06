@@ -164,12 +164,46 @@ function useElementSize() {
 const LAYER_ROW_H = 30;
 const GROUP_INDENT = 18;   // how far a group's members sit in from its header
 
+// The menu bar: which of its menus is open, shared, so that with one open, moving the pointer
+// onto another trigger opens that one instead, the way every desktop menu bar behaves. An open
+// menu lays an invisible layer over the page, so the other triggers never see a hover of their
+// own; the pointer is followed on the document and tested against their boxes instead.
+const MenuBarCtx = createContext(null);
+function MenuBar({ children, className }) {
+  const [open, setOpen] = useState(null);
+  const barRef = useRef(null);
+  useEffect(() => {
+    if (open == null) return;
+    const onMove = (e) => {
+      for (const el of barRef.current?.querySelectorAll("[data-menubar-id]") || []) {
+        const id = el.getAttribute("data-menubar-id");
+        if (id === open) continue;
+        const r = el.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) { setOpen(id); return; }
+      }
+    };
+    document.addEventListener("pointermove", onMove, true);
+    return () => document.removeEventListener("pointermove", onMove, true);
+  }, [open]);
+  return (
+    <MenuBarCtx.Provider value={{ open, setOpen }}>
+      <div ref={barRef} className={className}>{children}</div>
+    </MenuBarCtx.Provider>
+  );
+}
+
 // Menu bar entry. The design puts the bar at 52px with 30px controls, so the trigger height
 // lives here rather than being repeated at each of the four menus.
 function MenuBtn({ label, children, width = 230, corners }) {
+  const bar = useContext(MenuBarCtx);
+  const ctl = bar ? {
+    isOpen: bar.open === label,
+    onOpenChange: (o) => bar.setOpen((cur) => (o ? label : cur === label ? null : cur)),
+  } : {};
   return (
-    <Dropdown>
+    <Dropdown {...ctl}>
       <DropdownTrigger
+        data-menubar-id={label}
         style={{ borderRadius: corners }}
         className="h-[30px] px-4 border-0 bg-[var(--surface-2)] text-[length:var(--t14)] text-primary hover:bg-[var(--surface-3)] transition-colors cursor-pointer">
         {label}
@@ -2585,7 +2619,7 @@ export default function OverlayEditor({
         </div>
 
         {/* The four menus read as one segmented control, like the icon groups opposite. */}
-        <div className="flex items-center gap-[6px]">
+        <MenuBar className="flex items-center gap-[6px]">
         <MenuBtn label={t("ovlMenuFile")} corners={hdrCorners(false, true)}>
           <DropdownMenu aria-label={t("ovlMenuFile")} onAction={(key) => {
             if (key === "new") { commit(defaultOverlayDoc()); setSelectedId(null); setCurrentProfileId(null); }
@@ -2725,7 +2759,7 @@ export default function OverlayEditor({
             </DropdownSection>
           </DropdownMenu>
         </MenuBtn>
-        </div>
+        </MenuBar>
 
         <div className="flex-1" {...(standalone ? { "data-tauri-drag-region": true } : {})} />
 
