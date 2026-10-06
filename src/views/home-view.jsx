@@ -552,7 +552,8 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
                   style={{
                     height: 84, border: "none", padding: "10px 14px", borderRadius: "var(--r-xl)", cursor: "default",
                     display: "flex", alignItems: "flex-end", textAlign: "left",
-                    background: `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 38%, var(--bg-base)))`,
+                    // The colour glows from the corner the name sits in and fades into the card's grey.
+                    background: `radial-gradient(130% 150% at 0% 100%, ${c} 0%, color-mix(in srgb, ${c} 45%, var(--bg-elevated)) 32%, var(--bg-elevated) 72%)`,
                     boxShadow: active ? "inset 0 0 0 2px rgba(255,255,255,0.9)" : "none",
                     color: "#fff", fontSize: "var(--t14)", fontWeight: 700, lineHeight: 1.2,
                     textShadow: "0 1px 3px rgba(0,0,0,0.35)",
