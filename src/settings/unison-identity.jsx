@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button, CardRoot, InputRoot, Spinner, TextFieldRoot } from "@heroui/react";
+import { Button, InputRoot, Spinner, TextFieldRoot } from "@heroui/react";
 import { useLang } from "../context.jsx";
 import { DownloadSimple, Key, UserCircle } from "../icons.jsx";
 import { SettingsSectionLabel, SettingsSectionDesc } from "../ui/settings-controls.jsx";
@@ -104,7 +104,8 @@ export function UnisonIdentitySection() {
     <>
       <SettingsSectionLabel>{t("unisonIdentity")}</SettingsSectionLabel>
       <SettingsSectionDesc>{t("unisonIdentityDesc")}</SettingsSectionDesc>
-      <CardRoot variant="secondary" className="p-4 flex flex-col gap-3">
+      {/* A settings row, so it has the rounding of every other group. */}
+      <div className="setting-row p-4 flex flex-col gap-3">
         {!identity ? (
           <>
             <div className="text-[length:var(--t12)] text-muted leading-relaxed">{t("unisonNoIdentity")}</div>
@@ -164,7 +165,7 @@ export function UnisonIdentitySection() {
           </>
         )}
         {err ? <div className="text-[length:var(--t11)] text-[var(--status-danger)]">{err}</div> : null}
-      </CardRoot>
+      </div>
     </>
   );
 }

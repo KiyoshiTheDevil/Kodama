@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { cn, CardRoot } from "@heroui/react";
+import { cn } from "@heroui/react";
 import { GripLines } from "../icons.jsx";
 import { PROVIDER_SYNC, providerSyncLevels } from "../lyrics/providers.js";
 import { Toggle } from "../ui/settings-controls.jsx";
@@ -54,16 +54,15 @@ export function LyricsProviderList({ providers, onChange }) {
   };
 
   return (
-    <div ref={listRef} className="flex flex-col gap-1.5">
+    // Rows of the settings' own kind (.setting-row), so the list fuses into one group with the
+    // same rounding as every other group; separate cards had a radius of their own.
+    <div ref={listRef} className="flex flex-col">
       {providers.map((p, i) => (
-        <CardRoot
+        <div
           key={p.id}
-          variant="secondary"
           data-provider-idx={i}
-          className={cn(
-            "bg-surface-1 flex flex-row items-center gap-2.5 px-[18px] py-4 border-2 transition-colors",
-            dragOver === i ? "border-accent" : "border-transparent"
-          )}
+          className="setting-row flex flex-row items-center gap-2.5 px-[18px] py-4 transition-shadow"
+          style={{ boxShadow: dragOver === i ? "inset 0 0 0 2px var(--accent)" : "none" }}
         >
           {/* Drag handle */}
           <div
@@ -95,7 +94,7 @@ export function LyricsProviderList({ providers, onChange }) {
           <div className="flex-1" />
           {/* Enable toggle */}
           <Toggle value={p.enabled} onChange={v => onChange(providers.map((x, j) => j === i ? { ...x, enabled: v } : x))} />
-        </CardRoot>
+        </div>
       ))}
     </div>
   );
