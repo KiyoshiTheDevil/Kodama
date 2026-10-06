@@ -1,6 +1,6 @@
 // Motion shared by every page: things slide in as they come into view, and a spirit sitting
-// in a tile or card cheers when the pointer comes over it. Page-to-page transitions are CSS only
-// (@view-transition in style.css). Nothing here runs with prefers-reduced-motion.
+// in a tile or card cheers when the pointer comes over it, the scrollbar floats, and moving
+// between pages swaps the content in place instead of loading a new page.
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ── Reveal on scroll ─────────────────────────────────────────────────────
@@ -93,3 +93,58 @@ if (matchMedia("(pointer: fine)").matches) {
   });
   layout();
 }
+
+// ── Page changes without reloading ───────────────────────────────────────
+// Loading a new page shows a dark frame for a moment in every browser, before the new page is
+// drawn. So a click on one of our own pages fetches it and swaps the content in place, inside a
+// view transition; the header, the background and this script stay. Anything that goes wrong
+// falls back to an ordinary page load.
+let currentPath = location.pathname;
+async function swapTo(url, push) {
+  let doc;
+  try {
+    const r = await fetch(url, { credentials: "same-origin" });
+    if (!r.ok || !(r.headers.get("content-type") || "").includes("text/html")) throw new Error();
+    doc = new DOMParser().parseFromString(await r.text(), "text/html");
+  } catch { location.href = url; return; }
+  const nextWrap = doc.querySelector("body > .wrap"), nextFoot = doc.querySelector("body > footer");
+  const curWrap = document.querySelector("body > .wrap");
+  if (!nextWrap || !curWrap) { location.href = url; return; }
+  const apply = () => {
+    // The address first: relative links and images in the new content resolve against it.
+    if (push) history.pushState(null, "", url);
+    currentPath = location.pathname;
+    document.title = doc.title;
+    curWrap.replaceWith(document.importNode(nextWrap, true));
+    const curFoot = document.querySelector("body > footer");
+    if (curFoot && nextFoot) curFoot.replaceWith(document.importNode(nextFoot, true));
+    // The new page's own scripts (stats, releases) run again, as on a fresh load.
+    document.querySelectorAll("body > script[data-page]").forEach((el) => el.remove());
+    doc.querySelectorAll("body > script").forEach((old) => {
+      const el = document.createElement("script");
+      for (const a of old.attributes) el.setAttribute(a.name, a.value);
+      el.textContent = old.textContent;
+      el.dataset.page = "1";
+      document.body.appendChild(el);
+    });
+    scrollTo({ top: 0, behavior: "instant" });
+  };
+  const vt = document.startViewTransition && !calm ? document.startViewTransition(apply) : null;
+  if (vt) await vt.updateCallbackDone.catch(() => {}); else apply();
+  // Module scripts of the new page (the store): loaded the first time, told they are back after.
+  for (const sc of doc.querySelectorAll("script[type=module][src]")) {
+    await import(new URL(sc.getAttribute("src"), url).href).catch(() => {});
+  }
+  document.dispatchEvent(new Event("site:page"));
+}
+document.addEventListener("click", (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest("a[href]");
+  if (!a || a.target || a.hasAttribute("download")) return;
+  const u = new URL(a.href, location.href);
+  if (u.origin !== location.origin || !/(\.html|\/)$/.test(u.pathname)) return;
+  if (u.pathname === location.pathname) return;   // the same page: its own links, its own business
+  e.preventDefault();
+  swapTo(u.href, true);
+});
+addEventListener("popstate", () => { if (location.pathname !== currentPath) swapTo(location.href, false); });

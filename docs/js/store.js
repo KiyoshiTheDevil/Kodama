@@ -37,7 +37,7 @@ const PERMISSIONS = {
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const app = $("#store");
+let app = null;   // the store page that is showing (see init)
 
 let cat = null, counts = {}, ratings = {};
 
@@ -66,7 +66,8 @@ function go(p, push = true) {
   if (push) history.pushState(null, "", url); else history.replaceState(null, "", url);
   render();
 }
-window.addEventListener("popstate", render);
+// Back and forward within the store. A step to another page is site.js's business.
+window.addEventListener("popstate", () => { if (app && app.isConnected) render(); });
 
 // ── Previews ────────────────────────────────────────────────────────────
 function themePreview(e) {
@@ -155,7 +156,7 @@ function paintCanvases() {
     if (e) drawViz(cv, e);
   }
 }
-window.addEventListener("resize", () => cat && paintCanvases());
+window.addEventListener("resize", () => cat && app && app.isConnected && paintCanvases());
 
 // ── Numbers ─────────────────────────────────────────────────────────────
 const rating = (id) => { const r = ratings[id]; return r && r.count >= MIN_RATINGS ? r : null; };
@@ -288,10 +289,21 @@ function render() {
   if (!c && !q && !id) home(); else browse(c === "all" ? null : c, id, q);
 }
 
-const box = $("#q");
-let t = 0;
-box.addEventListener("input", () => {
-  clearTimeout(t);
-  t = setTimeout(() => go({ c: params().get("c"), q: box.value.trim() }, false), 180);
-});
-load();
+// The site changes pages without reloading (site.js), so the store page can be entered again
+// without this module running again. Everything that belongs to the page is set up here, for the
+// page that is there now; the catalogue, once loaded, is kept.
+function init() {
+  const el = $("#store");
+  if (!el || el.dataset.ready) return;
+  el.dataset.ready = "1";
+  app = el;
+  const box = $("#q");
+  let t = 0;
+  box.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(() => go({ c: params().get("c"), q: box.value.trim() }, false), 180);
+  });
+  if (cat) render(); else load();
+}
+init();
+document.addEventListener("site:page", init);
