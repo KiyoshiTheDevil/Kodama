@@ -62,6 +62,7 @@ Fixes:
 - Overlay entrance animations never showed in OBS: they now play when the widget appears and on every new song (or only on appearing, per design)
 - Overlay text was cut off at its outline, and tall letters or descenders at the edge of the text box
 - Overlay marquee text with a gradient fill showed up shifted and cut off
+- Cover colours in the OBS overlay fell back to the stand-in colours
 - Turning a switch on in the overlay editor could slide the whole window content up
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
 

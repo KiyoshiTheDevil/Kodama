@@ -4854,6 +4854,19 @@ def get_mood_playlists():
         return jsonify({"error": str(e)}), 500
 
 
+@app.after_request
+def _imgproxy_cors(resp):
+    """Covers through the proxy may be read by any page, the OBS overlay on its own port included.
+
+    The overlay reads a cover's pixels for its cover colours, and a browser only allows that for
+    an image from another origin when the response says so. The app's CORS list names the app's
+    own origins, not the OBS server's port, so in OBS the canvas came back tainted and every
+    cover colour fell back to the stand-ins. These are public thumbnails; nothing to protect."""
+    if request.path == "/imgproxy" and "Access-Control-Allow-Origin" not in resp.headers:
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
 @app.route("/imgproxy")
 def img_proxy():
     """Proxy YouTube thumbnail images with persistent disk cache."""
