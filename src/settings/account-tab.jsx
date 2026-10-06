@@ -204,12 +204,12 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
         <div className="flex flex-col gap-2">
           <SettingsSectionLabel style={{ margin: 0 }}>{t("links")}</SettingsSectionLabel>
           <div className="flex flex-col gap-1.5">
-            <Button variant="ghost" fullWidth className="justify-start gap-2.5" onPress={() => openUrl("https://music.youtube.com/").catch(console.error)}>
+            <Button variant="ghost" fullWidth className="justify-start gap-2.5 h-[46px]! px-4!" onPress={() => openUrl("https://music.youtube.com/").catch(console.error)}>
               <BrandYoutube size={16} />
               {t("openYouTubeMusic")}
               <ArrowSquareOut size={13} className="ml-auto text-muted" />
             </Button>
-            <Button variant="ghost" fullWidth className="justify-start gap-2.5" onPress={() => openUrl("https://myaccount.google.com/").catch(console.error)}>
+            <Button variant="ghost" fullWidth className="justify-start gap-2.5 h-[46px]! px-4!" onPress={() => openUrl("https://myaccount.google.com/").catch(console.error)}>
               <UserCircle size={16} />
               {t("manageGoogleAccount")}
               <ArrowSquareOut size={13} className="ml-auto text-muted" />
