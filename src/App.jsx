@@ -3957,9 +3957,14 @@ export default function App() {
   const [announceTracks, setAnnounceTracks] = usePersistedState("kodama-announce-tracks", true);
   const [trackAnnouncement, setTrackAnnouncement] = useState("");
   useEffect(() => {
-    if (!announceTracks || !currentTrack?.title) { setTrackAnnouncement(""); return; }
+    // Emptied first and filled a moment later, and atomic on the element: changing the text in
+    // place let Narrator read only the part that differed, a half sentence before the song.
+    setTrackAnnouncement("");
+    if (!announceTracks || !currentTrack?.title) return;
     const artists = Array.isArray(currentTrack.artists) ? currentTrack.artists.map(a => a?.name || a).join(", ") : (currentTrack.artists || "");
-    setTrackAnnouncement(translate(localStorage.getItem("kiyoshi-lang") || "de", artists ? "announceNowPlaying" : "announceNowPlayingNoArtist", { title: currentTrack.title, artist: artists }));
+    const text = translate(localStorage.getItem("kiyoshi-lang") || "de", artists ? "announceNowPlaying" : "announceNowPlayingNoArtist", { title: currentTrack.title, artist: artists });
+    const id = setTimeout(() => setTrackAnnouncement(text), 150);
+    return () => clearTimeout(id);
   }, [announceTracks, currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dynamic accent: when enabled, derive --accent live from the current cover; otherwise
@@ -5995,7 +6000,7 @@ export default function App() {
         <style>{`*, *::before, *::after { transition: none !important; animation: none !important; }`}</style>
       )}
       {/* Screen readers hear the new song; nothing on screen. */}
-      <div role="status" aria-live="polite" className="sr-only">{trackAnnouncement}</div>
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{trackAnnouncement}</div>
       {showSplash && <SplashScreen fading={splashFading} />}
       {/* Language picker first on very first launch, before FFmpeg setup */}
       {showLangPicker && !showLogin && (
