@@ -56,7 +56,7 @@ export function LyricsProviderList({ providers, onChange }) {
   return (
     // Rows of the settings' own kind (.setting-row), so the list fuses into one group with the
     // same rounding as every other group; separate cards had a radius of their own.
-    <div ref={listRef} className="flex flex-col">
+    <div ref={listRef} className="setting-rows flex flex-col">
       {providers.map((p, i) => (
         <div
           key={p.id}

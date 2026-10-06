@@ -132,7 +132,7 @@ function CacheTab({ t }) {
       )}
 
       {/* ── Summary card ── */}
-      <CardRoot variant="secondary" className="px-[18px] py-4 gap-0! transition-colors"
+      <CardRoot variant="secondary" className="px-[18px] py-4 gap-0! rounded-[var(--r-2xl)]! transition-colors"
         style={{ background: overLimit ? "color-mix(in srgb, var(--status-danger) 8%, var(--surface-1))" : "var(--surface-1)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>
@@ -169,15 +169,16 @@ function CacheTab({ t }) {
         </div>
       </CardRoot>
 
-      {/* ── Category rows — one card each ── */}
+      {/* ── Category rows, one group ── */}
+      <div className="setting-rows flex flex-col">
       {categories.map(({ key, label, icon, color, colorRaw }) => {
         const s = stats?.[key];
         const isClearing = clearing[key];
         const wasCleared = cleared[key];
 
         return (
-          <CardRoot key={key} variant="secondary"
-            className={cn("bg-surface-1 flex flex-row items-center gap-3.5 px-[18px] py-3.5 transition-opacity", s?.enabled === false && "opacity-50")}>
+          <div key={key}
+            className={cn("setting-row flex flex-row items-center gap-3.5 px-[18px] py-3.5 transition-opacity", s?.enabled === false && "opacity-50")}>
             {/* Colored icon badge */}
             <div className="w-8 h-8 rounded-md shrink-0 flex items-center justify-center"
               style={{ background: `rgba(${colorRaw},0.15)`, color }}>{icon}</div>
@@ -201,12 +202,13 @@ function CacheTab({ t }) {
 
             {/* Toggle */}
             <Toggle value={s?.enabled ?? true} onChange={v => toggleEnabled(key, v)} />
-          </CardRoot>
+          </div>
         );
       })}
+      </div>
 
       {/* ── Max cache size slider ── */}
-      <CardRoot variant="secondary" className="bg-surface-1 px-[18px] py-3.5 gap-0!">
+      <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! px-[18px] py-3.5 gap-0!">
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <div style={{
             width: 32, height: 32, borderRadius: "var(--r-md)", flexShrink: 0,

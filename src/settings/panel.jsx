@@ -1548,26 +1548,22 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </SettingRow>
 
                 <SectionLabel>{t("appFont")}</SectionLabel>
-                <div className="flex flex-col gap-2">
+                <div className="setting-rows flex flex-col">
                   {[
                     { id: "default",  label: t("appFontDefault"),  font: "'MiSans Latin', system-ui, sans-serif" },
                     { id: "dyslexic", label: t("appFontDyslexic"), font: "'OpenDyslexic', system-ui, sans-serif" },
                   ].map(f => (
-                    <CardRoot
+                    <div
                       key={f.id}
                       onClick={() => onAppFontChange(f.id)}
-                      variant="secondary"
-                      className={cn(
-                        "flex flex-row items-center justify-between gap-3 px-4 py-3.5 cursor-default border-2 transition-colors",
-                        appFont === f.id ? "border-accent bg-accent-dim" : "border-transparent bg-surface-1 hover:bg-hover"
-                      )}
+                      className={cn("setting-row pickable flex flex-row items-center justify-between gap-3 px-4 py-3.5", appFont === f.id && "picked")}
                     >
                       <div>
                         <div className="text-[length:var(--t13)] font-semibold text-primary mb-0.5" style={{ fontFamily: f.font }}>{f.label}</div>
                         <div className="text-[length:var(--t12)] text-muted" style={{ fontFamily: f.font }}>{language === "de" ? "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern" : "The quick brown fox jumps over the lazy dog"}</div>
                       </div>
                       {appFont === f.id && <Check size={16} className="text-accent shrink-0 ml-3" />}
-                    </CardRoot>
+                    </div>
                   ))}
                 </div>
                 </div>
@@ -1602,20 +1598,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
               return (
                 <>
-                  <div className="flex flex-col gap-1.5">
+                  <div className="setting-rows flex flex-col">
                     {SHORTCUT_ACTIONS.map(({ id, label, fixed }) => {
                       const code = customShortcuts[id];
                       const isRecording = recordingShortcut === id;
                       const displayKey = getShortcutLabel(code);
                       const conflict = !isRecording && conflictFor(code, id);
                       return (
-                        <CardRoot
+                        <div
                           key={id}
-                          variant="secondary"
-                          className={cn(
-                            "bg-surface-1 flex flex-row items-center justify-between gap-3 px-[18px] py-3 border-2 transition-colors",
-                            isRecording ? "border-accent" : conflict ? "border-[rgba(255,100,100,0.45)]" : "border-transparent"
-                          )}
+                          className="setting-row flex flex-row items-center justify-between gap-3 px-[18px] py-3 transition-shadow"
+                          style={{ boxShadow: isRecording ? "inset 0 0 0 2px var(--accent)" : conflict ? "inset 0 0 0 2px rgba(255,100,100,0.45)" : "none" }}
                         >
                           <span className="text-[length:var(--t13)] text-secondary">{label}</span>
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -1646,7 +1639,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                               </Button>
                             )}
                           </div>
-                        </CardRoot>
+                        </div>
                       );
                     })}
                   </div>
@@ -1727,7 +1720,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 )}
 
                 <SectionLabel style={{ marginTop: 24 }}>{t("pinEmergency")}</SectionLabel>
-                <CardRoot variant="secondary" className="px-4 py-3.5 gap-0! text-[length:var(--t12)] text-muted leading-[1.7]"
+                <CardRoot variant="secondary" className="px-4 py-3.5 gap-0! rounded-[var(--r-2xl)]! text-[length:var(--t12)] text-muted leading-[1.7]"
                   style={{ background: "var(--status-danger-soft)" }}>
                   <div style={{ marginBottom: 12, color: "var(--text-secondary)", fontWeight: 500 }}>{t("pinEmergencyDesc")}</div>
                   {!pinEmergencyConfirm ? (
@@ -1770,18 +1763,17 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
             {tab === "language" && (
               <>
-                <div className="flex flex-col gap-2">
+                <div className="setting-rows flex flex-col">
                   {LANGUAGES.map(lang => {
                     const pct = translationProgress(lang.code);
                     return (
-                    <CardRoot
+                    <div
                       key={lang.code}
                       onClick={lang.comingSoon ? undefined : () => onLanguageChange(lang.code)}
-                      variant="secondary"
                       className={cn(
-                        "flex flex-row items-center gap-3.5 px-4 py-3 cursor-default border-2 transition-colors",
-                        lang.comingSoon ? "opacity-50 pointer-events-none" :
-                        language === lang.code ? "border-accent bg-accent-dim" : "border-transparent bg-surface-1 hover:bg-hover"
+                        "setting-row flex flex-row items-center gap-3.5 px-4 py-3",
+                        lang.comingSoon ? "opacity-50 pointer-events-none" : "pickable",
+                        !lang.comingSoon && language === lang.code && "picked"
                       )}
                     >
                       <div dangerouslySetInnerHTML={{ __html: lang.flag }} className="w-12 h-[30px] shrink-0 rounded-sm overflow-hidden border border-border" />
@@ -1819,11 +1811,11 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                         ) : null}
                         {language === lang.code && <Check size={14} className="text-accent" />}
                       </div>
-                    </CardRoot>
+                    </div>
                     );
                   })}
                 </div>
-                <CardRoot variant="secondary" className="bg-surface-1 flex flex-row items-center gap-3 px-4 py-3 mt-2">
+                <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-row items-center gap-3 px-4 py-3 mt-2">
                   <Translate size={18} className="shrink-0 text-secondary" />
                   <div className="flex-1 text-[length:var(--t12)] text-secondary leading-snug">{t("contributeTranslation")}</div>
                   <Button variant="ghost" size="sm" className="shrink-0" onPress={() => openUrl("https://crowdin.com/project/kiyoshi-music").catch(console.error)}>
@@ -1893,7 +1885,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {updateInfo ? (
                   <>
                     {/* New version card */}
-                    <CardRoot variant="secondary" className="px-[18px] py-3.5 gap-0! my-1.5"
+                    <CardRoot variant="secondary" className="px-[18px] py-3.5 gap-0! my-1.5 rounded-[var(--r-2xl)]!"
                       style={{ background: "color-mix(in srgb, var(--accent) 8%, var(--surface-1))", border: "0.5px solid color-mix(in srgb, var(--accent) 40%, transparent)" }}>
                       <div className="flex items-center gap-2.5" style={{ marginBottom: updateInfo.releasedAt || updateInfo.changelog ? 10 : 0 }}>
                         <ArrowCircleUp size={20} className="text-accent shrink-0" />
@@ -2017,7 +2009,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <div style={{ fontSize: "var(--t12)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>
                   {t("contributors")}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
+                <div className="setting-rows" style={{ display: "flex", flexDirection: "column", marginBottom: 28 }}>
                   {[
                     {
                       name: "Kiyoshi The Devil",
@@ -2051,7 +2043,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       ],
                     },
                   ].map(c => (
-                    <CardRoot key={c.name} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-3.5 px-4 py-3">
+                    <div key={c.name} className="setting-row flex flex-row items-center gap-3.5 px-4 py-3">
                       {c.avatar ? (
                         <img src={`/${c.avatar}`} alt={c.name} className="w-9 h-9 rounded-[var(--r-full)] shrink-0 object-cover" />
                       ) : (
@@ -2071,7 +2063,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                           </Button>
                         ))}
                       </div>
-                    </CardRoot>
+                    </div>
                   ))}
                 </div>
 

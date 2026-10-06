@@ -91,7 +91,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
   };
 
   const StatTile = ({ icon, label, value }) => (
-    <CardRoot variant="secondary" className="bg-surface-1 flex flex-col items-center text-center gap-3 px-[18px] py-4">
+    <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-col items-center text-center gap-3 px-[18px] py-4">
       <div className="w-[30px] h-[30px] rounded-md bg-accent-dim text-accent flex items-center justify-center shrink-0">{icon}</div>
       <div className="min-w-0">
         <div className="font-semibold truncate tabular-nums" style={{ fontSize: "var(--t16)" }}>{value}</div>
@@ -105,7 +105,7 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
       <div id="set-sec-account-overview" data-settings-section="account-overview" className="flex flex-col gap-6" style={{ scrollMarginTop: 8 }}>
       {/* Active account card */}
       {active && (
-        <CardRoot variant="secondary" className="bg-surface-1 flex flex-col items-center text-center gap-4 px-[18px] py-4">
+        <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-col items-center text-center gap-4 px-[18px] py-4">
           {active.type === "local" ? (
             <button onClick={pickAvatar} title={t("changeAvatar")} className="relative group shrink-0 rounded-[var(--r-full)] cursor-default">
               <Avatar a={active} size={56} />

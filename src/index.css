@@ -1094,6 +1094,13 @@ button:not([class]) {
 }
 /* Inset from both sides via logical properties, so the divider follows the
    writing direction instead of needing a mirrored rule for RTL. */
+/* A list of rows inside a wrapper (provider order, languages, shortcuts…): the wrapper's own
+   spacing follows, so the last row gives up its margin. */
+.setting-rows > .setting-row:last-child { margin-bottom: 0; }
+/* Rows that are picked from: a hover tint, and the picked one ringed in the accent. */
+.setting-row.pickable { cursor: default; transition: background-color .15s, box-shadow .15s; }
+.setting-row.pickable:hover { background: var(--bg-hover); }
+.setting-row.picked, .setting-row.picked:hover { background: var(--accent-dim); box-shadow: inset 0 0 0 2px var(--accent); }
 .setting-row + .setting-row::before {
   content: "";
   position: absolute;

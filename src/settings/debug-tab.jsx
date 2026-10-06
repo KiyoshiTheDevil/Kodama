@@ -188,7 +188,7 @@ export function DebugFloatingWindow({ onClose }) {
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {sysRows.map(([k, v]) => (
-                  <CardRoot key={k} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-2 px-3 py-2">
+                  <CardRoot key={k} variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-row items-center gap-2 px-3 py-2">
                     <span className="text-[length:var(--t11)] text-muted min-w-[72px] shrink-0">{k}</span>
                     <span className="text-[length:var(--t11)] text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
                   </CardRoot>
@@ -329,7 +329,7 @@ export function DebugTab({ t }) {
               ["Uptime",     info.uptime],
               ..._debugAuthRows(info, t),
             ].map(([k, v]) => (
-              <CardRoot key={k} variant="secondary" className="bg-surface-1 flex flex-row items-center gap-2.5 px-3.5 py-2.5">
+              <CardRoot key={k} variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-row items-center gap-2.5 px-3.5 py-2.5">
                 <span className="text-[length:var(--t11)] text-muted min-w-[76px] shrink-0">{k}</span>
                 <span className="text-[length:var(--t12)] text-primary font-mono overflow-hidden text-ellipsis whitespace-nowrap">{v}</span>
               </CardRoot>
