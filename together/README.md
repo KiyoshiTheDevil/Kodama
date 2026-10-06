@@ -8,8 +8,7 @@ Local:
 
     npx wrangler dev --port 8787
 
-Kodama Dev connects to `http://localhost:8787` by default; a release build to the deployed worker.
-The address can be overridden in the Debug tab (stored as `kodama-together-url`).
+Kodama connects to the deployed worker; for a local server set `http://localhost:8787` in the Debug tab.
 
 Deploy (Workers free plan is enough, rooms use SQLite-backed Durable Objects):
 

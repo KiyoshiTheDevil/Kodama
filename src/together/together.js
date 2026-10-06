@@ -5,8 +5,8 @@
 // shortest round trip wins, and its midpoint gives the offset between this clock and the room's.
 import { useSyncExternalStore } from "react";
 
-// The deployed room server, or a local `wrangler dev` while developing. Overridable for testing.
-const DEFAULT_URL = import.meta.env?.DEV ? "http://localhost:8787" : "https://kodama-together.kiyoshidesign.workers.dev";
+// The deployed room server. A local `wrangler dev` (http://localhost:8787) can be set in the Debug tab.
+const DEFAULT_URL = "https://kodama-together.kiyoshidesign.workers.dev";
 export const togetherUrl = () => {
   try { return localStorage.getItem("kodama-together-url") || DEFAULT_URL; } catch { return DEFAULT_URL; }
 };
