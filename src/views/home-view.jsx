@@ -241,7 +241,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
           : ctx ? (e) => { e.preventDefault(); onContextMenu?.(e, ctx); } : undefined}
         style={{ flexShrink: 0, width: size, cursor: "default" }}
       >
-        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "var(--r-full)" : "var(--r-lg)", overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
+        <div style={{ position: "relative", marginBottom: 8, borderRadius: isArtist ? "var(--r-full)" : "var(--r-lg)", overflow: "hidden" }}>
           <div style={{ width: size, height: size, background: "var(--bg-elevated)" }}>
             {item.thumbnail
               /* Twice the card's own size: the default thumb() keeps whatever small variant the
