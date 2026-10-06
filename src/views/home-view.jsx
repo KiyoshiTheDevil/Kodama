@@ -26,7 +26,7 @@ function Carousel({ children, style, insetX = 0 }) {
 
 // Reusable media tile matching the Home-page card behavior (hover image-scale,
 // play overlay, CardRoot). shape: "square" | "circle" | "video".
-export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit, showSpeedDial = true }) {
+export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit, showSpeedDial = true }) {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moodGroups, setMoodGroups] = useState({});   // { "For you": [...], "Moods & moments": [...], "Genres": [...] }
@@ -189,7 +189,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
   const handleCardPlayDirect = (e, item, section) => {
     e.stopPropagation();
     if (item.type === "podcast" || item.type === "podcast_episode") { handlePodcastClick(item); return; }
-    if (item.type === "song") { onPlay(item, (section?.items || []).filter(x => x.type === "song")); return; }
+    if (item.type === "song") { (onPlaySong || onPlay)(item); return; }
     if (item.type === "album") {
       fetch(`${API}/album/${item.browseId}`).then(r => r.json())
         .then(d => { if (d.tracks?.length) onPlay(d.tracks[0], d.tracks); }).catch(() => {});
@@ -209,7 +209,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
   };
 
   const handleCardClick = (item, section) => {
-    if (item.type === "song")            { onPlay(item, (section?.items || []).filter(x => x.type === "song")); return; }
+    if (item.type === "song")            { (onPlaySong || onPlay)(item); return; }
     if (item.type === "podcast" || item.type === "podcast_episode") { handlePodcastClick(item); return; }
     if (item.type === "playlist")        { onOpenPlaylist({ playlistId: item.playlistId, title: item.title, thumbnail: item.thumbnail }); return; }
     if (item.type === "album")           { onOpenAlbum({ browseId: item.browseId, title: item.title, thumbnail: item.thumbnail }); return; }
@@ -348,6 +348,8 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
         .carousel[data-right-scroll="true"],.carousel[data-left-right-scroll="true"]{--fade-r:28px}
         .home-card:hover .home-card-play{opacity:1!important;transform:translateY(0)!important}
         .home-card:hover .home-card-img{transform:scale(1.04)}
+        .sd-row:hover{background:var(--bg-hover)}
+        .sd-row:hover .sd-play{opacity:1!important}
       `}</style>
 
       {/* ── Header (centered hero) ── */}
@@ -363,7 +365,8 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
 
       {/* ── Top row: left stack (carousels) + Speed Dial (right) ── */}
       {(leftSections.length > 0 || speedDialItems.length > 0) && (() => {
-        const PER_PAGE = 9;
+        const PER_PAGE = 8;
+        const ROW_H = 52;
         const pages = [];
         for (let i = 0; i < speedDialItems.length; i += PER_PAGE) pages.push(speedDialItems.slice(i, i + PER_PAGE));
         const curPage = Math.min(speedDialPage, Math.max(0, pages.length - 1));
@@ -395,7 +398,7 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
               </div>
             )}
 
-            {/* Speed Dial — Quick picks recommendations as a paginated 3×3 grid */}
+            {/* Speed Dial: Quick picks recommendations as a paginated list, so the titles have room */}
             {hasSpeedDial && (
               <CardRoot variant="transparent" className="overflow-hidden gap-0! p-0!"
                 style={{
@@ -422,39 +425,29 @@ export function HomeView({ displayName, onPlay, onOpenPlaylist, onOpenAlbum, onO
                     </div>
                   )}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, padding: "0 16px 12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 8px 10px" }}>
                   {Array.from({ length: pages.length > 1 ? PER_PAGE : (pages[0]?.length || 0) }).map((_, i) => {
                     const item = (pages[curPage] || [])[i];
-                    // Empty placeholder keeps the grid at a constant 3-row height on the last page
-                    if (!item) return <div key={i} aria-hidden style={{ minWidth: 0, aspectRatio: "1 / 1" }} />;
+                    // An empty row keeps the list at a constant height on the last page.
+                    if (!item) return <div key={i} aria-hidden style={{ height: ROW_H }} />;
                     return (
-                    <CardRoot key={i} variant="transparent" className="home-card p-0! gap-0! rounded-none! shadow-none!"
-                      onClick={() => onPlay(item, speedDialItems)}
+                    <div key={i} className="sd-row"
+                      onClick={() => (onPlaySong || onPlay)(item)}
                       onContextMenu={(e) => { e.preventDefault(); onTrackContextMenu?.(e, item); }}
-                      style={{ cursor: "default", minWidth: 0 }}>
-                      <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", borderRadius: "var(--r-lg)", overflow: "hidden", background: "var(--bg-elevated)" }}>
+                      style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 10, padding: "0 8px", borderRadius: "var(--r-lg)", cursor: "default", minWidth: 0 }}>
+                      <div style={{ position: "relative", width: 40, height: 40, borderRadius: "var(--r-md)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
                         {item.thumbnail
-                          /* A flat 480: these tiles are a grid fraction, so there is no pixel
-                             size to derive from, and they grow with the panel. Not higher —
-                             hiResThumb maps an i.ytimg.com URL onto fixed variants, and above
-                             480 that becomes maxresdefault, which plenty of videos do not have.
-                             hqdefault always exists. */
-                          ? <img className="home-card-img" src={thumbHi(item.thumbnail, 480)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
-                          : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
-                        }
-                        {/* Gradient + title/artist overlay (bottom-left) */}
-                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 32%, transparent 60%)", pointerEvents: "none" }} />
-                        <div style={{ position: "absolute", left: 8, right: 8, bottom: 7, pointerEvents: "none" }}>
-                          <div style={{ fontSize: "var(--t11)", fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{item.title}</div>
-                          <div style={{ fontSize: "var(--t10)", color: "rgba(255,255,255,0.78)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1, textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{item.artists}</div>
-                        </div>
-                        <div className="home-card-play" style={{ position: "absolute", inset: 0, opacity: 0, transition: "opacity 0.2s", background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                          <div style={{ width: 32, height: 32, borderRadius: "var(--r-full)", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
-                          </div>
+                          ? <img src={thumbHi(item.thumbnail, 120)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />}
+                        <div className="sd-play" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity .15s" }}>
+                          <Play size={13} weight="fill" style={{ color: "white", marginLeft: 2 }} />
                         </div>
                       </div>
-                    </CardRoot>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: "var(--t13)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
+                        <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{item.artists}</div>
+                      </div>
+                    </div>
                     );
                   })}
                 </div>

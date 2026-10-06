@@ -4550,17 +4550,33 @@ export default function App() {
     }
   }, [handlePlay, addToast]);
 
+  // A song played on its own (from search, a home shelf, speed dial, a shared link) brings its
+  // related songs, the way YouTube Music starts a radio: it plays at once and the queue fills in
+  // behind it. Playing the search results or the shelf in order made a queue of whatever else
+  // happened to match the query.
+  const playWithRelated = useCallback(async (track) => {
+    if (!track?.videoId) return;
+    handlePlay(track, [track]);
+    try {
+      const d = await fetch(`${API}/radio/_?videoId=${encodeURIComponent(track.videoId)}`).then(r => r.json());
+      const rest = (d.tracks || []).filter(t => t?.videoId && t.videoId !== track.videoId);
+      if (!rest.length) return;
+      // Only while the queue is still this one song: the listener may have moved on meanwhile.
+      setQueue(q => (q.length === 1 && q[0].videoId === track.videoId ? [q[0], ...rest] : q));
+    } catch { /* the song plays; there is just nothing queued after it */ }
+  }, [handlePlay]);
+
   // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
   // metadata so the player has a title/cover, then play. Falls back to a bare track.
   const playByVideoId = useCallback(async (videoId) => {
     try {
       const d = await fetch(`${API}/song/meta/${videoId}`).then(r => r.json());
-      if (d && d.videoId && !d.error) handlePlay(d);
-      else handlePlay({ videoId, title: videoId, artists: "" });
+      if (d && d.videoId && !d.error) playWithRelated(d);
+      else playWithRelated({ videoId, title: videoId, artists: "" });
     } catch {
-      handlePlay({ videoId, title: videoId, artists: "" });
+      playWithRelated({ videoId, title: videoId, artists: "" });
     }
-  }, [handlePlay]);
+  }, [playWithRelated]);
 
   // ── Demo / screenshot mode (Ctrl+Shift+D) ─────────────────────────────────
   const [demoMode, setDemoMode] = useState(false);
@@ -6046,8 +6062,8 @@ export default function App() {
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
           <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%" }}>
-            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
-            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
+            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
+            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={goBack} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
             {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={goBack} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
@@ -6742,50 +6758,6 @@ export default function App() {
               .then(() => toast.success(translate(language, "linkCopied")))
               .catch(() => {});
           };
-          const copyLyrics = () => {
-            fetch(`${API}/lyrics/${track.videoId}`).then(r => r.json()).then(d => {
-              if (!d.lyrics) return;
-              const text = d.lyrics.map(l => {
-                const main = l.wordSync ? (l.words||[]).map(w=>w.text).join("") : (l.text||"");
-                const bg = (l.bgWords||[]).map(w=>w.text).join("") || (l.bgText||"");
-                return bg ? `${main} ${bg}` : main;
-              }).join("\n");
-              navigator.clipboard.writeText(text).catch(() => {});
-            }).catch(() => {});
-          };
-          const saveLrc = async () => {
-            try {
-              const d = await fetch(`${API}/lyrics/${track.videoId}`).then(r => r.json());
-              if (!d.lyrics) return;
-              const lyrics = d.lyrics;
-              const isSync = lyrics.some(l => l.time >= 0);
-              const lrcLineText = (l) => {
-                const main = l.wordSync ? (l.words||[]).map(w=>w.text).join("") : (l.text||"");
-                const bg = (l.bgWords||[]).map(w=>w.text).join("") || (l.bgText||"");
-                return bg ? `${main} ${bg}` : main;
-              };
-              const lrcText = isSync
-                ? lyrics.map(l => {
-                    const lineText = lrcLineText(l);
-                    if (l.time < 0) return lineText;
-                    const mm = String(Math.floor(l.time / 60)).padStart(2, "0");
-                    const ss = String(Math.floor(l.time % 60)).padStart(2, "0");
-                    const cs = String(Math.floor((l.time % 1) * 100)).padStart(2, "0");
-                    return `[${mm}:${ss}.${cs}] ${lineText}`;
-                  }).join("\n")
-                : lyrics.map(lrcLineText).join("\n");
-              const { save } = await import("@tauri-apps/plugin-dialog");
-              const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-              const safeTitle = (track?.title || "lyrics").replace(/[<>:"/\\|?*]/g, "_");
-              const filePath = await save({
-                title: translate(language, "saveLrc"),
-                defaultPath: `${safeTitle}.lrc`,
-                filters: [{ name: "LRC", extensions: ["lrc"] }, { name: "Text", extensions: ["txt"] }],
-              });
-              if (!filePath) return;
-              await writeTextFile(filePath, lrcText);
-            } catch (e) { console.error(e); }
-          };
           const removeFromPlaylist = async () => {
             // Optimistic: burst the row + drop it (and decrement total so the virtualized list
             // doesn't render a phantom SkeletonRow for the now-missing slot), then tell the server.
@@ -6899,12 +6871,6 @@ export default function App() {
                   onSelect={() => handleExportSong(track, "opus")} />
               </DropdownSection>
 
-              <DropdownSection className="w-full border-t border-border mt-1 pt-1">
-                <CtxItem icon={<Copy size={15} />} label={translate(language, "copyLyrics")}
-                  onSelect={copyLyrics} />
-                <CtxItem icon={<DownloadSimple size={15} />} label={translate(language, "saveLrc")}
-                  onSelect={saveLrc} />
-              </DropdownSection>
             </ContextMenu>
           );
         })()}
