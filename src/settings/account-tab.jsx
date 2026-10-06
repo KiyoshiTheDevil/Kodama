@@ -162,10 +162,11 @@ export function AccountSettingsTab({ accounts, activeAccount, onSwitch, onAdd, o
             {t("addAccount")}
           </Button>
         </div>
-        <div className="flex flex-col gap-1">
+        {/* The accounts as one settings group, the active one ringed like a picked language. */}
+        <div className="setting-rows flex flex-col">
           {list.map(a => (
             <div key={a.name}
-              className={cn("flex items-center gap-3 p-2 rounded-[var(--r-lg)] transition-colors duration-150", a.active ? "bg-accent-dim" : "hover:bg-hover")}
+              className={cn("setting-row flex items-center gap-3 px-4 py-3", a.active ? "picked" : "pickable")}
             >
               <Avatar a={a} size={36} />
               <div className="flex-1 min-w-0" onClick={() => { if (!a.active) onSwitch(a.name); }}>
