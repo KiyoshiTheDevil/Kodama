@@ -3662,9 +3662,12 @@ export default function OverlayEditor({
         const allFonts = [...FONT_LIST, ...localFontItems];
         const q = fontPickerSearch.toLowerCase();
         const match = (f) => f.label.toLowerCase().includes(q);
-        const inCat = (f) => fontPickerCategory === "all" || f.category === fontPickerCategory;
-        const recent = recentFonts.map((v) => allFonts.find((f) => f.value === v)).filter(Boolean).filter(inCat).filter(match);
-        const sections = [
+        const inFile = new Set(doc.layers.filter((l) => l.type === "text").map((l) => l.style?.fontFamily || "system-ui, sans-serif"));
+        const inCat = (f) => fontPickerCategory === "all" || (fontPickerCategory === "file" ? inFile.has(f.value) : f.category === fontPickerCategory);
+        const recent = fontPickerCategory !== "all" ? [] : recentFonts.map((v) => allFonts.find((f) => f.value === v)).filter(Boolean).filter(match);
+        const sections = fontPickerCategory === "file" ? [
+          { key: "file", label: t("ovlFontInFile"), items: allFonts.filter((f) => inFile.has(f.value)).filter(match) },
+        ].filter((sec) => sec.items.length) : [
           { key: "google", label: t("ovlFontGoogle"), items: allFonts.filter((f) => f.category === "google") },
           { key: "system", label: t("ovlFontSystem"), items: allFonts.filter((f) => f.category === "system") },
           { key: "local", label: t("ovlFontLocal"), items: localFontItems },
@@ -3738,12 +3741,41 @@ export default function OverlayEditor({
                     </button>
                   )}
                 </div>
-                <ChipGroup items={[
-                  { key: "all", label: t("ovlFontAllShort"), active: fontPickerCategory === "all", onPress: () => setFontPickerCategory("all") },
-                  { key: "google", label: "Google", active: fontPickerCategory === "google", onPress: () => setFontPickerCategory("google") },
-                  { key: "system", label: t("ovlFontSystem"), active: fontPickerCategory === "system", onPress: () => setFontPickerCategory("system") },
-                  { key: "local", label: t("ovlFontLocalShort"), active: fontPickerCategory === "local", onPress: () => setFontPickerCategory("local") },
-                ]} />
+                {/* Which fonts: a menu in groups, as in Figma. Four chips in a column this narrow
+                    were squeezed. */}
+                {(() => {
+                  const KINDS = [
+                    [{ key: "all", label: t("ovlFontAll") }],
+                    [{ key: "file", label: t("ovlFontInFile") }],
+                    [{ key: "google", label: t("ovlFontGoogle") }, { key: "system", label: t("ovlFontSystem") }],
+                    [{ key: "local", label: t("ovlFontLocal") }],
+                  ];
+                  const cur = KINDS.flat().find((k) => k.key === fontPickerCategory) || KINDS[0][0];
+                  return (
+                    <Dropdown>
+                      <DropdownTrigger aria-label={t("ovlFontKind")}
+                        className="w-full h-[30px] flex items-center justify-between gap-2 px-3 rounded-[var(--r-full)] border-0 bg-[var(--surface-2)] text-primary hover:bg-[var(--surface-3)] cursor-pointer"
+                        style={{ fontSize: "var(--t13)" }}>
+                        <span className="truncate">{cur.label}</span>
+                        <CaretDown size={11} className="shrink-0 text-secondary" />
+                      </DropdownTrigger>
+                      <DropdownPopover placement="bottom start" className="[--dd-min-w:13rem]">
+                        <DropdownMenu aria-label={t("ovlFontKind")} onAction={(k) => setFontPickerCategory(String(k))}>
+                          {KINDS.map((group, gi) => (
+                            <DropdownSection key={gi} className={gi > 0 ? "border-t border-[var(--surface-3)] mt-1 pt-1" : ""}>
+                              {group.map((k) => (
+                                <DropdownItem key={k.key} id={k.key} textValue={k.label}>
+                                  <span className="w-3.5 shrink-0 flex justify-center">{k.key === fontPickerCategory && <Check size={12} />}</span>
+                                  {k.label}
+                                </DropdownItem>
+                              ))}
+                            </DropdownSection>
+                          ))}
+                        </DropdownMenu>
+                      </DropdownPopover>
+                    </Dropdown>
+                  );
+                })()}
               </div>
               <div className="overflow-y-auto flex-1 min-h-0 px-1.5 pb-2" onMouseLeave={() => previewFont(null)}>
                 {recent.length > 0 && (<>
