@@ -4656,8 +4656,9 @@ export default function App() {
   const enqueueRef = useRef(enqueue);
   enqueueRef.current = enqueue;
   useEffect(() => onRoomAdd(({ track, mode, from }) => {
-    const tr = { ...track, artists: String(track.artists || "").split(", ").filter(Boolean).map((name) => ({ name })) };
-    enqueueRef.current(tr, mode);
+    // The room's track is already in Kodama's own shape (artists as one string, as the queue
+    // renders it); turning them into [{ name }] crashed the queue panel on that row.
+    enqueueRef.current(track, mode);
     addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherAdded", { n: from, s: track.title }), "info");
   }), [addToast]);
   // The pill's "Room" button: open the queue panel (it switches to its Room tab itself).
