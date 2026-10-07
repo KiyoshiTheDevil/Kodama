@@ -25,7 +25,7 @@ const DEADBAND = 0.01;       // s: closer than this plays at normal speed
 const BASE_WINDOW = 10000;   // ms: the device's own speed error is measured over this long
 const BASE_MAX = 0.01;
 const HOST_WINDOW = 20000;   // ms: the host measures its own speed over this long
-const HOST_RATE_REPORT = 0.0005; // the host reports again when its measured speed moved this much
+const HOST_RATE_REPORT = 0.001; // the host reports again when its measured speed moved this much
 const START_DELAY = 1500;    // ms: a new song starts this long after the host has it, for everyone
 const PREPARE_TIMEOUT = 10000;
 const LOAD_TIMEOUT = 20000;
@@ -105,7 +105,9 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
     const a = audioRef.current;
     if (!a) return;
     const onTU = () => {
-      const prev = lastTU.current, now = performance.now(), pos = a.currentTime;
+      // Rust's reading time when it has one: event delivery (late when the page is busy) then
+      // no longer counts as the player standing.
+      const prev = lastTU.current, now = a.positionAt || Date.now(), pos = a.currentTime;
       // While following: the song should move as fast as time does. Less is the player standing
       // (waiting for data), more is a jump. Both are logged, they are what a re-sync follows.
       if (sync.current.phase === "following" && prev.at && !a.paused) {
@@ -121,8 +123,12 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   const nowPos = () => {
     const a = audioRef.current;
     if (!a) return 0;
-    const { pos, at } = lastTU.current;
-    return a.paused || !at ? a.currentTime : pos + (performance.now() - at) / 1000;
+    if (a.paused) return a.currentTime;
+    // From the player's own reading time, at the speed it plays at now.
+    const at = a.positionAt;
+    if (at) return a.currentTime + rateNow * (Date.now() - at) / 1000;
+    const { pos, at: tu } = lastTU.current;
+    return !tu ? a.currentTime : pos + (Date.now() - tu) / 1000;
   };
 
   // The player's word that a new source stands ready (after a load or a seek), and how late
@@ -217,7 +223,7 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
           const o = hostHist[0];
           if (srv - o.srv >= HOST_WINDOW * 0.5) {
             const r = (pos - o.pos) / ((srv - o.srv) / 1000);
-            hostRate = Math.min(1.02, Math.max(0.98, hostRate + (r - hostRate) * 0.05));
+            hostRate = Math.min(1.02, Math.max(0.98, hostRate + (r - hostRate) * 0.02));
           }
         } else hostHist = [];
         const off = pos - expectedPos(state);

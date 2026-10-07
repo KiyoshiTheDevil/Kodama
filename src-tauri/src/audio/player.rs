@@ -81,6 +81,12 @@ fn open_output() -> Result<(rodio::OutputStream, rodio::OutputStreamHandle), Str
     Ok(pair)
 }
 
+/// When a position was read, in ms since the Unix epoch: the same clock as the page's
+/// Date.now(), so a listener can tell where the song is now however late the report arrived.
+fn now_ms() -> f64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0)
+}
+
 pub enum AudioCmd {
     Play { url: String, seek_to: f64 },
     Pause,
@@ -810,7 +816,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     "audio-progress",
                     // `buffered` stays null unless this really is a network stream, so the UI can
                     // hide the indicator rather than draw a permanently-full bar for local files.
-                    serde_json::json!({ "position": s.get_pos().as_secs_f64() + read_skew(&skew2), "duration": duration2, "paused": s.is_paused(), "buffered": dl_progress2.as_ref().and_then(|p| p.fraction()) }),
+                    serde_json::json!({ "position": s.get_pos().as_secs_f64() + read_skew(&skew2), "at": now_ms(), "duration": duration2, "paused": s.is_paused(), "buffered": dl_progress2.as_ref().and_then(|p| p.fraction()) }),
                 );
             } else if let Some(s) = &sink {
                 let pos = s.get_pos().as_secs_f64() + seek_offset + read_skew(&skew);
@@ -818,7 +824,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 let ended = s.empty();
                 let _ = app.emit(
                     "audio-progress",
-                    serde_json::json!({ "position": pos, "duration": duration, "paused": paused, "buffered": dl_progress.as_ref().and_then(|p| p.fraction()) }),
+                    serde_json::json!({ "position": pos, "at": now_ms(), "duration": duration, "paused": paused, "buffered": dl_progress.as_ref().and_then(|p| p.fraction()) }),
                 );
                 if ended {
                     sink = None;

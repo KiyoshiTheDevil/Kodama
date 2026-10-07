@@ -383,6 +383,8 @@ class IpcAudio {
       listen("audio-progress", ({ payload }) => {
         if (this._fallback) return; // ignore Rust events when in fallback mode
         this._currentTime = payload.position;
+        // When Rust read that position (epoch ms): the report may arrive late, this does not.
+        this._positionAt = typeof payload.at === "number" ? payload.at : Date.now();
         if (payload.duration > 0) this._duration = payload.duration;
         if (payload.paused !== this._paused) this._paused = payload.paused;
         // null for anything not streamed over the network (local files are already complete),
@@ -490,9 +492,12 @@ class IpcAudio {
   get isPreparing() { return this._fb ? false : this._preparing; }
 
   get currentTime() { return this._fb ? this._fb.currentTime : this._currentTime; }
+  /** Epoch ms at which currentTime was true (Rust's own reading time). */
+  get positionAt() { return this._positionAt || 0; }
   set currentTime(t) {
     if (this._fb) { this._fb.currentTime = t; return; }
     this._currentTime = t;
+    this._positionAt = Date.now();
     if (this._srcDirty) {
       this._pendingSeekTo = t;
     } else {
