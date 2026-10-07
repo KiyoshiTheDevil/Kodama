@@ -40,6 +40,11 @@ pub fn update_discord_rpc(
     // anyone who sees the status can join. Discord buttons only take http(s) links, which is
     // why it is the invite page and not a kodama:// link; the page opens Kodama.
     together_url: Option<String>,
+    // ListenTogether: how many are in the room and how many it holds, shown by Discord as
+    // "(3 of 10)" next to the artist. Only for a room with a limit; Discord needs both numbers.
+    party_size: Option<i32>,
+    party_max: Option<i32>,
+    party_id: Option<String>,
 ) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
 
@@ -102,6 +107,13 @@ pub fn update_discord_rpc(
         .status_display_type(display_type)
         .assets(assets)
         .buttons(buttons);
+
+    let party_id = party_id.unwrap_or_default();
+    if let (Some(size), Some(max)) = (party_size, party_max) {
+        if size >= 1 && max >= size && !party_id.is_empty() {
+            act = act.party(activity::Party::new().id(&party_id).size([size, max]));
+        }
+    }
 
     if title_c.chars().count() >= 2 {
         act = act.details(&title_c);

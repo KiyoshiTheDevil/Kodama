@@ -264,6 +264,17 @@
           faces.appendChild(el);
         });
 
+        // A full room says so in place of the button; one that lets people in by hand says that.
+        if (d.full) {
+          var join = document.getElementById("join");
+          join.textContent = "This room is full";
+          join.removeAttribute("href");
+          join.style.opacity = ".5";
+          join.style.pointerEvents = "none";
+        } else if (d.approval) {
+          document.getElementById("join").textContent = "Ask to join in Kodama";
+        }
+
         if (d.track && d.track.title) {
           document.getElementById("now").textContent = "Now playing: " + d.track.title + (d.track.artists ? " · " + d.track.artists : "");
           loadCover(d.track.videoId);

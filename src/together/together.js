@@ -16,7 +16,8 @@ let snap = {
   room: null, isHost: false, you: null,
   members: [], state: null,
   queue: [],              // what the host plays after this song
-  config: { control: "host", waitAll: false, name: "" },
+  config: { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false },
+  waiting: [],            // host and co-hosts: who waits to be let in
   showAvatar: true,
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
@@ -92,6 +93,11 @@ export async function createRoom() {
   return room;
 }
 
+const noticeSubs = new Set();
+/** Things worth telling the user: { kind: "closed" | "kicked" | "full" | "denied" | "host", ... }. */
+export const onRoomNotice = (fn) => { noticeSubs.add(fn); return () => noticeSubs.delete(fn); };
+const notice = (n) => noticeSubs.forEach((f) => f(n));
+
 const addSubs = new Set();
 /** Host: a member asks for a song ({ track, mode: "next" | "end", from, fromId }). */
 export const onRoomAdd = (fn) => { addSubs.add(fn); return () => addSubs.delete(fn); };
@@ -163,13 +169,21 @@ function open() {
   sock.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
-    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: m.config || snap.config });
-    else if (m.t === "config") set({ config: { control: m.control, waitAll: !!m.waitAll, name: m.name || "" } });
+    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: { ...snap.config, ...(m.config || {}) } });
+    else if (m.t === "config") { const { t: _t, ...c } = m; set({ config: { ...snap.config, ...c } }); }
+    // Without a list: this Kodama waits to be let in. With one: who waits (host and co-hosts).
+    else if (m.t === "waiting") { if (Array.isArray(m.list)) set({ waiting: m.list }); else set({ status: "waiting" }); }
+    else if (m.t === "host") notice({ kind: "host", name: m.name, you: m.id === snap.you?.id, why: m.why });
+    else if (m.t === "closed") notice({ kind: "closed", name: m.by });
     else if (m.t === "add") addSubs.forEach((f) => f(m));
     else if (m.t === "remove") removeSubs.forEach((f) => f({ videoId: m.videoId, by: m.by }));
     else if (m.t === "queue") set({ queue: m.list || [] });
     else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
-    else if (m.t === "members") set({ members: m.list || [] });
+    else if (m.t === "members") {
+      const list = m.list || [];
+      const mine = snap.you && list.find((x) => x.id === snap.you.id);
+      set(mine ? { members: list, isHost: !!mine.host, you: { ...snap.you, host: !!mine.host, role: mine.role } } : { members: list });
+    }
     else if (m.t === "error") set({ error: m.reason });
   };
   sock.onclose = (ev) => {
@@ -178,6 +192,14 @@ function open() {
     if (!wantRoom) { set({ status: "closed" }); return; }
     // Replaced by a newer connection of this same Kodama: that one carries on, this one stops.
     if (ev.code === 4000) { wantRoom = null; set({ status: "closed", error: "replaced" }); return; }
+    // Removed, full, turned away or closed: final, no reconnecting.
+    const final = { 4001: "kicked", 4002: "full", 4004: "denied", 4005: "closed" }[ev.code];
+    if (final) {
+      wantRoom = null;
+      set({ status: "closed", error: final, room: null, members: [], state: null, queue: [], waiting: [], isHost: false });
+      if (final !== "closed") notice({ kind: final });
+      return;
+    }
     // A room that does not exist does not come back by retrying.
     if (ev.code === 1006 && snap.status === "connecting" && retries >= 2) { set({ status: "closed", error: "unreachable" }); return; }
     retries++;
@@ -191,7 +213,7 @@ export function leave() {
   clearInterval(pingTimer);
   const s = ws; ws = null;
   if (s) { try { s.close(); } catch { /* already */ } }
-  set({ status: "idle", room: null, isHost: false, members: [], state: null, queue: [], drift: null, error: null });
+  set({ status: "idle", room: null, isHost: false, members: [], state: null, queue: [], waiting: [], drift: null, error: null });
 }
 
 const roomTrack = (track) => track ? {
@@ -242,6 +264,23 @@ export async function startRoom(name) {
   return room;
 }
 
+/** This Kodama's role in the room: host, cohost, member or listener. */
+export const myRole = () => (snap.isHost ? "host" : snap.you?.role || "listener");
+export const canAddSongs = () => myRole() !== "listener";
+export const isRoomAdmin = () => myRole() === "host" || myRole() === "cohost";
+
+/** Host: someone's role (cohost, member, listener). */
+export const setRole = (id, role) => send({ t: "role", id, role });
+/** Host and co-hosts: out of the room, and not back in. */
+export const kick = (id) => send({ t: "kick", id });
+/** Host and co-hosts: someone waiting, let in or turned away. */
+export const admit = (id) => send({ t: "admit", id });
+export const deny = (id) => send({ t: "deny", id });
+/** Host: hand the room to someone, then leave. */
+export function handOverAndLeave(id) { send({ t: "transfer", id }); setTimeout(leave, 250); }
+/** Host: end the room for everyone. */
+export function closeRoom() { send({ t: "close" }); setTimeout(leave, 250); }
+
 /** Host only: the room's settings. */
 export function hostConfig(patch) {
   if (!snap.isHost) return;
@@ -261,7 +300,7 @@ export function sendReady(videoId) {
 /** Take a song out of the room's queue: the host any, a member only one they added. */
 export function roomRemove(track) {
   if (snap.isHost) removeSubs.forEach((f) => f({ videoId: track.videoId, by: null }));
-  else if (track.addedBy?.id && track.addedBy.id === snap.you?.id) send({ t: "remove", videoId: track.videoId });
+  else if (myRole() === "cohost" || (track.addedBy?.id && track.addedBy.id === snap.you?.id)) send({ t: "remove", videoId: track.videoId });
 }
 
 /** A song for the host's queue; allowed when the host lets everyone add. */

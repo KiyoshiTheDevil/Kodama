@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove, useTogetherValue, inviteLink } from "./together/together.js";
+import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -4451,9 +4451,18 @@ export default function App() {
   // Which track the OS controls and Discord were last told about, so a change of track can skip
   // the debounce without every other state change doing the same.
   const lastPushedTrackRef = useRef(null);
-  // ListenTogether: the room's invite page for the Discord status, while in a room and allowed.
-  const togetherInvite = useTogetherValue((x) =>
-    (x.status === "open" || x.status === "reconnecting") && x.showDiscord && x.room ? inviteLink(x.room) : "");
+  // ListenTogether: the room's invite page for the Discord status, while in a room and allowed
+  // (inviting is for the host and co-hosts).
+  const togetherInvite = useTogetherValue((x) => {
+    const inRoom = (x.status === "open" || x.status === "reconnecting") && x.room;
+    const admin = x.isHost || x.you?.role === "cohost";
+    return inRoom && admin && x.showDiscord ? inviteLink(x.room) : "";
+  });
+  // ...and how full it is, which Discord shows as "(3 of 10)" when the room has a limit.
+  const togetherPartyKey = useTogetherValue((x) =>
+    (x.status === "open" || x.status === "reconnecting") && x.room && x.config.limit > 0
+      ? `${x.members.length}/${x.config.limit}/${x.room}` : "");
+  const togetherParty = togetherPartyKey ? togetherPartyKey.split("/").map((v, i) => (i < 2 ? Number(v) : v)) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -4512,6 +4521,9 @@ export default function App() {
           paused: !isPlaying,
           statusDisplay: discordStatusDisplay,
           togetherUrl: togetherInvite || null,
+          partySize: togetherParty ? togetherParty[0] : null,
+          partyMax: togetherParty ? togetherParty[1] : null,
+          partyId: togetherParty ? `kodama-together-${togetherParty[2]}` : null,
         }).catch(() => {});
       } catch {}
     };
@@ -4533,7 +4545,7 @@ export default function App() {
       clearTimeout(debounce);
       clearInterval(interval);
     };
-  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause, togetherInvite]);
+  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause, togetherInvite, togetherPartyKey]);
 
   // Now-playing state for the overlay: pushed to the backend once a second, which is what the
   // overlay editor's live preview and the OBS overlay page both read.
@@ -4584,6 +4596,12 @@ export default function App() {
     setCurrentTrack(track);
   }, [listenerBlocked]);
 
+  // The latest queue and track, for callbacks that are not re-created on every change.
+  const queueLatestRef = useRef(queue);
+  queueLatestRef.current = queue;
+  const currentTrackLatestRef = useRef(currentTrack);
+  currentTrackLatestRef.current = currentTrack;
+
   const handlePlay = useCallback((track, trackList) => {
     if (listenerBlocked(track)) return;
     setCurrentTrack(track);
@@ -4591,6 +4609,18 @@ export default function App() {
     setCurrentLyricsSource("");
     setFailedLyricsProviders(new Set());
     if (trackList) {
+      // ListenTogether, host: what members wished for is not thrown away by a playlist or album.
+      // It plays first, right after the song just started, then the rest of the list.
+      const room = getTogether();
+      if ((room.status === "open" || room.status === "reconnecting") && room.isHost) {
+        const q = queueLatestRef.current;
+        const cur = q.findIndex((x) => x.videoId === currentTrackLatestRef.current?.videoId);
+        const wishes = q.slice(cur + 1).filter((x) => x.addedBy && x.videoId !== track?.videoId);
+        if (wishes.length) {
+          const at = Math.max(0, trackList.findIndex((x) => x.videoId === track?.videoId));
+          trackList = [...trackList.slice(0, at + 1), ...wishes, ...trackList.slice(at + 1)];
+        }
+      }
       const seen = new Set();
       const deduped = trackList.filter(t => {
         if (!t.videoId || seen.has(t.videoId)) return false;
@@ -4620,7 +4650,7 @@ export default function App() {
     if (!track?.videoId) return;
     // In someone else's room the queue is theirs: a song goes to the host, if the room allows it.
     if (isRoomListener()) {
-      if (getTogether().config.control !== "everyone") {
+      if (!canAddSongs()) {
         addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherHostOnly"), "info");
         return false;
       }
@@ -4652,11 +4682,6 @@ export default function App() {
       fail();
     }
   }, [handlePlay, addToast]);
-
-  const queueLatestRef = useRef(queue);
-  queueLatestRef.current = queue;
-  const currentTrackLatestRef = useRef(currentTrack);
-  currentTrackLatestRef.current = currentTrack;
 
   // A song played on its own (from search, a home shelf, speed dial, a shared link) brings its
   // related songs, the way YouTube Music starts a radio: it plays at once and the queue fills in
@@ -4700,6 +4725,22 @@ export default function App() {
     enqueueRef.current({ ...track, addedBy: { id: fromId, name: from } }, mode);
     addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherAdded", { n: from, s: track.title }), "info");
   }), [addToast]);
+  // What happened to the room, told as a toast. A new host who is this Kodama takes over the
+  // room's queue: their own was only the room's song, and what was coming should still come.
+  useEffect(() => onRoomNotice((n) => {
+    const lang = localStorage.getItem("kiyoshi-lang") || "de";
+    if (n.kind === "host" && n.you) {
+      const room = getTogether();
+      const cur = currentTrackLatestRef.current;
+      if (cur) setQueue([cur, ...room.queue.filter((x) => x.videoId !== cur.videoId)]);
+      addToast(translate(lang, "togetherYouAreHost"), "info");
+    } else if (n.kind === "host") addToast(translate(lang, "togetherNewHost", { n: n.name }), "info");
+    else if (n.kind === "closed") addToast(translate(lang, "togetherClosed", { n: n.name }), "info");
+    else if (n.kind === "kicked") addToast(translate(lang, "togetherKicked"), "error");
+    else if (n.kind === "full") addToast(translate(lang, "togetherFull"), "error");
+    else if (n.kind === "denied") addToast(translate(lang, "togetherDenied"), "error");
+  }), [addToast]);
+
   // A song out of the queue: the host removing any, or a member taking back their own (the
   // room has already checked that it is theirs). The first match after the current song.
   useEffect(() => onRoomRemove(({ videoId, by }) => {

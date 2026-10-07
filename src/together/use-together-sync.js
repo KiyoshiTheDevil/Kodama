@@ -153,6 +153,12 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   // host has it too, a start a moment later is announced, for everyone including the host.
   useEffect(() => {
     if (!active || !t.isHost) return;
+    // Host by a hand-over (or back after a reload) while the room already plays this very song:
+    // carry on from where the room is, rather than send everyone back to its start.
+    if (currentTrack && getTogether().state?.track?.videoId === currentTrack.videoId) {
+      host.current = { videoId: currentTrack.videoId, startLocal: 0, scheduled: true };
+      return;
+    }
     hostSet(currentTrack || null, false, 0);
     host.current = { videoId: currentTrack?.videoId || null, startLocal: 0, scheduled: false };
     if (currentTrack) holdNextReady.current = true;

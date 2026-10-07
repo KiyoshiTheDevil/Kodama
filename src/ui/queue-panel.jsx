@@ -14,7 +14,7 @@ import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
 import { useTogetherValue, roomRemove } from "../together/together.js";
-import { TogetherRoomHeader, AddedBy } from "../together/TogetherRoomTab.jsx";
+import { TogetherRoomHeader, TogetherPeopleTab, AddedBy } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -174,6 +174,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   // thousands of them.
   const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue"), more: t("rowMoreActions") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
+  useEffect(() => { if (!inRoom) setPanelTab((p) => (p === "people" ? "queue" : p)); }, [inRoom]);
   useEffect(() => {
     const open = () => setPanelTab("queue");
     window.addEventListener("kodama:open-room", open);
@@ -388,7 +389,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       <div className="px-3 pt-11 shrink-0">
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
-            {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
+            {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["about", t("aboutSong")]].map(([id, label], i, all) => (
               <button key={id} type="button" onClick={() => setPanelTab(id)}
                 style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
                 className={`flex-1 border-0 cursor-default select-none text-[length:var(--t12)] font-semibold transition-[background-color,color] duration-150 ${
@@ -410,6 +411,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       </div>
 
       {panelTab === "queue" && inRoom && <TogetherRoomHeader />}
+      {panelTab === "people" && inRoom && <TogetherPeopleTab />}
 
       {/* About Song tab */}
       {panelTab === "about" && (
