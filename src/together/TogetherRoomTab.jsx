@@ -5,7 +5,7 @@
 import { useState, useRef } from "react";
 import { Button, PopoverRoot, PopoverContent, PopoverDialog } from "@heroui/react";
 import { thumb, useLang, useZoom } from "../context.jsx";
-import { Crown, X, Gear, DotsThreeVertical } from "../icons.jsx";
+import { Crown, X, Gear, DotsThreeVertical, CaretDown } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
 import { useTogether, useTogetherValue, hostConfig, setShowAvatar, setShowDiscord, setRole, kick, admit, deny } from "./together.js";
 import { Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
@@ -115,17 +115,31 @@ function SettingsBody({ r, t }) {
             </div>
             <div className="text-secondary text-[length:var(--t11)] mt-1">{t("togetherNewRoleDesc")}</div>
           </div>
-          <label className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <span className="flex-1">
               <span className="block">{t("togetherLimit")}</span>
               <span className="block text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherInRoomOf", { c: r.members.length, m: r.config.limit || "∞" })}</span>
             </span>
-            <select value={r.config.limit} onChange={(e) => hostConfig({ limit: Number(e.target.value) })}
-              aria-label={t("togetherLimit")}
-              className="h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--fill-subtle)] text-primary border-0 outline-none text-[length:var(--t12)] cursor-default">
-              {LIMITS.map((n) => <option key={n} value={n}>{n === 0 ? t("togetherNoLimit") : n}</option>)}
-            </select>
-          </label>
+            {/* The app's own dropdown: a native <select> opens Windows' list, white on white in a dark theme. */}
+            <Dropdown>
+              <DropdownTrigger aria-label={t("togetherLimit")}
+                className="h-[30px] px-3 gap-1.5 rounded-[var(--r-full)] bg-[var(--fill-subtle)] hover:bg-hover text-primary inline-flex items-center text-[length:var(--t12)] font-semibold shrink-0">
+                {r.config.limit === 0 ? t("togetherNoLimit") : r.config.limit}
+                <CaretDown size={11} className="text-muted" />
+              </DropdownTrigger>
+              <DropdownPopover placement="bottom end" className="[--dd-min-w:8rem] overflow-y-auto scrollable" style={{ maxHeight: 280 }}>
+                <DropdownMenu aria-label={t("togetherLimit")} selectionMode="single" disallowEmptySelection
+                  selectedKeys={[String(r.config.limit)]}
+                  onSelectionChange={(keys) => { const v = [...keys][0]; if (v != null) hostConfig({ limit: Number(v) }); }}>
+                  {LIMITS.map((n) => (
+                    <DropdownItem key={String(n)} id={String(n)} textValue={n === 0 ? t("togetherNoLimit") : String(n)}>
+                      {n === 0 ? t("togetherNoLimit") : n}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </DropdownPopover>
+            </Dropdown>
+          </div>
           <SwitchRow id="together-approval" label={t("togetherApproval")} desc={t("togetherApprovalDesc")}
             value={r.config.approval} onChange={(v) => hostConfig({ approval: v })} />
           <SwitchRow id="together-wait-all" label={t("togetherWaitAll")} desc={t("togetherWaitAllDesc")}
