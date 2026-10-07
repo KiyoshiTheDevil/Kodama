@@ -25,6 +25,7 @@ const BASE_WINDOW = 10000;   // ms: the device's own speed error is measured ove
 const BASE_MAX = 0.02;
 const START_DELAY = 1500;    // ms: a new song starts this long after the host has it, for everyone
 const PREPARE_TIMEOUT = 10000;
+const LOAD_TIMEOUT = 20000;
 const SETTLED = 300;         // ms after a start before the drift is trusted again
 
 // The player's speed, sent only when it changes. 1.0 whenever this Kodama is not following.
@@ -177,9 +178,10 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         }
         return;
       }
+      // Loading takes as long as it takes: fetching the stream's address alone is 2-4 s, with
+      // nothing that says so on the player. Only a load that never reports back is given up.
       if (s.phase === "loading" && (a.isPreparing || holdNextReady.current)) {
-        // A crossfade brings a song in without the ready the hold waits for: stop waiting.
-        if (!a.isPreparing && Date.now() - s.since > 1500) holdNextReady.current = false;
+        if (Date.now() - s.since > LOAD_TIMEOUT) holdNextReady.current = false;
         else return;
       }
 
@@ -209,14 +211,14 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         const moved = Math.abs(roomPosAt(state, s.T, latency) - s.P);
         if (moved * 1000 > tune.seekAbove) { prepare(`room moved ${Math.round(moved * 1000)} ms`); return; }
         if (readies.current === s.readies) {
-          if (Date.now() - s.since > PREPARE_TIMEOUT) { ahead = Math.min(6, ahead * 1.5); prepare("no ready"); }
+          if (Date.now() - s.since > PREPARE_TIMEOUT) prepare("no ready");
           return;
         }
         const took = (Date.now() - s.since) / 1000;
         const left = s.T - serverNow();
         if (left < 30) {
           // Ready too late for the moment it aimed at: aim further ahead.
-          ahead = Math.min(6, Math.max(ahead * 1.5, took + 0.5));
+          ahead = Math.min(4, took * 1.3 + 0.3);
           prepare(`ready ${Math.round(-left)} ms late`);
           return;
         }
@@ -238,6 +240,14 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       // Following (or anything else that ends up here): close enough is caught up by speed,
       // too far is prepared for anew.
       const want = expectedPos(state) + latency;
+      // At the end of the song: the room is about to move on to the next. Nothing to catch up
+      // with until then, and nothing past the end to seek to.
+      const length = a.duration > 0 ? a.duration : state.track.duration;
+      if (length > 0 && want > length - 0.5) {
+        setRate(1);
+        if (s.phase !== "ending") phase("ending");
+        return;
+      }
       const drift = nowPos() - want;
       setDrift(Math.round(drift * 1000));
       if (a.paused || a.isPreparing || Math.abs(drift) * 1000 > tune.seekAbove) {
