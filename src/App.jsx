@@ -4653,12 +4653,28 @@ export default function App() {
     }
   }, [handlePlay, addToast]);
 
+  const queueLatestRef = useRef(queue);
+  queueLatestRef.current = queue;
+  const currentTrackLatestRef = useRef(currentTrack);
+  currentTrackLatestRef.current = currentTrack;
+
   // A song played on its own (from search, a home shelf, speed dial, a shared link) brings its
   // related songs, the way YouTube Music starts a radio: it plays at once and the queue fills in
   // behind it. Playing the search results or the shelf in order made a queue of whatever else
   // happened to match the query.
   const playWithRelated = useCallback(async (track) => {
     if (!track?.videoId) return;
+    // ListenTogether, host: the queue is the room's. A song played on its own plays now, but
+    // brings no radio (fifty related songs pushed what members added to the back) and does not
+    // replace the queue (which threw their songs away): what was coming still comes after it.
+    const room = getTogether();
+    if ((room.status === "open" || room.status === "reconnecting") && room.isHost) {
+      const q = queueLatestRef.current;
+      const cur = q.findIndex((x) => x.videoId === currentTrackLatestRef.current?.videoId);
+      const upcoming = q.slice(cur + 1).filter((x) => x.videoId !== track.videoId);
+      handlePlay(track, [track, ...upcoming]);
+      return;
+    }
     handlePlay(track, [track]);
     try {
       const d = await fetch(`${API}/radio/_?videoId=${encodeURIComponent(track.videoId)}`).then(r => r.json());
