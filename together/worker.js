@@ -10,7 +10,9 @@
 // Messages, as JSON (client -> room):
 //   { t: "hello", name, hostToken? }                        join, as host if the token matches
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
-//   { t: "set", track, playing, pos }                       host only: the new playback state
+//   { t: "set", track, playing, pos, startAt? }             host only: the new playback state;
+//                                                           startAt (server ms, at most 5 s ahead)
+//                                                           schedules the start for everyone
 // (room -> client):
 //   { t: "welcome", you, state, members, s }                after hello
 //   { t: "state", track, playing, pos, at }                 position `pos` (seconds) at server time `at` (ms)
@@ -130,7 +132,10 @@ export class Room extends DurableObject {
         thumbnail: String(msg.track.thumbnail || "").slice(0, 500),
         duration: Number(msg.track.duration) || 0,
       } : null;
-      const state = { track: tr, playing: !!msg.playing && !!tr, pos: Math.max(0, Number(msg.pos) || 0), at: now };
+      // `at` in the future: everyone stands at `pos` until then and starts together.
+      const startAt = Number(msg.startAt);
+      const at = Number.isFinite(startAt) ? Math.min(now + 5000, Math.max(now, startAt)) : now;
+      const state = { track: tr, playing: !!msg.playing && !!tr, pos: Math.max(0, Number(msg.pos) || 0), at };
       await this.ctx.storage.put("state", state);
       this.broadcast({ t: "state", ...state });
     }

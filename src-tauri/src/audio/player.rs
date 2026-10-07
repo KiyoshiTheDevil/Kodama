@@ -92,6 +92,11 @@ pub enum AudioCmd {
     Crossfade { url: String, seek_to: f64, duration: f64 },
     // Play through this device from now on; empty means "follow the system".
     SetOutput(String),
+    // Resume at this moment, in ms since the Unix epoch (ListenTogether: everyone at once).
+    ResumeAt(f64),
+    // Nothing to do: a helper thread has handed over a source and wants it picked up now
+    // rather than on the next tick.
+    Wake,
 }
 
 // Build a ready-to-play decoder source for any of our URL kinds (used by Play's progressive
@@ -314,6 +319,18 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         // sink's position plus this, once the ListenTogether rate has been anything but 1.0.
         let mut skew: Option<Arc<std::sync::atomic::AtomicU64>> = None;
         let mut skew2: Option<Arc<std::sync::atomic::AtomicU64>> = None;
+        // The current source's fade-out switch, and the sink a seek is replacing: it keeps
+        // playing until the new one is ready, then fades out under it (see SEEK_FADE_MS).
+        let mut fade: Option<Arc<std::sync::atomic::AtomicBool>> = None;
+        let mut fade2: Option<Arc<std::sync::atomic::AtomicBool>> = None;
+        let mut seek_old: Option<(rodio::Sink, Arc<std::sync::atomic::AtomicBool>)> = None;
+        // Hand the old sink over to its fade: it ends itself once faded, so it is let go.
+        let cross_over = |old: Option<(rodio::Sink, Arc<std::sync::atomic::AtomicBool>)>| {
+            if let Some((o, f)) = old {
+                f.store(true, std::sync::atomic::Ordering::Relaxed);
+                o.detach();
+            }
+        };
         let read_skew = |h: &Option<Arc<std::sync::atomic::AtomicU64>>| {
             h.as_ref().map(|a| f64::from_bits(a.load(std::sync::atomic::Ordering::Relaxed))).unwrap_or(0.0)
         };
@@ -339,6 +356,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 if let Some(s) = sink.take() { s.stop(); }
                 sink = sink2.take();
                 skew = skew2.take();
+                fade = fade2.take();
                 if let Some(s) = &sink { s.set_volume(volume); }
                 duration = duration2;
                 seek_offset = 0.0;
@@ -351,6 +369,9 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
         }
 
         let mut play_gen: u64 = 0;
+        // A command that arrived while the loop waited, and a resume due at a set moment.
+        let mut pending: Option<AudioCmd> = None;
+        let mut resume_at: Option<std::time::SystemTime> = None;
 
         loop {
             while let Ok((data, seek_to, gen)) = data_rx.try_recv() {
@@ -378,6 +399,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                 new_sink.set_volume(volume);
                                 *current_analysis.lock().unwrap() = Some(source.enable_analysis());
                                 skew = Some(source.skew_handle());
+                                fade = Some(source.fade_out_handle());
                                 new_sink.append(source);
                                 if seek_to > 0.05 {
                                     let _ = new_sink
@@ -387,6 +409,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                     "audio-loaded",
                                     serde_json::json!({ "duration": duration }),
                                 );
+                                let _ = app.emit("audio-ready", serde_json::json!({ "position": seek_to }));
                                 sink = Some(new_sink);
                             }
                             Err(e) => eprintln!("[Audio] Sink error: {e}"),
@@ -411,16 +434,27 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 }
                 // seek_offset was set by the Play/Seek handler (the source decodes from there).
                 duration = source.total_duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
+                let crossing = seek_old.is_some() && !start_paused;
+                if crossing {
+                    source.seek_fade_in();
+                } else if let Some((o, _)) = seek_old.take() {
+                    o.stop();
+                }
                 match rodio::Sink::try_new(&handle) {
                     Ok(new_sink) => {
                         new_sink.set_volume(volume);
                         *current_analysis.lock().unwrap() = Some(source.enable_analysis());
                         skew = Some(source.skew_handle());
+                        fade = Some(source.fade_out_handle());
                         new_sink.append(source);
+                        if crossing {
+                            cross_over(seek_old.take());
+                        }
                         if start_paused {
                             new_sink.pause();
                         }
                         let _ = app.emit("audio-loaded", serde_json::json!({ "duration": duration }));
+                        let _ = app.emit("audio-ready", serde_json::json!({ "position": seek_offset }));
                         sink = Some(new_sink);
                         eprintln!("[Audio] Progressive stream playing, duration={duration:.1}s");
                     }
@@ -448,6 +482,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         // The visualizer follows the incoming track (the UI already shows it).
                         *current_analysis.lock().unwrap() = Some(source.enable_analysis());
                         skew2 = Some(source.skew_handle());
+                        fade2 = Some(source.fade_out_handle());
                         s2.append(source);
                         sink2 = Some(s2);
                         xfade_start = Some(std::time::Instant::now());
@@ -463,9 +498,15 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 }
             }
 
-            while let Ok(cmd) = rx.try_recv() {
+            while let Some(cmd) = pending.take().or_else(|| rx.try_recv().ok()) {
                 match cmd {
+                    AudioCmd::Wake => {}
+                    AudioCmd::ResumeAt(at_ms) => {
+                        resume_at = Some(std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(at_ms.max(0.0) / 1000.0));
+                    }
                     AudioCmd::Play { url, seek_to } => {
+                        resume_at = None;
+                        if let Some((o, _)) = seek_old.take() { o.stop(); }
                         if let Some(s) = sink.take() {
                             s.stop();
                         }
@@ -489,6 +530,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                             progressive_url = Some(url.clone());
                             seek_offset = seek_to; // source decodes from seek_to; report offset
                             let stx = source_tx.clone();
+                            let wake = self_tx.clone();
                             let dl_app = app.clone();
                             std::thread::spawn(move || {
                                 eprintln!("[Audio] Progressive stream (gen {gen})");
@@ -502,7 +544,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                             .map(|s| (s, prog))
                                     });
                                 match built {
-                                    Ok((source, prog)) => { let _ = stx.send((source, gen, false, Some(prog))); }
+                                    Ok((source, prog)) => { let _ = stx.send((source, gen, false, Some(prog))); let _ = wake.try_send(AudioCmd::Wake); }
                                     Err(e) => {
                                         eprintln!("[Audio] Progressive load error (gen {gen}): {e}");
                                         let _ = dl_app.emit("audio-error", format!("Stream failed: {e}"));
@@ -553,6 +595,8 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         });
                     }
                     AudioCmd::Pause => {
+                        resume_at = None;
+                        if let Some((o, _)) = &seek_old { o.pause(); }
                         if let Some(s) = &sink {
                             s.pause();
                         }
@@ -561,6 +605,8 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                     }
                     AudioCmd::Resume => {
+                        resume_at = None;
+                        if let Some((o, _)) = &seek_old { o.play(); }
                         if let Some(s) = &sink {
                             s.play();
                         }
@@ -569,6 +615,8 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                     }
                     AudioCmd::Stop => {
+                        resume_at = None;
+                        if let Some((o, _)) = seek_old.take() { o.stop(); }
                         if let Some(s) = sink.take() {
                             s.stop();
                         }
@@ -584,6 +632,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         dl_progress = None;
                     }
                     AudioCmd::SetOutput(name) => {
+                        if let Some((o, _)) = seek_old.take() { o.stop(); }
                         // The stream is built once, when this thread starts - long before the
                         // interface exists to say which device it wants. So a preference only
                         // means something if the stream can be built again, and that is this.
@@ -622,16 +671,31 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                     }
                     AudioCmd::Seek(t) => {
+                        resume_at = None;
                         let was_paused = sink.as_ref().map(|s| s.is_paused()).unwrap_or(false);
                         if let Some(url) = progressive_url.clone() {
                             // Progressive: re-open the ranged HTTP stream at the seek position.
-                            if let Some(s) = sink.take() {
-                                s.stop();
+                            // The old sink plays on until the new source is ready (an earlier
+                            // seek still pending is dropped: this one replaces it).
+                            if let Some((o, _)) = seek_old.take() {
+                                o.stop();
                             }
+                            if let Some(s) = sink.take() {
+                                match (was_paused, fade.take()) {
+                                    (false, Some(f)) => seek_old = Some((s, f)),
+                                    _ => s.stop(),
+                                }
+                            }
+                            // Inside the downloaded part the decoder reads from memory, and a
+                            // short head start is enough.
+                            let quick = dl_progress.as_ref().and_then(|p| p.fraction()).map_or(false, |f| {
+                                f >= 1.0 || (duration > 0.0 && f * duration > t + 10.0)
+                            });
                             seek_offset = t;
                             play_gen += 1;
                             let gen = play_gen;
                             let stx = source_tx.clone();
+                            let wake = self_tx.clone();
                             // Seeking rebuilds the decoder, but it must not restart the
                             // download: read the already-buffered bytes through a second
                             // reader over the same stream. A backwards seek then costs
@@ -640,9 +704,10 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                             let existing = dl_progress.clone();
                             std::thread::spawn(move || {
                                 let built = match existing {
-                                    Some(prog) => super::decoder::StreamingSource::new_streaming(
+                                    Some(prog) => super::decoder::StreamingSource::new_streaming_prebuffered(
                                         Box::new(prog.reader()),
                                         t,
+                                        if quick { 400 } else { 2000 },
                                     )
                                     .map(|s| (s, prog)),
                                     // No live download to attach to (first seek after an
@@ -660,23 +725,33 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                 };
                                 if let Ok((source, prog)) = built {
                                     let _ = stx.send((source, gen, was_paused, Some(prog)));
+                                    let _ = wake.try_send(AudioCmd::Wake);
                                 }
                             });
                         } else if let Some(ref data) = audio_data {
-                            if let Some(s) = sink.take() {
-                                s.stop();
-                            }
+                            let old = sink.take().map(|s| (s, fade.take()));
                             if let Ok(mut source) = StreamingSource::new_with_seek(data.clone(), t) {
                                 seek_offset = t;
+                                let crossing = !was_paused && matches!(old, Some((_, Some(_))));
+                                if crossing {
+                                    source.seek_fade_in();
+                                }
+                                match old {
+                                    Some((o, Some(f))) if crossing => cross_over(Some((o, f))),
+                                    Some((o, _)) => o.stop(),
+                                    None => {}
+                                }
                                 if let Ok(new_sink) = rodio::Sink::try_new(&handle) {
                                     new_sink.set_volume(volume);
                                     *current_analysis.lock().unwrap() = Some(source.enable_analysis());
                                     skew = Some(source.skew_handle());
+                                    fade = Some(source.fade_out_handle());
                                     new_sink.append(source);
                                     if was_paused {
                                         new_sink.pause();
                                     }
                                     sink = Some(new_sink);
+                                    let _ = app.emit("audio-ready", serde_json::json!({ "position": t }));
                                     eprintln!("[Audio] Seeked to {t:.1}s");
                                 }
                             }
@@ -695,6 +770,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                     }
                     AudioCmd::Crossfade { url, seek_to, duration } => {
+                        if let Some((o, _)) = seek_old.take() { o.stop(); }
                         // Only meaningful if something is currently playing to fade from.
                         if sink.is_some() && xfade_start.is_none() {
                             let gen = play_gen;
@@ -751,7 +827,31 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                 }
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            // Wait for the next tick, a command, or a resume that is due - whichever is first.
+            // A command used to wait out the rest of a 100 ms sleep, which put up to 100 ms of
+            // chance into every play, pause and seek.
+            let mut wait = std::time::Duration::from_millis(100);
+            if let Some(at) = resume_at {
+                let left = at.duration_since(std::time::SystemTime::now()).unwrap_or_default();
+                // The last stretch is waited out by spinning: Windows sleeps in steps of up to
+                // 15.6 ms, which is more than the whole point of a set moment.
+                if left <= std::time::Duration::from_millis(20) {
+                    while std::time::SystemTime::now() < at { std::hint::spin_loop(); }
+                    resume_at = None;
+                    if let Some((o, _)) = &seek_old { o.play(); }
+                    if let Some(s) = &sink { s.play(); }
+                    if let Some(s) = &sink2 { s.play(); }
+                    let late = std::time::SystemTime::now().duration_since(at).unwrap_or_default();
+                    let _ = app.emit("audio-resumed-at", serde_json::json!({ "lateMs": late.as_secs_f64() * 1000.0 }));
+                    continue;
+                }
+                wait = wait.min(left - std::time::Duration::from_millis(20));
+            }
+            match rx.recv_timeout(wait) {
+                Ok(cmd) => pending = Some(cmd),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            }
         }
     });
 
@@ -780,6 +880,12 @@ pub fn audio_set_levels_enabled(enabled: bool) {
 /// without restarting anything.
 /// Mono audio (accessibility): both channels mixed into each.
 /// ListenTogether: play this much faster or slower (0.9-1.1) to catch up with the room.
+/// ListenTogether: resume at this moment (ms since the Unix epoch), to the millisecond.
+#[tauri::command]
+pub fn audio_resume_at(state: tauri::State<AudioPlayer>, at_ms: f64) -> Result<(), String> {
+    send_audio(&state, AudioCmd::ResumeAt(at_ms))
+}
+
 #[tauri::command]
 pub fn audio_set_rate(rate: f32) {
     super::decoder::set_rate(rate);

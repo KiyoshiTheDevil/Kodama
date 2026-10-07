@@ -18,7 +18,8 @@ let snap = {
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
-  tune: null, lead: 0.15, rate: 1, baseRate: 0,
+  tune: null,
+  sync: { phase: "idle", ahead: 1.5, late: null, rate: 1, base: 0 },
 };
 const subs = new Set();
 const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f()); };
@@ -46,10 +47,12 @@ export function setTune(patch) {
   try { localStorage.setItem(TUNE_KEY, JSON.stringify(tune)); } catch { /* this session only */ }
   set({ tune });
 }
-// How far ahead a correcting seek aims, in s. Learnt: a seek into a stream lands late by however
-// long the player needs to get going again there, which differs per machine and connection.
-export const setLead = (s) => { if (snap.lead !== s) set({ lead: s }); };
-export const setRateShown = (r, base) => { if (snap.rate !== r || snap.baseRate !== base) set({ rate: r, baseRate: base }); };
+// What the sync is doing, for the debug view: phase, how far ahead it prepares, how late the
+// last start came, the speed and the device's own speed error.
+export function setSync(patch) {
+  const next = { ...snap.sync, ...patch };
+  if (Object.keys(patch).some((k) => snap.sync[k] !== next[k])) set({ sync: next });
+}
 
 export const serverNow = () => Date.now() + snap.offset;
 /** Where the room is right now, in seconds. */
@@ -134,8 +137,9 @@ export function leave() {
   set({ status: "idle", room: null, isHost: false, members: [], state: null, drift: null, error: null });
 }
 
-/** Host only: the playback state everyone should follow. */
-export function hostSet(track, playing, pos) {
+/** Host only: the playback state everyone should follow. With `startAt` (server ms), playback
+ *  starts then, for the host and everyone else alike. */
+export function hostSet(track, playing, pos, startAt) {
   if (!snap.isHost) return;
   const t = track ? {
     videoId: track.videoId, title: track.title || "", thumbnail: track.thumbnail || "",
@@ -143,8 +147,8 @@ export function hostSet(track, playing, pos) {
     duration: Number(track.duration) || 0,
   } : null;
   // Kept locally at once, so the host's own drift check measures against what it just said.
-  set({ state: { track: t, playing: !!playing && !!t, pos, at: serverNow() } });
-  send({ t: "set", track: t, playing, pos });
+  set({ state: { track: t, playing: !!playing && !!t, pos, at: startAt ?? serverNow() } });
+  send({ t: "set", track: t, playing, pos, startAt });
 }
 
 export const inviteLink = (room) => `https://kodama.kiyoshi.dev/together/?${room}`;

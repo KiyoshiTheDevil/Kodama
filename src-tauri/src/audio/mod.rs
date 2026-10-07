@@ -4,6 +4,6 @@ pub mod decoder;
 pub mod http_source;
 pub mod player;
 
-pub use player::{audio_crossfade, audio_pause, audio_play, audio_resume, audio_seek, audio_set_eq, audio_set_mono, audio_set_rate, audio_set_levels_enabled, audio_set_volume, audio_stop};
+pub use player::{audio_crossfade, audio_pause, audio_play, audio_resume, audio_seek, audio_set_eq, audio_set_mono, audio_set_rate, audio_resume_at, audio_set_levels_enabled, audio_set_volume, audio_stop};
 pub use player::{start_audio_thread, AudioPlayer};
 pub use player::{audio_outputs, audio_set_output};
