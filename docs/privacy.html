@@ -40,9 +40,9 @@
     </div>
 
     <div class="legal">
-      <p class="updated">Last updated: 24 September 2026</p>
+      <p class="updated">Last updated: 7 October 2026</p>
 
-      <p>Kodama is a desktop app for listening to YouTube Music. It runs on your computer. There is no Kodama account, and Kodama does not collect personal data about you on servers of its own. This page explains, in plain terms, what the app sends, to whom, and why.</p>
+      <p>Kodama is a desktop app for listening to YouTube Music. It runs on your computer. There is no Kodama account. Kodama does not collect personal data about you on servers of its own, except for what Listen together needs while you are in a room (see below). This page explains, in plain terms, what the app sends, to whom, and why.</p>
 
       <h2>Who is responsible</h2>
       <p>Kodama is an independent open source project. For any question about this policy or your data, write to <a href="mailto:kodama@kiyoshi.dev">kodama@kiyoshi.dev</a>.</p>
@@ -66,6 +66,21 @@
 
       <h2>Store ratings</h2>
       <p>If you rate an item in the store, Kodama sends the item, your star rating and a token made from your device's random ID and the item. The token is different for every item, so ratings you give cannot be linked to each other or to you. You can remove a rating at any time, which deletes it.</p>
+
+      <h2>Listen together</h2>
+      <p>Only if you start or join a room. Rooms run on a server of the Kodama project, hosted by Cloudflare. Nobody's audio passes through it: every Kodama plays the music from YouTube itself, and the room only keeps everyone in step.</p>
+      <p>While you are in a room, the server has:</p>
+      <ul>
+        <li>the name you show in the room, which is your account's display name;</li>
+        <li>your profile picture's address, if "Show my profile picture" is on (it is on by default and can be switched off in the Room tab);</li>
+        <li>a random ID Kodama creates for Listen together, so a dropped connection rejoins as the same person. The room only shows a version of it that differs from room to room;</li>
+        <li>for the host, a random key that makes them host. Only a scrambled form of it is stored.</li>
+      </ul>
+      <p>The room itself keeps the song that is playing and its position, the next 20 songs in the host's queue, who added which of them, and the room's name and settings.</p>
+      <p>Everyone in a room sees the names, profile pictures and the songs each person added. Anyone with a room's code or invite link can see the room's name, who hosts it, up to five people in it and the song that is playing.</p>
+      <p>When the last person leaves, the room and everything in it is deleted after 15 minutes. A room that nobody joins is deleted after an hour. Names, pictures and IDs are not stored beyond your connection.</p>
+      <p>Cloudflare, which hosts the room server, receives your IP address as part of the connection and handles it under its own privacy policy. <strong>The Kodama project does not store your IP address.</strong></p>
+      <p>Profile pictures are loaded from Google, which receives the IP address of whoever loads them. The invite page loads the cover of the song that is playing from YouTube.</p>
 
       <h2>Bug reports</h2>
       <p>Only if you send one yourself. A bug report is delivered to a private channel of the Kodama developer on Discord and contains what you type into the form, plus technical details to diagnose the problem: Kodama version, operating system, whether you are signed in (yes or no, not your account), the song that was playing, recent error messages, the current appearance settings, and, if you leave the options on, app logs and a screenshot. A contact name is only included if you enter one. Reports are kept as long as they are useful for fixing the problem.</p>
@@ -93,7 +108,7 @@
       <p>A link you share points to a page on kodama.kiyoshi.dev that contains the song's ID. The page is hosted on GitHub Pages; opening it is subject to GitHub's privacy policy. Kodama itself does not record who opens it.</p>
 
       <h2>Your rights</h2>
-      <p>If you live in the EU, the UK or a place with similar laws, you have rights to access, correct and delete your personal data, and to complain to a data protection authority. Because the statistics and ratings are anonymous, the project usually cannot tell which records are yours; your local data you can delete at any time by removing Kodama's data folder or signing out. For a bug report you sent, write to the address above and it will be deleted.</p>
+      <p>If you live in the EU, the UK or a place with similar laws, you have rights to access, correct and delete your personal data, and to complain to a data protection authority. Because the statistics and ratings are anonymous, the project usually cannot tell which records are yours; your local data you can delete at any time by removing Kodama's data folder or signing out. For a bug report you sent, write to the address above and it will be deleted. Listen together rooms are deleted on their own, as described above.</p>
 
       <h2>Children</h2>
       <p>Kodama is not directed at children under 13 and does not knowingly collect data from them.</p>
