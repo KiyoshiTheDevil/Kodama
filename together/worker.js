@@ -8,13 +8,15 @@
 //   GET  /rooms/<room>/ws        -> WebSocket into the room
 //
 // Messages, as JSON (client -> room):
-//   { t: "hello", name, hostToken?, device? }               join, as host if the token matches;
+//   { t: "hello", name, hostToken?, device?, avatar? }      join, as host if the token matches;
 //                                                           an older socket of the same device is closed
+//   { t: "profile", avatar }                                show (or, empty, hide) a profile picture
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "queue", list: [track] }                           host only: what plays after this song
 //   { t: "config", control, waitAll }                       host only: room settings
 //   { t: "ready", videoId }                                 this member has that song loaded
 //   { t: "add", track, mode }                               a song for the host's queue (if allowed)
+//   { t: "remove", videoId }                                take a song this member added out of the queue
 //   { t: "set", track, playing, pos, startAt?, rate? }      host only: the new playback state;
 //                                                           rate: how fast the host's audio really runs
 //                                                           startAt (server ms, at most 5 s ahead)
@@ -23,7 +25,8 @@
 //   { t: "welcome", you, state, members, queue, config, s } after hello
 //   { t: "queue", list }
 //   { t: "config", control, waitAll }
-//   { t: "add", track, mode, from }                         to the host: a member's song
+//   { t: "add", track, mode, from, fromId }                 to the host: a member's song
+//   { t: "remove", videoId, by }                            to the host: that member takes their song back
 //   { t: "state", track, playing, pos, at, rate }           position `pos` (seconds) at server time `at` (ms),
 //                                                           moving `rate` seconds per second
 //   { t: "members", list: [{ id, name, host }] }
@@ -54,14 +57,28 @@ const DEFAULT_CONFIG = { control: "host", waitAll: false };
 const ADD_GAP = 1000;        // ms: one song request per member this often at most
 const QUEUE_MAX = 20;
 
-// A track as the room keeps it: only what a listener needs to load and show it.
+// A track as the room keeps it: only what a listener needs to load and show it, and who put it
+// in the queue (absent for the host's own songs).
 const cleanTrack = (t) => t && typeof t.videoId === "string" ? {
   videoId: t.videoId.slice(0, 32),
   title: String(t.title || "").slice(0, 200),
   artists: String(t.artists || "").slice(0, 200),
   thumbnail: String(t.thumbnail || "").slice(0, 500),
   duration: Number(t.duration) || 0,
+  ...(t.addedBy && typeof t.addedBy.id === "string"
+    ? { addedBy: { id: t.addedBy.id.slice(0, 16), name: String(t.addedBy.name || "").slice(0, 40) } }
+    : {}),
 } : null;
+
+// A profile picture is shown to everyone in the room, whose Kodamas then load it: only Google's
+// own image hosts, so nobody can make the whole room fetch an address of their choosing.
+const AVATAR_HOSTS = [".googleusercontent.com", ".ggpht.com", ".ytimg.com"];
+function cleanAvatar(url) {
+  try {
+    const u = new URL(String(url || ""));
+    return u.protocol === "https:" && String(url).length <= 500 && AVATAR_HOSTS.some((h) => u.hostname.endsWith(h)) ? u.href : "";
+  } catch { return ""; }
+}
 const EMPTY_ROOM_TTL = 15 * 60 * 1000;   // a room nobody is in is kept this long, then removed
 const UNUSED_ROOM_TTL = 60 * 60 * 1000;  // a room nobody ever joined
 
@@ -115,7 +132,7 @@ export class Room extends DurableObject {
       .filter((ws) => ws !== except)
       .map((ws) => ws.deserializeAttachment())
       .filter((a) => a && a.joined)
-      .map(({ id, name, host, ready }) => ({ id, name, host, ready: ready || "" }));
+      .map(({ id, name, host, ready, avatar }) => ({ id, name, host, ready: ready || "", avatar: avatar || "" }));
   }
 
   broadcast(msg, except) {
@@ -149,7 +166,12 @@ export class Room extends DurableObject {
           }
         }
       }
-      ws.serializeAttachment({ ...me, name, host, device, joined: true });
+      // The member id the room shows. From the device when there is one, so it outlives a
+      // reconnect (a member can still take back the songs they added), hashed with the room so
+      // it says nothing about the device and differs from room to room.
+      const id = device ? (await sha256(`${this.ctx.id}:${device}`)).slice(0, 12) : me.id;
+      me.id = id;
+      ws.serializeAttachment({ ...me, id, name, host, device, avatar: cleanAvatar(msg.avatar), joined: true });
       await this.ctx.storage.deleteAlarm();   // someone is here: the room stays
       ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), queue: (await this.ctx.storage.get("queue")) || [], config: (await this.ctx.storage.get("config")) || DEFAULT_CONFIG, members: this.members(), s: now }));
       this.broadcast({ t: "members", list: this.members() });
@@ -184,6 +206,27 @@ export class Room extends DurableObject {
       this.broadcast({ t: "config", ...config });
     }
 
+    if (msg.t === "profile") {
+      ws.serializeAttachment({ ...me, avatar: cleanAvatar(msg.avatar) });
+      this.broadcast({ t: "members", list: this.members() });
+    }
+
+    if (msg.t === "remove") {
+      // The host edits its own queue; anyone else only what they added themselves.
+      if (me.host) return;
+      const queue = (await this.ctx.storage.get("queue")) || [];
+      const videoId = String(msg.videoId || "");
+      if (!queue.some((q) => q.videoId === videoId && q.addedBy?.id === me.id)) {
+        ws.send(JSON.stringify({ t: "error", reason: "remove-not-allowed" }));
+        return;
+      }
+      const out = JSON.stringify({ t: "remove", videoId, by: me.id });
+      for (const other of this.ctx.getWebSockets()) {
+        const a = other.deserializeAttachment();
+        if (a?.joined && a.host) { try { other.send(out); } catch { /* gone */ } }
+      }
+    }
+
     if (msg.t === "ready") {
       const ready = typeof msg.videoId === "string" ? msg.videoId.slice(0, 32) : "";
       if (ready === me.ready) return;
@@ -197,8 +240,9 @@ export class Room extends DurableObject {
       if (now - (me.lastAdd || 0) < ADD_GAP) return;
       const track = cleanTrack(msg.track);
       if (!track) return;
+      delete track.addedBy;   // who added it is the room's to say, not the sender's
       ws.serializeAttachment({ ...me, lastAdd: now });
-      const out = JSON.stringify({ t: "add", track, mode: msg.mode === "next" ? "next" : "end", from: me.name });
+      const out = JSON.stringify({ t: "add", track, mode: msg.mode === "next" ? "next" : "end", from: me.name, fromId: me.id });
       for (const other of this.ctx.getWebSockets()) {
         const a = other.deserializeAttachment();
         if (a?.joined && a.host) { try { other.send(out); } catch { /* gone */ } }

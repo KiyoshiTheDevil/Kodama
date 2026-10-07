@@ -1327,5 +1327,9 @@
   "togetherHostOnly": "In diesem Raum fügt nur der Host Songs hinzu.",
   "togetherAdded": "%n hat %s hinzugefügt",
   "togetherRequestSent": "An den Raum geschickt",
-  "togetherListening": "Gemeinsam hören"
+  "togetherListening": "Gemeinsam hören",
+  "togetherShowAvatar": "Mein Profilbild zeigen",
+  "togetherShowAvatarDesc": "Alle im Raum sehen es neben deinem Namen.",
+  "togetherAddedBy": "hinzugefügt von %n",
+  "togetherRemove": "Aus der Warteschlange entfernen"
 }

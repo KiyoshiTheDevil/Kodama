@@ -17,6 +17,7 @@ let snap = {
   members: [], state: null,
   queue: [],              // what the host plays after this song
   config: { control: "host", waitAll: false },
+  showAvatar: false,
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
@@ -90,8 +91,25 @@ export async function createRoom() {
 }
 
 const addSubs = new Set();
-/** Host: a member asks for a song ({ track, mode: "next" | "end", from }). */
+/** Host: a member asks for a song ({ track, mode: "next" | "end", from, fromId }). */
 export const onRoomAdd = (fn) => { addSubs.add(fn); return () => addSubs.delete(fn); };
+const removeSubs = new Set();
+/** Host: a song leaves the queue ({ videoId, by }: by is the member who added it, or null when
+ *  the host removes it itself). */
+export const onRoomRemove = (fn) => { removeSubs.add(fn); return () => removeSubs.delete(fn); };
+
+// Who this Kodama is in a room. The profile picture is shared only when its owner says so.
+const AVATAR_KEY = "kodama-together-show-avatar";
+let identity = { name: "Kodama", avatar: "" };
+export function setIdentity(name, avatar) { identity = { name: (name || "").trim() || "Kodama", avatar: avatar || "" }; }
+export const showsAvatar = () => { try { return localStorage.getItem(AVATAR_KEY) === "1"; } catch { return false; } };
+snap.showAvatar = showsAvatar();
+const sharedAvatar = () => (showsAvatar() ? identity.avatar : "");
+export function setShowAvatar(on) {
+  try { localStorage.setItem(AVATAR_KEY, on ? "1" : "0"); } catch { /* this session only */ }
+  set({ showAvatar: !!on });
+  send({ t: "profile", avatar: sharedAvatar() });
+}
 
 let ws = null, wantRoom = null, wantName = "", retries = 0, pingTimer = 0, burst = 0;
 let samples = [];
@@ -112,7 +130,7 @@ function onPong(m) {
 /** Join a room by its code, under a display name. Reconnects on its own until left. */
 export function join(room, name) {
   leave();
-  wantRoom = room; wantName = name || "Kodama"; retries = 0; samples = [];
+  wantRoom = room; wantName = name || identity.name; retries = 0; samples = [];
   set({ status: "connecting", room, error: null, members: [], state: null, isHost: false, drift: null });
   open();
 }
@@ -125,7 +143,7 @@ function open() {
     retries = 0;
     let token = null;
     try { token = localStorage.getItem(hostKey(wantRoom)); } catch { /* not host then */ }
-    send({ t: "hello", name: wantName, hostToken: token, device });
+    send({ t: "hello", name: wantName, hostToken: token, device, avatar: sharedAvatar() });
     // A short burst to get a good clock reading quickly, then one now and then.
     clearInterval(pingTimer); burst = 0;
     pingTimer = setInterval(() => { ping(); if (++burst === 6) { clearInterval(pingTimer); pingTimer = setInterval(ping, 5000); } }, 250);
@@ -136,6 +154,7 @@ function open() {
     else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: m.config || snap.config });
     else if (m.t === "config") set({ config: { control: m.control, waitAll: !!m.waitAll } });
     else if (m.t === "add") addSubs.forEach((f) => f(m));
+    else if (m.t === "remove") removeSubs.forEach((f) => f({ videoId: m.videoId, by: m.by }));
     else if (m.t === "queue") set({ queue: m.list || [] });
     else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
     else if (m.t === "members") set({ members: m.list || [] });
@@ -167,6 +186,7 @@ const roomTrack = (track) => track ? {
   videoId: track.videoId, title: track.title || "", thumbnail: track.thumbnail || "",
   artists: Array.isArray(track.artists) ? track.artists.map((a) => a?.name || a).join(", ") : (track.artists || ""),
   duration: Number(track.duration) || 0,
+  ...(track.addedBy ? { addedBy: track.addedBy } : {}),
 } : null;
 
 /** Host only: what plays after this song, so listeners can get it ready ahead of time. */
@@ -223,6 +243,12 @@ export function sendReady(videoId) {
   if (videoId === lastReady && ws && ws.readyState === 1) return;
   lastReady = videoId;
   send({ t: "ready", videoId });
+}
+
+/** Take a song out of the room's queue: the host any, a member only one they added. */
+export function roomRemove(track) {
+  if (snap.isHost) removeSubs.forEach((f) => f({ videoId: track.videoId, by: null }));
+  else if (track.addedBy?.id && track.addedBy.id === snap.you?.id) send({ t: "remove", videoId: track.videoId });
 }
 
 /** A song for the host's queue; allowed when the host lets everyone add. */

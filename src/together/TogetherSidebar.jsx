@@ -3,12 +3,12 @@
 // (which follows the cover when the dynamic accent is on), with the members, an invite button,
 // the way to the Room tab and leaving. The room itself (people, queue, settings) lives in the
 // queue panel's Room tab.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, PopoverRoot, PopoverContent, PopoverDialog, Spinner } from "@heroui/react";
-import { useLang, useZoom } from "../context.jsx";
+import { thumb, useLang, useZoom } from "../context.jsx";
 import { Users, Copy, Check, SignOut, Queue } from "../icons.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
-import { useTogether, startRoom, join, leave, inviteLink, parseRoomInput } from "./together.js";
+import { useTogether, startRoom, join, leave, inviteLink, parseRoomInput, setIdentity } from "./together.js";
 
 // A colour per member, stable for the session (the id is the room's, not the person's).
 export function memberColor(id = "") {
@@ -18,6 +18,13 @@ export function memberColor(id = "") {
 }
 
 export function MemberAvatar({ member, size = 20, ring = "var(--bg-surface)" }) {
+  if (member.avatar) {
+    return (
+      <img src={thumb(member.avatar)} alt="" aria-hidden="true" draggable={false}
+        className="rounded-[var(--r-full)] shrink-0 object-cover"
+        style={{ width: size, height: size, boxShadow: ring ? `0 0 0 2px ${ring}` : undefined }} />
+    );
+  }
   return (
     <span
       aria-hidden="true"
@@ -102,9 +109,10 @@ function JoinPopover({ name, children }) {
   );
 }
 
-export function TogetherSidebar({ name, collapsed }) {
+export function TogetherSidebar({ name, avatar, collapsed }) {
   const t = useLang();
   const r = useTogether();
+  useEffect(() => { setIdentity(name, avatar); }, [name, avatar]);
   const [copied, setCopied] = useState(false);
   const inRoom = r.status !== "idle" && r.status !== "closed";
   const myName = (name || "").trim() || "Kodama";

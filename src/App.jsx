@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd } from "./together/together.js";
+import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -1203,7 +1203,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               </span>
             </div>
           )}
-          <TogetherSidebar name={currentProfileData?.displayName} />
+          <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} />
           <div className="flex items-center gap-1">
             <div className="flex-1 min-w-0">
               <Dropdown>
@@ -1251,7 +1251,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         <div className="mt-auto">
           <hr className="my-1 mx-4 border-t border-border" />
           <div className="flex flex-col items-center gap-1 py-2">
-            <TogetherSidebar name={currentProfileData?.displayName} collapsed />
+            <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed />
             <Dropdown>
               <DropdownTrigger
                 className="w-9 h-9 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
@@ -4656,13 +4656,25 @@ export default function App() {
   // ListenTogether, host: a member's song for the queue (the room only sends it when allowed).
   const enqueueRef = useRef(enqueue);
   enqueueRef.current = enqueue;
-  useEffect(() => onRoomAdd(({ track, mode, from }) => {
+  const currentTrackRef = useRef(currentTrack);
+  currentTrackRef.current = currentTrack;
+  useEffect(() => onRoomAdd(({ track, mode, from, fromId }) => {
     // The room's track is already in Kodama's own shape (artists as one string, as the queue
-    // renders it); turning them into [{ name }] crashed the queue panel on that row.
-    enqueueRef.current(track, mode);
+    // renders it); turning them into [{ name }] crashed the queue panel on that row. Who added
+    // it rides along, so the room can show it and that member can take it back.
+    enqueueRef.current({ ...track, addedBy: { id: fromId, name: from } }, mode);
     addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherAdded", { n: from, s: track.title }), "info");
   }), [addToast]);
-  // The pill's "Room" button: open the queue panel (it switches to its Room tab itself).
+  // A song out of the queue: the host removing any, or a member taking back their own (the
+  // room has already checked that it is theirs). The first match after the current song.
+  useEffect(() => onRoomRemove(({ videoId, by }) => {
+    setQueue((q) => {
+      const cur = q.findIndex((x) => x.videoId === currentTrackRef.current?.videoId);
+      const i = q.findIndex((x, n) => n > cur && x.videoId === videoId && (by == null || x.addedBy?.id === by));
+      return i < 0 ? q : [...q.slice(0, i), ...q.slice(i + 1)];
+    });
+  }), []);
+  // The card's "Room" button: open the queue panel (it switches to its Room tab itself).
   useEffect(() => {
     const open = () => setQueueOpen(true);
     window.addEventListener("kodama:open-room", open);
@@ -4705,7 +4717,7 @@ export default function App() {
       const m = String(url || "").match(/^kodama:\/\/song\/([A-Za-z0-9_-]{6,})/i);
       if (m) { playByVideoId(m[1]); return; }
       const room = String(url || "").match(/^kodama:\/\/together\/([a-z0-9]{4,16})/i);
-      if (room) { joinTogether(room[1].toLowerCase(), localStorage.getItem("kodama-together-name") || "Kodama"); return; }
+      if (room) { joinTogether(room[1].toLowerCase()); return; }
       const entry = parseStoreLink(url);
       if (entry) addFromLink(entry).then((r) => {
         // Said in the app, since the click happened in the browser.

@@ -1327,5 +1327,9 @@
   "togetherHostOnly": "In this room, only the host adds songs.",
   "togetherAdded": "%n added %s",
   "togetherRequestSent": "Sent to the room",
-  "togetherListening": "Listening together"
+  "togetherListening": "Listening together",
+  "togetherShowAvatar": "Show my profile picture",
+  "togetherShowAvatarDesc": "Everyone in the room sees it next to your name.",
+  "togetherAddedBy": "added by %n",
+  "togetherRemove": "Remove from the queue"
 }
