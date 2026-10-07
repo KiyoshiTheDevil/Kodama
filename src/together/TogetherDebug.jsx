@@ -2,7 +2,7 @@
 // synchronisation out, the real interface comes once that feels right.
 import { useState } from "react";
 import { Button } from "@heroui/react";
-import { useTogether, createRoom, join, leave, inviteLink, togetherUrl } from "./together.js";
+import { useTogether, createRoom, join, leave, inviteLink, togetherUrl, setTune, TUNE_DEFAULTS } from "./together.js";
 
 export function TogetherDebug() {
   const t = useTogether();
@@ -46,7 +46,17 @@ export function TogetherDebug() {
             <Button size="sm" variant="ghost" className="ml-auto" onPress={leave}>Leave</Button>
           </div>
           <div className="text-[length:var(--t11)] text-muted font-mono">
-            rtt {t.rtt ?? "–"} ms · offset {Math.round(t.offset)} ms{!t.isHost && t.drift != null ? ` · drift ${t.drift} ms` : ""}
+            rtt {t.rtt ?? "–"} ms · offset {Math.round(t.offset)} ms{t.drift != null ? ` · ${t.isHost ? "off" : "drift"} ${t.drift} ms` : ""}{!t.isHost ? ` · lead ${Math.round(t.lead * 1000)} ms · speed ${((t.rate - 1) * 100).toFixed(2)} %` : ""}
+          </div>
+          <div className={row + " flex-wrap text-[length:var(--t11)] text-muted"}>
+            {[["seekAbove", "Jump above", "ms"], ["maxRate", "Max speed", "‰"], ["hostReport", "Host report", "ms"], ["latency", "Audio delay", "ms"]].map(([k, label, unit]) => (
+              <label key={k} className="flex items-center gap-1.5">
+                {label}
+                <input type="number" step="10" className={field + " w-[76px] font-mono"} value={t.tune?.[k] ?? TUNE_DEFAULTS[k]}
+                  onChange={(e) => setTune({ [k]: Number(e.target.value) || 0 })} aria-label={`${label} (${unit})`} />
+                {unit}
+              </label>
+            ))}
           </div>
           <div className="text-[length:var(--t11)] text-muted">
             {t.state?.track ? `${t.state.playing ? "▶" : "❚❚"} ${t.state.track.title} @ ${t.state.pos.toFixed(1)}s` : "nothing playing"}

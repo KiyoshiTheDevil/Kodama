@@ -18,6 +18,7 @@ let snap = {
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
+  tune: null, lead: 0.15, rate: 1,
 };
 const subs = new Set();
 const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f()); };
@@ -25,6 +26,28 @@ const subscribe = (cb) => { subs.add(cb); return () => subs.delete(cb); };
 export const useTogether = () => useSyncExternalStore(subscribe, () => snap);
 export const getTogether = () => snap;
 export const setDrift = (ms) => { if (snap.drift !== ms) set({ drift: ms }); };
+
+// Sync tuning, adjustable in the Debug tab while the feel is being worked out. All in ms.
+//   seekAbove: a listener further off than this jumps; closer, it catches up by playing faster
+//     or slower (a jump rebuilds the player and is heard as a short gap)
+//   maxRate: at most this much faster or slower, in per mille (10 = 1 %, about 17 cents)
+//   hostReport: the host reports again when it is this far off what it last said
+//   latency: this device's audio comes out this much late (Bluetooth, a VM); played ahead by it
+const TUNE_KEY = "kodama-together-tune-v2";
+export const TUNE_DEFAULTS = { seekAbove: 1000, maxRate: 10, hostReport: 150, latency: 0 };
+let tune = TUNE_DEFAULTS;
+try { tune = { ...TUNE_DEFAULTS, ...JSON.parse(localStorage.getItem(TUNE_KEY) || "{}") }; } catch { /* defaults */ }
+snap.tune = tune;
+export const getTune = () => tune;
+export function setTune(patch) {
+  tune = { ...tune, ...patch };
+  try { localStorage.setItem(TUNE_KEY, JSON.stringify(tune)); } catch { /* this session only */ }
+  set({ tune });
+}
+// How far ahead a correcting seek aims, in s. Learnt: a seek into a stream lands late by however
+// long the player needs to get going again there, which differs per machine and connection.
+export const setLead = (s) => { if (snap.lead !== s) set({ lead: s }); };
+export const setRateShown = (r) => { if (snap.rate !== r) set({ rate: r }); };
 
 export const serverNow = () => Date.now() + snap.offset;
 /** Where the room is right now, in seconds. */
@@ -52,7 +75,10 @@ function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg))
 function ping() { send({ t: "ping", c: Date.now() }); }
 function onPong(m) {
   const now = Date.now(), rtt = now - m.c;
-  samples = [...samples, { rtt, offset: m.s - (m.c + rtt / 2) }].slice(-8);
+  // Only recent readings count: a clock that runs a little fast or slow (a virtual machine's
+  // often does) moves the offset over time, and an old reading with a short round trip would
+  // otherwise keep winning.
+  samples = [...samples, { rtt, offset: m.s - (m.c + rtt / 2), at: now }].filter((x) => now - x.at < 30000).slice(-8);
   const best = samples.reduce((a, b) => (b.rtt < a.rtt ? b : a));
   set({ offset: best.offset, rtt: best.rtt });
 }
@@ -76,7 +102,7 @@ function open() {
     send({ t: "hello", name: wantName, hostToken: token });
     // A short burst to get a good clock reading quickly, then one now and then.
     clearInterval(pingTimer); burst = 0;
-    pingTimer = setInterval(() => { ping(); if (++burst === 6) { clearInterval(pingTimer); pingTimer = setInterval(ping, 15000); } }, 250);
+    pingTimer = setInterval(() => { ping(); if (++burst === 6) { clearInterval(pingTimer); pingTimer = setInterval(ping, 5000); } }, 250);
   };
   sock.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }

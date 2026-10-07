@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub struct SampleRing {
@@ -60,6 +60,48 @@ impl SampleRing {
     }
 }
 
+// Playback rate for ListenTogether: a listener a little behind plays a few per mille faster
+// until it has caught up, instead of jumping (a jump rebuilds the sink and is heard as a click).
+// One value for every source; 1.0 everywhere else. Stored as f32 bits.
+static RATE: AtomicU32 = AtomicU32::new(0x3f80_0000);
+
+pub fn set_rate(rate: f32) {
+    let r = if rate.is_finite() { rate.clamp(0.9, 1.1) } else { 1.0 };
+    RATE.store(r.to_bits(), Ordering::Relaxed);
+}
+fn rate() -> f64 {
+    f32::from_bits(RATE.load(Ordering::Relaxed)) as f64
+}
+
+/// Resamples frame by frame at `rate()`, by 4-point Hermite interpolation: near 1.0 that keeps
+/// the treble, where a straight line between two samples would dull it in a way that comes and
+/// goes with the fraction. At exactly 1.0 the output is the input, sample for sample.
+struct Resampler {
+    hist: Vec<f32>,         // four frames, oldest first; the output lies between the 2nd and 3rd
+    frac: f64,
+    out: Vec<f32>,
+    out_i: usize,
+    primed: bool,
+    src_pos: f64,           // source frames advanced, in output frames' terms
+    emitted: u64,
+    pad: usize,             // frames held at the end of the stream
+    skew: Arc<AtomicU64>,   // (source position - output position) in seconds, as f64 bits
+}
+
+impl Default for Resampler {
+    fn default() -> Self {
+        Resampler { hist: Vec::new(), frac: 0.0, out: Vec::new(), out_i: 0, primed: false, src_pos: 0.0, emitted: 0, pad: 0, skew: Arc::new(AtomicU64::new(0)) }
+    }
+}
+
+#[inline]
+fn hermite(x0: f32, x1: f32, x2: f32, x3: f32, t: f32) -> f32 {
+    let c1 = 0.5 * (x2 - x0);
+    let c2 = x0 - 2.5 * x1 + 2.0 * x2 - 0.5 * x3;
+    let c3 = 0.5 * (x3 - x0) + 1.5 * (x1 - x2);
+    ((c3 * t + c2) * t + c1) * t + x1
+}
+
 pub struct StreamingSource {
     ring: Arc<SampleRing>,
     channels: u16,
@@ -71,6 +113,7 @@ pub struct StreamingSource {
     eq: Option<super::eq::EqChain>,
     mono: super::eq::MonoFold,
     tap_pos: u64,
+    rs: Resampler,
 }
 
 pub struct ProbeResult {
@@ -487,6 +530,7 @@ impl StreamingSource {
             eq: None,
             mono: Default::default(),
             tap_pos: 0,
+            rs: Resampler::default(),
         })
     }
 
@@ -519,11 +563,83 @@ impl StreamingSource {
             eq: None,
             mono: Default::default(),
             tap_pos: 0,
+            rs: Resampler::default(),
         })
     }
 
     // Attach a visualizer analysis buffer (filled with the left-channel samples as they
     // are pulled by the output). Returns a handle for the analysis thread to read.
+    /// How far the source has run ahead of what the sink counted, in seconds, while the rate
+    /// was not 1.0. The sink's position plus this is the position in the song.
+    pub fn skew_handle(&self) -> Arc<AtomicU64> {
+        Arc::clone(&self.rs.skew)
+    }
+
+    // One sample from the decoder, waiting while it catches up; None at the end.
+    fn pop_wait(&self) -> Option<f32> {
+        loop {
+            if let Some(s) = self.ring.pop() {
+                return Some(s);
+            }
+            if self.ring.is_done() {
+                return self.ring.pop();
+            }
+            std::thread::sleep(std::time::Duration::from_micros(50));
+        }
+    }
+
+    // The next output frame into `rs.out`. False at the end of the stream.
+    fn next_frame(&mut self) -> bool {
+        let ch = self.channels.max(1) as usize;
+        if !self.rs.primed {
+            // The first frame twice (there is nothing before it), then the two after it.
+            let mut first = Vec::with_capacity(ch);
+            for _ in 0..ch { match self.pop_wait() { Some(x) => first.push(x), None => return false } }
+            self.rs.hist = [first.clone(), first].concat();
+            for _ in 0..2 * ch { match self.pop_wait() { Some(x) => self.rs.hist.push(x), None => return false } }
+            self.rs.out = vec![0.0; ch];
+            self.rs.primed = true;
+        }
+        // The frame the output stands on (the 2nd) is padding: the song is over.
+        if self.rs.pad >= 3 {
+            return false;
+        }
+        let mut r = rate();
+        if r == 1.0 && self.rs.frac != 0.0 {
+            // Back at normal speed: drop the leftover fraction of a frame (well under a
+            // millisecond) so the output is the input again.
+            self.rs.src_pos -= self.rs.frac;
+            self.rs.frac = 0.0;
+        }
+        let t = self.rs.frac as f32;
+        let h = &self.rs.hist;
+        for c in 0..ch {
+            self.rs.out[c] = if t == 0.0 { h[ch + c] } else { hermite(h[c], h[ch + c], h[2 * ch + c], h[3 * ch + c], t) };
+        }
+        if !r.is_finite() { r = 1.0; }
+        self.rs.frac += r;
+        self.rs.src_pos += r;
+        self.rs.emitted += 1;
+        let skew = (self.rs.src_pos - self.rs.emitted as f64) / self.sample_rate.max(1) as f64;
+        self.rs.skew.store(skew.to_bits(), Ordering::Relaxed);
+        while self.rs.frac >= 1.0 {
+            self.rs.hist.drain(0..ch);
+            let mut frame = Vec::with_capacity(ch);
+            for _ in 0..ch {
+                match self.pop_wait() { Some(x) => frame.push(x), None => break }
+            }
+            if frame.len() < ch {
+                // The end: hold the last frame, so the frames still in the history play out.
+                frame = self.rs.hist[self.rs.hist.len() - ch..].to_vec();
+                self.rs.pad += 1;
+            }
+            self.rs.hist.extend(frame);
+            self.rs.frac -= 1.0;
+        }
+        self.rs.out_i = 0;
+        true
+    }
+
     pub fn enable_analysis(&mut self) -> Arc<super::analyzer::AnalysisBuffer> {
         let a = Arc::new(super::analyzer::AnalysisBuffer::new(self.sample_rate));
         self.analysis = Some(Arc::clone(&a));
@@ -534,29 +650,26 @@ impl StreamingSource {
 impl Iterator for StreamingSource {
     type Item = f32;
     fn next(&mut self) -> Option<f32> {
-        loop {
-            if let Some(s) = self.ring.pop() {
-                // Equalise before the visualiser tap, so the bars show what is heard rather
-                // than what was decoded.
-                let s = self
-                    .eq
-                    .get_or_insert_with(|| super::eq::EqChain::new(self.sample_rate, self.channels))
-                    .process(s);
-                let s = self.mono.process(s, self.channels as usize);
-                if let Some(a) = &self.analysis {
-                    // Tap left channel only → mono stream at sample_rate.
-                    if self.channels <= 1 || self.tap_pos % self.channels as u64 == 0 {
-                        a.push(s);
-                    }
-                    self.tap_pos = self.tap_pos.wrapping_add(1);
-                }
-                return Some(s);
-            }
-            if self.ring.is_done() {
-                return self.ring.pop();
-            }
-            std::thread::sleep(std::time::Duration::from_micros(50));
+        if self.rs.out_i >= self.rs.out.len() && !self.next_frame() {
+            return None;
         }
+        let s = self.rs.out[self.rs.out_i];
+        self.rs.out_i += 1;
+        // Equalise before the visualiser tap, so the bars show what is heard rather
+        // than what was decoded.
+        let s = self
+            .eq
+            .get_or_insert_with(|| super::eq::EqChain::new(self.sample_rate, self.channels))
+            .process(s);
+        let s = self.mono.process(s, self.channels as usize);
+        if let Some(a) = &self.analysis {
+            // Tap left channel only → mono stream at sample_rate.
+            if self.channels <= 1 || self.tap_pos % self.channels as u64 == 0 {
+                a.push(s);
+            }
+            self.tap_pos = self.tap_pos.wrapping_add(1);
+        }
+        Some(s)
     }
 }
 
@@ -572,5 +685,49 @@ impl rodio::Source for StreamingSource {
     }
     fn total_duration(&self) -> Option<std::time::Duration> {
         self.total_duration
+    }
+}
+
+#[cfg(test)]
+mod rate_tests {
+    use super::*;
+
+    fn source(samples: &[f32], channels: u16) -> StreamingSource {
+        let ring = Arc::new(SampleRing::new(samples.len() + 16));
+        for &x in samples { ring.push(x); }
+        ring.set_done();
+        StreamingSource { ring, channels, sample_rate: 1000, total_duration: None, analysis: None, eq: None, mono: Default::default(), tap_pos: 0, rs: Resampler::default() }
+    }
+    fn skew(s: &StreamingSource) -> f64 { f64::from_bits(s.skew_handle().load(Ordering::Relaxed)) }
+
+    // One test, not several: RATE is shared, and tests run in parallel.
+    #[test]
+    fn rate_changes_speed_and_reports_the_skew() {
+        let _serial = super::super::eq::tests::lock();
+        // Stereo ramp: left n, right -n.
+        let input: Vec<f32> = (0..2000).flat_map(|i| [i as f32, -(i as f32)]).collect();
+
+        set_rate(1.0);
+        let out: Vec<f32> = source(&input, 2).collect();
+        assert_eq!(out, input, "at 1.0 the output is the input, all of it");
+
+        set_rate(1.01);
+        let mut s = source(&input, 2);
+        let out: Vec<f32> = s.by_ref().collect();
+        let frames = out.len() / 2;
+        assert!((frames as f64 - 2000.0 / 1.01).abs() < 4.0, "1% faster plays 1% fewer frames: {frames}");
+        // A ramp stays a ramp under Hermite: each frame is where the source stood.
+        for (k, f) in out.chunks(2).enumerate().take(frames - 4) {
+            let want = k as f32 * 1.01;
+            assert!((f[0] - want).abs() < 0.01 && (f[1] + want).abs() < 0.01, "frame {k}: {f:?} vs {want}");
+        }
+        // 1980 output frames at 1000 Hz moved the source 19.8 frames further: 0.0198 s.
+        assert!((skew(&s) - frames as f64 * 0.01 / 1000.0).abs() < 0.002, "skew {}", skew(&s));
+
+        set_rate(0.99);
+        let out: Vec<f32> = source(&input, 2).collect();
+        assert!(((out.len() / 2) as f64 - 2000.0 / 0.99).abs() < 4.0);
+
+        set_rate(1.0);
     }
 }

@@ -310,6 +310,13 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
 
         // ── Crossfade: a second sink for the incoming track + a linear volume ramp ──
         let mut sink2: Option<rodio::Sink> = None;
+        // Each source's skew (see StreamingSource::skew_handle): the position in the song is the
+        // sink's position plus this, once the ListenTogether rate has been anything but 1.0.
+        let mut skew: Option<Arc<std::sync::atomic::AtomicU64>> = None;
+        let mut skew2: Option<Arc<std::sync::atomic::AtomicU64>> = None;
+        let read_skew = |h: &Option<Arc<std::sync::atomic::AtomicU64>>| {
+            h.as_ref().map(|a| f64::from_bits(a.load(std::sync::atomic::Ordering::Relaxed))).unwrap_or(0.0)
+        };
         let mut duration2: f64 = 0.0;
         let mut prog_url2: Option<String> = None;
         let mut xfade_start: Option<std::time::Instant> = None;
@@ -331,6 +338,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
             () => {
                 if let Some(s) = sink.take() { s.stop(); }
                 sink = sink2.take();
+                skew = skew2.take();
                 if let Some(s) = &sink { s.set_volume(volume); }
                 duration = duration2;
                 seek_offset = 0.0;
@@ -369,6 +377,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                             Ok(new_sink) => {
                                 new_sink.set_volume(volume);
                                 *current_analysis.lock().unwrap() = Some(source.enable_analysis());
+                                skew = Some(source.skew_handle());
                                 new_sink.append(source);
                                 if seek_to > 0.05 {
                                     let _ = new_sink
@@ -406,6 +415,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     Ok(new_sink) => {
                         new_sink.set_volume(volume);
                         *current_analysis.lock().unwrap() = Some(source.enable_analysis());
+                        skew = Some(source.skew_handle());
                         new_sink.append(source);
                         if start_paused {
                             new_sink.pause();
@@ -437,6 +447,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         s2.set_volume(0.0);
                         // The visualizer follows the incoming track (the UI already shows it).
                         *current_analysis.lock().unwrap() = Some(source.enable_analysis());
+                        skew2 = Some(source.skew_handle());
                         s2.append(source);
                         sink2 = Some(s2);
                         xfade_start = Some(std::time::Instant::now());
@@ -591,7 +602,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                         }
                         // Read after the promotion above, so it is the position of whichever
                         // track is actually playing now.
-                        let resume = sink.as_ref().map(|s| s.get_pos().as_secs_f64() + seek_offset);
+                        let resume = sink.as_ref().map(|s| s.get_pos().as_secs_f64() + seek_offset + read_skew(&skew));
                         match open_output() {
                             Ok((new_stream, new_handle)) => {
                                 _stream = new_stream;
@@ -660,6 +671,7 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                                 if let Ok(new_sink) = rodio::Sink::try_new(&handle) {
                                     new_sink.set_volume(volume);
                                     *current_analysis.lock().unwrap() = Some(source.enable_analysis());
+                                    skew = Some(source.skew_handle());
                                     new_sink.append(source);
                                     if was_paused {
                                         new_sink.pause();
@@ -722,10 +734,10 @@ pub fn start_audio_thread(app: tauri::AppHandle) -> std::sync::mpsc::SyncSender<
                     "audio-progress",
                     // `buffered` stays null unless this really is a network stream, so the UI can
                     // hide the indicator rather than draw a permanently-full bar for local files.
-                    serde_json::json!({ "position": s.get_pos().as_secs_f64(), "duration": duration2, "paused": s.is_paused(), "buffered": dl_progress2.as_ref().and_then(|p| p.fraction()) }),
+                    serde_json::json!({ "position": s.get_pos().as_secs_f64() + read_skew(&skew2), "duration": duration2, "paused": s.is_paused(), "buffered": dl_progress2.as_ref().and_then(|p| p.fraction()) }),
                 );
             } else if let Some(s) = &sink {
-                let pos = s.get_pos().as_secs_f64() + seek_offset;
+                let pos = s.get_pos().as_secs_f64() + seek_offset + read_skew(&skew);
                 let paused = s.is_paused();
                 let ended = s.empty();
                 let _ = app.emit(
@@ -767,6 +779,12 @@ pub fn audio_set_levels_enabled(enabled: bool) {
 /// Sources pick the change up on their next sample, so moving a slider is audible immediately
 /// without restarting anything.
 /// Mono audio (accessibility): both channels mixed into each.
+/// ListenTogether: play this much faster or slower (0.9-1.1) to catch up with the room.
+#[tauri::command]
+pub fn audio_set_rate(rate: f32) {
+    super::decoder::set_rate(rate);
+}
+
 #[tauri::command]
 pub fn audio_set_mono(enabled: bool) {
     super::eq::set_mono(enabled);

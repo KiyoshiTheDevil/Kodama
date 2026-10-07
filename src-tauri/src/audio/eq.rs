@@ -244,14 +244,15 @@ impl EqChain {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// The configuration these tests exercise is deliberately global — that is the whole
     /// design, one curve for every source. Cargo runs tests in parallel threads, so without
     /// this they overwrite each other's settings and every measurement comes back as bypass.
     static SERIAL: Mutex<()> = Mutex::new(());
-    fn lock() -> std::sync::MutexGuard<'static, ()> {
+    // Also taken by the decoder's rate test: its samples pass through the same EQ and mono.
+    pub(crate) fn lock() -> std::sync::MutexGuard<'static, ()> {
         SERIAL.lock().unwrap_or_else(|e| e.into_inner())
     }
 
