@@ -61,7 +61,7 @@ export const serverNow = () => Date.now() + snap.offset;
 /** Where the room is right now, in seconds. */
 export function expectedPos(st = snap.state) {
   if (!st) return 0;
-  return st.playing ? st.pos + Math.max(0, serverNow() - st.at) / 1000 : st.pos;
+  return st.playing ? st.pos + (st.rate || 1) * Math.max(0, serverNow() - st.at) / 1000 : st.pos;
 }
 
 const hostKey = (room) => `kodama-together-host:${room}`;
@@ -127,7 +127,7 @@ function open() {
     if (m.t === "pong") onPong(m);
     else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [] });
     else if (m.t === "queue") set({ queue: m.list || [] });
-    else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at } });
+    else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
     else if (m.t === "members") set({ members: m.list || [] });
     else if (m.t === "error") set({ error: m.reason });
   };
@@ -172,13 +172,15 @@ export function hostQueue(tracks) {
 }
 
 /** Host only: the playback state everyone should follow. With `startAt` (server ms), playback
- *  starts then, for the host and everyone else alike. */
-export function hostSet(track, playing, pos, startAt) {
+ *  starts then, for the host and everyone else alike. `rate`: how fast the host's audio really
+ *  runs against the room's clock (a sound card is a few per mille off), so the room moves with
+ *  the host instead of with the clock. */
+export function hostSet(track, playing, pos, startAt, rate = 1) {
   if (!snap.isHost) return;
   const t = roomTrack(track);
   // Kept locally at once, so the host's own drift check measures against what it just said.
-  set({ state: { track: t, playing: !!playing && !!t, pos, at: startAt ?? serverNow() } });
-  send({ t: "set", track: t, playing, pos, startAt });
+  set({ state: { track: t, playing: !!playing && !!t, pos, at: startAt ?? serverNow(), rate } });
+  send({ t: "set", track: t, playing, pos, startAt, rate });
 }
 
 export const inviteLink = (room) => `https://kodama.kiyoshi.dev/together/?${room}`;

@@ -12,13 +12,15 @@
 //                                                           an older socket of the same device is closed
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "queue", list: [track] }                           host only: what plays after this song
-//   { t: "set", track, playing, pos, startAt? }             host only: the new playback state;
+//   { t: "set", track, playing, pos, startAt?, rate? }      host only: the new playback state;
+//                                                           rate: how fast the host's audio really runs
 //                                                           startAt (server ms, at most 5 s ahead)
 //                                                           schedules the start for everyone
 // (room -> client):
 //   { t: "welcome", you, state, members, queue, s }         after hello
 //   { t: "queue", list }
-//   { t: "state", track, playing, pos, at }                 position `pos` (seconds) at server time `at` (ms)
+//   { t: "state", track, playing, pos, at, rate }           position `pos` (seconds) at server time `at` (ms),
+//                                                           moving `rate` seconds per second
 //   { t: "members", list: [{ id, name, host }] }
 //   { t: "error", reason }
 //
@@ -153,7 +155,8 @@ export class Room extends DurableObject {
       // `at` in the future: everyone stands at `pos` until then and starts together.
       const startAt = Number(msg.startAt);
       const at = Number.isFinite(startAt) ? Math.min(now + 5000, Math.max(now, startAt)) : now;
-      const state = { track: tr, playing: !!msg.playing && !!tr, pos: Math.max(0, Number(msg.pos) || 0), at };
+      const rate = Math.min(1.03, Math.max(0.97, Number(msg.rate) || 1));
+      const state = { track: tr, playing: !!msg.playing && !!tr, pos: Math.max(0, Number(msg.pos) || 0), at, rate };
       await this.ctx.storage.put("state", state);
       this.broadcast({ t: "state", ...state });
     }

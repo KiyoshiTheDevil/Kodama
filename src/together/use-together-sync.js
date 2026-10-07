@@ -23,7 +23,9 @@ const HORIZON = 10;          // s: a drift is meant to be gone in about this lon
 const SMOOTH = 0.3;          // the measured drift wobbles by about 10 ms; the speed follows its average
 const DEADBAND = 0.01;       // s: closer than this plays at normal speed
 const BASE_WINDOW = 10000;   // ms: the device's own speed error is measured over this long
-const BASE_MAX = 0.02;
+const BASE_MAX = 0.01;
+const HOST_WINDOW = 20000;   // ms: the host measures its own speed over this long
+const HOST_RATE_REPORT = 0.0005; // the host reports again when its measured speed moved this much
 const START_DELAY = 1500;    // ms: a new song starts this long after the host has it, for everyone
 const PREPARE_TIMEOUT = 10000;
 const LOAD_TIMEOUT = 20000;
@@ -43,6 +45,11 @@ let baseRate = 0;
 let history = [];            // { at, drift, asked }: `asked` sums (speed - 1) over time, in s
 let asked = 0, lastRateTick = 0, smoothed = null;
 function resetHistory() { history = []; lastRateTick = 0; smoothed = null; }
+let roomKey = "";            // the room state the history was measured against
+
+// Host: its own speed against the room's clock, measured from its position over time.
+let hostHist = [];           // { srv, pos }
+let hostRate = 1;
 function setRate(r) {
   const v = Math.round(r * 10000) / 10000;
   if (v === rateNow) return;
@@ -57,7 +64,7 @@ let ahead = 1.5;
 
 // Where the room stands at server time `T` (ms), plus this device's audio delay.
 function roomPosAt(st, T, latency) {
-  return st.pos + (st.playing ? Math.max(0, T - st.at) / 1000 : 0) + latency;
+  return st.pos + (st.playing ? (st.rate || 1) * Math.max(0, T - st.at) / 1000 : 0) + latency;
 }
 
 const WARM_AHEAD = 2;        // songs of the room's queue each listener gets ready ahead of time
@@ -168,7 +175,8 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
           const startAt = serverNow() + START_DELAY;
           h.scheduled = true;
           h.startLocal = startAt - offset;
-          hostSet(currentTrack, true, a.currentTime, startAt);
+          hostSet(currentTrack, true, a.currentTime, startAt, hostRate);
+          hostHist = [];
           invoke("audio_resume_at", { atMs: h.startLocal }).catch(() => {});
           setIsPlaying(true);
           return;
@@ -178,10 +186,26 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         // Report when what the room believes is off from what the host hears: a pause, a seek,
         // a stall while buffering.
         const running = !a.paused && !a.isPreparing;
-        const off = nowPos() - expectedPos(state);
+        const pos = nowPos();
+        // The host's own speed: how far its song moved against how far the room's clock did.
+        // A seek, a pause or a stall breaks the line, and the measuring starts over.
+        if (running) {
+          const srv = serverNow();
+          const last = hostHist[hostHist.length - 1];
+          if (last && Math.abs((pos - last.pos) - (srv - last.srv) / 1000) > 0.25) hostHist = [];
+          hostHist.push({ srv, pos });
+          while (hostHist.length > 2 && srv - hostHist[1].srv >= HOST_WINDOW) hostHist.shift();
+          const o = hostHist[0];
+          if (srv - o.srv >= HOST_WINDOW * 0.5) {
+            const r = (pos - o.pos) / ((srv - o.srv) / 1000);
+            hostRate = Math.min(1.02, Math.max(0.98, hostRate + (r - hostRate) * 0.05));
+          }
+        } else hostHist = [];
+        const off = pos - expectedPos(state);
         setDrift(Math.round(off * 1000));
-        if (!state || state.track?.videoId !== currentTrack.videoId || state.playing !== running || Math.abs(off) * 1000 > tune.hostReport) {
-          hostSet(currentTrack, running, nowPos());
+        if (!state || state.track?.videoId !== currentTrack.videoId || state.playing !== running || Math.abs(off) * 1000 > tune.hostReport
+          || (running && Math.abs(hostRate - (state.rate || 1)) > HOST_RATE_REPORT)) {
+          hostSet(currentTrack, running, pos, undefined, hostRate);
         }
         return;
       }
@@ -286,6 +310,10 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       if (now - lastRate < RATE_EVERY) return;
       if (lastRateTick) asked += (rateNow - 1) * (now - lastRateTick) / 1000;
       lastRate = lastRateTick = now;
+      // Every new word from the host moves the room's line; what the drift did across that is
+      // the host's doing, not this device's. Measure afresh.
+      const key = `${state.at}:${state.pos}:${state.rate}`;
+      if (key !== roomKey) { roomKey = key; history = []; }
       history.push({ at: now, drift, asked });
       while (history.length > 1 && now - history[1].at >= BASE_WINDOW) history.shift();
       const o = history[0];
