@@ -12,13 +12,18 @@
 //                                                           an older socket of the same device is closed
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "queue", list: [track] }                           host only: what plays after this song
+//   { t: "config", control, waitAll }                       host only: room settings
+//   { t: "ready", videoId }                                 this member has that song loaded
+//   { t: "add", track, mode }                               a song for the host's queue (if allowed)
 //   { t: "set", track, playing, pos, startAt?, rate? }      host only: the new playback state;
 //                                                           rate: how fast the host's audio really runs
 //                                                           startAt (server ms, at most 5 s ahead)
 //                                                           schedules the start for everyone
 // (room -> client):
-//   { t: "welcome", you, state, members, queue, s }         after hello
+//   { t: "welcome", you, state, members, queue, config, s } after hello
 //   { t: "queue", list }
+//   { t: "config", control, waitAll }
+//   { t: "add", track, mode, from }                         to the host: a member's song
 //   { t: "state", track, playing, pos, at, rate }           position `pos` (seconds) at server time `at` (ms),
 //                                                           moving `rate` seconds per second
 //   { t: "members", list: [{ id, name, host }] }
@@ -43,6 +48,10 @@ const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart
 const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 
 const MAX_MESSAGE = 16384;   // a queue of 20 songs fits
+// control: "host" (only the host picks songs) or "everyone" (anyone may add to the queue).
+// waitAll: a new song starts once every member has it loaded (or after a few seconds).
+const DEFAULT_CONFIG = { control: "host", waitAll: false };
+const ADD_GAP = 1000;        // ms: one song request per member this often at most
 const QUEUE_MAX = 20;
 
 // A track as the room keeps it: only what a listener needs to load and show it.
@@ -106,7 +115,7 @@ export class Room extends DurableObject {
       .filter((ws) => ws !== except)
       .map((ws) => ws.deserializeAttachment())
       .filter((a) => a && a.joined)
-      .map(({ id, name, host }) => ({ id, name, host }));
+      .map(({ id, name, host, ready }) => ({ id, name, host, ready: ready || "" }));
   }
 
   broadcast(msg, except) {
@@ -142,7 +151,7 @@ export class Room extends DurableObject {
       }
       ws.serializeAttachment({ ...me, name, host, device, joined: true });
       await this.ctx.storage.deleteAlarm();   // someone is here: the room stays
-      ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), queue: (await this.ctx.storage.get("queue")) || [], members: this.members(), s: now }));
+      ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), queue: (await this.ctx.storage.get("queue")) || [], config: (await this.ctx.storage.get("config")) || DEFAULT_CONFIG, members: this.members(), s: now }));
       this.broadcast({ t: "members", list: this.members() });
       return;
     }
@@ -166,6 +175,34 @@ export class Room extends DurableObject {
       const list = (Array.isArray(msg.list) ? msg.list : []).slice(0, QUEUE_MAX).map(cleanTrack).filter(Boolean);
       await this.ctx.storage.put("queue", list);
       this.broadcast({ t: "queue", list }, ws);
+    }
+
+    if (msg.t === "config") {
+      if (!me.host) { ws.send(JSON.stringify({ t: "error", reason: "host-only" })); return; }
+      const config = { control: msg.control === "everyone" ? "everyone" : "host", waitAll: !!msg.waitAll };
+      await this.ctx.storage.put("config", config);
+      this.broadcast({ t: "config", ...config });
+    }
+
+    if (msg.t === "ready") {
+      const ready = typeof msg.videoId === "string" ? msg.videoId.slice(0, 32) : "";
+      if (ready === me.ready) return;
+      ws.serializeAttachment({ ...me, ready });
+      this.broadcast({ t: "members", list: this.members() });
+    }
+
+    if (msg.t === "add") {
+      const config = (await this.ctx.storage.get("config")) || DEFAULT_CONFIG;
+      if (!me.host && config.control !== "everyone") { ws.send(JSON.stringify({ t: "error", reason: "add-not-allowed" })); return; }
+      if (now - (me.lastAdd || 0) < ADD_GAP) return;
+      const track = cleanTrack(msg.track);
+      if (!track) return;
+      ws.serializeAttachment({ ...me, lastAdd: now });
+      const out = JSON.stringify({ t: "add", track, mode: msg.mode === "next" ? "next" : "end", from: me.name });
+      for (const other of this.ctx.getWebSockets()) {
+        const a = other.deserializeAttachment();
+        if (a?.joined && a.host) { try { other.send(out); } catch { /* gone */ } }
+      }
     }
   }
 

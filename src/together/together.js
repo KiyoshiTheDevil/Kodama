@@ -16,6 +16,7 @@ let snap = {
   room: null, isHost: false, you: null,
   members: [], state: null,
   queue: [],              // what the host plays after this song
+  config: { control: "host", waitAll: false },
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
@@ -88,6 +89,10 @@ export async function createRoom() {
   return room;
 }
 
+const addSubs = new Set();
+/** Host: a member asks for a song ({ track, mode: "next" | "end", from }). */
+export const onRoomAdd = (fn) => { addSubs.add(fn); return () => addSubs.delete(fn); };
+
 let ws = null, wantRoom = null, wantName = "", retries = 0, pingTimer = 0, burst = 0;
 let samples = [];
 
@@ -128,7 +133,9 @@ function open() {
   sock.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
-    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [] });
+    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: m.config || snap.config });
+    else if (m.t === "config") set({ config: { control: m.control, waitAll: !!m.waitAll } });
+    else if (m.t === "add") addSubs.forEach((f) => f(m));
     else if (m.t === "queue") set({ queue: m.list || [] });
     else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
     else if (m.t === "members") set({ members: m.list || [] });
@@ -187,3 +194,39 @@ export function hostSet(track, playing, pos, startAt, rate = 1) {
 }
 
 export const inviteLink = (room) => `https://kodama.kiyoshi.dev/together/?${room}`;
+
+/** A room code out of whatever was pasted: the code itself, an invite link, a kodama:// link. */
+export function parseRoomInput(text) {
+  const s = String(text || "").trim();
+  const m = s.match(/together\/\??([a-z0-9]{4,16})(?![a-z0-9])/i) || s.match(/^([a-z0-9]{4,16})$/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/** Start a room and join it as host. */
+export async function startRoom(name) {
+  const room = await createRoom();
+  join(room, name);
+  return room;
+}
+
+/** Host only: the room's settings. */
+export function hostConfig(patch) {
+  if (!snap.isHost) return;
+  const config = { ...snap.config, ...patch };
+  set({ config });
+  send({ t: "config", ...config });
+}
+
+/** This member has `videoId` loaded and stands ready to start it. */
+let lastReady = "";
+export function sendReady(videoId) {
+  if (videoId === lastReady && ws && ws.readyState === 1) return;
+  lastReady = videoId;
+  send({ t: "ready", videoId });
+}
+
+/** A song for the host's queue; allowed when the host lets everyone add. */
+export function requestAdd(track, mode) {
+  const t = roomTrack(track);
+  if (t) send({ t: "add", track: t, mode });
+}

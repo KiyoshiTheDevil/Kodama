@@ -30,7 +30,8 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener } from "./together/together.js";
+import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd } from "./together/together.js";
+import { TogetherPill } from "./together/TogetherPill.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -1485,7 +1486,7 @@ function vibrantAccentFromImage(img, satMin = 0.5, light = 0.6) {
 // Accent colour picker built from HeroUI colour components:
 // ColorSwatch (preset grid + preview) + ColorArea (saturation/brightness) + ColorSlider (hue).
 // Bridges between our hex-string accent value and react-aria Color objects.
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ togetherName, track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -2368,6 +2369,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 style={likePulsing ? { animation: "heartPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards" } : undefined} />
             </Button>
           </Tooltip>
+          <TogetherPill name={togetherName} />
         </div>
 
         {/* Transport stays left-to-right even when the app is flipped. These controls refer to
@@ -4596,6 +4598,15 @@ export default function App() {
   // so a plain splice is enough. With nothing playing yet, just start it.
   const enqueue = useCallback((track, mode) => {
     if (!track?.videoId) return;
+    // In someone else's room the queue is theirs: a song goes to the host, if the room allows it.
+    if (isRoomListener()) {
+      if (getTogether().config.control !== "everyone") {
+        addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherHostOnly"), "info");
+        return false;
+      }
+      requestAdd(track, mode);
+      return true;
+    }
     if (!currentTrack) { handlePlay(track, [track]); return; }
     if (track.videoId === currentTrack.videoId) return;
     setQueue(q => {
@@ -4605,7 +4616,7 @@ export default function App() {
       n.splice(at, 0, track);
       return n;
     });
-  }, [currentTrack, handlePlay]);
+  }, [currentTrack, handlePlay, addToast]);
 
   // Start an autoplay radio/mix seeded from a single track. Reads the language from localStorage
   // (not the `language` state, which is declared further down → would be a TDZ ref here).
@@ -4640,6 +4651,21 @@ export default function App() {
 
   // ListenTogether: follow the room's playback, or report it as host.
   useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay, queue });
+
+  // ListenTogether, host: a member's song for the queue (the room only sends it when allowed).
+  const enqueueRef = useRef(enqueue);
+  enqueueRef.current = enqueue;
+  useEffect(() => onRoomAdd(({ track, mode, from }) => {
+    const tr = { ...track, artists: String(track.artists || "").split(", ").filter(Boolean).map((name) => ({ name })) };
+    enqueueRef.current(tr, mode);
+    addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherAdded", { n: from, s: track.title }), "info");
+  }), [addToast]);
+  // The pill's "Room" button: open the queue panel (it switches to its Room tab itself).
+  useEffect(() => {
+    const open = () => setQueueOpen(true);
+    window.addEventListener("kodama:open-room", open);
+    return () => window.removeEventListener("kodama:open-room", open);
+  }, []);
 
   // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
   // metadata so the player has a title/cover, then play. Falls back to a bare track.
@@ -6258,6 +6284,7 @@ export default function App() {
             padding: fullscreen ? 0 : "0 8px 8px 4px",
           }}>
           <Player onEditScrobble={(tr) => setScrobbleEdit(tr)}
+            togetherName={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName}
             track={currentTrack}
             setTrack={setCurrentTrack}
             queue={queue}
@@ -6874,9 +6901,9 @@ export default function App() {
                   onSelect={() => setAddToPlaylistFor({ tracks: [track] })} />
 
                 <CtxItem icon={<Queue size={15} />} label={translate(language, "playNext")}
-                  onSelect={() => { enqueue(track, "next"); addToast(translate(language, "addedNext") || "Als Nächstes eingereiht", "success"); }} />
+                  onSelect={() => { if (enqueue(track, "next") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedNext"), "success"); }} />
                 <CtxItem icon={<Queue size={15} />} label={translate(language, "addToQueue")}
-                  onSelect={() => { enqueue(track, "end"); addToast(translate(language, "addedQueue") || "Zur Warteschlange hinzugefügt", "success"); }} />
+                  onSelect={() => { if (enqueue(track, "end") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedQueue"), "success"); }} />
                 <CtxItem icon={<Radio size={15} />} label={translate(language, "startRadio")}
                   onSelect={() => startSongRadio(track)} />
 

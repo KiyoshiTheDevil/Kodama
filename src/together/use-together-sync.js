@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { API } from "../context.jsx";
-import { useTogetherValue, getTogether, hostSet, hostQueue, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
+import { useTogetherValue, getTogether, hostSet, hostQueue, sendReady, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
 
 const TICK = 100;            // ms
 const RATE_EVERY = 500;      // ms: the speed is adjusted this often
@@ -27,6 +27,7 @@ const BASE_MAX = 0.01;
 const HOST_WINDOW = 20000;   // ms: the host measures its own speed over this long
 const HOST_RATE_REPORT = 0.001; // the host reports again when its measured speed moved this much
 const START_DELAY = 1500;    // ms: a new song starts this long after the host has it, for everyone
+const WAIT_ALL_MAX = 8000;   // ms: "wait for everyone" waits at most this long for the slowest
 const PREPARE_TIMEOUT = 10000;
 const LOAD_TIMEOUT = 20000;
 const SETTLED = 300;         // ms after a start before the drift is trusted again
@@ -141,6 +142,7 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       if (holdNextReady.current) {
         holdNextReady.current = false;
         audioRef.current?.pause();
+        host.current.heldAt = Date.now();
       }
     }).then((u) => offs.push(u));
     listen("audio-resumed-at", ({ payload }) => setSync({ late: Math.round(payload?.lateMs ?? 0) })).then((u) => offs.push(u));
@@ -197,6 +199,11 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         if (holdNextReady.current && !a.paused && !a.isPreparing) holdNextReady.current = false;
         // The song is loaded and held: start it for everyone a moment from now.
         if (h.videoId === currentTrack.videoId && !h.scheduled && !a.isPreparing && a.paused && !holdNextReady.current) {
+          // Wait for everyone: until each listener has the song loaded, or the slowest has had
+          // long enough. Someone whose line or computer is slow should not hold the room forever.
+          const { config, members } = getTogether();
+          const waiting = config.waitAll && members.some((m) => !m.host && m.ready !== currentTrack.videoId);
+          if (waiting && Date.now() - (h.heldAt || 0) < WAIT_ALL_MAX) return;
           const startAt = serverNow() + START_DELAY;
           h.scheduled = true;
           h.startLocal = startAt - offset;
@@ -274,6 +281,8 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         setRate(1); resetHistory();
         if (!a.paused) { a.pause(); setIsPlaying(false); }
         if (Math.abs(a.currentTime - state.pos) > 0.05 && !a.isPreparing) a.currentTime = state.pos;
+        // Loaded and standing where the room stands: tell the host (for "wait for everyone").
+        else if (!a.isPreparing && !holdNextReady.current) sendReady(state.track.videoId);
         if (s.phase !== "paused") phase("paused");
         return;
       }

@@ -13,6 +13,8 @@ import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
+import { useTogetherValue } from "../together/together.js";
+import { TogetherRoomTab } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -141,6 +143,14 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // thousands of them.
   const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue"), more: t("rowMoreActions") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
+  // ListenTogether: a Room tab while in a room, opened from the player bar's pill.
+  const inRoom = useTogetherValue((x) => x.status !== "idle" && x.status !== "closed");
+  useEffect(() => {
+    const open = () => setPanelTab("room");
+    window.addEventListener("kodama:open-room", open);
+    return () => window.removeEventListener("kodama:open-room", open);
+  }, []);
+  useEffect(() => { if (!inRoom) setPanelTab((p) => (p === "room" ? "queue" : p)); }, [inRoom]);
   const [rowMenu, setRowMenu] = useState(null); // { x, y, globalIdx } — the per-track menu
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
   const fadeKey = (a, b) => `${a?.videoId}__${b?.videoId}`;
@@ -348,7 +358,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       <div className="px-3 pt-11 shrink-0">
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
-            {[["queue", t("queue")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
+            {[["queue", t("queue")], ...(inRoom ? [["room", t("togetherRoomTab")]] : []), ["about", t("aboutSong")]].map(([id, label], i, all) => (
               <button key={id} type="button" onClick={() => setPanelTab(id)}
                 style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
                 className={`flex-1 border-0 cursor-default select-none text-[length:var(--t12)] font-semibold transition-[background-color,color] duration-150 ${
@@ -368,6 +378,8 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
           </Tooltip>
         </div>
       </div>
+
+      {panelTab === "room" && <TogetherRoomTab />}
 
       {/* About Song tab */}
       {panelTab === "about" && (
