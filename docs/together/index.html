@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kodama: Listen together</title>
+  <meta name="robots" content="noindex">
+  <style>
+    @font-face {
+      font-family: 'MiSans Latin';
+      src: url('../s/MiSansLatin-Regular.ttf') format('truetype');
+      font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: 'MiSans Latin';
+      src: url('../s/MiSansLatin-Semibold.ttf') format('truetype');
+      font-weight: 600; font-display: swap;
+    }
+    :root {
+      color-scheme: dark;
+      --accent: #e040fb;          /* replaced at runtime with a colour taken from the cover */
+      --on-accent: #1a1414;
+      --bg-base: #0d0d0d;
+      --panel: #0a0a0a;
+      --t1: #f5f5f5;
+      --t2: #b4b4b4;
+      --t3: #7a7a7a;
+      --font: 'MiSans Latin', -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: var(--font); color: var(--t1);
+      background: var(--bg-base); overflow: hidden;
+    }
+    .split { display: flex; height: 100%; }
+
+    /* ── Left: what the room is playing, and its colours as the room it sits in ── */
+    .stage {
+      flex: 1 1 50%; position: relative; display: flex;
+      align-items: center; justify-content: center; padding: 6vh 5vw;
+      background: #11161a; overflow: hidden;
+    }
+    .amb {
+      position: absolute; inset: -15%; z-index: 0;
+      background-size: cover; background-position: center;
+      filter: blur(90px) saturate(150%);
+      opacity: 0; transition: opacity 1.6s ease;
+    }
+    .amb.on { opacity: .85; }
+    .cover {
+      position: relative; z-index: 1;
+      width: min(42vw, 62vh); aspect-ratio: 1; object-fit: cover;
+      border-radius: 40px; background: #1c1c1c;
+      box-shadow: 0 40px 90px rgba(0,0,0,.45);
+      opacity: 0; transform: scale(.94);
+      transition: opacity .7s ease, transform .7s cubic-bezier(.22,1,.36,1);
+    }
+    .cover.on { opacity: 1; transform: none; }
+
+    /* ── Right: the panel that carries the words ───────────────────────────── */
+    .panel {
+      flex: 1 1 50%; position: relative; background: var(--panel);
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 6vh 6vw;
+    }
+    .viz { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    .panel > *:not(.viz):not(.brand) { position: relative; z-index: 1; }
+    .brand { position: absolute; top: 5vh; left: 6vw; z-index: 1; opacity: .5; }
+    .brand img { height: 20px; display: block; }
+
+    .kicker { font-size: 12px; letter-spacing: .16em; color: var(--t3); margin: 0 0 10px; }
+    h1 {
+      font-size: clamp(28px, 3.4vw, 52px); font-weight: 600; line-height: 1.12;
+      margin: 0 0 14px; letter-spacing: -.01em;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .who { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; min-height: 30px; }
+    .faces { display: flex; }
+    .face {
+      width: 30px; height: 30px; border-radius: 50%; flex: none; object-fit: cover;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600; color: #16181b;
+      box-shadow: 0 0 0 2px var(--panel);
+    }
+    .face + .face { margin-left: -9px; }
+    .who-text { font-size: clamp(14px, 1.2vw, 18px); color: var(--t2); }
+    .now { font-size: 14px; color: var(--t3); margin: 0 0 30px; min-height: 1em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .actions { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+    a.btn, button.btn {
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      text-decoration: none; font-family: var(--font); font-size: 15px; font-weight: 600;
+      padding: 14px 20px; border-radius: 999px; border: 0; cursor: pointer;
+      transition: transform .12s ease, filter .16s ease, background .16s ease;
+    }
+    .btn:active { transform: scale(.985); }
+    .primary { background: var(--accent); color: var(--on-accent); }
+    .primary:hover { filter: brightness(1.07); }
+    .ghost { margin-top: 4px; font-size: 13px !important; font-weight: 400 !important; color: var(--t3); padding: 6px !important; background: none; }
+    .ghost:hover { color: var(--t2); }
+
+    /* The code, for when the button cannot open Kodama (a browser that blocks the link,
+       Kodama on another computer): copy it and paste it into Kodama yourself. */
+    .codebox {
+      display: flex; align-items: center; gap: 10px; margin-top: 6px;
+      background: rgba(255,255,255,.06); border-radius: 18px; padding: 10px 10px 10px 18px;
+    }
+    .code { flex: 1; font-family: var(--mono); font-size: 20px; letter-spacing: .16em; color: var(--t1); }
+    .copy {
+      font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--t1);
+      background: rgba(255,255,255,.1); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer;
+    }
+    .copy:hover { background: rgba(255,255,255,.16); }
+    .hint { font-size: 13px; color: var(--t3); line-height: 1.5; margin: 2px 4px 0; }
+
+    /* Dead-end state: a shrug rather than a red error. */
+    .nothing { text-align: center; max-width: 420px; margin: 0 auto; }
+    .kao {
+      font-size: clamp(40px, 5vw, 60px); color: var(--t2); margin: 0 0 20px;
+      letter-spacing: .04em; animation: bob 4.5s ease-in-out infinite;
+    }
+    .nothing h2 { font-size: clamp(26px, 3vw, 38px); font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; }
+    .nothing p { color: var(--t3); font-size: 15px; line-height: 1.5; margin: 0 0 20px; }
+    .nothing .ghost { display: inline-flex; }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+      50%      { transform: translateY(-7px) rotate(1.5deg); }
+    }
+
+    @media (max-width: 900px), (orientation: portrait) {
+      body { overflow: auto; }
+      .split { flex-direction: column; height: auto; min-height: 100%; }
+      .stage { flex: none; padding: 46px 24px 26px; }
+      .cover { width: min(74vw, 46vh); border-radius: 28px; }
+      .panel { flex: 1 0 auto; padding: 26px 24px 44px; text-align: center; }
+      .brand { position: static; margin: 0 auto 20px; opacity: .55; }
+      .who { justify-content: center; }
+      .actions { max-width: none; align-items: stretch; }
+      h1 { font-size: clamp(24px, 7vw, 34px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+      .kao { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="split">
+    <div class="stage" id="stage">
+      <div class="amb" id="amb"></div>
+      <img class="cover" id="cover" alt="">
+    </div>
+
+    <div class="panel">
+      <canvas class="viz" id="viz" aria-hidden="true"></canvas>
+      <div class="brand"><img src="../s/Kodama-Logo-Full.svg" alt="Kodama"></div>
+
+      <div id="room" style="display:none">
+        <p class="kicker">LISTEN TOGETHER</p>
+        <h1 id="title"></h1>
+        <div class="who"><span class="faces" id="faces"></span><span class="who-text" id="who"></span></div>
+        <p class="now" id="now"></p>
+        <div class="actions">
+          <a class="btn primary" id="join">Join in Kodama</a>
+          <div class="codebox">
+            <span class="code" id="code"></span>
+            <button class="copy" id="copy" type="button">Copy</button>
+          </div>
+          <p class="hint">If the button doesn't open Kodama: click Listen together in Kodama's sidebar and paste the code.</p>
+          <a class="btn ghost" href="/">Don't have Kodama? Get it here</a>
+        </div>
+      </div>
+
+      <div class="nothing" id="err" style="display:none">
+        <div class="kao" id="errKao" aria-hidden="true"></div>
+        <h2 id="errTitle"></h2>
+        <p id="errText"></p>
+        <a class="btn ghost" href="/">Take me to Kodama</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // The room server; a local one for testing can be set the way the app's is.
+      var ROOMS = "https://kodama-together.kiyoshidesign.workers.dev/rooms/";
+      try { if (localStorage.getItem("kodama-together-url")) ROOMS = localStorage.getItem("kodama-together-url") + "/rooms/"; } catch (e) { /* default */ }
+
+      // The code arrives as ?CODE (what the app copies), or #CODE / ?r=CODE for good measure.
+      var params = new URLSearchParams(location.search);
+      var bare = location.search.replace(/^\?/, "");
+      var room = (params.get("r") || (/^[a-z0-9]{4,16}$/i.test(bare) ? bare : "") || location.hash.replace(/^#/, "")).toLowerCase();
+
+      // Paired on purpose: the face and the line carry the same tone.
+      var DEAD_ENDS = [
+        ["(・_・?)", "Everyone went home.",  "This room has closed, or the link got cut short."],
+        ["(￣～￣;)", "Lights are off.",      "Nobody's in this room anymore. Ask for a new invite."],
+        ["(⊙_⊙)",   "Huh?",                 "This link doesn't lead to a room that's still open."],
+        ["(ーー;)",  "Too late, or too early.", "The room isn't there. Maybe the code got mixed up?"]
+      ];
+      function deadEnd() {
+        var pick = DEAD_ENDS[Math.floor(Math.random() * DEAD_ENDS.length)];
+        document.getElementById("errKao").textContent = pick[0];
+        document.getElementById("errTitle").textContent = pick[1];
+        document.getElementById("errText").textContent = pick[2];
+        document.getElementById("stage").style.display = "none";
+        document.querySelector(".panel").style.alignItems = "center";
+        document.getElementById("room").style.display = "none";
+        document.getElementById("err").style.display = "block";
+      }
+
+      startViz();
+      if (!/^[a-z0-9]{4,16}$/.test(room)) { deadEnd(); return; }
+
+      // The code reads easier in two halves: 5hbd3pkz -> 5HBD 3PKZ. What's copied stays plain.
+      document.getElementById("code").textContent = room.toUpperCase().replace(/^(.{4})(.+)$/, "$1 $2");
+      document.getElementById("join").href = "kodama://together/" + room;
+      // No auto-open on load: the browser's "Open Kodama?" prompt would land on the visitor
+      // before they've seen what the link is. The button opens it.
+      var copyBtn = document.getElementById("copy");
+      copyBtn.addEventListener("click", function () {
+        navigator.clipboard.writeText(room).then(function () {
+          copyBtn.textContent = "Copied";
+          setTimeout(function () { copyBtn.textContent = "Copy"; }, 1800);
+        }).catch(function () {});
+      });
+
+      fetch(ROOMS + room, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) { deadEnd(); return; }
+          show(d);
+        })
+        // The room server unreachable: still show the code, which works once it's back.
+        .catch(function () { show({ name: "", host: "", count: 0, members: [], track: null }); });
+
+      function show(d) {
+        var title = d.name || (d.host ? d.host + "'s room" : "A Kodama room");
+        document.getElementById("title").textContent = title;
+        document.title = title + " · Listen together";
+
+        // The host first: "Mary and 2 others", whoever happened to join before her.
+        d.members = (d.members || []).slice().sort(function (a, b) { return (b.host ? 1 : 0) - (a.host ? 1 : 0); });
+        var names = d.members.map(function (m) { return m.name; });
+        var who = "";
+        if (d.count === 1) who = names[0] + " is listening";
+        else if (d.count === 2) who = names[0] + " and " + names[1] + " are listening";
+        else if (d.count > 2) who = names[0] + " and " + (d.count - 1) + " others are listening";
+        else if (d.host || d.name) who = "Nobody's listening right now";
+        document.getElementById("who").textContent = who;
+
+        var faces = document.getElementById("faces");
+        (d.members || []).slice(0, 4).forEach(function (m) {
+          var el;
+          if (m.avatar) {
+            el = document.createElement("img");
+            el.src = m.avatar; el.alt = ""; el.referrerPolicy = "no-referrer";
+          } else {
+            el = document.createElement("span");
+            el.textContent = (m.name || "?").trim().charAt(0).toUpperCase();
+            el.style.background = memberColor(m.name || "");
+          }
+          el.className = "face";
+          faces.appendChild(el);
+        });
+
+        if (d.track && d.track.title) {
+          document.getElementById("now").textContent = "Now playing: " + d.track.title + (d.track.artists ? " · " + d.track.artists : "");
+          loadCover(d.track.videoId);
+        } else {
+          document.getElementById("stage").style.display = "none";
+        }
+        document.getElementById("room").style.display = "block";
+      }
+
+      function memberColor(seed) {
+        var h = 0;
+        for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+        return "hsl(" + h + " 65% 74%)";
+      }
+
+      // Same as the song page: maxresdefault is clean 16:9, hqdefault the letterboxed fallback.
+      function loadCover(id) {
+        var img = document.getElementById("cover");
+        img.crossOrigin = "anonymous";
+        var tried = false;
+        img.onload = function () {
+          img.classList.add("on");
+          var amb = document.getElementById("amb");
+          amb.style.backgroundImage = "url('" + img.src + "')";
+          amb.classList.add("on");
+          applyAccent(img);
+        };
+        img.onerror = function () {
+          if (tried) return;
+          tried = true;
+          img.src = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
+        };
+        img.src = "https://i.ytimg.com/vi/" + id + "/maxresdefault.jpg";
+      }
+
+      // The most saturated, brightest pixel rather than an average, as in the app.
+      function applyAccent(img) {
+        try {
+          var N = 64, c = document.createElement("canvas");
+          c.width = c.height = N;
+          var cx = c.getContext("2d", { willReadFrequently: true });
+          cx.drawImage(img, 0, 0, N, N);
+          var d = cx.getImageData(0, 0, N, N).data;
+          var best = -1, br = 0, bg = 0, bb = 0;
+          for (var i = 0; i < d.length; i += 4) {
+            var r = d[i], g = d[i + 1], b = d[i + 2];
+            var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            var score = (mx === 0 ? 0 : (mx - mn) / mx) * (mx / 255);
+            if (score > best) { best = score; br = r; bg = g; bb = b; }
+          }
+          var hsl = rgbToHsl(br, bg, bb);
+          var hex = hslToHex(hsl[0], Math.min(1, Math.max(0.45, hsl[1])), Math.min(0.78, Math.max(0.55, hsl[2])));
+          document.documentElement.style.setProperty("--accent", hex);
+          var lum = (0.299 * br + 0.587 * bg + 0.114 * bb) / 255;
+          document.documentElement.style.setProperty("--on-accent", lum > 0.55 ? "#1a1414" : "#ffffff");
+        } catch (e) { /* keep the default accent */ }
+      }
+      function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        var h = 0, l = (mx + mn) / 2;
+        var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+        if (d !== 0) {
+          if (mx === r) h = ((g - b) / d) % 6;
+          else if (mx === g) h = (b - r) / d + 2;
+          else h = (r - g) / d + 4;
+          h *= 60; if (h < 0) h += 360;
+        }
+        return [h, s, l];
+      }
+      function hslToHex(h, s, l) {
+        var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+        var r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+        var to = function (val) { return Math.round((val + m) * 255).toString(16).padStart(2, "0"); };
+        return "#" + to(r) + to(g) + to(b);
+      }
+    })();
+
+    // The song page's visualiser, so both pages move alike.
+    function startViz() {
+      var c = document.getElementById("viz");
+      if (!c || !c.getContext) return;
+      var ctx = c.getContext("2d");
+      var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var W, H, dpr, bars;
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = c.clientWidth; H = c.clientHeight;
+        c.width = W * dpr; c.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bars = Math.max(18, Math.floor(W / 18));
+      }
+      function bar(x, y, w, h, r) {
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+        else ctx.fillRect(x, y, w, h);
+      }
+      function frame(t) {
+        ctx.clearRect(0, 0, W, H);
+        var cy = H * 0.5, gap = W / bars, bw = Math.max(3, gap * 0.42);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#e040fb";
+        for (var i = 0; i < bars; i++) {
+          var n = i / (bars - 1);
+          var edge = Math.sin(Math.PI * n);
+          var s = Math.sin(n * 7 + t * 0.0016) * 0.5
+                + Math.sin(n * 13 - t * 0.0011) * 0.3
+                + Math.sin(n * 3.3 + t * 0.0024) * 0.2;
+          var h = (0.10 + 0.52 * Math.abs(s)) * edge * H * 0.44;
+          ctx.globalAlpha = 0.03 + 0.08 * edge;
+          var x = i * gap + gap / 2;
+          bar(x - bw / 2, cy - h, bw, h * 2, bw / 2);
+        }
+        ctx.globalAlpha = 1;
+        if (!reduce) requestAnimationFrame(frame);
+      }
+      resize();
+      window.addEventListener("resize", function () { resize(); if (reduce) frame(0); });
+      frame(0);
+    }
+  </script>
+</body>
+</html>

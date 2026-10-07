@@ -6,6 +6,8 @@
 //
 //   POST /rooms                 -> { room, hostToken }    a new room; the token makes its holder host
 //   GET  /rooms/<room>/ws        -> WebSocket into the room
+//   GET  /rooms/<room>           -> { name, host, members, count, track } for the invite page:
+//                                   what anyone in the room sees, to anyone with the code
 //
 // Messages, as JSON (client -> room):
 //   { t: "hello", name, hostToken?, device?, avatar? }      join, as host if the token matches;
@@ -99,6 +101,12 @@ export default {
       return json({ error: "no free room code" }, 503);
     }
 
+    const info = /^\/rooms\/([a-z0-9]{4,16})$/.exec(url.pathname);
+    if (info && request.method === "GET") {
+      const r = await env.ROOMS.get(env.ROOMS.idFromName(info[1])).fetch("https://room/info");
+      return new Response(r.body, { status: r.status, headers: { "content-type": "application/json", "cache-control": "no-store", ...CORS } });
+    }
+
     const m = /^\/rooms\/([a-z0-9]{4,16})\/ws$/.exec(url.pathname);
     if (m && request.method === "GET") {
       if (request.headers.get("Upgrade") !== "websocket") return json({ error: "expected a WebSocket" }, 426);
@@ -119,6 +127,22 @@ export class Room extends DurableObject {
       return new Response("ok", { status: 201 });
     }
     if (!(await this.ctx.storage.get("hostHash"))) return json({ error: "no such room" }, 404);
+    if (url.pathname === "/info") {
+      // The invite page's view of the room. Names and pictures only as the room shows them;
+      // a handful is enough for a page that says who is there.
+      const members = this.members();
+      const host = members.find((m) => m.host);
+      const config = (await this.ctx.storage.get("config")) || DEFAULT_CONFIG;
+      const state = await this.ctx.storage.get("state");
+      const track = state?.track ? { videoId: state.track.videoId, title: state.track.title, artists: state.track.artists } : null;
+      return json({
+        name: config.name || "",
+        host: host?.name || "",
+        count: members.length,
+        members: members.slice(0, 5).map(({ name, avatar, host: h }) => ({ name, avatar, host: h })),
+        track,
+      });
+    }
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id: crypto.randomUUID().slice(0, 8), name: "", host: false, joined: false });
