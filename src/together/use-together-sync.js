@@ -87,7 +87,7 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
 
   const note = (text) => {
     const line = `${new Date().toTimeString().slice(0, 8)} ${text}`;
-    setSync({ log: [line, ...(getTogether().sync.log || [])].slice(0, 12) });
+    setSync({ log: [line, ...(getTogether().sync.log || [])].slice(0, 300) });
   };
   noteRef.current = note;
   const phase = (p, extra = {}, why = "") => {

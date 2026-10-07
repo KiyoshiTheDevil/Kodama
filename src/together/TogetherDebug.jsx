@@ -2,7 +2,7 @@
 // synchronisation out, the real interface comes once that feels right.
 import { useState } from "react";
 import { Button } from "@heroui/react";
-import { useTogether, createRoom, join, leave, inviteLink, togetherUrl, setTune, TUNE_DEFAULTS } from "./together.js";
+import { useTogether, createRoom, join, leave, inviteLink, togetherUrl, setTune, setSync, TUNE_DEFAULTS } from "./together.js";
 
 export function TogetherDebug() {
   const t = useTogether();
@@ -54,8 +54,17 @@ export function TogetherDebug() {
             </div>
           )}
           {!t.isHost && t.sync.log?.length > 0 && (
-            <div className="text-[length:var(--t11)] text-muted font-mono leading-snug select-text">
-              {t.sync.log.map((l, i) => <div key={i}>{l}</div>)}
+            <div className="flex flex-col gap-1.5">
+              <div className={row}>
+                <span className="text-[length:var(--t11)] text-muted">Log ({t.sync.log.length}, newest first)</span>
+                <Button size="sm" variant="ghost" className="ml-auto" onPress={() => navigator.clipboard.writeText([...t.sync.log].reverse().join("
+")).catch(() => {})}>Copy log</Button>
+                <Button size="sm" variant="ghost" onPress={() => setSync({ log: [] })}>Clear</Button>
+              </div>
+              <pre className="m-0 max-h-[220px] overflow-auto rounded-[8px] bg-[var(--surface-2)] p-2 text-[length:var(--t11)] text-muted font-mono leading-snug select-text whitespace-pre-wrap">
+                {t.sync.log.join("
+")}
+              </pre>
             </div>
           )}
           <div className={row + " flex-wrap text-[length:var(--t11)] text-muted"}>
