@@ -11,11 +11,13 @@
 //   { t: "hello", name, hostToken?, device? }               join, as host if the token matches;
 //                                                           an older socket of the same device is closed
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
+//   { t: "queue", list: [track] }                           host only: what plays after this song
 //   { t: "set", track, playing, pos, startAt? }             host only: the new playback state;
 //                                                           startAt (server ms, at most 5 s ahead)
 //                                                           schedules the start for everyone
 // (room -> client):
-//   { t: "welcome", you, state, members, s }                after hello
+//   { t: "welcome", you, state, members, queue, s }         after hello
+//   { t: "queue", list }
 //   { t: "state", track, playing, pos, at }                 position `pos` (seconds) at server time `at` (ms)
 //   { t: "members", list: [{ id, name, host }] }
 //   { t: "error", reason }
@@ -38,7 +40,17 @@ const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 
-const MAX_MESSAGE = 4096;
+const MAX_MESSAGE = 16384;   // a queue of 20 songs fits
+const QUEUE_MAX = 20;
+
+// A track as the room keeps it: only what a listener needs to load and show it.
+const cleanTrack = (t) => t && typeof t.videoId === "string" ? {
+  videoId: t.videoId.slice(0, 32),
+  title: String(t.title || "").slice(0, 200),
+  artists: String(t.artists || "").slice(0, 200),
+  thumbnail: String(t.thumbnail || "").slice(0, 500),
+  duration: Number(t.duration) || 0,
+} : null;
 const EMPTY_ROOM_TTL = 15 * 60 * 1000;   // a room nobody is in is kept this long, then removed
 const UNUSED_ROOM_TTL = 60 * 60 * 1000;  // a room nobody ever joined
 
@@ -128,7 +140,7 @@ export class Room extends DurableObject {
       }
       ws.serializeAttachment({ ...me, name, host, device, joined: true });
       await this.ctx.storage.deleteAlarm();   // someone is here: the room stays
-      ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), members: this.members(), s: now }));
+      ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), queue: (await this.ctx.storage.get("queue")) || [], members: this.members(), s: now }));
       this.broadcast({ t: "members", list: this.members() });
       return;
     }
@@ -137,19 +149,20 @@ export class Room extends DurableObject {
 
     if (msg.t === "set") {
       if (!me.host) { ws.send(JSON.stringify({ t: "error", reason: "host-only" })); return; }
-      const tr = msg.track && typeof msg.track.videoId === "string" ? {
-        videoId: msg.track.videoId.slice(0, 32),
-        title: String(msg.track.title || "").slice(0, 200),
-        artists: String(msg.track.artists || "").slice(0, 200),
-        thumbnail: String(msg.track.thumbnail || "").slice(0, 500),
-        duration: Number(msg.track.duration) || 0,
-      } : null;
+      const tr = cleanTrack(msg.track);
       // `at` in the future: everyone stands at `pos` until then and starts together.
       const startAt = Number(msg.startAt);
       const at = Number.isFinite(startAt) ? Math.min(now + 5000, Math.max(now, startAt)) : now;
       const state = { track: tr, playing: !!msg.playing && !!tr, pos: Math.max(0, Number(msg.pos) || 0), at };
       await this.ctx.storage.put("state", state);
       this.broadcast({ t: "state", ...state });
+    }
+
+    if (msg.t === "queue") {
+      if (!me.host) { ws.send(JSON.stringify({ t: "error", reason: "host-only" })); return; }
+      const list = (Array.isArray(msg.list) ? msg.list : []).slice(0, QUEUE_MAX).map(cleanTrack).filter(Boolean);
+      await this.ctx.storage.put("queue", list);
+      this.broadcast({ t: "queue", list }, ws);
     }
   }
 

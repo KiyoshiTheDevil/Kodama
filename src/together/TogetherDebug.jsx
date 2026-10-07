@@ -71,6 +71,11 @@ export function TogetherDebug() {
           <div className="text-[length:var(--t11)] text-muted">
             {t.state?.track ? `${t.state.playing ? "▶" : "❚❚"} ${t.state.track.title} @ ${t.state.pos.toFixed(1)}s` : "nothing playing"}
           </div>
+          {t.queue.length > 0 && (
+            <div className="text-[length:var(--t11)] text-muted">
+              Next: {t.queue.slice(0, 3).map((x) => x.title).join(" · ")}{t.queue.length > 3 ? ` (+${t.queue.length - 3})` : ""}
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {t.members.map((m) => (
               <span key={m.id} className="px-2 py-0.5 rounded-[var(--r-full)] bg-[var(--surface-2)] text-[length:var(--t11)]">

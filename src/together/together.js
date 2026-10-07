@@ -15,6 +15,7 @@ let snap = {
   status: "idle",         // idle | connecting | open | reconnecting | closed
   room: null, isHost: false, you: null,
   members: [], state: null,
+  queue: [],              // what the host plays after this song
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
@@ -124,7 +125,8 @@ function open() {
   sock.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
-    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [] });
+    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [] });
+    else if (m.t === "queue") set({ queue: m.list || [] });
     else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at } });
     else if (m.t === "members") set({ members: m.list || [] });
     else if (m.t === "error") set({ error: m.reason });
@@ -148,18 +150,32 @@ export function leave() {
   clearInterval(pingTimer);
   const s = ws; ws = null;
   if (s) { try { s.close(); } catch { /* already */ } }
-  set({ status: "idle", room: null, isHost: false, members: [], state: null, drift: null, error: null });
+  set({ status: "idle", room: null, isHost: false, members: [], state: null, queue: [], drift: null, error: null });
+}
+
+const roomTrack = (track) => track ? {
+  videoId: track.videoId, title: track.title || "", thumbnail: track.thumbnail || "",
+  artists: Array.isArray(track.artists) ? track.artists.map((a) => a?.name || a).join(", ") : (track.artists || ""),
+  duration: Number(track.duration) || 0,
+} : null;
+
+/** Host only: what plays after this song, so listeners can get it ready ahead of time. */
+let lastQueue = "";
+export function hostQueue(tracks) {
+  if (!snap.isHost) return;
+  const list = tracks.slice(0, 20).map(roomTrack);
+  const key = JSON.stringify(list);
+  if (key === lastQueue && ws && ws.readyState === 1) return;
+  lastQueue = key;
+  set({ queue: list });
+  send({ t: "queue", list });
 }
 
 /** Host only: the playback state everyone should follow. With `startAt` (server ms), playback
  *  starts then, for the host and everyone else alike. */
 export function hostSet(track, playing, pos, startAt) {
   if (!snap.isHost) return;
-  const t = track ? {
-    videoId: track.videoId, title: track.title || "", thumbnail: track.thumbnail || "",
-    artists: Array.isArray(track.artists) ? track.artists.map((a) => a?.name || a).join(", ") : (track.artists || ""),
-    duration: Number(track.duration) || 0,
-  } : null;
+  const t = roomTrack(track);
   // Kept locally at once, so the host's own drift check measures against what it just said.
   set({ state: { track: t, playing: !!playing && !!t, pos, at: startAt ?? serverNow() } });
   send({ t: "set", track: t, playing, pos, startAt });

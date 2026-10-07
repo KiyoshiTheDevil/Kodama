@@ -13,7 +13,8 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useTogether, getTogether, hostSet, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
+import { API } from "../context.jsx";
+import { useTogether, getTogether, hostSet, hostQueue, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
 
 const TICK = 100;            // ms
 const RATE_EVERY = 500;      // ms: the speed is adjusted this often
@@ -59,7 +60,9 @@ function roomPosAt(st, T, latency) {
   return st.pos + (st.playing ? Math.max(0, T - st.at) / 1000 : 0) + latency;
 }
 
-export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay }) {
+const WARM_AHEAD = 2;        // songs of the room's queue each listener gets ready ahead of time
+
+export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay, queue }) {
   const t = useTogether();
   const active = t.status === "open" || t.status === "reconnecting";
   const lastTU = useRef({ pos: 0, at: 0 });
@@ -119,6 +122,29 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
     host.current = { videoId: currentTrack?.videoId || null, startLocal: 0, scheduled: false };
     if (currentTrack) holdNextReady.current = true;
   }, [active, t.isHost, currentTrack?.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Host: what plays after this song, from the host's own queue.
+  useEffect(() => {
+    if (!active || !t.isHost) return;
+    const q = queue || [];
+    const i = currentTrack ? q.findIndex((x) => x.videoId === currentTrack.videoId) : -1;
+    hostQueue(i >= 0 ? q.slice(i + 1, i + 21) : []);
+  }, [active, t.isHost, currentTrack?.videoId, queue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listener: get the next songs ready, as Kodama does for its own queue. Resolving a song's
+  // stream address is most of a load (2-4 s); done ahead, a song change starts in moments.
+  const warmKey = active && !t.isHost ? t.queue.slice(0, WARM_AHEAD).map((x) => x.videoId).join(",") : "";
+  useEffect(() => {
+    if (!warmKey) return;
+    let cancelled = false;
+    (async () => {
+      for (const id of warmKey.split(",")) {
+        if (cancelled) return;
+        try { await fetch(`${API}/audio-stream/${id}/warm`); } catch { /* it loads the slow way then */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [warmKey]);
 
   useEffect(() => {
     if (!active) return;

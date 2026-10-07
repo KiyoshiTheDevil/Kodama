@@ -4634,7 +4634,7 @@ export default function App() {
   }, [handlePlay]);
 
   // ListenTogether: follow the room's playback, or report it as host.
-  useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay });
+  useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay, queue });
 
   // Play a song from just a videoId (shared kodama://song/<id> deep link): fetch minimal
   // metadata so the player has a title/cover, then play. Falls back to a bare track.
