@@ -73,6 +73,8 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   const t = useTogether();
   const active = t.status === "open" || t.status === "reconnecting";
   const lastTU = useRef({ pos: 0, at: 0 });
+  const noteRef = useRef(null);
+  const lastRoom = useRef(null);
   const loaded = useRef(null);
   // The sync's own state, in a ref: the tick runs ten times a second and must not re-render.
   //   phase: "idle" | "loading" | "preparing" | "waiting" | "following" | "paused"
@@ -83,18 +85,33 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   const readies = useRef(0);
   const host = useRef({ videoId: null, startLocal: 0 });
 
+  const note = (text) => {
+    const line = `${new Date().toTimeString().slice(0, 8)} ${text}`;
+    setSync({ log: [line, ...(getTogether().sync.log || [])].slice(0, 12) });
+  };
+  noteRef.current = note;
   const phase = (p, extra = {}, why = "") => {
     sync.current = { ...sync.current, ...extra, phase: p };
     const d = getTogether().drift;
-    const line = `${new Date().toTimeString().slice(0, 8)} ${p}${why ? ` (${why})` : ""}${d != null ? ` drift ${d}` : ""}`;
-    setSync({ phase: p, ahead: Math.round(ahead * 100) / 100, log: [line, ...(getTogether().sync.log || [])].slice(0, 8) });
+    setSync({ phase: p, ahead: Math.round(ahead * 100) / 100 });
+    note(`${p}${why ? ` (${why})` : ""}${d != null ? ` drift ${d}` : ""}`);
   };
 
   // The player's position now, projected from its last report.
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    const onTU = () => { lastTU.current = { pos: a.currentTime, at: performance.now() }; };
+    const onTU = () => {
+      const prev = lastTU.current, now = performance.now(), pos = a.currentTime;
+      // While following: the song should move as fast as time does. Less is the player standing
+      // (waiting for data), more is a jump. Both are logged, they are what a re-sync follows.
+      if (sync.current.phase === "following" && prev.at && !a.paused) {
+        const lag = (now - prev.at) / 1000 - (pos - prev.pos);
+        if (lag > 0.12) noteRef.current?.(`stall ${Math.round(lag * 1000)} ms`);
+        else if (lag < -0.12) noteRef.current?.(`player jumped +${Math.round(-lag * 1000)} ms`);
+      }
+      lastTU.current = { pos, at: now };
+    };
     a.addEventListener?.("timeupdate", onTU);
     return () => a.removeEventListener?.("timeupdate", onTU);
   }, [audioRef]);
@@ -212,6 +229,15 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
 
       // ── Listener ──
       const s = sync.current;
+      const prevRoom = lastRoom.current;
+      if (state && prevRoom !== state) {
+        if (prevRoom?.track && state.track?.videoId === prevRoom.track.videoId && prevRoom.playing && state.playing) {
+          const T = serverNow();
+          const jump = roomPosAt(state, T, 0) - roomPosAt(prevRoom, T, 0);
+          if (Math.abs(jump) > 0.03) note(`room jumped ${jump > 0 ? "+" : ""}${Math.round(jump * 1000)} ms (host speed ${(((state.rate || 1) - 1) * 1000).toFixed(1)} ‰)`);
+        }
+        lastRoom.current = state;
+      }
       if (!state?.track) { setRate(1); if (s.phase !== "idle") phase("idle"); return; }
 
       // The room plays another song: load it, held.
