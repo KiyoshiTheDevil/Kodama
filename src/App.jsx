@@ -5331,7 +5331,12 @@ export default function App() {
       setHasProfile((d.profiles || []).length > 0 && d.current);
       if (d.current) {
         window.__activeProfile = d.current;
-        try { setPinnedIds(JSON.parse(localStorage.getItem(`kiyoshi-pinned-${d.current}`) || "[]").map(p => p.playlistId || p.browseId)); } catch {}
+        // Same ids, same array: a fresh one re-rendered the whole app once a minute (~200 ms,
+        // found as a stall in the ListenTogether log at the same second of every minute).
+        try {
+          const ids = JSON.parse(localStorage.getItem(`kiyoshi-pinned-${d.current}`) || "[]").map(p => p.playlistId || p.browseId);
+          setPinnedIds(prev => (prev.length === ids.length && prev.every((x, i) => x === ids[i]) ? prev : ids));
+        } catch {}
       }
       // Notify once when the active (real) account's session has expired, so the user knows to
       // refresh it. Reset when it's valid again so a later expiry warns anew.
