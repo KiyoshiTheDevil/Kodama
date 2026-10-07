@@ -164,7 +164,10 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       // The room plays another song: load it, held.
       if (state.track.videoId !== currentTrack?.videoId) {
         setRate(1); resetHistory();
-        if (loaded.current !== state.track.videoId) {
+        // Loaded once already, yet something else plays (the song before ended and was started
+        // again on top of the load): load it again, though not while a load still runs.
+        const stale = loaded.current === state.track.videoId && !a.isPreparing && Date.now() - (s.since || 0) > 3000;
+        if (loaded.current !== state.track.videoId || stale) {
           loaded.current = state.track.videoId;
           holdNextReady.current = true;
           phase("loading", { since: Date.now() });

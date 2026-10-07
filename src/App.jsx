@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether } from "./together/together.js";
+import { join as joinTogether, isRoomListener } from "./together/together.js";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -1904,6 +1904,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     };
 
     const onEnd = () => {
+      // A listener in a ListenTogether room waits for the room's next song: repeating or
+      // advancing its own queue here would start something the host is not playing.
+      if (isRoomListener()) return;
       // If a crossfade has already started, Rust drives the transition — ignore the
       // outgoing track's end. (Once Rust promotes + emits "done", the guard clears
       // and a later natural end of the promoted track advances normally.)
@@ -1941,6 +1944,8 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       // don't correspond to the song's real timeline — skip the crossfade-into-next trigger
       // entirely rather than firing it against the wrong numbers.
       if (videoModeActiveRef.current) return;
+      // A ListenTogether listener does not fade into its own next song (see onEnd).
+      if (isRoomListener()) return;
       // Don't keep retrying a crossfade that already failed for this very track.
       if (crossfadeFailedTrackRef.current === trackRef.current?.videoId) return;
 
