@@ -158,35 +158,35 @@ export function TogetherSidebar({ name, collapsed }) {
   }
 
   // ── In a room: the card ──
-  const iconBtn = "h-[26px] min-w-[26px] px-0 rounded-[var(--r-full)] inline-flex items-center justify-center border-0 cursor-default transition-[background-color] duration-150";
+  const iconBtn = "h-[34px] min-w-[34px] px-0 rounded-[var(--r-full)] inline-flex items-center justify-center border-0 cursor-default transition-[background-color] duration-150";
   return (
-    <div className="mb-1.5 p-2.5 flex flex-col gap-2 rounded-[var(--r-xl)]" style={{ background: TINT.card }}>
+    <div className="mb-1.5 p-3 flex flex-col gap-2.5 rounded-[var(--r-xl)]" style={{ background: TINT.card }}>
       <button type="button" onClick={openRoomTab}
         className="flex flex-col gap-1 border-0 bg-transparent p-0 text-left cursor-default min-w-0">
-        <span className="text-[length:var(--t11)] font-semibold" style={{ color: TINT.sub }}>{t("togetherListening")}</span>
-        <span className="flex items-center gap-2 min-w-0">
+        <span className="text-[length:var(--t12)] font-semibold" style={{ color: TINT.sub }}>{t("togetherListening")}</span>
+        <span className="flex items-center gap-2.5 min-w-0">
           <span className="inline-flex items-center shrink-0">
             {shown.length > 0
-              ? shown.map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0 }}><MemberAvatar member={m} size={22} ring={TINT.card} /></span>)
+              ? shown.map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0 }}><MemberAvatar member={m} size={28} ring={TINT.card} /></span>)
               : <Spinner size="sm" />}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[length:var(--t12)] font-semibold text-primary">{roomName(r, t)}</span>
-            <span className="block truncate text-[length:var(--t11)]" style={{ color: TINT.sub }}>{sub}</span>
+            <span className="block truncate text-[length:var(--t13)] font-semibold text-primary">{roomName(r, t)}</span>
+            <span className="block truncate text-[length:var(--t12)]" style={{ color: TINT.sub }}>{sub}</span>
           </span>
         </span>
       </button>
       <div className="flex items-center gap-1.5">
         <button type="button" onClick={copy}
-          className={`${iconBtn} flex-1 gap-1.5 text-[length:var(--t12)] font-semibold bg-accent text-[var(--accent-foreground)] hover:brightness-110`}>
-          {copied ? <Check size={12} /> : <Copy size={12} />}{copied ? t("togetherCopied") : t("togetherInvite")}
+          className={`${iconBtn} flex-1 gap-2 text-[length:var(--t13)] font-semibold bg-accent text-[var(--accent-foreground)] hover:brightness-110`}>
+          {copied ? <Check size={14} /> : <Copy size={14} />}{copied ? t("togetherCopied") : t("togetherInvite")}
         </button>
         <Tooltip text={t("togetherOpenRoom")}>
           <button type="button" onClick={openRoomTab} aria-label={t("togetherOpenRoom")}
             className={iconBtn} style={{ background: TINT.soft, color: "var(--text-primary)" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = TINT.softHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = TINT.soft; }}>
-            <Queue size={12} />
+            <Queue size={15} />
           </button>
         </Tooltip>
         <Tooltip text={t("togetherLeave")}>
@@ -194,7 +194,7 @@ export function TogetherSidebar({ name, collapsed }) {
             className={iconBtn} style={{ background: TINT.soft, color: "var(--status-danger)" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = TINT.softHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = TINT.soft; }}>
-            <SignOut size={12} />
+            <SignOut size={15} />
           </button>
         </Tooltip>
       </div>
