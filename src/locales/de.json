@@ -1331,5 +1331,6 @@
   "togetherShowAvatar": "Mein Profilbild zeigen",
   "togetherShowAvatarDesc": "Alle im Raum sehen es neben deinem Namen.",
   "togetherAddedBy": "hinzugefügt von %n",
-  "togetherRemove": "Aus der Warteschlange entfernen"
+  "togetherRemove": "Aus der Warteschlange entfernen",
+  "togetherRoomName": "Raumname"
 }

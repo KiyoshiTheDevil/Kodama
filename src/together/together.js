@@ -16,7 +16,7 @@ let snap = {
   room: null, isHost: false, you: null,
   members: [], state: null,
   queue: [],              // what the host plays after this song
-  config: { control: "host", waitAll: false },
+  config: { control: "host", waitAll: false, name: "" },
   showAvatar: true,
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
@@ -153,7 +153,7 @@ function open() {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
     else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: m.config || snap.config });
-    else if (m.t === "config") set({ config: { control: m.control, waitAll: !!m.waitAll } });
+    else if (m.t === "config") set({ config: { control: m.control, waitAll: !!m.waitAll, name: m.name || "" } });
     else if (m.t === "add") addSubs.forEach((f) => f(m));
     else if (m.t === "remove") removeSubs.forEach((f) => f({ videoId: m.videoId, by: m.by }));
     else if (m.t === "queue") set({ queue: m.list || [] });

@@ -1,6 +1,6 @@
 // ListenTogether's Room tab in the queue panel: who is here, what plays next, and (for the host)
 // the room's settings.
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { thumb, useLang } from "../context.jsx";
 import { Crown, X } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
@@ -8,6 +8,32 @@ import { useTogether, hostConfig, roomRemove, setShowAvatar } from "./together.j
 import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 
 const PEOPLE_FOLDED = 6;     // a larger room (a stream) shows this many until unfolded
+
+// The room's name, saved when the field is left or Enter is pressed (not on every key: each save
+// is a message to everyone in the room).
+function RoomNameField({ current, placeholder, label }) {
+  const [text, setText] = useState(current);
+  const [editing, setEditing] = useState(false);
+  const cancelled = useRef(false);
+  const value = editing ? text : current;
+  const save = () => {
+    setEditing(false);
+    if (cancelled.current) { cancelled.current = false; return; }
+    const name = text.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (name !== current) hostConfig({ name });
+  };
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span>{label}</span>
+      <input value={value} maxLength={40} placeholder={placeholder} spellCheck={false}
+        onFocus={() => { setText(current); setEditing(true); }}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { cancelled.current = true; e.currentTarget.blur(); } }}
+        className="h-[34px] px-3.5 rounded-[var(--r-full)] bg-[var(--fill-subtle)] text-primary outline-none border-0 text-[length:var(--t12)] focus:shadow-[0_0_0_2px_var(--accent)]" />
+    </label>
+  );
+}
 
 const Heading = ({ children }) => (
   <div className="text-[length:var(--t11)] text-muted font-semibold tracking-wide mb-1.5">{children}</div>
@@ -59,6 +85,7 @@ export function TogetherRoomTab() {
       {r.isHost ? (
         <section className="flex flex-col gap-3">
           <Heading>{t("togetherSettings")}</Heading>
+          <RoomNameField current={r.config.name || ""} placeholder={t("togetherYourRoom")} label={t("togetherRoomName")} />
           <div>
             <div className="mb-1.5">{t("togetherControl")}</div>
             <div className="flex gap-1.5">

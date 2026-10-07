@@ -13,7 +13,7 @@
 //   { t: "profile", avatar }                                show (or, empty, hide) a profile picture
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "queue", list: [track] }                           host only: what plays after this song
-//   { t: "config", control, waitAll }                       host only: room settings
+//   { t: "config", control, waitAll, name }                 host only: room settings; name may be empty
 //   { t: "ready", videoId }                                 this member has that song loaded
 //   { t: "add", track, mode }                               a song for the host's queue (if allowed)
 //   { t: "remove", videoId }                                take a song this member added out of the queue
@@ -201,7 +201,8 @@ export class Room extends DurableObject {
 
     if (msg.t === "config") {
       if (!me.host) { ws.send(JSON.stringify({ t: "error", reason: "host-only" })); return; }
-      const config = { control: msg.control === "everyone" ? "everyone" : "host", waitAll: !!msg.waitAll };
+      const name = String(msg.name || "").replace(/\s+/g, " ").trim().slice(0, 40);
+      const config = { control: msg.control === "everyone" ? "everyone" : "host", waitAll: !!msg.waitAll, name };
       await this.ctx.storage.put("config", config);
       this.broadcast({ t: "config", ...config });
     }

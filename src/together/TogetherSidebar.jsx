@@ -39,6 +39,7 @@ export function MemberAvatar({ member, size = 20, ring = "var(--bg-surface)" }) 
 }
 
 export const roomName = (r, t) => {
+  if (r.config?.name) return r.config.name;
   if (r.isHost) return t("togetherYourRoom");
   const host = r.members.find((m) => m.host);
   return host ? t("togetherRoomOf", { n: host.name }) : t("togetherTitle");
