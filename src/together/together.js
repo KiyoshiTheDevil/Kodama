@@ -17,7 +17,7 @@ let snap = {
   members: [], state: null,
   queue: [],              // what the host plays after this song
   config: { control: "host", waitAll: false },
-  showAvatar: false,
+  showAvatar: true,
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
@@ -98,11 +98,12 @@ const removeSubs = new Set();
  *  the host removes it itself). */
 export const onRoomRemove = (fn) => { removeSubs.add(fn); return () => removeSubs.delete(fn); };
 
-// Who this Kodama is in a room. The profile picture is shared only when its owner says so.
+// Who this Kodama is in a room, with the account's profile picture (which can be switched off).
 const AVATAR_KEY = "kodama-together-show-avatar";
 let identity = { name: "Kodama", avatar: "" };
 export function setIdentity(name, avatar) { identity = { name: (name || "").trim() || "Kodama", avatar: avatar || "" }; }
-export const showsAvatar = () => { try { return localStorage.getItem(AVATAR_KEY) === "1"; } catch { return false; } };
+// On unless switched off.
+export const showsAvatar = () => { try { return localStorage.getItem(AVATAR_KEY) !== "0"; } catch { return true; } };
 snap.showAvatar = showsAvatar();
 const sharedAvatar = () => (showsAvatar() ? identity.avatar : "");
 export function setShowAvatar(on) {
