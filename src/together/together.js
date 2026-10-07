@@ -26,6 +26,9 @@ const subs = new Set();
 const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f()); };
 const subscribe = (cb) => { subs.add(cb); return () => subs.delete(cb); };
 export const useTogether = () => useSyncExternalStore(subscribe, () => snap);
+/** One value out of the room's state, re-rendering only when it changes. For App.jsx, which
+ *  must not re-render with every drift reading (ten a second) - it is the whole app. */
+export const useTogetherValue = (pick) => useSyncExternalStore(subscribe, () => pick(snap));
 export const getTogether = () => snap;
 /** A listener in a room: the room decides what plays next, not this Kodama's queue. */
 export const isRoomListener = () => (snap.status === "open" || snap.status === "reconnecting") && !snap.isHost;

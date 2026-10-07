@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { API } from "../context.jsx";
-import { useTogether, getTogether, hostSet, hostQueue, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
+import { useTogetherValue, getTogether, hostSet, hostQueue, expectedPos, serverNow, setDrift, getTune, setSync } from "./together.js";
 
 const TICK = 100;            // ms
 const RATE_EVERY = 500;      // ms: the speed is adjusted this often
@@ -70,8 +70,11 @@ function roomPosAt(st, T, latency) {
 const WARM_AHEAD = 2;        // songs of the room's queue each listener gets ready ahead of time
 
 export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePlay, queue }) {
-  const t = useTogether();
-  const active = t.status === "open" || t.status === "reconnecting";
+  // Only what this hook acts on; everything else is read with getTogether() inside the tick.
+  const active = useTogetherValue((x) => x.status === "open" || x.status === "reconnecting");
+  const isHost = useTogetherValue((x) => x.isHost);
+  const warmKey = useTogetherValue((x) => (active && !x.isHost ? x.queue.slice(0, WARM_AHEAD).map((q) => q.videoId).join(",") : ""));
+  const t = { isHost };
   const lastTU = useRef({ pos: 0, at: 0 });
   const noteRef = useRef(null);
   const lastRoom = useRef(null);
@@ -157,7 +160,6 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
 
   // Listener: get the next songs ready, as Kodama does for its own queue. Resolving a song's
   // stream address is most of a load (2-4 s); done ahead, a song change starts in moments.
-  const warmKey = active && !t.isHost ? t.queue.slice(0, WARM_AHEAD).map((x) => x.videoId).join(",") : "";
   useEffect(() => {
     if (!warmKey) return;
     let cancelled = false;
@@ -356,5 +358,4 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
     return () => { clearInterval(id); setRate(1); };
   }, [active, currentTrack, audioRef, handlePlay, setIsPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return t;
 }
