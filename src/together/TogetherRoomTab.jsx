@@ -5,7 +5,7 @@ import { thumb, useLang } from "../context.jsx";
 import { Crown } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
 import { useTogether, hostConfig } from "./together.js";
-import { MemberAvatar, roomName } from "./TogetherPill.jsx";
+import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 
 const PEOPLE_FOLDED = 6;     // a larger room (a stream) shows this many until unfolded
 

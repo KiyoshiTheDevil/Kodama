@@ -31,7 +31,7 @@ import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
 import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd } from "./together/together.js";
-import { TogetherPill } from "./together/TogetherPill.jsx";
+import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -1203,6 +1203,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               </span>
             </div>
           )}
+          <TogetherSidebar name={currentProfileData?.displayName} />
           <div className="flex items-center gap-1">
             <div className="flex-1 min-w-0">
               <Dropdown>
@@ -1250,6 +1251,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
         <div className="mt-auto">
           <hr className="my-1 mx-4 border-t border-border" />
           <div className="flex flex-col items-center gap-1 py-2">
+            <TogetherSidebar name={currentProfileData?.displayName} collapsed />
             <Dropdown>
               <DropdownTrigger
                 className="w-9 h-9 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
@@ -1486,7 +1488,7 @@ function vibrantAccentFromImage(img, satMin = 0.5, light = 0.6) {
 // Accent colour picker built from HeroUI colour components:
 // ColorSwatch (preset grid + preview) + ColorArea (saturation/brightness) + ColorSlider (hue).
 // Bridges between our hex-string accent value and react-aria Color objects.
-function Player({ togetherName, track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -2369,7 +2371,6 @@ function Player({ togetherName, track, setTrack, queue, setQueue, audioRef, isPl
                 style={likePulsing ? { animation: "heartPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards" } : undefined} />
             </Button>
           </Tooltip>
-          <TogetherPill name={togetherName} />
         </div>
 
         {/* Transport stays left-to-right even when the app is flipped. These controls refer to
@@ -6285,7 +6286,6 @@ export default function App() {
             padding: fullscreen ? 0 : "0 8px 8px 4px",
           }}>
           <Player onEditScrobble={(tr) => setScrobbleEdit(tr)}
-            togetherName={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName}
             track={currentTrack}
             setTrack={setCurrentTrack}
             queue={queue}

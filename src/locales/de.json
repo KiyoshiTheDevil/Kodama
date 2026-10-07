@@ -1326,5 +1326,6 @@
   "togetherQueueEmpty": "Nach diesem Song ist nichts eingereiht.",
   "togetherHostOnly": "In diesem Raum fügt nur der Host Songs hinzu.",
   "togetherAdded": "%n hat %s hinzugefügt",
-  "togetherRequestSent": "An den Raum geschickt"
+  "togetherRequestSent": "An den Raum geschickt",
+  "togetherListening": "Gemeinsam hören"
 }

@@ -1326,5 +1326,6 @@
   "togetherQueueEmpty": "Nothing is queued after this song.",
   "togetherHostOnly": "In this room, only the host adds songs.",
   "togetherAdded": "%n added %s",
-  "togetherRequestSent": "Sent to the room"
+  "togetherRequestSent": "Sent to the room",
+  "togetherListening": "Listening together"
 }
