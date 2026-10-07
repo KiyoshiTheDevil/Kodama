@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove } from "./together/together.js";
+import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove, useTogetherValue, inviteLink } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -4451,6 +4451,10 @@ export default function App() {
   // Which track the OS controls and Discord were last told about, so a change of track can skip
   // the debounce without every other state change doing the same.
   const lastPushedTrackRef = useRef(null);
+  // ListenTogether: the room's invite page for the Discord status, while in a room and allowed.
+  const togetherInvite = useTogetherValue((x) =>
+    (x.status === "open" || x.status === "reconnecting") && x.showDiscord && x.room ? inviteLink(x.room) : "");
+
   useEffect(() => {
     let cancelled = false;
 
@@ -4507,6 +4511,7 @@ export default function App() {
           videoId: currentTrack.videoId || "",
           paused: !isPlaying,
           statusDisplay: discordStatusDisplay,
+          togetherUrl: togetherInvite || null,
         }).catch(() => {});
       } catch {}
     };
@@ -4528,7 +4533,7 @@ export default function App() {
       clearTimeout(debounce);
       clearInterval(interval);
     };
-  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause]);
+  }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause, togetherInvite]);
 
   // Now-playing state for the overlay: pushed to the backend once a second, which is what the
   // overlay editor's live preview and the OBS overlay page both read.

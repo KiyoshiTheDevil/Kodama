@@ -1333,5 +1333,7 @@
   "togetherAddedBy": "hinzugefügt von %n",
   "togetherRemove": "Aus der Warteschlange entfernen",
   "togetherRoomName": "Raumname",
-  "togetherListenerOnly": "Du hörst gerade in einem Raum mit. Verlass ihn, um eigene Musik zu hören."
+  "togetherListenerOnly": "Du hörst gerade in einem Raum mit. Verlass ihn, um eigene Musik zu hören.",
+  "togetherShowDiscord": "„Listen along“ auf Discord zeigen",
+  "togetherShowDiscordDesc": "Ein Knopf in deinem Discord-Status. Wer deinen Status sehen kann, kann damit diesem Raum beitreten."
 }

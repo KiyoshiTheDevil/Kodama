@@ -106,6 +106,15 @@ export function setIdentity(name, avatar) { identity = { name: (name || "").trim
 export const showsAvatar = () => { try { return localStorage.getItem(AVATAR_KEY) !== "0"; } catch { return true; } };
 snap.showAvatar = showsAvatar();
 const sharedAvatar = () => (showsAvatar() ? identity.avatar : "");
+// The "Listen along" button on the Discord status: on unless switched off.
+const DISCORD_KEY = "kodama-together-discord";
+export const showsDiscord = () => { try { return localStorage.getItem(DISCORD_KEY) !== "0"; } catch { return true; } };
+snap.showDiscord = showsDiscord();
+export function setShowDiscord(on) {
+  try { localStorage.setItem(DISCORD_KEY, on ? "1" : "0"); } catch { /* this session only */ }
+  set({ showDiscord: !!on });
+}
+
 export function setShowAvatar(on) {
   try { localStorage.setItem(AVATAR_KEY, on ? "1" : "0"); } catch { /* this session only */ }
   set({ showAvatar: !!on });

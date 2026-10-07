@@ -1333,5 +1333,7 @@
   "togetherAddedBy": "added by %n",
   "togetherRemove": "Remove from the queue",
   "togetherRoomName": "Room name",
-  "togetherListenerOnly": "You're listening in a room. Leave it to play your own music."
+  "togetherListenerOnly": "You're listening in a room. Leave it to play your own music.",
+  "togetherShowDiscord": "Show \"Listen along\" on Discord",
+  "togetherShowDiscordDesc": "A button on your Discord status. Anyone who can see your status can join this room with it."
 }

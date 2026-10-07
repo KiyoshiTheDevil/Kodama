@@ -36,6 +36,10 @@ pub fn update_discord_rpc(
     // Which field drives the compact member-list status line, mirroring PreMiD's "Pick Status
     // Display": "song" → details (song title), "artist" → state (artist), "app" → name (app name).
     status_display: String,
+    // ListenTogether: the room's invite page while in a room (and the user lets it show), so
+    // anyone who sees the status can join. Discord buttons only take http(s) links, which is
+    // why it is the invite page and not a kodama:// link; the page opens Kodama.
+    together_url: Option<String>,
 ) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
 
@@ -76,7 +80,12 @@ pub fn update_discord_rpc(
     if paused {
         assets = assets.small_image(PAUSED_IMAGE).small_text("Paused");
     }
-    let button = activity::Button::new("Listen on YouTube Music", &yt_url);
+    let together_url = together_url.filter(|u| u.starts_with("https://") && u.len() <= 512);
+    let mut buttons = Vec::with_capacity(2);
+    if let Some(url) = together_url.as_deref() {
+        buttons.push(activity::Button::new("Listen along", url));
+    }
+    buttons.push(activity::Button::new("Listen on YouTube Music", &yt_url));
 
     let state_str = artist_c.clone();
 
@@ -92,7 +101,7 @@ pub fn update_discord_rpc(
         .activity_type(activity::ActivityType::Listening)
         .status_display_type(display_type)
         .assets(assets)
-        .buttons(vec![button]);
+        .buttons(buttons);
 
     if title_c.chars().count() >= 2 {
         act = act.details(&title_c);

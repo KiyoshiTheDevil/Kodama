@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { thumb, useLang } from "../context.jsx";
 import { Crown, X } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
-import { useTogether, hostConfig, roomRemove, setShowAvatar } from "./together.js";
+import { useTogether, hostConfig, roomRemove, setShowAvatar, setShowDiscord } from "./together.js";
 import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 
 const PEOPLE_FOLDED = 6;     // a larger room (a stream) shows this many until unfolded
@@ -80,6 +80,14 @@ export function TogetherRoomTab() {
           <div className="text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherShowAvatarDesc")}</div>
         </div>
         <Toggle value={!!r.showAvatar} onChange={setShowAvatar} aria-labelledby="together-show-avatar" />
+      </section>
+
+      <section className="flex items-start gap-3 -mt-2">
+        <div className="flex-1">
+          <div id="together-show-discord">{t("togetherShowDiscord")}</div>
+          <div className="text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherShowDiscordDesc")}</div>
+        </div>
+        <Toggle value={!!r.showDiscord} onChange={setShowDiscord} aria-labelledby="together-show-discord" />
       </section>
 
       {r.isHost ? (
