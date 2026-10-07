@@ -1332,5 +1332,6 @@
   "togetherShowAvatarDesc": "Everyone in the room sees it next to your name.",
   "togetherAddedBy": "added by %n",
   "togetherRemove": "Remove from the queue",
-  "togetherRoomName": "Room name"
+  "togetherRoomName": "Room name",
+  "togetherListenerOnly": "You're listening in a room. Leave it to play your own music."
 }

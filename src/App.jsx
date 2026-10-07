@@ -4566,7 +4566,21 @@ export default function App() {
     return () => clearInterval(id);
   }, [currentTrack, isPlaying]);
 
+  // ListenTogether: a listener plays what the room plays. Starting something else would be
+  // pulled back to the room's song a moment later, so it is not started at all, and the
+  // listener is told why. The room's own song (which the sync loads this way) passes.
+  const listenerBlocked = useCallback((track) => {
+    if (!track?.videoId || !isRoomListener() || track.videoId === getTogether().state?.track?.videoId) return false;
+    addToast(translate(localStorage.getItem("kiyoshi-lang") || "de", "togetherListenerOnly"), "info");
+    return true;
+  }, [addToast]);
+  const setTrackGuarded = useCallback((track) => {
+    if (typeof track !== "function" && listenerBlocked(track)) return;
+    setCurrentTrack(track);
+  }, [listenerBlocked]);
+
   const handlePlay = useCallback((track, trackList) => {
+    if (listenerBlocked(track)) return;
     setCurrentTrack(track);
     setForcedLyricsProvider(null);
     setCurrentLyricsSource("");
@@ -6299,7 +6313,7 @@ export default function App() {
           }}>
           <Player onEditScrobble={(tr) => setScrobbleEdit(tr)}
             track={currentTrack}
-            setTrack={setCurrentTrack}
+            setTrack={setTrackGuarded}
             queue={queue}
             setQueue={setQueue}
             audioRef={audioRef}
@@ -6507,7 +6521,7 @@ export default function App() {
             queue={queue}
             setQueue={setQueue}
             currentTrack={currentTrack}
-            setTrack={setCurrentTrack}
+            setTrack={setTrackGuarded}
             onClose={() => setQueueOpen(false)}
             likedIds={likedIds}
             onToggleLike={handleToggleLike}
