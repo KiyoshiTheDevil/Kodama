@@ -37,7 +37,7 @@ export const setDrift = (ms) => { if (snap.drift !== ms) set({ drift: ms }); };
 //   hostReport: the host reports again when it is this far off what it last said
 //   latency: this device's audio comes out this much late (Bluetooth, a VM); played ahead by it
 const TUNE_KEY = "kodama-together-tune-v2";
-export const TUNE_DEFAULTS = { seekAbove: 300, maxRate: 10, hostReport: 150, latency: 0 };
+export const TUNE_DEFAULTS = { seekAbove: 300, maxRate: 5, hostReport: 150, latency: 0 };
 let tune = TUNE_DEFAULTS;
 try { tune = { ...TUNE_DEFAULTS, ...JSON.parse(localStorage.getItem(TUNE_KEY) || "{}") }; } catch { /* defaults */ }
 // 1000 was the first default, too far to catch up by speed after a song change.
@@ -64,6 +64,16 @@ export function expectedPos(st = snap.state) {
 }
 
 const hostKey = (room) => `kodama-together-host:${room}`;
+
+// This Kodama, as the room tells it apart from a second one with the same name: a reconnect
+// replaces its old connection instead of standing next to it.
+const device = (() => {
+  try {
+    let d = localStorage.getItem("kodama-together-device");
+    if (!d) { d = crypto.randomUUID(); localStorage.setItem("kodama-together-device", d); }
+    return d;
+  } catch { return crypto.randomUUID(); }
+})();
 
 /** A new room on the server. Its host token stays on this device; whoever holds it is host. */
 export async function createRoom() {
@@ -106,7 +116,7 @@ function open() {
     retries = 0;
     let token = null;
     try { token = localStorage.getItem(hostKey(wantRoom)); } catch { /* not host then */ }
-    send({ t: "hello", name: wantName, hostToken: token });
+    send({ t: "hello", name: wantName, hostToken: token, device });
     // A short burst to get a good clock reading quickly, then one now and then.
     clearInterval(pingTimer); burst = 0;
     pingTimer = setInterval(() => { ping(); if (++burst === 6) { clearInterval(pingTimer); pingTimer = setInterval(ping, 5000); } }, 250);
@@ -123,6 +133,8 @@ function open() {
     if (ws !== sock) return;           // replaced on purpose
     clearInterval(pingTimer);
     if (!wantRoom) { set({ status: "closed" }); return; }
+    // Replaced by a newer connection of this same Kodama: that one carries on, this one stops.
+    if (ev.code === 4000) { wantRoom = null; set({ status: "closed", error: "replaced" }); return; }
     // A room that does not exist does not come back by retrying.
     if (ev.code === 1006 && snap.status === "connecting" && retries >= 2) { set({ status: "closed", error: "unreachable" }); return; }
     retries++;

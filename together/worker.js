@@ -8,7 +8,8 @@
 //   GET  /rooms/<room>/ws        -> WebSocket into the room
 //
 // Messages, as JSON (client -> room):
-//   { t: "hello", name, hostToken? }                        join, as host if the token matches
+//   { t: "hello", name, hostToken?, device? }               join, as host if the token matches;
+//                                                           an older socket of the same device is closed
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "set", track, playing, pos, startAt? }             host only: the new playback state;
 //                                                           startAt (server ms, at most 5 s ahead)
@@ -114,7 +115,18 @@ export class Room extends DurableObject {
       const hostHash = await this.ctx.storage.get("hostHash");
       const host = typeof msg.hostToken === "string" && msg.hostToken.length > 0 && (await sha256(msg.hostToken)) === hostHash;
       const name = String(msg.name || "").trim().slice(0, 40) || "Listener";
-      ws.serializeAttachment({ ...me, name, host, joined: true });
+      const device = typeof msg.device === "string" ? msg.device.slice(0, 64) : "";
+      // The same Kodama again (a reconnect after a dropped line, a reloaded window): its old
+      // socket may not have closed yet and would stand in the member list as a second person.
+      if (device) {
+        for (const other of this.ctx.getWebSockets()) {
+          if (other !== ws && other.deserializeAttachment()?.device === device) {
+            other.serializeAttachment({ ...other.deserializeAttachment(), joined: false });
+            try { other.close(4000, "replaced"); } catch { /* already gone */ }
+          }
+        }
+      }
+      ws.serializeAttachment({ ...me, name, host, device, joined: true });
       await this.ctx.storage.deleteAlarm();   // someone is here: the room stays
       ws.send(JSON.stringify({ t: "welcome", you: { id: me.id, host }, state: await this.ctx.storage.get("state"), members: this.members(), s: now }));
       this.broadcast({ t: "members", list: this.members() });

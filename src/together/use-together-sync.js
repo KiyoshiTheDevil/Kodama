@@ -17,7 +17,9 @@ import { useTogether, getTogether, hostSet, expectedPos, serverNow, setDrift, ge
 
 const TICK = 100;            // ms
 const RATE_EVERY = 500;      // ms: the speed is adjusted this often
-const HORIZON = 3;           // s: a drift is meant to be gone in about this long
+const HORIZON = 10;          // s: a drift is meant to be gone in about this long. Shorter asks for
+                             // audible speeds (3 s turned 24 ms into 8 per mille) for errors nobody hears
+const SMOOTH = 0.3;          // the measured drift wobbles by about 10 ms; the speed follows its average
 const DEADBAND = 0.01;       // s: closer than this plays at normal speed
 const BASE_WINDOW = 10000;   // ms: the device's own speed error is measured over this long
 const BASE_MAX = 0.02;
@@ -37,8 +39,8 @@ let rateNow = 1;
 // learn every catch-up and overshoot.
 let baseRate = 0;
 let history = [];            // { at, drift, asked }: `asked` sums (speed - 1) over time, in s
-let asked = 0, lastRateTick = 0;
-function resetHistory() { history = []; lastRateTick = 0; }
+let asked = 0, lastRateTick = 0, smoothed = null;
+function resetHistory() { history = []; lastRateTick = 0; smoothed = null; }
 function setRate(r) {
   const v = Math.round(r * 10000) / 10000;
   if (v === rateNow) return;
@@ -256,8 +258,9 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         const own = (drift - o.drift) / dt - (asked - o.asked) / dt;
         baseRate = Math.max(-BASE_MAX, Math.min(BASE_MAX, baseRate + (-own - baseRate) * 0.1));
       }
+      smoothed = smoothed == null ? drift : smoothed + (drift - smoothed) * SMOOTH;
       const max = tune.maxRate / 1000;
-      const p = Math.abs(drift) < DEADBAND ? 0 : Math.max(-max, Math.min(max, -drift / HORIZON));
+      const p = Math.abs(smoothed) < DEADBAND ? 0 : Math.max(-max, Math.min(max, -smoothed / HORIZON));
       setRate(1 + baseRate + p);
     }, TICK);
     return () => { clearInterval(id); setRate(1); };
