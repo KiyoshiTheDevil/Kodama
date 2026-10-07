@@ -53,6 +53,11 @@ export function TogetherDebug() {
               {t.sync.phase} · ahead {t.sync.ahead} s · speed {((t.sync.rate - 1) * 1000).toFixed(1)} ‰ (base {(t.sync.base * 1000).toFixed(1)} ‰)
             </div>
           )}
+          {!t.isHost && t.sync.log?.length > 0 && (
+            <div className="text-[length:var(--t11)] text-muted font-mono leading-snug select-text">
+              {t.sync.log.map((l, i) => <div key={i}>{l}</div>)}
+            </div>
+          )}
           <div className={row + " flex-wrap text-[length:var(--t11)] text-muted"}>
             {[["seekAbove", "Re-sync above", "ms"], ["maxRate", "Max speed", "‰"], ["hostReport", "Host report", "ms"], ["latency", "Audio delay", "ms"]].map(([k, label, unit]) => (
               <label key={k} className="flex items-center gap-1.5">

@@ -70,9 +70,11 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   const readies = useRef(0);
   const host = useRef({ videoId: null, startLocal: 0 });
 
-  const phase = (p, extra = {}) => {
+  const phase = (p, extra = {}, why = "") => {
     sync.current = { ...sync.current, ...extra, phase: p };
-    setSync({ phase: p, ahead: Math.round(ahead * 100) / 100 });
+    const d = getTogether().drift;
+    const line = `${new Date().toTimeString().slice(0, 8)} ${p}${why ? ` (${why})` : ""}${d != null ? ` drift ${d}` : ""}`;
+    setSync({ phase: p, ahead: Math.round(ahead * 100) / 100, log: [line, ...(getTogether().sync.log || [])].slice(0, 8) });
   };
 
   // The player's position now, projected from its last report.
@@ -187,21 +189,22 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
 
       // Get ready where the room will be `ahead` from now (or where it starts, if later), then
       // start right then.
-      const prepare = () => {
+      const prepare = (why) => {
         setRate(1); resetHistory();
         const T = Math.max(serverNow() + ahead * 1000, state.at);
         const P = roomPosAt(state, T, latency);
         if (!a.paused) a.pause();
         holdNextReady.current = false;
-        phase("preparing", { T, P, since: Date.now(), readies: readies.current });
+        phase("preparing", { T, P, since: Date.now(), readies: readies.current }, why);
         a.currentTime = Math.max(0, P);
       };
 
       if (s.phase === "preparing") {
         // The room moved on in a way the prepared place no longer fits (the host jumped).
-        if (Math.abs(roomPosAt(state, s.T, latency) - s.P) > 0.05) { prepare(); return; }
+        const moved = Math.abs(roomPosAt(state, s.T, latency) - s.P);
+        if (moved * 1000 > tune.seekAbove) { prepare(`room moved ${Math.round(moved * 1000)} ms`); return; }
         if (readies.current === s.readies) {
-          if (Date.now() - s.since > PREPARE_TIMEOUT) { ahead = Math.min(6, ahead * 1.5); prepare(); }
+          if (Date.now() - s.since > PREPARE_TIMEOUT) { ahead = Math.min(6, ahead * 1.5); prepare("no ready"); }
           return;
         }
         const took = (Date.now() - s.since) / 1000;
@@ -209,17 +212,18 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         if (left < 30) {
           // Ready too late for the moment it aimed at: aim further ahead.
           ahead = Math.min(6, Math.max(ahead * 1.5, took + 0.5));
-          prepare();
+          prepare(`ready ${Math.round(-left)} ms late`);
           return;
         }
         // A little more than this took, for next time.
         ahead = Math.min(6, Math.max(0.6, ahead * 0.7 + (took * 1.3 + 0.3) * 0.3));
         invoke("audio_resume_at", { atMs: s.T - offset }).catch(() => {});
-        phase("waiting");
+        phase("waiting", {}, `ready in ${Math.round(took * 1000)} ms`);
         return;
       }
       if (s.phase === "waiting") {
-        if (Math.abs(roomPosAt(state, s.T, latency) - s.P) > 0.05) { prepare(); return; }
+        const moved = Math.abs(roomPosAt(state, s.T, latency) - s.P);
+        if (moved * 1000 > tune.seekAbove) { prepare(`room moved ${Math.round(moved * 1000)} ms`); return; }
         if (serverNow() < s.T + SETTLED) return;
         setIsPlaying(true);
         phase("following");
@@ -231,7 +235,10 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       const want = expectedPos(state) + latency;
       const drift = nowPos() - want;
       setDrift(Math.round(drift * 1000));
-      if (a.paused || a.isPreparing || Math.abs(drift) * 1000 > tune.seekAbove) { prepare(); return; }
+      if (a.paused || a.isPreparing || Math.abs(drift) * 1000 > tune.seekAbove) {
+        prepare(a.paused ? "player paused" : a.isPreparing ? "player loading" : `drift ${Math.round(drift * 1000)} ms`);
+        return;
+      }
       if (s.phase !== "following") phase("following");
 
       const now = Date.now();

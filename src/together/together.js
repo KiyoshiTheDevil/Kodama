@@ -19,7 +19,7 @@ let snap = {
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
   tune: null,
-  sync: { phase: "idle", ahead: 1.5, late: null, rate: 1, base: 0 },
+  sync: { phase: "idle", ahead: 1.5, late: null, rate: 1, base: 0, log: [] },
 };
 const subs = new Set();
 const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f()); };
