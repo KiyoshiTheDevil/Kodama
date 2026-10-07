@@ -5,7 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
 import { Button, CardRoot, ChipRoot, ChipLabel, ScrollShadowRoot } from "@heroui/react";
 import { API, thumb, useLang, useAnimations, useZoom } from "../context.jsx";
-import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash } from "../icons.jsx";
+import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash, X } from "../icons.jsx";
 import { ExplicitBadge } from "./rows.jsx";
 import { Tooltip } from "./tooltip.jsx";
 import { ContextMenu, CtxItem } from "./context-menu.jsx";
@@ -13,8 +13,8 @@ import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
-import { useTogetherValue } from "../together/together.js";
-import { TogetherRoomHeader, TogetherRoomQueue, AddedBy } from "../together/TogetherRoomTab.jsx";
+import { useTogetherValue, roomRemove } from "../together/together.js";
+import { TogetherRoomHeader, AddedBy } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -53,7 +53,7 @@ function QueueIconButton({ label, onClick, className = "", children }) {
 
 // labels defaults to {} so a call site that forgets to pass it loses the button's accessible
 // name — which the console already warns about — instead of taking the whole app down.
-function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDragged, onPointerDown, onPlay, isLiked, onToggleLike, onOpenMenu, menuOpen, fadeSecs, labels = {} }) {
+function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDragged, onPointerDown, onPlay, isLiked, onToggleLike, onOpenMenu, menuOpen, fadeSecs, onRemove, labels = {} }) {
   const rowRef = useRef(null);
   return (
     <div
@@ -102,8 +102,19 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
       )}
 
       {/* Duration */}
-      {track.duration && (
+      {/* A plain `track.duration &&` rendered a literal 0 for a song whose length is unknown. */}
+      {track.duration ? (
         <div className="shrink-0 min-w-[28px] text-[length:var(--t11)] text-muted text-right">{track.duration}</div>
+      ) : null}
+
+      {/* Remove: only where the menu is not available (a ListenTogether listener's own song) */}
+      {onRemove && (
+        <span className="shrink-0 inline-flex" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+          <QueueIconButton label={labels.remove} onClick={onRemove}
+            className="text-muted hover:text-[var(--status-danger)] opacity-0 group-hover/qrow:opacity-100 focus-visible:opacity-100">
+            <X size={13} />
+          </QueueIconButton>
+        </span>
       )}
 
       {/* Like button */}
@@ -128,7 +139,22 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
   );
 }
 
-export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+  // ListenTogether: in a room the Queue tab becomes the Room tab. The host keeps their own queue
+  // under the room's header (it is the room's queue, and can still be reordered). A listener's
+  // own queue is only the room's song, so their list is the room's: its song, then its queue,
+  // in the same rows and sections as anyone's queue, read-only but for the songs they added.
+  const roomRole = useTogetherValue((x) => (x.status === "idle" || x.status === "closed" ? "" : x.isHost ? "host" : "listener"));
+  const inRoom = !!roomRole;
+  const isListener = roomRole === "listener";
+  const roomNow = useTogetherValue((x) => x.state?.track || null);
+  const roomQueue = useTogetherValue((x) => x.queue);
+  const youId = useTogetherValue((x) => x.you?.id || "");
+  const queue = useMemo(() => {
+    if (!isListener) return ownQueue;
+    const now = currentTrack && roomNow && currentTrack.videoId === roomNow.videoId ? currentTrack : roomNow;
+    return now ? [now, ...roomQueue] : roomQueue;
+  }, [isListener, ownQueue, roomNow, roomQueue, currentTrack]);
   // The panel stays mounted while closed — it slides rather than unmounts — but its list
   // was rendered all the same. With a large playlist queued that is thousands of rows,
   // rebuilt on every track change because currentTrack comes in as a prop: pressing next
@@ -148,12 +174,6 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // thousands of them.
   const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue"), more: t("rowMoreActions") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
-  // ListenTogether: in a room the Queue tab becomes the Room tab. The host keeps their own queue
-  // under the room's header (it is the room's queue, and can still be reordered); a listener's
-  // own queue is only the room's song, so they see the room's queue instead.
-  const roomRole = useTogetherValue((x) => (x.status === "idle" || x.status === "closed" ? "" : x.isHost ? "host" : "listener"));
-  const inRoom = !!roomRole;
-  const isListener = roomRole === "listener";
   useEffect(() => {
     const open = () => setPanelTab("queue");
     window.addEventListener("kodama:open-room", open);
@@ -213,7 +233,9 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
     return () => { el.removeEventListener("scroll", onScroll); window.removeEventListener("resize", updatePos); };
   }, []);
 
-  const currentIdx = queue.findIndex(t => t.videoId === currentTrack?.videoId);
+  // A listener's list always starts with the room's song, also while their player still loads it.
+  const nowTrack = isListener ? (queue[0] || null) : currentTrack;
+  const currentIdx = isListener ? (queue.length ? 0 : -1) : queue.findIndex(t => t.videoId === currentTrack?.videoId);
 
   // One flat list of section headings and rows, so the whole panel is a single virtualised
   // scroller instead of three mapped groups. Heights are fixed, so the offsets are exact and
@@ -226,10 +248,10 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       for (let i = 0; i < currentIdx; i++) push({ kind: "row", key: `p-${queue[i].videoId || i}`, section: "played", track: queue[i], globalIdx: i });
     }
     let nowOff = 0;
-    if (currentTrack && currentIdx >= 0) {
+    if (nowTrack && currentIdx >= 0) {
       nowOff = -1; // resolved below, once the offsets exist
       push({ kind: "header", key: "h-now", section: "now", label: t("nowPlaying"), marksNowPlaying: true });
-      push({ kind: "row", key: `n-${currentTrack.videoId}`, section: "now", track: currentTrack, globalIdx: currentIdx });
+      push({ kind: "row", key: `n-${nowTrack.videoId}`, section: "now", track: nowTrack, globalIdx: currentIdx });
     }
     const upNextCount = queue.length - currentIdx - 1;
     if (upNextCount > 0) {
@@ -245,7 +267,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
     }
     offs[list.length] = y;
     return { items: list, offsets: offs, totalHeight: y, nowPlayingOffset: nowOff < 0 ? 0 : nowOff };
-  }, [queue, currentIdx, currentTrack, t]);
+  }, [queue, currentIdx, nowTrack, t]);
 
   nowPlayingOffsetRef.current = nowPlayingOffset;
 
@@ -388,7 +410,6 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       </div>
 
       {panelTab === "queue" && inRoom && <TogetherRoomHeader />}
-      {panelTab === "queue" && isListener && <TogetherRoomQueue />}
 
       {/* About Song tab */}
       {panelTab === "about" && (
@@ -431,7 +452,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
         </div>
       )}
 
-      {mountList && panelTab === "queue" && !isListener && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
+      {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
         {queue.length === 0 ? (
           <div className="p-6 text-[length:var(--t13)] text-muted text-center">{t("emptyQueue")}</div>
         ) : (
@@ -462,10 +483,11 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
               return (
                 <div key={it.key} style={common}>
                   <QueueRow labels={rowLabels} track={it.track} globalIdx={gIdx}
-                    isDraggable={!isNow} dimmed={it.section !== "next"} isActive={isNow}
+                    isDraggable={!isNow && !isListener} dimmed={it.section !== "next"} isActive={isNow}
+                    onRemove={isListener && !isNow && youId && it.track.addedBy?.id === youId ? () => roomRemove(it.track) : undefined}
                     isBeingDragged={dragIdx === gIdx}
                     onPointerDown={handlePointerDown}
-                    onPlay={() => { if (suppressClickRef.current) return; setTrack(it.track); }}
+                    onPlay={() => { if (suppressClickRef.current || isListener) return; setTrack(it.track); }}
                     isLiked={likedIds?.has(it.track.videoId)} onToggleLike={onToggleLike}
                     onOpenMenu={setRowMenu} menuOpen={rowMenu?.globalIdx === gIdx}
                     fadeSecs={crossfadeOverrides[fadeKey(it.track, queue[gIdx + 1])]?.secs ?? null} />

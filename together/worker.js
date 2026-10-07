@@ -66,7 +66,8 @@ const cleanTrack = (t) => t && typeof t.videoId === "string" ? {
   title: String(t.title || "").slice(0, 200),
   artists: String(t.artists || "").slice(0, 200),
   thumbnail: String(t.thumbnail || "").slice(0, 500),
-  duration: Number(t.duration) || 0,
+  // "3:15" as Kodama shows it, or seconds.
+  duration: typeof t.duration === "string" ? t.duration.slice(0, 12) : (Number(t.duration) || 0),
   ...(t.addedBy && typeof t.addedBy.id === "string"
     ? { addedBy: { id: t.addedBy.id.slice(0, 16), name: String(t.addedBy.name || "").slice(0, 40) } }
     : {}),

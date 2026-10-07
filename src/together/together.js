@@ -197,7 +197,8 @@ export function leave() {
 const roomTrack = (track) => track ? {
   videoId: track.videoId, title: track.title || "", thumbnail: track.thumbnail || "",
   artists: Array.isArray(track.artists) ? track.artists.map((a) => a?.name || a).join(", ") : (track.artists || ""),
-  duration: Number(track.duration) || 0,
+  // As Kodama shows it ("3:15"); a number of seconds where that is what the track carries.
+  duration: typeof track.duration === "string" ? track.duration : (Number(track.duration) || 0),
   ...(track.addedBy ? { addedBy: track.addedBy } : {}),
 } : null;
 

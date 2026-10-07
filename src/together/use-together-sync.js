@@ -335,7 +335,10 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       const want = expectedPos(state) + latency;
       // At the end of the song: the room is about to move on to the next. Nothing to catch up
       // with until then, and nothing past the end to seek to.
-      const length = a.duration > 0 ? a.duration : state.track.duration;
+      // The room's duration is as Kodama shows it ("3:15") or seconds.
+      const d = state.track.duration;
+      const length = a.duration > 0 ? a.duration
+        : typeof d === "string" ? d.split(":").reduce((acc, part) => acc * 60 + (Number(part) || 0), 0) : Number(d) || 0;
       if (length > 0 && want > length - 0.5) {
         setRate(1);
         if (s.phase !== "ending") phase("ending");
