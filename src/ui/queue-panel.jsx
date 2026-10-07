@@ -14,7 +14,7 @@ import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
 import { useTogetherValue } from "../together/together.js";
-import { TogetherRoomTab } from "../together/TogetherRoomTab.jsx";
+import { TogetherRoomHeader, TogetherRoomQueue, AddedByBadge } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -72,11 +72,14 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
         <GripLines size={13} className="block pointer-events-none text-muted" />
       </div>
 
-      {/* Thumbnail */}
-      <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
-        {track.thumbnail
-          ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
+      {/* Thumbnail (with who added it, for a song a ListenTogether member put in the queue) */}
+      <div className="relative w-9 h-9 shrink-0">
+        <div className="w-9 h-9 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
+          {track.thumbnail
+            ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
+            : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
+        </div>
+        {track.addedBy && <AddedByBadge addedBy={track.addedBy} />}
       </div>
 
       {/* Title + artist */}
@@ -143,14 +146,17 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
   // thousands of them.
   const rowLabels = useMemo(() => ({ like: t("like"), unlike: t("unlike"), remove: t("removeFromQueue"), more: t("rowMoreActions") }), [t]);
   const [panelTab, setPanelTab] = useState("queue");
-  // ListenTogether: a Room tab while in a room, opened from the player bar's pill.
-  const inRoom = useTogetherValue((x) => x.status !== "idle" && x.status !== "closed");
+  // ListenTogether: in a room the Queue tab becomes the Room tab. The host keeps their own queue
+  // under the room's header (it is the room's queue, and can still be reordered); a listener's
+  // own queue is only the room's song, so they see the room's queue instead.
+  const roomRole = useTogetherValue((x) => (x.status === "idle" || x.status === "closed" ? "" : x.isHost ? "host" : "listener"));
+  const inRoom = !!roomRole;
+  const isListener = roomRole === "listener";
   useEffect(() => {
-    const open = () => setPanelTab("room");
+    const open = () => setPanelTab("queue");
     window.addEventListener("kodama:open-room", open);
     return () => window.removeEventListener("kodama:open-room", open);
   }, []);
-  useEffect(() => { if (!inRoom) setPanelTab((p) => (p === "room" ? "queue" : p)); }, [inRoom]);
   const [rowMenu, setRowMenu] = useState(null); // { x, y, globalIdx } — the per-track menu
   const [fadeEdit, setFadeEdit] = useState(null); // { from, to } — open the per-transition fade editor
   const fadeKey = (a, b) => `${a?.videoId}__${b?.videoId}`;
@@ -358,7 +364,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
       <div className="px-3 pt-11 shrink-0">
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
-            {[["queue", t("queue")], ...(inRoom ? [["room", t("togetherRoomTab")]] : []), ["about", t("aboutSong")]].map(([id, label], i, all) => (
+            {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
               <button key={id} type="button" onClick={() => setPanelTab(id)}
                 style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
                 className={`flex-1 border-0 cursor-default select-none text-[length:var(--t12)] font-semibold transition-[background-color,color] duration-150 ${
@@ -373,13 +379,14 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
           <Tooltip text={t("clearQueue")}>
             <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue([])}
               style={{ height: TAB_H, width: TAB_H }}
-              className={`shrink-0 rounded-[var(--r-full)] text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+              className={`shrink-0 rounded-[var(--r-full)] text-muted hover:text-[var(--status-danger)]! ${panelTab === "queue" && !isListener ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
             ><Trash size={13} /></Button>
           </Tooltip>
         </div>
       </div>
 
-      {panelTab === "room" && <TogetherRoomTab />}
+      {panelTab === "queue" && inRoom && <TogetherRoomHeader />}
+      {panelTab === "queue" && isListener && <TogetherRoomQueue />}
 
       {/* About Song tab */}
       {panelTab === "about" && (
@@ -422,7 +429,7 @@ export function QueuePanel({ queue, setQueue, currentTrack, setTrack, onClose, l
         </div>
       )}
 
-      {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
+      {mountList && panelTab === "queue" && !isListener && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
         {queue.length === 0 ? (
           <div className="p-6 text-[length:var(--t13)] text-muted text-center">{t("emptyQueue")}</div>
         ) : (

@@ -1,13 +1,19 @@
-// ListenTogether's Room tab in the queue panel: who is here, what plays next, and (for the host)
-// the room's settings.
+// ListenTogether in the queue panel. In a room the Queue tab becomes the Room tab: a compact
+// header (room name, the people as avatars, a gear for the settings) over the queue. For the
+// host that is their own queue, as always, so it can still be reordered; a listener sees the
+// room's queue, and can take back the songs they added. People and settings are a click away,
+// in popovers: they are needed now and then, the queue all the time.
 import { useState, useRef } from "react";
-import { thumb, useLang } from "../context.jsx";
-import { Crown, X } from "../icons.jsx";
+import { Button, PopoverRoot, PopoverContent, PopoverDialog } from "@heroui/react";
+import { thumb, useLang, useZoom } from "../context.jsx";
+import { Crown, X, Gear } from "../icons.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
-import { useTogether, hostConfig, roomRemove, setShowAvatar, setShowDiscord } from "./together.js";
+import { useTogether, useTogetherValue, hostConfig, roomRemove, setShowAvatar, setShowDiscord } from "./together.js";
 import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 
-const PEOPLE_FOLDED = 6;     // a larger room (a stream) shows this many until unfolded
+const Heading = ({ children }) => (
+  <div className="text-[length:var(--t11)] text-muted font-semibold tracking-wide mb-1.5">{children}</div>
+);
 
 // The room's name, saved when the field is left or Enter is pressed (not on every key: each save
 // is a message to everyone in the room).
@@ -35,61 +41,58 @@ function RoomNameField({ current, placeholder, label }) {
   );
 }
 
-const Heading = ({ children }) => (
-  <div className="text-[length:var(--t11)] text-muted font-semibold tracking-wide mb-1.5">{children}</div>
-);
-
-export function TogetherRoomTab() {
-  const t = useLang();
-  const r = useTogether();
-  const [allPeople, setAllPeople] = useState(false);
-  const host = r.members.find((m) => m.host);
-  const people = allPeople ? r.members : r.members.slice(0, PEOPLE_FOLDED);
-  const hidden = r.members.length - people.length;
-
+function SwitchRow({ id, label, desc, value, onChange }) {
   return (
-    <div className="scrollable flex-1 overflow-y-auto px-4 pt-2 pb-6 flex flex-col gap-5 text-[length:var(--t12)]">
-      <div>
-        <div className="font-semibold text-[length:var(--t13)]">{roomName(r, t)}</div>
-        <div className="text-secondary text-[length:var(--t11)] font-mono">{r.room}</div>
+    <div className="flex items-start gap-3">
+      <div className="flex-1">
+        <div id={id}>{label}</div>
+        {desc && <div className="text-secondary text-[length:var(--t11)] mt-0.5">{desc}</div>}
       </div>
+      <Toggle value={!!value} onChange={onChange} aria-labelledby={id} />
+    </div>
+  );
+}
 
-      <section>
-        <Heading>{t("togetherPeople")} · {r.members.length}</Heading>
-        <div className="flex flex-col gap-1">
-          {people.map((m) => (
-            <div key={m.id} className="flex items-center gap-2.5 py-1">
-              <MemberAvatar member={m} size={26} ring={false} />
-              <span className="truncate">{m.name}</span>
-              {m.host && <Crown size={11} className="text-muted" aria-label={t("togetherHost")} />}
-              {r.you?.id === m.id && <span className="text-muted">({t("togetherYou")})</span>}
-            </div>
-          ))}
-        </div>
-        {(hidden > 0 || allPeople) && r.members.length > PEOPLE_FOLDED && (
-          <button type="button" onClick={() => setAllPeople((v) => !v)}
-            className="mt-1 border-0 bg-transparent p-0 cursor-default text-accent text-[length:var(--t11)] font-semibold">
-            {allPeople ? t("togetherShowLess") : t("togetherShowAll", { c: hidden })}
-          </button>
-        )}
-      </section>
+// A popover in the panel, zoomed on its inner dialog (the positioned wrapper must not carry the
+// app's zoom, see src/ui/zoomed-heroui.jsx).
+function PanelPopover({ trigger, label, children }) {
+  const zoom = useZoom();
+  return (
+    <PopoverRoot>
+      {trigger}
+      <PopoverContent placement="bottom end" offset={8} className="p-0 bg-transparent shadow-none">
+        <PopoverDialog aria-label={label} className="outline-none p-0" style={{ zoom }}>
+          <div className="w-[300px] max-h-[60vh] overflow-y-auto scrollable p-4 flex flex-col gap-4 rounded-[var(--r-xl)] bg-[var(--bg-elevated)] shadow-[var(--elev-3,0_8px_24px_rgba(0,0,0,.35))] text-[length:var(--t12)]">
+            {children}
+          </div>
+        </PopoverDialog>
+      </PopoverContent>
+    </PopoverRoot>
+  );
+}
 
-      <section className="flex items-start gap-3">
-        <div className="flex-1">
-          <div id="together-show-avatar">{t("togetherShowAvatar")}</div>
-          <div className="text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherShowAvatarDesc")}</div>
-        </div>
-        <Toggle value={!!r.showAvatar} onChange={setShowAvatar} aria-labelledby="together-show-avatar" />
-      </section>
+function PeopleList({ r, t }) {
+  return (
+    <section>
+      <Heading>{t("togetherPeople")} · {r.members.length}</Heading>
+      <div className="flex flex-col gap-1">
+        {r.members.map((m) => (
+          <div key={m.id} className="flex items-center gap-2.5 py-1 min-w-0">
+            <MemberAvatar member={m} size={26} ring={false} />
+            <span className="truncate">{m.name}</span>
+            {m.host && <Crown size={11} className="text-muted shrink-0" aria-label={t("togetherHost")} />}
+            {r.you?.id === m.id && <span className="text-muted shrink-0">({t("togetherYou")})</span>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-      <section className="flex items-start gap-3 -mt-2">
-        <div className="flex-1">
-          <div id="together-show-discord">{t("togetherShowDiscord")}</div>
-          <div className="text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherShowDiscordDesc")}</div>
-        </div>
-        <Toggle value={!!r.showDiscord} onChange={setShowDiscord} aria-labelledby="together-show-discord" />
-      </section>
-
+function SettingsBody({ r, t }) {
+  const host = r.members.find((m) => m.host);
+  return (
+    <>
       {r.isHost ? (
         <section className="flex flex-col gap-3">
           <Heading>{t("togetherSettings")}</Heading>
@@ -105,13 +108,8 @@ export function TogetherRoomTab() {
               ))}
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <div id="together-wait-all">{t("togetherWaitAll")}</div>
-              <div className="text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherWaitAllDesc")}</div>
-            </div>
-            <Toggle value={!!r.config.waitAll} onChange={(v) => hostConfig({ waitAll: v })} aria-labelledby="together-wait-all" />
-          </div>
+          <SwitchRow id="together-wait-all" label={t("togetherWaitAll")} desc={t("togetherWaitAllDesc")}
+            value={r.config.waitAll} onChange={(v) => hostConfig({ waitAll: v })} />
         </section>
       ) : (
         <div className="text-secondary">
@@ -120,43 +118,106 @@ export function TogetherRoomTab() {
             : t("togetherListenerHostPicks", { n: host?.name || "Host" })}
         </div>
       )}
+      <section className="flex flex-col gap-3">
+        <Heading>{t("togetherYouHere")}</Heading>
+        <SwitchRow id="together-show-avatar" label={t("togetherShowAvatar")} desc={t("togetherShowAvatarDesc")}
+          value={r.showAvatar} onChange={setShowAvatar} />
+        <SwitchRow id="together-show-discord" label={t("togetherShowDiscord")} desc={t("togetherShowDiscordDesc")}
+          value={r.showDiscord} onChange={setShowDiscord} />
+      </section>
+    </>
+  );
+}
 
+/** The Room tab's header: name, the people (opens the list), the gear (opens the settings). */
+export function TogetherRoomHeader() {
+  const t = useLang();
+  const r = useTogether();
+  const shown = r.members.slice(0, 4);
+  return (
+    <div className="mx-3 mb-2 p-3 flex items-center gap-3 rounded-[var(--r-xl)] bg-[var(--fill-subtle)] shrink-0">
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold text-[length:var(--t13)] truncate">{roomName(r, t)}</div>
+        <PanelPopover label={t("togetherPeople")} trigger={
+          <Button variant="ghost" aria-label={`${t("togetherPeople")} · ${r.members.length}`}
+            className="h-auto min-w-0 p-0 mt-1.5 gap-2 bg-transparent hover:bg-transparent justify-start text-[length:var(--t11)] text-secondary hover:text-primary">
+            <span className="inline-flex items-center">
+              {shown.map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0 }}><MemberAvatar member={m} size={22} ring="var(--bg-elevated)" /></span>)}
+            </span>
+            {t("togetherInRoom", { c: r.members.length })}
+          </Button>
+        }>
+          <PeopleList r={r} t={t} />
+        </PanelPopover>
+      </div>
+      <PanelPopover label={t("togetherSettings")} trigger={
+        <Button variant="ghost" isIconOnly aria-label={t("togetherSettings")}
+          className="w-9 h-9 min-w-9 rounded-[var(--r-full)] text-secondary hover:text-primary shrink-0">
+          <Gear size={16} />
+        </Button>
+      }>
+        <SettingsBody r={r} t={t} />
+      </PanelPopover>
+    </div>
+  );
+}
+
+function RoomQueueRow({ q, r, t, canRemove, active }) {
+  const adder = q.addedBy && (r.members.find((m) => m.id === q.addedBy.id) || q.addedBy);
+  return (
+    <div className={`group flex items-center gap-2.5 py-1.5 px-2.5 rounded-[var(--r-md)] min-w-0 ${active ? "bg-accent-dim" : ""}`}>
+      <div className="relative w-9 h-9 shrink-0">
+        {q.thumbnail
+          ? <img src={thumb(q.thumbnail)} alt="" className="w-9 h-9 rounded-[var(--r-sm)] object-cover" />
+          : <div className="w-9 h-9 rounded-[var(--r-sm)]" style={{ background: "var(--placeholder-gradient)" }} />}
+        {adder && <span className="absolute -right-1 -bottom-1" title={t("togetherAddedBy", { n: adder.name })}><MemberAvatar member={adder} size={16} ring="var(--bg-surface)" /></span>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className={`truncate font-medium text-[length:var(--t12)] ${active ? "text-accent" : ""}`}>{q.title}</div>
+        <div className="truncate text-secondary text-[length:var(--t11)]">{q.artists}</div>
+      </div>
+      {canRemove && (
+        <button type="button" onClick={() => roomRemove(q)} aria-label={t("togetherRemove")} title={t("togetherRemove")}
+          className="w-7 h-7 shrink-0 rounded-[var(--r-full)] border-0 bg-transparent cursor-default inline-flex items-center justify-center text-muted hover:text-[var(--status-danger)] hover:bg-hover opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background-color] duration-150">
+          <X size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A listener's view of the queue: the room's, read-only but for the songs they added. */
+export function TogetherRoomQueue() {
+  const t = useLang();
+  const r = useTogether();
+  return (
+    <div className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4 flex flex-col gap-4 text-[length:var(--t12)]">
+      {r.state?.track && (
+        <section>
+          <div className="px-2.5"><Heading>{t("togetherNowPlaying")}</Heading></div>
+          <RoomQueueRow q={r.state.track} r={r} t={t} active />
+        </section>
+      )}
       <section>
-        <Heading>{t("togetherUpNext")}</Heading>
-        {r.queue.length === 0 ? (
-          <div className="text-muted">{t("togetherQueueEmpty")}</div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {r.queue.map((q, i) => {
-              const adder = q.addedBy && (r.members.find((m) => m.id === q.addedBy.id) || q.addedBy);
-              const canRemove = r.isHost || (q.addedBy?.id && q.addedBy.id === r.you?.id);
-              return (
-                <div key={`${q.videoId}-${i}`} className="group flex items-center gap-2.5 py-1 min-w-0">
-                  {q.thumbnail
-                    ? <img src={thumb(q.thumbnail)} alt="" className="w-9 h-9 rounded-[var(--r-sm)] object-cover shrink-0" />
-                    : <div className="w-9 h-9 rounded-[var(--r-sm)] shrink-0" style={{ background: "var(--placeholder-gradient)" }} />}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{q.title}</div>
-                    <div className="truncate text-secondary text-[length:var(--t11)]">{q.artists}</div>
-                    {adder && (
-                      <div className="flex items-center gap-1.5 mt-0.5 text-muted text-[length:var(--t11)] min-w-0">
-                        <MemberAvatar member={adder} size={14} ring={false} />
-                        <span className="truncate">{t("togetherAddedBy", { n: adder.name })}</span>
-                      </div>
-                    )}
-                  </div>
-                  {canRemove && (
-                    <button type="button" onClick={() => roomRemove(q)} aria-label={t("togetherRemove")} title={t("togetherRemove")}
-                      className="w-7 h-7 shrink-0 rounded-[var(--r-full)] border-0 bg-transparent cursor-default inline-flex items-center justify-center text-muted hover:text-[var(--status-danger)] hover:bg-hover opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background-color] duration-150">
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="px-2.5"><Heading>{t("togetherUpNext")}</Heading></div>
+        {r.queue.length === 0
+          ? <div className="px-2.5 text-muted">{t("togetherQueueEmpty")}</div>
+          : r.queue.map((q, i) => <RoomQueueRow key={`${q.videoId}-${i}`} q={q} r={r} t={t} canRemove={!!q.addedBy?.id && q.addedBy.id === r.you?.id} />)}
       </section>
     </div>
+  );
+}
+
+/** The adder of a song in the host's own queue, as a small avatar on its cover. */
+export function AddedByBadge({ addedBy }) {
+  const t = useLang();
+  // The members only: a row per queued song must not re-render with every sync reading.
+  const members = useTogetherValue((x) => x.members);
+  if (!addedBy?.id) return null;
+  const adder = members.find((m) => m.id === addedBy.id) || addedBy;
+  return (
+    <span className="absolute -right-1 -bottom-1" title={t("togetherAddedBy", { n: adder.name })}>
+      <MemberAvatar member={adder} size={16} ring="var(--bg-surface)" />
+    </span>
   );
 }

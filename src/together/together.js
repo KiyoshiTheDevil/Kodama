@@ -34,7 +34,9 @@ export const useTogetherValue = (pick) => useSyncExternalStore(subscribe, () => 
 export const getTogether = () => snap;
 /** A listener in a room: the room decides what plays next, not this Kodama's queue. */
 export const isRoomListener = () => (snap.status === "open" || snap.status === "reconnecting") && !snap.isHost;
-export const setDrift = (ms) => { if (snap.drift !== ms) set({ drift: ms }); };
+// Every change of the snapshot re-renders whoever reads all of it (the Room tab, the debug view),
+// and the drift is measured ten times a second: only a change worth seeing is passed on.
+export const setDrift = (ms) => { if (snap.drift == null || ms == null || Math.abs(snap.drift - ms) >= 10) set({ drift: ms }); };
 
 // Sync tuning, adjustable in the Debug tab while the feel is being worked out. All in ms.
 //   seekAbove: a listener further off than this jumps; closer, it catches up by playing faster

@@ -1335,5 +1335,7 @@
   "togetherRoomName": "Raumname",
   "togetherListenerOnly": "Du hörst gerade in einem Raum mit. Verlass ihn, um eigene Musik zu hören.",
   "togetherShowDiscord": "„Listen along“ auf Discord zeigen",
-  "togetherShowDiscordDesc": "Ein Knopf in deinem Discord-Status. Wer deinen Status sehen kann, kann damit diesem Raum beitreten."
+  "togetherShowDiscordDesc": "Ein Knopf in deinem Discord-Status. Wer deinen Status sehen kann, kann damit diesem Raum beitreten.",
+  "togetherNowPlaying": "Läuft gerade",
+  "togetherYouHere": "Du in diesem Raum"
 }
