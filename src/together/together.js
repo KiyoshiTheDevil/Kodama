@@ -18,7 +18,7 @@ let snap = {
   offset: 0, rtt: null,   // server clock = Date.now() + offset
   drift: null,            // listener: how far off the last check was, in ms (for the debug view)
   error: null,
-  tune: null, lead: 0.15, rate: 1,
+  tune: null, lead: 0.15, rate: 1, baseRate: 0,
 };
 const subs = new Set();
 const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f()); };
@@ -34,9 +34,11 @@ export const setDrift = (ms) => { if (snap.drift !== ms) set({ drift: ms }); };
 //   hostReport: the host reports again when it is this far off what it last said
 //   latency: this device's audio comes out this much late (Bluetooth, a VM); played ahead by it
 const TUNE_KEY = "kodama-together-tune-v2";
-export const TUNE_DEFAULTS = { seekAbove: 1000, maxRate: 10, hostReport: 150, latency: 0 };
+export const TUNE_DEFAULTS = { seekAbove: 300, maxRate: 10, hostReport: 150, latency: 0 };
 let tune = TUNE_DEFAULTS;
 try { tune = { ...TUNE_DEFAULTS, ...JSON.parse(localStorage.getItem(TUNE_KEY) || "{}") }; } catch { /* defaults */ }
+// 1000 was the first default, too far to catch up by speed after a song change.
+if (tune.seekAbove === 1000) tune = { ...tune, seekAbove: TUNE_DEFAULTS.seekAbove };
 snap.tune = tune;
 export const getTune = () => tune;
 export function setTune(patch) {
@@ -47,7 +49,7 @@ export function setTune(patch) {
 // How far ahead a correcting seek aims, in s. Learnt: a seek into a stream lands late by however
 // long the player needs to get going again there, which differs per machine and connection.
 export const setLead = (s) => { if (snap.lead !== s) set({ lead: s }); };
-export const setRateShown = (r) => { if (snap.rate !== r) set({ rate: r }); };
+export const setRateShown = (r, base) => { if (snap.rate !== r || snap.baseRate !== base) set({ rate: r, baseRate: base }); };
 
 export const serverNow = () => Date.now() + snap.offset;
 /** Where the room is right now, in seconds. */

@@ -11,13 +11,28 @@ const SETTLE = 1200;         // ms: a seek is judged this long after it, once th
 const HORIZON = 3;           // s: a drift is meant to be gone in about this long
 const DEADBAND = 0.01;       // s: closer than this plays at normal speed
 
+const BASE_WINDOW = 10000;   // ms: the device's own speed error is measured over this long
+const BASE_MAX = 0.02;
+
 // The player's speed, sent only when it changes. 1.0 whenever this Kodama is not following.
 let rateNow = 1;
+// What this device needs to play at to keep time at all: a sound card (a virtual machine's
+// especially) can run a few per mille slow or fast. Measured while following, kept for the
+// session; the catch-up limit applies on top of it, since this part changes no pitch that
+// anyone hears - it only undoes the device's own error.
+//
+// Measured, not integrated from the corrections: how fast the drift changed, minus how much
+// of that the speed asked for, is what the device did on its own. An integrator would also
+// learn every catch-up after a jump and overshoot.
+let baseRate = 0;
+let history = [];            // { at, drift, asked }: `asked` sums (speed - 1) over time, in s
+let asked = 0, lastTick = 0;
+function resetHistory() { history = []; lastTick = 0; }
 function setRate(r) {
   const v = Math.round(r * 10000) / 10000;
   if (v === rateNow) return;
   rateNow = v;
-  setRateShown(v);
+  setRateShown(v, baseRate);
   invoke("audio_set_rate", { rate: v }).catch(() => {});
 }
 
@@ -78,10 +93,11 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       // Listener.
       if (!state?.track || state.track.videoId !== currentTrack?.videoId) {
         setRate(1);
+        resetHistory();
         if (state?.track && loaded.current !== state.track.videoId) { loaded.current = state.track.videoId; handlePlay(state.track, [state.track]); }
         return;
       }
-      if (a.isPreparing) { setRate(1); return; }
+      if (a.isPreparing) { setRate(1); resetHistory(); return; }
       if (state.playing) {
         if (a.paused) { a.play(); setIsPlaying(true); }
       } else if (!a.paused) { a.pause(); setIsPlaying(false); }
@@ -92,7 +108,7 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
 
       const j = judging.current;
       if (j) {
-        if (Date.now() - j.at < SETTLE || a.paused || !state.playing) return;
+        if (Date.now() - j.at < SETTLE || a.paused || !state.playing) { resetHistory(); return; }
         // Landed `drift` off: aim that much further ahead (or less) next time.
         judging.current = null;
         if (j.playing) setLead(Math.min(2, Math.max(0, lead - drift)));
@@ -100,6 +116,7 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
       if (Math.abs(drift) * 1000 > tune.seekAbove || (!state.playing && Math.abs(drift) > 0.05)) {
         // Far off (joining, the host jumped), or paused somewhere else: a jump.
         setRate(1);
+        resetHistory();
         if (Date.now() - lastSeek.current > SEEK_GAP) {
           lastSeek.current = Date.now();
           judging.current = { at: Date.now(), playing: state.playing };
@@ -108,8 +125,21 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         return;
       }
       // Close: catch up by speed. Behind (drift < 0) plays faster.
+      if (!state.playing || a.paused) { setRate(1); resetHistory(); return; }
+      const now = Date.now();
+      if (lastTick) asked += (rateNow - 1) * (now - lastTick) / 1000;
+      lastTick = now;
+      history.push({ at: now, drift, asked });
+      while (history.length > 1 && now - history[1].at >= BASE_WINDOW) history.shift();
+      const o = history[0];
+      if (now - o.at >= BASE_WINDOW) {
+        const dt = (now - o.at) / 1000;
+        const own = (drift - o.drift) / dt - (asked - o.asked) / dt;
+        baseRate = Math.max(-BASE_MAX, Math.min(BASE_MAX, baseRate + (-own - baseRate) * 0.1));
+      }
       const max = tune.maxRate / 1000;
-      setRate(!state.playing || Math.abs(drift) < DEADBAND ? 1 : 1 + Math.max(-max, Math.min(max, -drift / HORIZON)));
+      const p = Math.abs(drift) < DEADBAND ? 0 : Math.max(-max, Math.min(max, -drift / HORIZON));
+      setRate(1 + baseRate + p);
     }, 500);
     return () => { clearInterval(id); setRate(1); };
   }, [active, currentTrack, audioRef, handlePlay, setIsPlaying]); // eslint-disable-line react-hooks/exhaustive-deps

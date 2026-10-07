@@ -46,7 +46,7 @@ export function TogetherDebug() {
             <Button size="sm" variant="ghost" className="ml-auto" onPress={leave}>Leave</Button>
           </div>
           <div className="text-[length:var(--t11)] text-muted font-mono">
-            rtt {t.rtt ?? "–"} ms · offset {Math.round(t.offset)} ms{t.drift != null ? ` · ${t.isHost ? "off" : "drift"} ${t.drift} ms` : ""}{!t.isHost ? ` · lead ${Math.round(t.lead * 1000)} ms · speed ${((t.rate - 1) * 100).toFixed(2)} %` : ""}
+            rtt {t.rtt ?? "–"} ms · offset {Math.round(t.offset)} ms{t.drift != null ? ` · ${t.isHost ? "off" : "drift"} ${t.drift} ms` : ""}{!t.isHost ? ` · lead ${Math.round(t.lead * 1000)} ms · speed ${((t.rate - 1) * 1000).toFixed(1)} ‰ (base ${(t.baseRate * 1000).toFixed(1)} ‰)` : ""}
           </div>
           <div className={row + " flex-wrap text-[length:var(--t11)] text-muted"}>
             {[["seekAbove", "Jump above", "ms"], ["maxRate", "Max speed", "‰"], ["hostReport", "Host report", "ms"], ["latency", "Audio delay", "ms"]].map(([k, label, unit]) => (
