@@ -166,15 +166,17 @@ function RoomQueueRow({ q, r, t, canRemove, active }) {
   const adder = q.addedBy && (r.members.find((m) => m.id === q.addedBy.id) || q.addedBy);
   return (
     <div className={`group flex items-center gap-2.5 py-1.5 px-2.5 rounded-[var(--r-md)] min-w-0 ${active ? "bg-accent-dim" : ""}`}>
-      <div className="relative w-9 h-9 shrink-0">
+      <div className="w-9 h-9 shrink-0">
         {q.thumbnail
           ? <img src={thumb(q.thumbnail)} alt="" className="w-9 h-9 rounded-[var(--r-sm)] object-cover" />
           : <div className="w-9 h-9 rounded-[var(--r-sm)]" style={{ background: "var(--placeholder-gradient)" }} />}
-        {adder && <span className="absolute -right-1 -bottom-1" title={t("togetherAddedBy", { n: adder.name })}><MemberAvatar member={adder} size={16} ring="var(--bg-surface)" /></span>}
       </div>
       <div className="min-w-0 flex-1">
         <div className={`truncate font-medium text-[length:var(--t12)] ${active ? "text-accent" : ""}`}>{q.title}</div>
-        <div className="truncate text-secondary text-[length:var(--t11)]">{q.artists}</div>
+        <div className="flex items-center gap-1 min-w-0 text-secondary text-[length:var(--t11)]">
+          <span className="truncate">{q.artists}</span>
+          {adder && <AddedByLabel adder={adder} t={t} />}
+        </div>
       </div>
       {canRemove && (
         <button type="button" onClick={() => roomRemove(q)} aria-label={t("togetherRemove")} title={t("togetherRemove")}
@@ -208,16 +210,24 @@ export function TogetherRoomQueue() {
   );
 }
 
-/** The adder of a song in the host's own queue, as a small avatar on its cover. */
-export function AddedByBadge({ addedBy }) {
+// "· [face] Mary" after the artist: who put a song in the room's queue. The name is never cut
+// before the artist is; the artist gives way first.
+function AddedByLabel({ adder, t }) {
+  return (
+    <span className="inline-flex items-center gap-1 shrink-0 max-w-[55%] min-w-0" title={t("togetherAddedBy", { n: adder.name })}>
+      <span aria-hidden="true">·</span>
+      <MemberAvatar member={adder} size={13} ring={false} />
+      <span className="truncate text-primary">{adder.name}</span>
+    </span>
+  );
+}
+
+/** Who added a song in the host's own queue (for the queue panel's rows). */
+export function AddedBy({ addedBy }) {
   const t = useLang();
   // The members only: a row per queued song must not re-render with every sync reading.
   const members = useTogetherValue((x) => x.members);
   if (!addedBy?.id) return null;
   const adder = members.find((m) => m.id === addedBy.id) || addedBy;
-  return (
-    <span className="absolute -right-1 -bottom-1" title={t("togetherAddedBy", { n: adder.name })}>
-      <MemberAvatar member={adder} size={16} ring="var(--bg-surface)" />
-    </span>
-  );
+  return <AddedByLabel adder={adder} t={t} />;
 }

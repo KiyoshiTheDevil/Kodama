@@ -14,7 +14,7 @@ import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
 import { useTogetherValue } from "../together/together.js";
-import { TogetherRoomHeader, TogetherRoomQueue, AddedByBadge } from "../together/TogetherRoomTab.jsx";
+import { TogetherRoomHeader, TogetherRoomQueue, AddedBy } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -72,14 +72,11 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
         <GripLines size={13} className="block pointer-events-none text-muted" />
       </div>
 
-      {/* Thumbnail (with who added it, for a song a ListenTogether member put in the queue) */}
-      <div className="relative w-9 h-9 shrink-0">
-        <div className="w-9 h-9 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
-          {track.thumbnail
-            ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
-        </div>
-        {track.addedBy && <AddedByBadge addedBy={track.addedBy} />}
+      {/* Thumbnail */}
+      <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
+        {track.thumbnail
+          ? <img src={thumb(track.thumbnail)} alt="" className="w-full h-full object-cover" />
+          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
       </div>
 
       {/* Title + artist */}
@@ -88,7 +85,12 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
           <span className="truncate min-w-0">{track.title}</span>
           {track.isExplicit && <ExplicitBadge />}
         </div>
-        <div className="text-[length:var(--t11)] text-secondary truncate">{track.artists}</div>
+        {track.addedBy
+          ? <div className="flex items-center gap-1 min-w-0 text-[length:var(--t11)] text-secondary">
+              <span className="truncate">{track.artists}</span>
+              <AddedBy addedBy={track.addedBy} />
+            </div>
+          : <div className="text-[length:var(--t11)] text-secondary truncate">{track.artists}</div>}
       </div>
 
       {/* Custom-crossfade indicator (set via right-click) */}
