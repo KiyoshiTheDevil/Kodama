@@ -26,7 +26,6 @@
       --t2: #b4b4b4;
       --t3: #7a7a7a;
       --font: 'MiSans Latin', -apple-system, "Segoe UI", Roboto, sans-serif;
-      --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -108,13 +107,12 @@
       display: flex; align-items: center; gap: 10px; margin-top: 6px;
       background: rgba(255,255,255,.06); border-radius: 18px; padding: 10px 10px 10px 18px;
     }
-    .code { flex: 1; font-family: var(--mono); font-size: 20px; letter-spacing: .16em; color: var(--t1); }
+    .code { flex: 1; font-size: 20px; font-weight: 600; letter-spacing: .12em; color: var(--t1); }
     .copy {
       font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--t1);
       background: rgba(255,255,255,.1); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer;
     }
     .copy:hover { background: rgba(255,255,255,.16); }
-    .hint { font-size: 13px; color: var(--t3); line-height: 1.5; margin: 2px 4px 0; }
 
     /* Dead-end state: a shrug rather than a red error. */
     .nothing { text-align: center; max-width: 420px; margin: 0 auto; }
@@ -169,7 +167,6 @@
             <span class="code" id="code"></span>
             <button class="copy" id="copy" type="button">Copy</button>
           </div>
-          <p class="hint">If the button doesn't open Kodama: click Listen together in Kodama's sidebar and paste the code.</p>
           <a class="btn ghost" href="/">Don't have Kodama? Get it here</a>
         </div>
       </div>
