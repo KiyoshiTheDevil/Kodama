@@ -17,6 +17,8 @@
   <link rel="preload" href="s/MiSansLatin-Semibold.ttf" as="font" type="font/ttf" crossorigin>
   <script type="module" src="js/site.js"></script>
   <script type="module" src="js/spirit.js" blocking="render"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script type="module" src="js/spotlights.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -75,7 +77,22 @@
 
     <section class="section">
       <h2>Look! Features!</h2>
-      <p class="sub">A full-screen now-playing view with a real-time audio visualizer and word-synced lyrics, romaji and translations included.</p>
+      <div class="spots">
+        <div class="spot">
+          <div class="spot-text"><h3>Synced lyrics</h3><p>Line, word- and syllable-level synchronized lyrics, with translations and romaji for Japanese songs.</p></div>
+          <div class="spot-vis"><svg data-scene="lyrics" viewBox="0 0 420 220" role="img" aria-label="A spirit with headphones next to lyrics that light up word by word"></svg></div>
+        </div>
+        <div class="spot rev">
+          <div class="spot-text"><h3>Overlay editor</h3><p>Put your now-playing track on stream, and design it yourself: layers, colours from the cover, shaders and live audio levels.</p></div>
+          <div class="spot-vis"><svg data-scene="overlay" viewBox="0 0 440 270" role="img" aria-label="A now-playing widget built from layers in the overlay editor, then shown on a stream"></svg></div>
+        </div>
+        <div class="spot">
+          <div class="spot-text"><h3>Listen together</h3><p>Start a room, send the link, and your friends hear the same song at the same moment. You decide who can add songs.</p></div>
+          <div class="spot-vis"><svg data-scene="together" viewBox="0 0 420 240" role="img" aria-label="Spirits on a bench listening to the same song, a third one joins"></svg></div>
+        </div>
+      </div>
+
+      <p class="sub more">A full-screen now-playing view with a real-time audio visualizer.</p>
       <div class="showcase">
         <video class="scv" autoplay muted loop playsinline poster="shots/loop-poster.jpg" aria-label="Kodama, audio visualizer in motion">
           <source src="shots/loop.mp4" type="video/mp4">
@@ -85,12 +102,7 @@
       <a class="song-credit" href="https://kodama.kiyoshi.dev/s/?cENYLTXTOQ4"><b>最低界隈 - Saitei Kaiwai</b> by <b>tuki.</b></a>
 
       <div class="bento">
-        <div class="tile wide lyrics"><h3>Synced lyrics</h3><p>Line, Word- and syllable-level synchronized lyrics, with translations and romaji for Japanese songs</p>
-          <span class="bubble">♪ la la</span><kodama-spirit pose="happy" size="62"></kodama-spirit></div>
         <div class="tile"><h3>Audio visualizer</h3><p>A reactive, fully customizable visualizer with savable presets.</p></div>
-        <div class="tile tall obs"><h3>Overlay for OBS</h3><p>A dedicated widget to put your now-playing track on stream.</p>
-          <span class="peekbox"><kodama-spirit pose="peek" size="54"></kodama-spirit></span>
-          <div class="mini-widget"><i></i><span>最低界隈<small>tuki.</small></span></div></div>
         <div class="tile"><h3>Remote control</h3><p>Control playback from your phone over your local network.</p></div>
         <div class="tile"><h3>Personalization</h3><p>Dynamic accent colors drawn from the cover art, themes, and swappable app icons.</p></div>
         <div class="tile"><h3>And even more stuff!</h3><p>Offline downloads, Discord Rich Presence, and Last.fm scrobbling.</p>

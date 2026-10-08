@@ -7,7 +7,7 @@ const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Only what starts out below the visible part of the page slides in. What is on screen when the
 // page appears is simply there: hiding it until a script showed it again made every page change
 // flash empty, and the view transition captured that empty page.
-const REVEAL = ".section > h2, .section > .sub, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead";
+const REVEAL = ".section > h2, .section > .sub, .spot, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead";
 const io = calm ? null : new IntersectionObserver((entries) => {
   const coming = entries.filter((e) => e.isIntersecting).map((e) => e.target);
   coming.forEach((el, i) => {
