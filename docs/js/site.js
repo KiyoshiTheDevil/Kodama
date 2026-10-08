@@ -7,7 +7,7 @@ const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Only what starts out below the visible part of the page slides in. What is on screen when the
 // page appears is simply there: hiding it until a script showed it again made every page change
 // flash empty, and the view transition captured that empty page.
-const REVEAL = ".section > h2, .section > .sub, .spot, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead";
+const REVEAL = ".section > h2, .feat-head, .section > .sub, .spot, .showcase, .song-credit, .tile, .store-teaser, .rel, .legal, .vhead";
 const io = calm ? null : new IntersectionObserver((entries) => {
   const coming = entries.filter((e) => e.isIntersecting).map((e) => e.target);
   coming.forEach((el, i) => {
@@ -38,6 +38,63 @@ if (!calm) document.addEventListener("pointerover", (e) => {
   if (!host || host.contains(e.relatedTarget)) return;
   for (const s of host.querySelectorAll("kodama-spirit")) if (s.cheer) s.cheer();
 });
+
+// ── The hero spirit startles at the download button ────────────────────
+// Hovered or focused, it jumps up wide-eyed; left, it goes back to listening.
+const dl = document.querySelector(".dl-main"), hero = document.querySelector(".hero-spirit");
+if (dl && hero) {
+  const on = () => hero.startle?.(true), off = () => hero.startle?.(false);
+  dl.addEventListener("pointerenter", on); dl.addEventListener("pointerleave", off);
+  dl.addEventListener("focus", on); dl.addEventListener("blur", off);
+}
+
+// ── The features heading's spirit ────────────────────────────────────────
+// On the first screen the spirit stands under the heading, eyes down at what follows, with a
+// little arrow. Scrolling lets it glide up behind the heading, faint and blurred while the
+// letters are in front of it, and out on top, where it gives a happy jump; scrolling back up
+// sends it back down. Without motion it simply stands on the heading.
+const mover = document.querySelector(".feat-mover");
+if (mover && !calm) {
+  const head = mover.parentElement, h2 = head.querySelector("h2");
+  const spirit = mover.querySelector("kodama-spirit"), hint = mover.querySelector(".feat-hint");
+  let startY = 0, textTop = 0, textBottom = 0, span = 1, arrived = false, queued = false;
+  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  function measure() {
+    // Under the heading's text to start with. Positions relative to where it ends up.
+    const range = document.createRange(); range.selectNodeContents(h2);
+    const text = range.getBoundingClientRect(), box = head.getBoundingClientRect();
+    startY = text.bottom - box.top + 50 + 6;
+    // The letters themselves, not the line box around them (it has room above the capitals,
+    // which kept the spirit blurred while it stood on the heading).
+    textTop = text.top - box.top + 50 + text.height * 0.2; textBottom = text.bottom - box.top + 50 - text.height * 0.1;
+    // Done by the time the heading has risen to a third of the way down the screen.
+    const top = head.getBoundingClientRect().top + scrollY;
+    span = Math.max(120, top - innerHeight * 0.33);
+  }
+  function place() {
+    queued = false;
+    const p = Math.min(1, Math.max(0, scrollY / span)), e = ease(p);
+    const y = startY * (1 - e), x = Math.sin(2 * Math.PI * e) * 10;
+    mover.style.transform = `translate(${x}px, ${y}px) rotate(${Math.sin(2 * Math.PI * e) * -6}deg)`;
+    // How much of it the letters cover (its body is the middle of its box, about 10 to 58 of 64).
+    const top = y + 10, bottom = y + 58;
+    const cover = p >= 0.99 ? 0 : Math.max(0, Math.min(bottom, textBottom) - Math.max(top, textTop)) / 48;
+    mover.style.opacity = String(1 - 0.6 * cover);
+    mover.style.filter = cover > 0.01 ? `blur(${(cover * 5).toFixed(1)}px)` : "";
+    hint.style.opacity = String(Math.max(0, 1 - p * 4));
+    // Eyes down at the page while it waits; after that they follow the pointer again.
+    spirit.gazeAt = p < 0.25 ? () => { const r = spirit.getBoundingClientRect(); return [r.left + 32, r.bottom + 260]; } : null;
+    spirit._aim?.(...(spirit._aimAt || [innerWidth / 2, innerHeight / 2]));
+    if (p >= 0.98 && !arrived) { arrived = true; spirit.cheer?.(); }
+    if (p < 0.8) arrived = false;
+  }
+  const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(place); } };
+  measure(); place();
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", () => { measure(); onScroll(); });
+  // The web font changes the heading's width once it is in.
+  document.fonts?.ready.then(() => { measure(); place(); });
+}
 
 // ── Scrollbar ────────────────────────────────────────────────────────────
 // The browser's own bar takes room from the page, and only on pages long enough to scroll, so

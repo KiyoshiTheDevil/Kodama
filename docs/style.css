@@ -82,7 +82,10 @@ nav.links a.on { background:var(--t1); color:var(--bg); }
 .dl-alt a:hover { color:var(--t1); }
 
 /* ── Landing ────────────────────────────────────────────────────────── */
-.hero { overflow-x:clip; overflow-y:visible; display:grid; grid-template-columns:1fr 1.15fr; gap:36px; align-items:center; padding:30px 0 20px; }
+/* The first screen: the hero in the middle of what is left once the header and the features
+   heading (which shows at the bottom, inviting a scroll) have their room. */
+.hero { overflow-x:clip; overflow-y:visible; display:grid; grid-template-columns:1fr 1.15fr; gap:36px; align-items:center; align-content:center;
+  min-height:calc(100svh - 70px - 300px); padding:40px 0; }
 .hero h1 { font-size:clamp(32px,4.6vw,52px); line-height:1.08; margin:0 0 14px; font-weight:600; letter-spacing:-.01em; }
 .hero h1 .grad { background:linear-gradient(90deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .tagline { font-size:clamp(15px,1.7vw,18px); color:var(--t2); margin:0 0 24px; }
@@ -100,10 +103,28 @@ nav.links a.on { background:var(--t1); color:var(--bg); }
 
 .section { padding-top:84px; }
 .section h2 { font-size:clamp(24px,3vw,32px); font-weight:600; margin:0 0 6px; }
+/* The landing's features heading: centred and large, a spirit peeking over it from behind,
+   a soft glow of the accent underneath. */
+.hero + .section { padding-top:44px; }
+.feat-head { position:relative; text-align:center; isolation:isolate; }
+.feat-head::before { content:""; position:absolute; left:50%; top:60%; width:min(560px,90%); height:150px; transform:translate(-50%,-50%);
+  background:radial-gradient(closest-side, rgba(155,227,109,.13), transparent); z-index:-1; pointer-events:none; }
+.section .feat-head h2 { font-size:clamp(36px,5.4vw,60px); line-height:1.05; letter-spacing:-.015em; margin:0; }
+.feat-head .grad { background:linear-gradient(90deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+/* The box ends where the heading begins, so the spirit rises from behind its letters. */
+/* Where the spirit ends up: standing on the heading. js/site.js moves it there from beside it. */
+/* Behind the heading's letters (it glides up behind them), in front of the glow. */
+.feat-mover { position:absolute; left:50%; top:-50px; width:64px; margin-left:-32px; will-change:transform, filter; z-index:0; }
+.feat-head h2 { position:relative; z-index:1; }
+.feat-spirit { display:block; filter:drop-shadow(0 8px 14px rgba(0,0,0,.4)); }
+.feat-hint { position:absolute; left:50%; top:62px; margin-left:-9px; color:var(--accent); animation:hint-bob 1.3s ease-in-out infinite; }
+@keyframes hint-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(5px); } }
+@media (max-width:900px) { .hero { min-height:0; padding:36px 0 40px; } .hero + .section { padding-top:90px; } }
+@media (prefers-reduced-motion: reduce) { .feat-hint { display:none; } }
 .section .sub { color:var(--t2); font-size:15px; margin:0 0 26px; max-width:620px; }
 /* The big features: text on one side, an animated scene on the other (js/spotlights.js),
    sides alternating. The scenes have no box of their own and may reach past their column. */
-.spots { display:flex; flex-direction:column; gap:70px; margin:34px 0 90px; }
+.spots { display:flex; flex-direction:column; gap:70px; margin:230px 0 90px; }
 .spot { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); gap:40px; align-items:center; }
 .spot.rev { grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); }
 .spot.rev .spot-text { order:2; }
@@ -112,7 +133,7 @@ nav.links a.on { background:var(--t1); color:var(--bg); }
 .spot-vis { line-height:0; margin:-20px -16px; }
 .spot-vis svg { display:block; width:100%; height:auto; overflow:visible; }
 @media (max-width:760px) {
-  .spots { gap:56px; }
+  .spots { gap:56px; margin-top:150px; }
   .spot, .spot.rev { grid-template-columns:1fr; gap:14px; }
   .spot.rev .spot-text { order:0; }
   .spot-vis { margin:0 -8px; }
