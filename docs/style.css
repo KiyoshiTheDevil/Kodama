@@ -157,6 +157,9 @@ button.feat-mover:hover .feat-hint { color:var(--accent-2); }
 .spot.rev { grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); }
 .spot.rev .spot-text { order:2; }
 .spot-text h3 { font-size:clamp(22px,2.6vw,28px); font-weight:600; margin:0 0 10px; }
+/* A feature announced ahead of the release that brings it. */
+.spot-text h3 .soon { display:inline-block; vertical-align:middle; margin-left:10px; padding:5px 12px; border-radius:99px; font-size:clamp(12px,.75vw,14px);
+  font-weight:600; letter-spacing:.02em; color:var(--bg); background:linear-gradient(90deg,var(--accent),var(--accent-2)); transform:translateY(-2px); }
 .spot-text p { color:var(--t2); font-size:15.5px; margin:0; max-width:40ch; }
 .spot-vis { line-height:0; margin:-20px -16px; }
 .spot-vis svg { display:block; width:100%; height:auto; overflow:visible; }
