@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener, getTogether, requestAdd, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
+import { join as joinTogether, isRoomListener, getTogether, requestAdd, suggest as suggestToRoom, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -4739,6 +4739,8 @@ export default function App() {
     else if (n.kind === "kicked") addToast(translate(lang, "togetherKicked"), "error");
     else if (n.kind === "full") addToast(translate(lang, "togetherFull"), "error");
     else if (n.kind === "denied") addToast(translate(lang, "togetherDenied"), "error");
+    else if (n.kind === "suggestion") addToast(translate(lang, n.what === "accepted" ? "togetherSuggestAccepted" : "togetherSuggestDismissed", { s: n.title }), n.what === "accepted" ? "success" : "info");
+    else if (n.kind === "suggest-error") addToast(translate(lang, { "suggest-max": "togetherSuggestMax", "suggest-queued": "togetherSuggestQueued", "suggest-full": "togetherSuggestFull" }[n.reason] || "togetherSuggestFull"), "info");
   }), [addToast]);
 
   // A song out of the queue: the host removing any, or a member taking back their own (the
@@ -6989,10 +6991,16 @@ export default function App() {
                 <CtxItem icon={<Plus size={15} />} label={translate(language, "addToPlaylist")}
                   onSelect={() => setAddToPlaylistFor({ tracks: [track] })} />
 
-                <CtxItem icon={<Queue size={15} />} label={translate(language, "playNext")}
-                  onSelect={() => { if (enqueue(track, "next") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedNext"), "success"); }} />
-                <CtxItem icon={<Queue size={15} />} label={translate(language, "addToQueue")}
-                  onSelect={() => { if (enqueue(track, "end") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedQueue"), "success"); }} />
+                {/* A listener in a room cannot add songs: they suggest them to the room instead. */}
+                {isRoomListener() && !canAddSongs() ? (
+                  <CtxItem icon={<Queue size={15} />} label={translate(language, "togetherSuggest")}
+                    onSelect={() => { suggestToRoom(track); addToast(translate(language, "togetherSuggested"), "success"); }} />
+                ) : (<>
+                  <CtxItem icon={<Queue size={15} />} label={translate(language, "playNext")}
+                    onSelect={() => { if (enqueue(track, "next") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedNext"), "success"); }} />
+                  <CtxItem icon={<Queue size={15} />} label={translate(language, "addToQueue")}
+                    onSelect={() => { if (enqueue(track, "end") !== false) addToast(translate(language, isRoomListener() ? "togetherRequestSent" : "addedQueue"), "success"); }} />
+                </>)}
                 <CtxItem icon={<Radio size={15} />} label={translate(language, "startRadio")}
                   onSelect={() => startSongRadio(track)} />
 

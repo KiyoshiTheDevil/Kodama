@@ -5,14 +5,17 @@
 import { useState, useRef } from "react";
 import { Button, PopoverRoot, PopoverContent, PopoverDialog } from "@heroui/react";
 import { thumb, useLang, useZoom } from "../context.jsx";
-import { Crown, X, Gear, DotsThreeVertical, CaretDown } from "../icons.jsx";
+import { Crown, X, Gear, DotsThreeVertical, CaretDown, CaretUp, Check } from "../icons.jsx";
+import { Tooltip } from "../ui/tooltip.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
-import { useTogether, useTogetherValue, hostConfig, setShowAvatar, setShowDiscord, setRole, kick, admit, deny } from "./together.js";
+import { useTogether, useTogetherValue, hostConfig, setShowAvatar, setShowDiscord, setRole, kick, admit, deny, vote, acceptSuggestion, dismissSuggestion } from "./together.js";
 import { Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 
 const LIMITS = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 0];
+// Votes after which a suggestion goes into the queue by itself; 0 is never.
+const AUTO_ACCEPT = [0, 2, 3, 4, 5, 7, 10, 15, 20];
 const ROLE_HINT = { cohost: "togetherHintCohost", member: "togetherHintMember", listener: "togetherHintListener" };
 const ROLE_ACTION = { cohost: "togetherMakeCohost", member: "togetherMakeMember", listener: "togetherMakeListener" };
 const GROUP_LABEL = { host: "togetherGroupHost", cohost: "togetherGroupCohosts", member: "togetherGroupMembers", listener: "togetherGroupListeners" };
@@ -134,6 +137,30 @@ function SettingsBody({ r, t }) {
                   {LIMITS.map((n) => (
                     <DropdownItem key={String(n)} id={String(n)} textValue={n === 0 ? t("togetherNoLimit") : String(n)}>
                       {n === 0 ? t("togetherNoLimit") : n}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </DropdownPopover>
+            </Dropdown>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex-1">
+              <span className="block">{t("togetherAutoAccept")}</span>
+              <span className="block text-secondary text-[length:var(--t11)] mt-0.5">{t("togetherAutoAcceptDesc")}</span>
+            </span>
+            <Dropdown>
+              <DropdownTrigger aria-label={t("togetherAutoAccept")}
+                className="h-[30px] px-3 gap-1.5 rounded-[var(--r-full)] bg-[var(--fill-subtle)] hover:bg-hover text-primary inline-flex items-center text-[length:var(--t12)] font-semibold shrink-0">
+                {r.config.autoAccept ? r.config.autoAccept : t("togetherAutoAcceptOff")}
+                <CaretDown size={11} className="text-muted" />
+              </DropdownTrigger>
+              <DropdownPopover placement="bottom end" className="[--dd-min-w:8rem] overflow-y-auto scrollable" style={{ maxHeight: 280 }}>
+                <DropdownMenu aria-label={t("togetherAutoAccept")} selectionMode="single" disallowEmptySelection
+                  selectedKeys={[String(r.config.autoAccept || 0)]}
+                  onSelectionChange={(keys) => { const v = [...keys][0]; if (v != null) hostConfig({ autoAccept: Number(v) }); }}>
+                  {AUTO_ACCEPT.map((n) => (
+                    <DropdownItem key={String(n)} id={String(n)} textValue={n === 0 ? t("togetherAutoAcceptOff") : String(n)}>
+                      {n === 0 ? t("togetherAutoAcceptOff") : n}
                     </DropdownItem>
                   ))}
                 </DropdownMenu>
@@ -280,6 +307,65 @@ export function TogetherPeopleTab() {
           {g.people.map((m) => <PersonRow key={m.id} m={m} r={r} t={t} />)}
         </section>
       ))}
+    </div>
+  );
+}
+
+// One suggestion in the Room tab, row for row the size of a queue row (the list is virtualised).
+// Left the vote: a pill with the count, filled once you voted. Right who stands behind it: the
+// one who suggested it first, marked with the accent, then who voted (names on hover). Then what
+// the viewer may do: host and co-hosts take it into the queue or dismiss it, and whoever
+// suggested it may take it back.
+const STACK = 3;
+export function SuggestionRow({ sg }) {
+  const t = useLang();
+  const members = useTogetherValue((x) => x.members);
+  const youId = useTogetherValue((x) => x.you?.id || "");
+  const admin = useTogetherValue((x) => x.isHost || x.you?.role === "cohost");
+  const voted = sg.votes.includes(youId);
+  const own = sg.by.id === youId;
+  const person = (id) => members.find((m) => m.id === id) || (id === sg.by.id ? sg.by : null);
+  const voters = sg.votes.filter((id) => id !== sg.by.id).map(person).filter(Boolean);
+  const faces = [person(sg.by.id) || sg.by, ...voters].slice(0, STACK);
+  const extra = sg.votes.length - faces.length;
+  const who = [t("togetherSuggestedBy", { n: sg.by.name }), ...voters.map((v) => v.name)].join(" · ");
+  const btn = "w-[26px] h-[26px] shrink-0 rounded-[var(--r-full)] border-0 bg-transparent cursor-default inline-flex items-center justify-center transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.9]";
+  return (
+    <div style={{ height: 50 }} className="group/srow flex items-center gap-2 pl-1.5 pr-2 rounded-[var(--r-md)] select-none hover:bg-[var(--fill-subtle)]">
+      <button type="button" onClick={() => vote(sg.id, !voted)} aria-pressed={voted}
+        aria-label={t(voted ? "togetherUnvote" : "togetherVote", { s: sg.track.title })}
+        className={`w-[26px] h-[36px] shrink-0 rounded-[var(--r-full)] border-0 cursor-default inline-flex flex-col items-center justify-center gap-px text-[length:var(--t11)] font-semibold leading-none transition-[background-color,color,transform] duration-150 active:scale-[0.9] ${
+          voted ? "bg-accent text-[var(--accent-foreground)]" : "bg-[var(--fill-subtle)] text-secondary hover:text-primary hover:bg-hover"}`}>
+        <CaretUp size={11} weight="bold" />{sg.votes.length}
+      </button>
+      <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-1">
+        {sg.track.thumbnail
+          ? <img src={thumb(sg.track.thumbnail)} alt="" className="w-full h-full object-cover" />
+          : <div className="w-full h-full bg-[image:var(--placeholder-gradient)]" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="truncate text-[length:var(--t12)] font-medium text-primary">{sg.track.title}</div>
+        <div className="truncate text-[length:var(--t11)] text-secondary">{sg.track.artists}</div>
+      </div>
+      <Tooltip text={who}>
+        <span className="inline-flex items-center shrink-0" aria-label={who}>
+          {faces.map((m, i) => (
+            <span key={m.id || i} style={{ marginLeft: i ? -6 : 0, zIndex: STACK - i }} className="relative inline-flex">
+              <MemberAvatar member={m} size={18} ring={i === 0 ? "var(--accent)" : "var(--bg-elevated)"} />
+            </span>
+          ))}
+          {extra > 0 && <span className="ml-1 text-[length:var(--t11)] text-muted">+{extra}</span>}
+        </span>
+      </Tooltip>
+      {admin ? (<>
+        <button type="button" onClick={() => acceptSuggestion(sg.id)} aria-label={t("togetherAccept")} title={t("togetherAccept")}
+          className={`${btn} text-accent`}><Check size={14} weight="bold" /></button>
+        <button type="button" onClick={() => dismissSuggestion(sg.id)} aria-label={t(own ? "togetherWithdraw" : "togetherDismiss")} title={t(own ? "togetherWithdraw" : "togetherDismiss")}
+          className={`${btn} text-muted hover:text-[var(--status-danger)]`}><X size={13} /></button>
+      </>) : own ? (
+        <button type="button" onClick={() => dismissSuggestion(sg.id)} aria-label={t("togetherWithdraw")} title={t("togetherWithdraw")}
+          className={`${btn} text-muted hover:text-[var(--status-danger)] opacity-0 group-hover/srow:opacity-100 focus-visible:opacity-100`}><X size={13} /></button>
+      ) : null}
     </div>
   );
 }

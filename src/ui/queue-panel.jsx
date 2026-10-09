@@ -14,7 +14,7 @@ import { dissolve } from "../effects/particle-burst.js";
 import { usePlaybackPrefs } from "../preferences.jsx";
 import { groupCorners } from "./corners.js";
 import { useTogetherValue, roomRemove } from "../together/together.js";
-import { TogetherRoomHeader, TogetherPeopleTab, AddedBy } from "../together/TogetherRoomTab.jsx";
+import { TogetherRoomHeader, TogetherPeopleTab, AddedBy, SuggestionRow } from "../together/TogetherRoomTab.jsx";
 
 // Fixed geometry so the list can be virtualised: a queued playlist runs to thousands of rows,
 // and rendering them all made scrolling and every interaction stutter well before that. The row
@@ -150,6 +150,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   const roomNow = useTogetherValue((x) => x.state?.track || null);
   const roomQueue = useTogetherValue((x) => x.queue);
   const youId = useTogetherValue((x) => x.you?.id || "");
+  const suggestions = useTogetherValue((x) => x.suggestions);
   const queue = useMemo(() => {
     if (!isListener) return ownQueue;
     const now = currentTrack && roomNow && currentTrack.videoId === roomNow.videoId ? currentTrack : roomNow;
@@ -254,6 +255,11 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       push({ kind: "header", key: "h-now", section: "now", label: t("nowPlaying"), marksNowPlaying: true });
       push({ kind: "row", key: `n-${nowTrack.videoId}`, section: "now", track: nowTrack, globalIdx: currentIdx });
     }
+    // ListenTogether: what the room suggests, most votes first, between this song and what comes.
+    if (inRoom && suggestions.length) {
+      push({ kind: "header", key: "h-sugg", section: "suggestions", label: t("togetherSuggestions"), count: suggestions.length });
+      for (const sg of suggestions) push({ kind: "suggestion", key: `s-${sg.id}`, sg });
+    }
     const upNextCount = queue.length - currentIdx - 1;
     if (upNextCount > 0) {
       push({ kind: "header", key: "h-next", section: "next", label: t("upNext"), count: upNextCount });
@@ -268,7 +274,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
     }
     offs[list.length] = y;
     return { items: list, offsets: offs, totalHeight: y, nowPlayingOffset: nowOff < 0 ? 0 : nowOff };
-  }, [queue, currentIdx, nowTrack, t]);
+  }, [queue, currentIdx, nowTrack, t, inRoom, suggestions]);
 
   nowPlayingOffsetRef.current = nowPlayingOffset;
 
@@ -290,7 +296,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   // make this fire on every render, and measure() causes a render of its own. That is exactly
   // how it first went wrong. Only the count and where the heading sits can change a size, so
   // that pair is the whole trigger.
-  const layoutKey = `${items.length}:${currentIdx}`;
+  const layoutKey = `${items.length}:${currentIdx}:${inRoom ? suggestions.length : 0}`;
   useEffect(() => { rowVirtualizer.measure(); }, [layoutKey, rowVirtualizer]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -479,6 +485,9 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
                     )}
                   </div>
                 );
+              }
+              if (it.kind === "suggestion") {
+                return <div key={it.key} style={common}><SuggestionRow sg={it.sg} /></div>;
               }
               const gIdx = it.globalIdx;
               const isNow = it.section === "now";

@@ -16,7 +16,8 @@ let snap = {
   room: null, isHost: false, you: null,
   members: [], state: null,
   queue: [],              // what the host plays after this song
-  config: { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false },
+  suggestions: [],        // songs suggested to the room, most votes first
+  config: { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false, autoAccept: 0 },
   waiting: [],            // host and co-hosts: who waits to be let in
   showAvatar: true,
   offset: 0, rtt: null,   // server clock = Date.now() + offset
@@ -94,7 +95,8 @@ export async function createRoom() {
 }
 
 const noticeSubs = new Set();
-/** Things worth telling the user: { kind: "closed" | "kicked" | "full" | "denied" | "host", ... }. */
+/** Things worth telling the user: { kind: "closed" | "kicked" | "full" | "denied" | "host"
+ *  | "suggestion" (what: accepted | dismissed, title) | "suggest-error" (reason), ... }. */
 export const onRoomNotice = (fn) => { noticeSubs.add(fn); return () => noticeSubs.delete(fn); };
 const notice = (n) => noticeSubs.forEach((f) => f(n));
 
@@ -169,7 +171,9 @@ function open() {
   sock.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
-    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], config: { ...snap.config, ...(m.config || {}) } });
+    else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], suggestions: m.suggestions || [], config: { ...snap.config, ...(m.config || {}) } });
+    else if (m.t === "suggestions") set({ suggestions: m.list || [] });
+    else if (m.t === "suggestion") notice({ kind: "suggestion", what: m.what, title: m.track?.title || "" });
     else if (m.t === "config") { const { t: _t, ...c } = m; set({ config: { ...snap.config, ...c } }); }
     // Without a list: this Kodama waits to be let in. With one: who waits (host and co-hosts).
     else if (m.t === "waiting") { if (Array.isArray(m.list)) set({ waiting: m.list }); else set({ status: "waiting" }); }
@@ -184,6 +188,7 @@ function open() {
       const mine = snap.you && list.find((x) => x.id === snap.you.id);
       set(mine ? { members: list, isHost: !!mine.host, you: { ...snap.you, host: !!mine.host, role: mine.role } } : { members: list });
     }
+    else if (m.t === "error" && /^suggest-/.test(m.reason)) notice({ kind: "suggest-error", reason: m.reason });
     else if (m.t === "error") set({ error: m.reason });
   };
   sock.onclose = (ev) => {
@@ -196,7 +201,7 @@ function open() {
     const final = { 4001: "kicked", 4002: "full", 4004: "denied", 4005: "closed" }[ev.code];
     if (final) {
       wantRoom = null;
-      set({ status: "closed", error: final, room: null, members: [], state: null, queue: [], waiting: [], isHost: false });
+      set({ status: "closed", error: final, room: null, members: [], state: null, queue: [], suggestions: [], waiting: [], isHost: false });
       if (final !== "closed") notice({ kind: final });
       return;
     }
@@ -213,7 +218,7 @@ export function leave() {
   clearInterval(pingTimer);
   const s = ws; ws = null;
   if (s) { try { s.close(); } catch { /* already */ } }
-  set({ status: "idle", room: null, isHost: false, members: [], state: null, queue: [], waiting: [], drift: null, error: null });
+  set({ status: "idle", room: null, isHost: false, members: [], state: null, queue: [], suggestions: [], waiting: [], drift: null, error: null });
 }
 
 const roomTrack = (track) => track ? {
@@ -302,6 +307,18 @@ export function roomRemove(track) {
   if (snap.isHost) removeSubs.forEach((f) => f({ videoId: track.videoId, by: null }));
   else if (myRole() === "cohost" || (track.addedBy?.id && track.addedBy.id === snap.you?.id)) send({ t: "remove", videoId: track.videoId });
 }
+
+/** A song suggested to the room. Everyone votes; the host or a co-host takes it into the queue
+ *  (or the room does, at the vote count the host set). The same song again is a vote for it. */
+export function suggest(track) {
+  const t = roomTrack(track);
+  if (t) send({ t: "suggest", track: t });
+}
+/** A vote for a suggestion, or taken back. */
+export const vote = (id, on) => send({ t: "vote", id, on: !!on });
+/** Host and co-hosts: a suggestion into the queue, or away. Whoever suggested it may take it back. */
+export const acceptSuggestion = (id) => send({ t: "accept", id });
+export const dismissSuggestion = (id) => send({ t: "dismiss", id });
 
 /** A song for the host's queue; allowed when the host lets everyone add. */
 export function requestAdd(track, mode) {

@@ -17,7 +17,7 @@
 //   { t: "profile", avatar }                                show (or, empty, hide) a profile picture
 //   { t: "ping", c }                                        clock sync; answered with { t: "pong", c, s }
 //   { t: "queue", list: [track] }                           host only: what plays after this song
-//   { t: "config", waitAll, name, newRole, limit, approval } host only: room settings
+//   { t: "config", waitAll, name, newRole, limit, approval, autoAccept } host only: room settings
 //   { t: "role", id, role }                                 host only: cohost / member / listener
 //   { t: "kick", id }                                       host, co-host: out, and not back in
 //   { t: "admit" | "deny", id }                             host, co-host: someone waiting
@@ -26,18 +26,26 @@
 //   { t: "ready", videoId }                                 this member has that song loaded
 //   { t: "add", track, mode }                               a song for the host's queue (if allowed)
 //   { t: "remove", videoId }                                a member's own song (a co-host: any) out of the queue
+//   { t: "suggest", track }                                 a song suggested to the room: up to SUGGEST_MAX
+//                                                           open per person; the same song again counts as
+//                                                           a vote for it
+//   { t: "vote", id, on }                                   a vote for a suggestion, or taken back
+//   { t: "accept" | "dismiss", id }                         host, co-host: a suggestion into the queue, or
+//                                                           out; whoever suggested it may also withdraw it
 //   { t: "set", track, playing, pos, startAt?, rate? }      host only: the new playback state;
 //                                                           rate: how fast the host's audio really runs
 //                                                           startAt (server ms, at most 5 s ahead)
 //                                                           schedules the start for everyone
 // (room -> client):
-//   { t: "welcome", you: { id, host, role }, state, members, queue, config, s } after hello
+//   { t: "welcome", you: { id, host, role }, state, members, queue, suggestions, config, s } after hello
 //   { t: "waiting" }                                        to someone waiting to be let in
 //   { t: "waiting", list }                                  to host and co-hosts: who is waiting
 //   { t: "host", id, name, why }                            the room has a new host (handover / auto)
 //   { t: "closed", by }                                     the host ended the room
 //   { t: "queue", list }
-//   { t: "config", waitAll, name, newRole, limit, approval }
+//   { t: "suggestions", list: [{ id, track, by: { id, name }, votes: [id], at }] }  most votes first
+//   { t: "suggestion", what: "accepted" | "dismissed", track }  to whoever suggested it
+//   { t: "config", waitAll, name, newRole, limit, approval, autoAccept }
 //   { t: "add", track, mode, from, fromId }                 to the host: a member's song
 //   { t: "remove", videoId, by }                            to the host: a song out (by: who added it, or null)
 //   { t: "state", track, playing, pos, at, rate }           position `pos` (seconds) at server time `at` (ms),
@@ -68,7 +76,8 @@ const MAX_MESSAGE = 16384;   // a queue of 20 songs fits
 // newRole: what someone new is ("listener" only listens, "member" may add songs).
 // limit: how many may be in the room, the host included; 0 is no limit.
 // approval: someone new waits until the host or a co-host lets them in.
-const DEFAULT_CONFIG = { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false };
+// autoAccept: a suggestion with this many votes goes into the queue by itself; 0 is never.
+const DEFAULT_CONFIG = { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false, autoAccept: 0 };
 const LIMIT_MAX = 50;
 // Roles below the host: a co-host adds and removes any song, lets people in and removes them
 // (never the host); a member adds songs and removes their own; a listener only listens.
@@ -76,6 +85,9 @@ const ROLES = ["cohost", "member", "listener"];
 const HOST_HANDOVER = 60 * 1000;   // ms a host may be gone before the room passes to someone else
 const ADD_GAP = 1000;        // ms: one song request per member this often at most
 const QUEUE_MAX = 20;
+const SUGGEST_MAX = 3;       // open suggestions per person
+const SUGGESTIONS_MAX = 50;  // open suggestions in a room
+const AUTO_ACCEPT_MAX = 20;
 
 // A track as the room keeps it: only what a listener needs to load and show it, and who put it
 // in the queue (absent for the host's own songs).
@@ -344,9 +356,14 @@ export class Room extends DurableObject {
         // 0 is no limit; otherwise 2..50. Lowering it sends nobody away, it only lets nobody in.
         limit: limit === 0 ? 0 : Math.min(LIMIT_MAX, Math.max(2, Math.round(limit) || DEFAULT_CONFIG.limit)),
         approval: !!msg.approval,
+        autoAccept: Math.min(AUTO_ACCEPT_MAX, Math.max(0, Math.round(Number(msg.autoAccept)) || 0)),
       };
       await this.ctx.storage.put("config", config);
       this.broadcast({ t: "config", ...config });
+      // A lower threshold may already be met.
+      if (config.autoAccept) {
+        for (const sg of await this.suggestions()) if (sg.votes.length >= config.autoAccept) await this.settle(sg.id, "accepted");
+      }
     }
 
     if (msg.t === "role") {
@@ -367,6 +384,11 @@ export class Room extends DurableObject {
       const banned = (await this.ctx.storage.get("banned")) || [];
       if (!banned.includes(target)) banned.push(target);
       await this.ctx.storage.put("banned", banned.slice(-200));
+      // What they suggested goes with them, and so do their votes.
+      const before = await this.suggestions();
+      if (before.some((x) => x.by.id === target || x.votes.includes(target))) {
+        await this.putSuggestions(before.filter((x) => x.by.id !== target).map((x) => ({ ...x, votes: x.votes.filter((v) => v !== target) })));
+      }
       for (const other of this.socketsOf(target)) {
         try { other.send(JSON.stringify({ t: "error", reason: "kicked" })); } catch { /* gone */ }
         other.serializeAttachment({ ...other.deserializeAttachment(), joined: false, waiting: false });
@@ -437,6 +459,54 @@ export class Room extends DurableObject {
       for (const other of this.socketsOf(hostId)) { try { other.send(out); } catch { /* gone */ } }
     }
 
+    if (msg.t === "suggest") {
+      // The host simply plays or queues a song; everyone else may suggest one to the room.
+      if (isHost) return;
+      if (now - (me.lastAdd || 0) < ADD_GAP) return;
+      const track = cleanTrack(msg.track);
+      if (!track) return;
+      delete track.addedBy;
+      ws.serializeAttachment({ ...me, lastAdd: now });
+      const list = await this.suggestions();
+      const same = list.find((x) => x.track.videoId === track.videoId);
+      if (same) {
+        // Already suggested: a vote for it instead.
+        if (!same.votes.includes(me.id)) { same.votes.push(me.id); await this.putSuggestions(list); await this.autoAccept(same); }
+        return;
+      }
+      const state = await this.ctx.storage.get("state");
+      if (state?.track?.videoId === track.videoId || ((await this.ctx.storage.get("queue")) || []).some((q) => q.videoId === track.videoId)) {
+        send({ t: "error", reason: "suggest-queued" }); return;
+      }
+      if (list.filter((x) => x.by.id === me.id).length >= SUGGEST_MAX) { send({ t: "error", reason: "suggest-max" }); return; }
+      if (list.length >= SUGGESTIONS_MAX) { send({ t: "error", reason: "suggest-full" }); return; }
+      const sg = { id: crypto.randomUUID().slice(0, 8), track, by: { id: me.id, name: me.name }, votes: [me.id], at: now };
+      list.push(sg);
+      await this.putSuggestions(list);
+      await this.autoAccept(sg);
+    }
+
+    if (msg.t === "vote") {
+      const list = await this.suggestions();
+      const sg = list.find((x) => x.id === msg.id);
+      if (!sg) return;
+      const has = sg.votes.includes(me.id);
+      if (msg.on && !has) sg.votes.push(me.id);
+      else if (!msg.on && has) sg.votes = sg.votes.filter((v) => v !== me.id);
+      else return;
+      await this.putSuggestions(list);
+      if (msg.on) await this.autoAccept(sg);
+    }
+
+    if (msg.t === "accept" || msg.t === "dismiss") {
+      const sg = (await this.suggestions()).find((x) => x.id === msg.id);
+      if (!sg) return;
+      // Host and co-hosts decide; whoever suggested a song may take it back, not accept it.
+      const own = sg.by.id === me.id && msg.t === "dismiss";
+      if (!isAdmin && !own) { send({ t: "error", reason: "not-allowed" }); return; }
+      await this.settle(sg.id, msg.t === "accept" ? "accepted" : isAdmin && !own ? "dismissed" : "withdrawn");
+    }
+
     if (msg.t === "ready") {
       const ready = typeof msg.videoId === "string" ? msg.videoId.slice(0, 32) : "";
       if (ready === me.ready) return;
@@ -456,6 +526,36 @@ export class Room extends DurableObject {
     }
   }
 
+  // ── Suggestions ───────────────────────────────────────────────────────────────────────────
+  // Sorted the same way for everyone: most votes first, then the oldest.
+  async suggestions() { return (await this.ctx.storage.get("suggestions")) || []; }
+  async putSuggestions(list) {
+    list.sort((a, b) => b.votes.length - a.votes.length || a.at - b.at);
+    await this.ctx.storage.put("suggestions", list);
+    this.broadcast({ t: "suggestions", list });
+  }
+  async autoAccept(sg) {
+    const { autoAccept } = await this.config();
+    if (autoAccept && sg.votes.length >= autoAccept) await this.settle(sg.id, "accepted");
+  }
+  // A suggestion leaves the list. Accepted, it goes to the host's Kodama like a member's song,
+  // with the one who suggested it as who added it. Whoever suggested it is told what happened,
+  // unless they took it back themselves.
+  async settle(id, what) {
+    const list = await this.suggestions();
+    const sg = list.find((x) => x.id === id);
+    if (!sg) return;
+    await this.putSuggestions(list.filter((x) => x !== sg));
+    if (what === "accepted") {
+      const out = JSON.stringify({ t: "add", track: sg.track, mode: "end", from: sg.by.name, fromId: sg.by.id, suggested: true });
+      for (const other of this.socketsOf(await this.hostId())) { try { other.send(out); } catch { /* gone */ } }
+    }
+    if (what !== "withdrawn") {
+      const note = JSON.stringify({ t: "suggestion", what, track: { title: sg.track.title, videoId: sg.track.videoId } });
+      for (const other of this.socketsOf(sg.by.id)) { try { other.send(note); } catch { /* gone */ } }
+    }
+  }
+
   // Into the room proper: a role for a newcomer (the room's default), the welcome, everyone told.
   async admit(ws, base, isHost) {
     const roles = await this.roles();
@@ -470,6 +570,7 @@ export class Room extends DurableObject {
     ws.send(JSON.stringify({
       t: "welcome", you: { id: base.id, host: isHost, role },
       state: await this.ctx.storage.get("state"), queue: (await this.ctx.storage.get("queue")) || [],
+      suggestions: await this.suggestions(),
       config, members: await this.members(), s: Date.now(),
     }));
     await this.announceMembers();
