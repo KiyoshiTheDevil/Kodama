@@ -3,6 +3,25 @@
 // between pages swaps the content in place instead of loading a new page.
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// ── Header menu on narrow screens ─────────────────────────────────────────
+// The header's links and numbers take a third of a phone's screen when stacked; there they fold
+// into a menu behind a button. The button is added here so every page gets it.
+const hdr = document.querySelector("header.top"), right = hdr?.querySelector(".hdr-right");
+if (hdr && right) {
+  right.id ||= "site-menu";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "menu-btn";
+  btn.setAttribute("aria-label", "Menu"); btn.setAttribute("aria-controls", right.id); btn.setAttribute("aria-expanded", "false");
+  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path class="l1" d="M4 6h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 18h16"/></svg>';
+  hdr.insertBefore(btn, right);
+  hdr.classList.add("has-menu");
+  const set = (open) => { hdr.classList.toggle("open", open); btn.setAttribute("aria-expanded", String(open)); };
+  btn.addEventListener("click", () => set(!hdr.classList.contains("open")));
+  document.addEventListener("click", (e) => { if (!hdr.contains(e.target)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && hdr.classList.contains("open")) { set(false); btn.focus(); } });
+  right.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
+}
+
 // ── Reveal on scroll ─────────────────────────────────────────────────────
 // Only what starts out below the visible part of the page slides in. What is on screen when the
 // page appears is simply there: hiding it until a script showed it again made every page change
@@ -63,10 +82,12 @@ if (mover && !calm) {
     // Under the heading's text to start with. Positions relative to where it ends up.
     const range = document.createRange(); range.selectNodeContents(h2);
     const text = range.getBoundingClientRect(), box = head.getBoundingClientRect();
-    startY = text.bottom - box.top + 50 + 6;
+    // How far above the heading it stands at the end (its `top` in the stylesheet).
+    const lift = -mover.offsetTop;
+    startY = text.bottom - box.top + lift + 6;
     // The letters themselves, not the line box around them (it has room above the capitals,
     // which kept the spirit blurred while it stood on the heading).
-    textTop = text.top - box.top + 50 + text.height * 0.2; textBottom = text.bottom - box.top + 50 - text.height * 0.1;
+    textTop = text.top - box.top + lift + text.height * 0.2; textBottom = text.bottom - box.top + lift - text.height * 0.1;
     // Done by the time the heading has risen to a third of the way down the screen.
     const top = head.getBoundingClientRect().top + scrollY;
     span = Math.max(120, top - innerHeight * 0.33);
@@ -89,11 +110,60 @@ if (mover && !calm) {
     if (p < 0.8) arrived = false;
   }
   const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(place); } };
+  // A click on it scrolls down until the heading is near the top, so the first feature shows,
+  // over two seconds (the browser's own smooth scroll is shorter and not adjustable). A wheel or a
+  // touch takes over at once.
+  let glide = 0;
+  const stopGlide = () => cancelAnimationFrame(glide);
+  addEventListener("wheel", stopGlide, { passive: true });
+  addEventListener("touchstart", stopGlide, { passive: true });
+  mover.addEventListener("click", () => {
+    // Measured against the screen rather than a fixed distance: the heading ends up an eighth of
+    // the way down (at least 120px, room for the spirit above it), on a 1080p screen as on 1440p.
+    const headTop = h2.getBoundingClientRect().top + scrollY;
+    const from = scrollY, to = Math.min(Math.max(span, headTop - Math.max(120, innerHeight * 0.125)), document.documentElement.scrollHeight - innerHeight);
+    if (to <= from + 4) return;
+    const t0 = performance.now(), D = 2000;
+    stopGlide();
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / D), k = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      scrollTo({ top: from + (to - from) * k, behavior: "instant" });
+      if (t < 1) glide = requestAnimationFrame(step);
+    };
+    glide = requestAnimationFrame(step);
+  });
   measure(); place();
   addEventListener("scroll", onScroll, { passive: true });
   addEventListener("resize", () => { measure(); onScroll(); });
   // The web font changes the heading's width once it is in.
   document.fonts?.ready.then(() => { measure(); place(); });
+}
+
+// ── The forest on a phone ────────────────────────────────────────────────
+// Scaled to cover a tall, narrow screen, the forest would show only its middle (the light, no
+// trees). On a phone it is squeezed to the screen's width instead: slimmer trees, all of them.
+const forestSvg = document.querySelector(".forest svg");
+if (forestSvg) {
+  const narrow = matchMedia("(max-width: 700px)");
+  const fit = () => forestSvg.setAttribute("preserveAspectRatio", narrow.matches ? "none" : "xMidYMin slice");
+  fit(); narrow.addEventListener("change", fit);
+}
+
+// ── The forest's depth ───────────────────────────────────────────────────
+// The trunks at the back move up a little slower than the page, the ones in front a little
+// faster, so the forest has depth while scrolling.
+const forest = document.querySelector(".forest");
+if (forest && !calm) {
+  const back = forest.querySelector(".fr-back"), front = forest.querySelector(".fr-front");
+  let queuedF = false;
+  const depth = () => {
+    queuedF = false;
+    const y = Math.min(scrollY, innerHeight * 1.5);
+    back.style.transform = `translateY(${y * 0.25}px)`;
+    front.style.transform = `translateY(${y * -0.12}px)`;
+  };
+  addEventListener("scroll", () => { if (!queuedF) { queuedF = true; requestAnimationFrame(depth); } }, { passive: true });
+  depth();
 }
 
 // ── Scrollbar ────────────────────────────────────────────────────────────

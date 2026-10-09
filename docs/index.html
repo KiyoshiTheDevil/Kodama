@@ -20,7 +20,23 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script type="module" src="js/spotlights.js"></script>
 </head>
-<body>
+<body class="landing">
+  <!-- The forest behind the first screen: tall trunks at the sides, crowns above the top edge,
+       light falling through the middle. Behind everything, fading out further down. -->
+  <div class="forest" aria-hidden="true">
+    <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">
+      <defs>
+        <linearGradient id="fr-ray" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be36d" stop-opacity=".16"/><stop offset=".75" stop-color="#9be36d" stop-opacity="0"/></linearGradient>
+      </defs>
+      <g class="fr-rays">
+        <path class="fr-ray" d="M640 -10 L800 -10 L620 1000 L380 1000 Z" fill="url(#fr-ray)"/>
+        <path class="fr-ray r2" d="M880 -10 L960 -10 L900 1000 L760 1000 Z" fill="url(#fr-ray)"/>
+        <path class="fr-ray r3" d="M1040 -10 L1090 -10 L1160 1000 L1060 1000 Z" fill="url(#fr-ray)"/>
+      </g>
+      <g class="fr-back" fill="#14271b"><rect x="70" width="22" height="1000" rx="7"/><rect x="150" width="14" height="1000" rx="4"/><rect x="250" width="26" height="1000" rx="8"/><rect x="330" width="12" height="1000" rx="4"/><rect x="1250" width="14" height="1000" rx="4"/><rect x="1330" width="28" height="1000" rx="9"/><rect x="1440" width="16" height="1000" rx="5"/><rect x="1530" width="24" height="1000" rx="8"/><g fill="#162d1f"><circle cx="80" cy="40" r="110"/><circle cx="165" cy="20" r="80"/><circle cx="255" cy="50" r="120"/><circle cx="335" cy="0" r="70"/><circle cx="1255" cy="10" r="80"/><circle cx="1340" cy="40" r="120"/><circle cx="1445" cy="0" r="90"/><circle cx="1535" cy="30" r="110"/></g></g>
+      <g class="fr-front" fill="#112218"><rect x="0" width="64" height="1000" rx="21"/><rect x="110" width="40" height="1000" rx="13"/><rect x="205" width="30" height="1000" rx="10"/><rect x="1395" width="34" height="1000" rx="11"/><rect x="1480" width="46" height="1000" rx="15"/><rect x="1565" width="70" height="1000" rx="23"/><g fill="#15291c"><circle cx="30" cy="10" r="150"/><circle cx="130" cy="-20" r="120"/><circle cx="220" cy="30" r="100"/><circle cx="1410" cy="20" r="110"/><circle cx="1500" cy="-10" r="140"/><circle cx="1590" cy="30" r="150"/></g></g>
+    </svg>
+  </div>
   <div class="wrap">
     <header class="top">
       <a class="logo" href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
@@ -60,11 +76,6 @@
         <div class="dl-alt" id="dlAlt">Windows &amp; macOS · <a href="versions.html">All versions</a></div>
       </div>
       <div class="stage">
-        <svg class="trees" viewBox="0 0 600 220" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-          <g fill="#17301f"><rect x="58" y="120" width="10" height="100" rx="4"/><circle cx="63" cy="105" r="42"/><circle cx="40" cy="132" r="28"/><circle cx="88" cy="130" r="30"/>
-          <rect x="520" y="70" width="12" height="150" rx="5"/><circle cx="526" cy="62" r="52"/><circle cx="494" cy="100" r="34"/><circle cx="560" cy="98" r="36"/></g>
-          <g fill="#132719"><rect x="140" y="150" width="8" height="70" rx="3"/><circle cx="144" cy="140" r="30"/><rect x="440" y="140" width="8" height="80" rx="3"/><circle cx="444" cy="128" r="34"/></g>
-        </svg>
         <div class="device">
           <picture>
             <source srcset="shots/home.webp" type="image/webp">
@@ -77,11 +88,12 @@
 
     <section class="section">
       <div class="feat-head">
-        <!-- Starts beside the heading, looking down at what follows; scrolling carries it up onto it. -->
-        <span class="feat-mover" aria-hidden="true">
+        <!-- Starts under the heading, looking down at what follows; scrolling (or a click on it)
+             carries it up onto it. -->
+        <button type="button" class="feat-mover" aria-label="Scroll to the features">
           <kodama-spirit class="feat-spirit" pose="idle" size="64" follow></kodama-spirit>
-          <svg class="feat-hint" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </span>
+          <svg class="feat-hint" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         <h2>Look! <span class="grad">Features!</span></h2>
       </div>
       <div class="spots">
