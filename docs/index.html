@@ -15,6 +15,8 @@
   <!-- The font in before the first paint, so a page change does not show the fallback first. -->
   <link rel="preload" href="s/MiSansLatin-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="s/MiSansLatin-Semibold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="s/MiSansLatin-Heavy.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="s/MiSansLatin-Light.ttf" as="font" type="font/ttf" crossorigin>
   <script type="module" src="js/site.js"></script>
   <script type="module" src="js/spirit.js" blocking="render"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -60,7 +62,7 @@
 
     <section class="hero">
       <div>
-        <h1>A desktop player for <span class="grad">YouTube Music</span></h1>
+        <h1>A desktop player for <span class="grad glass-text" data-t="YouTube Music">YouTube Music</span></h1>
         <p class="tagline">Synced lyrics, personalization, and more.</p>
         <!-- One download that names the visitor's system and the version, joined to GitHub.
              Filled in below from the latest release; without it, it still leads to Releases. -->

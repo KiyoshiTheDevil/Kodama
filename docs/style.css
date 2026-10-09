@@ -3,6 +3,8 @@
    buttons are flat pills, and a pair is joined with a notch where the two meet. */
 @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
 @font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Semibold.ttf') format('truetype'); font-weight:600; font-display:swap; }
+@font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Heavy.ttf') format('truetype'); font-weight:900; font-display:swap; }
+@font-face { font-family:'MiSans Latin'; src:url('s/MiSansLatin-Light.ttf') format('truetype'); font-weight:300; font-display:swap; }
 :root {
   --bg:#0f1a14; --surface:#17271e; --surface-2:#1b2b22; --surface-3:#22362a; --deep:#1d3a28;
   --t1:#eaf5ec; --t2:#a9c4b2; --t3:#7f9c89;
@@ -41,8 +43,17 @@ header.top .logo img { height:26px; display:block; }
 .hstats:not([hidden]) { display:inline-flex; }
 .hstats b { color:var(--t1); font-weight:600; font-variant-numeric:tabular-nums; }
 #statMauBox, #statDlBox { white-space:nowrap; }
-nav.links { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-nav.links a { font-size:13.5px; padding:7px 14px; border-radius:99px; background:var(--surface-2); color:var(--t2); transition:background .15s, color .15s; }
+nav.links { display:flex; align-items:stretch; gap:4px; flex-wrap:wrap; }
+nav.links > a { display:inline-flex; align-items:center; }
+/* The links as one group, the way the app joins its header buttons: round on the free ends,
+   notched where a neighbour sits. */
+nav.links > a, nav.links > .ai-notice { border-radius:6px; }
+/* Exactly half the height (34px), never 99px: two corners on one side that add up to more than
+   the side scale down together, and the 6px notch all but disappears. */
+nav.links > :first-child { border-radius:17px 6px 6px 17px; }
+nav.links > :last-child { border-radius:6px 17px 17px 6px; }
+header.top { position:relative; z-index:5; }
+nav.links a { font-size:13.5px; padding:7px 14px; background:var(--surface-2); color:var(--t2); transition:background .15s, color .15s; }
 nav.links a:hover { background:var(--surface-3); color:var(--t1); }
 nav.links a.on { background:var(--t1); color:var(--bg); }
 /* AI notice: small, honest disclosure; hover/focus shows the full statement. */
@@ -72,7 +83,10 @@ header.top.open .menu-btn .l3 { transform:translateY(-6px) rotate(-45deg); }
     padding:16px; border-radius:var(--r-card); background:var(--surface); box-shadow:0 24px 60px rgba(0,0,0,.5); }
   header.top.has-menu.open .hdr-right { display:flex; animation:menu-in .22s cubic-bezier(.3,1.3,.5,1); }
   header.top.has-menu .hstats { justify-content:center; }
-  header.top.has-menu nav.links { flex-direction:column; align-items:stretch; gap:6px; }
+  header.top.has-menu nav.links { flex-direction:column; align-items:stretch; gap:4px; }
+  header.top.has-menu nav.links > * { border-radius:6px; }
+  header.top.has-menu nav.links > :first-child { border-radius:18px 18px 6px 6px; }
+  header.top.has-menu nav.links > :last-child { border-radius:6px 6px 18px 18px; }
   header.top.has-menu nav.links a, header.top.has-menu .ai-notice { justify-content:center; text-align:center; padding:11px 14px; font-size:14.5px; }
   .ai-notice-tip { width:min(260px, calc(100vw - 32px)); }
   header.top.has-menu .ai-notice-tip { left:0; right:0; width:auto; }
@@ -103,6 +117,36 @@ header.top.open .menu-btn .l3 { transform:translateY(-6px) rotate(-45deg); }
 .dl-main small { display:block; font-size:12px; opacity:.72; }
 .dl-gh { display:inline-flex; align-items:center; justify-content:center; padding:0 18px 0 15px; background:var(--surface-2); color:var(--t1); border-radius:8px 28px 28px 8px; }
 .dl-gh:hover { background:var(--surface-3); }
+/* Liquid glass (js/glass.js): heavy frost tinted with the accent, a bright rim, grain and a
+   highlight that follows the pointer. The bent edges come from the script (Chromium only). */
+/* !important on the background: the glass replaces each button's own fill (nav links, .btn ...),
+   whose selectors are more specific. */
+.lglass { position:relative; isolation:isolate; color:#fff; background:transparent !important;
+  backdrop-filter:blur(24px) saturate(160%) brightness(1.1); -webkit-backdrop-filter:blur(24px) saturate(160%) brightness(1.1);
+  box-shadow:inset 1.5px 1.5px 0 rgba(255,255,255,.55), inset -1px -1px 0 rgba(255,255,255,.18); text-shadow:0 1px 4px rgba(0,0,0,.3); }
+.lglass > :not([class^="lglass-"]):not(.ai-notice-tip) { position:relative; z-index:3; }
+.lglass-tint, .lglass-grain, .lglass-hi { position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+.lglass-tint { z-index:0; background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(155,227,109,.42)); transition:filter .2s; }
+.lglass-grain { z-index:1; opacity:.22; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.lglass-hi { z-index:2; opacity:0; transition:opacity .2s; background:radial-gradient(90px circle at var(--hx,30%) var(--hy,0%), rgba(255,255,255,.4), transparent 60%); }
+.lglass:hover .lglass-hi { opacity:1; }
+.lglass-neutral .lglass-tint { background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05)); }
+.lglass-neutral { color:var(--t1); }
+.btn.lglass:not(.lglass-neutral), .rel-dl a.lglass:not(.lglass-neutral) { color:#fff !important; }
+.lglass:active { transform:none !important; }
+/* The current page's link stays marked: frosted white glass with dark text. */
+/* On the glass the links read in full white (their own --t2 grey was made for a solid fill). */
+nav.links a.lglass { color:var(--t1); }
+nav.links a.lglass:hover { color:#fff; }
+nav.links a.on.lglass { color:var(--bg); text-shadow:none; }
+/* The AI notice stays orange, as glass: it is meant to be noticed. */
+.ai-notice.lglass { color:#1a0f00; text-shadow:none; }
+.ai-notice.lglass .lglass-tint { background:linear-gradient(180deg, rgba(255,200,140,.95), rgba(255,157,66,.88)); }
+.ai-notice.lglass:hover .lglass-tint, .ai-notice.lglass:focus-visible .lglass-tint { filter:brightness(1.08); }
+nav.links a.on.lglass .lglass-tint { background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(234,245,236,.8)); }
+.lglass:hover .lglass-tint { filter:brightness(1.15) saturate(1.15); }
+.dl-main.lglass .dl-ic { background:rgba(255,255,255,.16); }
 .dl-alt { font-size:13px; color:var(--t3); margin-top:12px; }
 .dl-alt a { color:var(--t2); text-decoration:underline; text-decoration-color:rgba(169,196,178,.35); text-underline-offset:3px; }
 .dl-alt a:hover { color:var(--t1); }
@@ -110,10 +154,23 @@ header.top.open .menu-btn .l3 { transform:translateY(-6px) rotate(-45deg); }
 /* ── Landing ────────────────────────────────────────────────────────── */
 /* The first screen: the hero in the middle of what is left once the header and the features
    heading (which shows at the bottom, inviting a scroll) have their room. */
-.hero { overflow-x:clip; overflow-y:visible; display:grid; grid-template-columns:1fr 1.15fr; gap:36px; align-items:center; align-content:center;
+.hero { overflow-x:clip; overflow-clip-margin:24px; overflow-y:visible; display:grid; grid-template-columns:1fr 1.15fr; gap:36px; align-items:center; align-content:center;
   min-height:calc(100svh - 70px - 300px); padding:40px 0; }
 .hero h1 { font-size:clamp(32px,4.6vw,52px); line-height:1.08; margin:0 0 14px; font-weight:600; letter-spacing:-.01em; }
 .hero h1 .grad { background:linear-gradient(90deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+/* The landing heading in light weight, so the heavy glass words stand clearly apart from it. */
+.landing .hero h1 { font-weight:300; }
+/* "YouTube Music" as heavy frosted glass: light at the top, green, then cyan, a soft green glow,
+   and now and then a faint reflection drifting across (the copy in ::after, from data-t). */
+.hero h1 .glass-text { position:relative; display:inline-block; font-weight:900; letter-spacing:-.02em;
+  background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(170,240,130,.85) 55%, rgba(60,255,250,.8));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 0 18px rgba(155,227,109,.45)) drop-shadow(0 1px 0 rgba(255,255,255,.3)); }
+.hero h1 .glass-text::after { content:attr(data-t); position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(100deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%); background-size:250% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent; animation:glass-glint 9s ease-in-out infinite; }
+@keyframes glass-glint { 0% { background-position:130% 0; } 55%, 100% { background-position:-70% 0; } }
+@media (prefers-reduced-motion: reduce) { .hero h1 .glass-text::after { animation:none; opacity:0; } }
 .tagline { font-size:clamp(15px,1.7vw,18px); color:var(--t2); margin:0 0 24px; }
 .stage { position:relative; padding:0 0 0 70px; }
 .device { position:relative; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,0.08);

@@ -1,7 +1,12 @@
 // Motion shared by every page: things slide in as they come into view, and a spirit sitting
 // in a tile or card cheers when the pointer comes over it, the scrollbar floats, and moving
 // between pages swaps the content in place instead of loading a new page.
+import { glassAll } from "./glass.js";
+
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ── Liquid glass on the buttons ──────────────────────────────────────────
+glassAll();
 
 // ── Header menu on narrow screens ─────────────────────────────────────────
 // The header's links and numbers take a third of a phone's screen when stacked; there they fold
@@ -49,7 +54,7 @@ function watch(root = document) {
 }
 watch();
 // Pages that draw part of their content after loading (the changelog) add more to watch.
-new MutationObserver(() => watch()).observe(document.body, { childList: true, subtree: true });
+new MutationObserver(() => { watch(); glassAll(); }).observe(document.body, { childList: true, subtree: true });
 
 // ── Spirits cheer on hover ───────────────────────────────────────────────
 if (!calm) document.addEventListener("pointerover", (e) => {
