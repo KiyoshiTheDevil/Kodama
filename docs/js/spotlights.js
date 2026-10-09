@@ -314,7 +314,7 @@ function overlay(s, ctx) {
     // a shader as its fill
     .add(pickTool("shader"))
     .add(pop(strip, "0% 50%"), "<0.2")
-    .add(move(346 + 22, 64 + 38 + 12))
+    .add(move(346 + 22, 64 + 8 + 12))   // onto the first preset (its colours are the shader shown)
     .add(press()).set(strip.querySelector(".th0"), { attr: { "stroke-width": 2 } })
     .to(shader, { opacity: 1, duration: 0.6 }, "<").add(squash(card, 0.07), "<")
     .add(hide(strip), "+=0.35")
