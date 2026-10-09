@@ -1488,6 +1488,10 @@ function vibrantAccentFromImage(img, satMin = 0.5, light = 0.6) {
 // Accent colour picker built from HeroUI colour components:
 // ColorSwatch (preset grid + preview) + ColorArea (saturation/brightness) + ColorSlider (hue).
 // Bridges between our hex-string accent value and react-aria Color objects.
+// Set by App when a song is queued into an empty player: the Player then loads that next track
+// ready but does not start it. Shared between the two components through the module.
+const startPaused = { next: false };
+
 function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
@@ -1899,8 +1903,15 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       a.src = streamUrl;
       a.volume = volCurve(volume);
       volumeRef.current = volume;
-      a.play().catch(e => console.error("[Player] play() error:", e));
-      setIsPlaying(true);
+      // Queued into an empty player: it stands ready, the play button starts it (src alone
+      // only marks the source; play() is what sends it to Rust).
+      if (startPaused.next) {
+        startPaused.next = false;
+        setIsPlaying(false);
+      } else {
+        a.play().catch(e => console.error("[Player] play() error:", e));
+        setIsPlaying(true);
+      }
       setProgress(0);
     }
 
@@ -4604,6 +4615,7 @@ export default function App() {
 
   const handlePlay = useCallback((track, trackList) => {
     if (listenerBlocked(track)) return;
+    startPaused.next = false;   // a song played on purpose plays, even if one was queued ready
     setCurrentTrack(track);
     setForcedLyricsProvider(null);
     setCurrentLyricsSource("");
@@ -4657,7 +4669,10 @@ export default function App() {
       requestAdd(track, mode);
       return true;
     }
-    if (!currentTrack) { handlePlay(track, [track]); return; }
+    // Nothing playing yet: the song becomes the queue and stands ready in the player, but does
+    // not start. Adding to the queue is not pressing play (in a room it also meant a member's
+    // or a suggested song started at once for everyone).
+    if (!currentTrack) { startPaused.next = true; setQueue([track]); setCurrentTrack(track); return; }
     if (track.videoId === currentTrack.videoId) return;
     setQueue(q => {
       const n = q.filter(x => x.videoId !== track.videoId); // move if already queued
