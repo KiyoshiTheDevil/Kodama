@@ -4493,7 +4493,10 @@ export default function App() {
         // known, which meant Windows kept showing the previous track's title and cover — for
         // up to fifteen seconds, until the refresh below came round. The identity of a track
         // does not depend on knowing how long it is, and a timeline can be filled in after.
-        const dur = (typeof raw === "number" && isFinite(raw) && raw > 0) ? raw : 0;
+        // Until the player knows it, the track's own length ("3:41") stands in, the way the
+        // player bar does: overlays reading Windows' media session (Ofuda) showed no length
+        // and no progress for the first fifteen seconds of every song otherwise.
+        const dur = (typeof raw === "number" && isFinite(raw) && raw > 0) ? raw : (parseDurationToSeconds(currentTrack.duration) || 0);
         const artistStr = Array.isArray(currentTrack.artists)
           ? currentTrack.artists.map(a => a?.name || a).join(", ")
           : (currentTrack.artists || "");
@@ -4550,11 +4553,16 @@ export default function App() {
     const debounce = setTimeout(send, 800);
     // Periodic refresh for elapsed time accuracy
     const interval = setInterval(send, 15000);
+    // Once the song has loaded its real length and position are known: tell the OS right then,
+    // not at the next periodic refresh.
+    const a = audioRef.current;
+    a?.addEventListener?.("loadedmetadata", send);
 
     return () => {
       cancelled = true;
       clearTimeout(debounce);
       clearInterval(interval);
+      a?.removeEventListener?.("loadedmetadata", send);
     };
   }, [currentTrack, isPlaying, discordRpc, discordStatusDisplay, discordClearOnPause, togetherInvite, togetherPartyKey]);
 
