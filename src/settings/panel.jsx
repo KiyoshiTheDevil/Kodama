@@ -1848,6 +1848,14 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
             {tab === "overlay" && (
               <>
+                {/* The editor is moving out into its own app; said here, where people come to it. */}
+                <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-row items-center gap-3 px-4 py-3 mb-2">
+                  <ScreencastSimple size={18} className="shrink-0 text-secondary" />
+                  <div className="flex-1 text-[length:var(--t12)] text-secondary leading-snug">{t("ovlMovingToOfuda")}</div>
+                  <Button variant="ghost" size="sm" className="shrink-0" onPress={() => openUrl("https://ofuda.kiyoshi.dev/").catch(console.error)}>
+                    Ofuda →
+                  </Button>
+                </CardRoot>
                 <SettingRow label={t("ovlOpenEditorBtn")} description={t("ovlOpenEditorDesc")} icon={<ScreencastSimple />}>
                   <Button size="sm" variant="solid" color="accent" className="flex items-center gap-1.5" onPress={() => openOverlayEditor()}>
                     <ArrowSquareOut size={14} />

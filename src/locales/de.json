@@ -1057,6 +1057,8 @@
   "ovlLoop_float": "Schweben",
   "ovlLoop_spin": "Drehen",
   "ovlOpenEditorBtn": "Overlay Editor öffnen",
+  "ovlMovingToOfuda": "Der Overlay-Editor zieht in eine eigene App um: Ofuda, die mit jedem Musikplayer funktioniert. In einem späteren Update verschwindet er aus Kodama.",
+  "ovlNoticeHide": "Ausblenden",
   "ovlOpenEditorDesc": "Designs erstellen und bearbeiten in einem eigenen Fenster.",
   "copyAll": "Alles kopieren",
   "copied": "Kopiert!",

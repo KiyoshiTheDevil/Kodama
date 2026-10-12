@@ -21,6 +21,7 @@ import {
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { HDR_ICON_BTN, HDR_H, HDR_NOTCH, hdrCorners, WindowControls } from "../ui/window-chrome.jsx";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ImageSquare, VinylRecord, TextSize, WaveformLines, PaintBrushBroad, Sparkles, Storefront,
   Eye, EyeSlash, Lock, LockOpen, Plus, Trash, Copy, Scissors, Clipboard, Check, ArrowsClockwise, Droplet, PencilSimple,
@@ -42,6 +43,8 @@ import {
   groupsToUngroup, placeAbove, selectionColors, replaceColor, chainOf, findGroup, reorderNodes,
 } from "./groups.js";
 import { copyProps, pasteProps, copyItem, pasteItem, removeItem } from "./style-clipboard.js";
+
+const OFUDA_NOTICE_KEY = "kiyoshi-ovl-ofuda-notice-hidden";
 
 const TYPE_META = {
   albumArt: { icon: VinylRecord, label: "Album Art" },
@@ -2624,6 +2627,8 @@ export default function OverlayEditor({
   // the place of the border: spread is a plain length with no hairline minimum, and unlike a
   // border it never affects the box's own size.
   const BW = 1.5 / zoom;
+  // The Ofuda notice above the canvas, until hidden once.
+  const [ofudaNoticeHidden, setOfudaNoticeHidden] = useState(() => { try { return localStorage.getItem(OFUDA_NOTICE_KEY) === "1"; } catch { return false; } });
 
   return (
     <div
@@ -2825,6 +2830,21 @@ export default function OverlayEditor({
         {standalone && <div className="w-px h-5 bg-border mx-1" />}
         {standalone && <WindowControls />}
       </div>
+
+      {/* ── Ofuda notice ────────────────────────────────────────────────────────────
+          The editor is moving out of Kodama into its own app. Said once, at the top, until hidden. */}
+      {!ofudaNoticeHidden && (
+        <div className="shrink-0 flex items-center gap-3 mx-3 mb-2 pl-4 pr-1.5 py-1.5 rounded-[var(--r-lg)] bg-accent-dim text-[length:var(--t12)] text-primary">
+          <span className="flex-1 leading-snug">{t("ovlMovingToOfuda")}</span>
+          <Button variant="ghost" size="sm" className="shrink-0 h-7! text-accent! font-semibold" onPress={() => openUrl("https://ofuda.kiyoshi.dev/").catch(() => {})}>
+            Ofuda →
+          </Button>
+          <Button variant="ghost" size="sm" isIconOnly aria-label={t("ovlNoticeHide")} className="shrink-0 w-7! h-7! min-w-7! text-muted hover:text-primary"
+            onPress={() => { setOfudaNoticeHidden(true); try { localStorage.setItem(OFUDA_NOTICE_KEY, "1"); } catch { /* shows again next time */ } }}>
+            <X size={13} />
+          </Button>
+        </div>
+      )}
 
       {/* ── Body (docked panels + canvas) ───────────────────────────────────────── */}
       <div className="flex-1 flex min-h-0 relative">
