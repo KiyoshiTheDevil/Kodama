@@ -11,6 +11,12 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 ## [Unreleased]
 
 Changes:
+- Listen together: start a room, send the link, and everyone hears the same song at the same moment
+- Listen together: roles (host, co-host, member, listener), a member limit, an optional waiting room, removing people and handing the room over
+- Listen together: listeners suggest songs and everyone votes; the host or a co-host adds them to the queue
+- Listen together: a "Listen along" button on your Discord status, and an invite page in the browser
+- The overlay editor is moving into its own app, Ofuda; Kodama points to it in the settings and in the editor
+- Play, pause and seeking respond faster, and seeking no longer leaves a short gap of silence
 - Lyrics are now drawn by Braccato, the engine behind Better Lyrics. The previous view stays available as Legacy
 - Video captions use Braccato's stage mode
 - Visualizer presets show which one is active and are applied with a button
@@ -67,6 +73,9 @@ Fixes:
 - Overlay editor: dragging a number's label after clicking into the field snapped back on release
 - Turning a switch on in the overlay editor could slide the whole window content up
 - Uninstalling left Kodama's own runtime (about 90 MB) behind on Windows
+- A song added to an empty queue started playing right away; it now waits in the player
+- Windows' media controls and tools reading them showed no song length for the first 15 seconds of a song
+- The app stuttered briefly once a minute
 
 ## [1.0.0-alpha.41] - 2026-09-22
 
