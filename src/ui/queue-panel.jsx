@@ -151,11 +151,13 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   const roomQueue = useTogetherValue((x) => x.queue);
   const youId = useTogetherValue((x) => x.you?.id || "");
   const suggestions = useTogetherValue((x) => x.suggestions);
+  const roomPlayed = useTogetherValue((x) => x.played);
+  // A listener's list: what the room played since they joined, its song, then its queue.
+  const listenerNow = isListener ? (currentTrack && roomNow && currentTrack.videoId === roomNow.videoId ? currentTrack : roomNow) : null;
   const queue = useMemo(() => {
     if (!isListener) return ownQueue;
-    const now = currentTrack && roomNow && currentTrack.videoId === roomNow.videoId ? currentTrack : roomNow;
-    return now ? [now, ...roomQueue] : roomQueue;
-  }, [isListener, ownQueue, roomNow, roomQueue, currentTrack]);
+    return listenerNow ? [...roomPlayed, listenerNow, ...roomQueue] : roomQueue;
+  }, [isListener, ownQueue, listenerNow, roomQueue, roomPlayed]);
   // The panel stays mounted while closed — it slides rather than unmounts — but its list
   // was rendered all the same. With a large playlist queued that is thousands of rows,
   // rebuilt on every track change because currentTrack comes in as a prop: pressing next
@@ -236,8 +238,8 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   }, []);
 
   // A listener's list always starts with the room's song, also while their player still loads it.
-  const nowTrack = isListener ? (queue[0] || null) : currentTrack;
-  const currentIdx = isListener ? (queue.length ? 0 : -1) : queue.findIndex(t => t.videoId === currentTrack?.videoId);
+  const nowTrack = isListener ? listenerNow : currentTrack;
+  const currentIdx = isListener ? (listenerNow ? roomPlayed.length : -1) : queue.findIndex(t => t.videoId === currentTrack?.videoId);
 
   // One flat list of section headings and rows, so the whole panel is a single virtualised
   // scroller instead of three mapped groups. Heights are fixed, so the offsets are exact and
@@ -478,7 +480,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
                       <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">{it.label}</span>
                       {it.count != null && <ChipRoot size="sm" variant="soft"><ChipLabel>{it.count}</ChipLabel></ChipRoot>}
                     </span>
-                    {it.section === "played" && (
+                    {it.section === "played" && !isListener && (
                       <Tooltip text={t("clearPlayed")}>
                         <Button variant="ghost" size="sm" isIconOnly onPress={() => setQueue(q => q.slice(currentIdx))}
                           className="shrink-0 h-6 min-w-6 rounded-[var(--r-sm)] text-muted opacity-0 group-hover/qsec:opacity-100 hover:text-[var(--status-danger)]!"
@@ -497,7 +499,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
                 <div key={it.key} style={common}>
                   <QueueRow labels={rowLabels} track={it.track} globalIdx={gIdx}
                     isDraggable={!isNow && !isListener} dimmed={it.section !== "next"} isActive={isNow}
-                    onRemove={isListener && !isNow && youId && it.track.addedBy?.id === youId ? () => roomRemove(it.track) : undefined}
+                    onRemove={isListener && it.section === "next" && youId && it.track.addedBy?.id === youId ? () => roomRemove(it.track) : undefined}
                     isBeingDragged={dragIdx === gIdx}
                     onPointerDown={handlePointerDown}
                     onPlay={() => { if (suppressClickRef.current || isListener) return; setTrack(it.track); }}

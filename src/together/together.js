@@ -17,6 +17,7 @@ let snap = {
   members: [], state: null,
   queue: [],              // what the host plays after this song
   suggestions: [],        // songs suggested to the room, most votes first
+  played: [],             // listener: the room's songs that played since joining, oldest first
   config: { waitAll: false, name: "", newRole: "listener", limit: 10, approval: false, autoAccept: 0 },
   waiting: [],            // host and co-hosts: who waits to be let in
   showAvatar: true,
@@ -175,7 +176,7 @@ function onPong(m) {
 export function join(room, name) {
   leave();
   wantRoom = room; wantName = name || identity.name; retries = 0; samples = [];
-  set({ status: "connecting", room, error: null, members: [], state: null, isHost: false, drift: null });
+  set({ status: "connecting", room, error: null, members: [], state: null, played: [], isHost: false, drift: null });
   open();
 }
 
@@ -208,7 +209,14 @@ function open() {
     else if (m.t === "add") addSubs.forEach((f) => f(m));
     else if (m.t === "remove") removeSubs.forEach((f) => f({ videoId: m.videoId, by: m.by }));
     else if (m.t === "queue") set({ queue: m.list || [] });
-    else if (m.t === "state") set({ state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
+    else if (m.t === "state") {
+      // A new song: the one before it goes on the list of what has played (a listener's queue
+      // is the room's, so this is its "Previously played").
+      const prev = snap.state?.track;
+      const played = prev && m.track && prev.videoId !== m.track.videoId && snap.played.at(-1)?.videoId !== prev.videoId
+        ? [...snap.played, prev].slice(-50) : snap.played;
+      set({ played, state: { track: m.track, playing: m.playing, pos: m.pos, at: m.at, rate: m.rate || 1 } });
+    }
     else if (m.t === "members") {
       const list = m.list || [];
       const mine = snap.you && list.find((x) => x.id === snap.you.id);
