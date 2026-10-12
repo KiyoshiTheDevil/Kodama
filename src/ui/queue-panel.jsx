@@ -461,7 +461,9 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       )}
 
       {mountList && panelTab === "queue" && <ScrollShadowRoot ref={listRef} size={28} className="scrollable flex-1 overflow-y-auto px-2 pt-1 pb-4">
-        {queue.length === 0 ? (
+        {/* Empty only when there is nothing at all to list: in a room, suggestions show even
+            before anything is queued (they used to wait for the first song in the queue). */}
+        {items.length === 0 ? (
           <div className="p-6 text-[length:var(--t13)] text-muted text-center">{t("emptyQueue")}</div>
         ) : (
           <div className="relative w-full" style={{ height: totalHeight }}>

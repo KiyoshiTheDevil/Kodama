@@ -132,11 +132,35 @@ export function setShowAvatar(on) {
 }
 
 let ws = null, wantRoom = null, wantName = "", retries = 0, pingTimer = 0, burst = 0;
+// When the room last said anything (a pong comes every 5 s). A connection that drops without a
+// goodbye, as on a shaky network, still counts as open: pings go nowhere and nothing comes back,
+// while the room carries on without this Kodama. Silence this long means it is gone.
+let lastHeard = 0;
+const SILENT_LIMIT = 15000;
 let samples = [];
 
 function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 
-function ping() { send({ t: "ping", c: Date.now() }); }
+function ping() {
+  if (ws && ws.readyState === 1 && lastHeard && Date.now() - lastHeard > SILENT_LIMIT) { reconnectNow(); return; }
+  send({ t: "ping", c: Date.now() });
+}
+
+// Drop a connection that went silent and open a fresh one. Its close is not waited for: on a
+// dead line the closing handshake itself can hang for a long time.
+function reconnectNow() {
+  const old = ws;
+  ws = null;
+  clearInterval(pingTimer);
+  if (old) { old.onclose = null; old.onmessage = null; try { old.close(); } catch { /* already gone */ } }
+  if (!wantRoom) return;
+  set({ status: "reconnecting" });
+  setTimeout(() => { if (wantRoom && !ws) open(); }, 300);
+}
+// Back online after the network dropped: try at once instead of waiting out the retry delay.
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => { if (wantRoom && snap.status === "reconnecting") reconnectNow(); });
+}
 function onPong(m) {
   const now = Date.now(), rtt = now - m.c;
   // Only recent readings count: a clock that runs a little fast or slow (a virtual machine's
@@ -161,6 +185,7 @@ function open() {
   ws = sock;
   sock.onopen = () => {
     retries = 0;
+    lastHeard = Date.now();
     let token = null;
     try { token = localStorage.getItem(hostKey(wantRoom)); } catch { /* not host then */ }
     send({ t: "hello", name: wantName, hostToken: token, device, avatar: sharedAvatar() });
@@ -169,6 +194,7 @@ function open() {
     pingTimer = setInterval(() => { ping(); if (++burst === 6) { clearInterval(pingTimer); pingTimer = setInterval(ping, 5000); } }, 250);
   };
   sock.onmessage = (e) => {
+    lastHeard = Date.now();
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.t === "pong") onPong(m);
     else if (m.t === "welcome") set({ status: "open", you: m.you, isHost: !!m.you?.host, state: m.state, members: m.members || [], queue: m.queue || [], suggestions: m.suggestions || [], config: { ...snap.config, ...(m.config || {}) } });
