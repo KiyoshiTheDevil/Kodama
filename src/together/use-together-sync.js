@@ -153,9 +153,23 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   // host has it too, a start a moment later is announced, for everyone including the host.
   useEffect(() => {
     if (!active || !t.isHost) return;
+    const room = getTogether();
+    // Host back with an empty player (after a crash, a restart or a reload): the room carries on
+    // and this Kodama takes it over: the room's song at the room's moment, the room's queue.
+    // Reporting the empty player instead stopped the room and threw its queue away.
+    if (!currentTrack && room.state?.track) {
+      const tr = room.state.track;
+      host.current = { videoId: tr.videoId, startLocal: 0, scheduled: true, adopting: true };
+      holdNextReady.current = true;
+      note(`taking over the room's song ${tr.title || tr.videoId}`);
+      handlePlay(tr, [tr, ...(room.queue || []).filter((x) => x.videoId !== tr.videoId)]);
+      return;
+    }
+    // The song taken over above has arrived in the player: leave it to the tick.
+    if (currentTrack && host.current.adopting && host.current.videoId === currentTrack.videoId) return;
     // Host by a hand-over (or back after a reload) while the room already plays this very song:
     // carry on from where the room is, rather than send everyone back to its start.
-    if (currentTrack && getTogether().state?.track?.videoId === currentTrack.videoId) {
+    if (currentTrack && room.state?.track?.videoId === currentTrack.videoId) {
       host.current = { videoId: currentTrack.videoId, startLocal: 0, scheduled: true };
       return;
     }
@@ -167,6 +181,8 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
   // Host: what plays after this song, from the host's own queue.
   useEffect(() => {
     if (!active || !t.isHost) return;
+    // Still taking the room over: its queue is the one to keep, not this empty one.
+    if (!currentTrack && getTogether().state?.track) return;
     const q = queue || [];
     const i = currentTrack ? q.findIndex((x) => x.videoId === currentTrack.videoId) : -1;
     hostQueue(i >= 0 ? q.slice(i + 1, i + 21) : []);
@@ -200,6 +216,22 @@ export function useTogetherSync({ audioRef, currentTrack, setIsPlaying, handlePl
         setRate(1);
         if (!currentTrack) return;
         const h = host.current;
+        // Taking the room over: once the room's song stands loaded (and held), jump to where the
+        // room is and play or stay paused as it does. Nothing is reported before, or the half
+        // loaded player would send everyone back to its start.
+        if (h.adopting) {
+          if (h.videoId !== currentTrack.videoId) { h.adopting = false; return; }
+          if (a.isPreparing || holdNextReady.current) return;
+          const st = getTogether().state;
+          if (st?.track?.videoId === currentTrack.videoId) {
+            a.currentTime = expectedPos(st) + latency;
+            if (st.playing) { a.play(); setIsPlaying(true); } else setIsPlaying(false);
+            note(`took over at ${expectedPos(st).toFixed(1)} s, ${st.playing ? "playing" : "paused"}`);
+          }
+          h.adopting = false;
+          h.startLocal = Date.now() + 1000;   // a moment to settle before reporting again
+          return;
+        }
         // Held for a song that turned out to be running already (the room was opened mid-song,
         // or a crossfade brought it in): nothing to hold, it is reported as it plays.
         if (holdNextReady.current && !a.paused && !a.isPreparing) holdNextReady.current = false;
