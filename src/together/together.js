@@ -76,6 +76,30 @@ export function expectedPos(st = snap.state) {
 
 const hostKey = (room) => `kodama-together-host:${room}`;
 
+// The room this Kodama is in, kept across restarts: after a crash, a closed window or a reload
+// it goes straight back in (a host within the room's minute keeps the room). Forgotten only when
+// the room is left on purpose, or it is over for this Kodama (removed, closed, turned away).
+const LAST_KEY = "kodama-together-last";
+const LAST_MAX_AGE = 24 * 60 * 60 * 1000;
+const remember = (room, name) => { try { localStorage.setItem(LAST_KEY, JSON.stringify({ room, name, at: Date.now() })); } catch { /* not resumable then */ } };
+const forget = () => { try { localStorage.removeItem(LAST_KEY); } catch { /* nothing kept */ } };
+
+/** Back into the room this Kodama was in when it last stopped, if that room still exists. */
+export async function resumeLastRoom() {
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem(LAST_KEY) || "null"); } catch { /* none */ }
+  if (!last?.room || Date.now() - (last.at || 0) > LAST_MAX_AGE) { forget(); return false; }
+  try {
+    const r = await fetch(`${togetherUrl()}/rooms/${encodeURIComponent(last.room)}`, { cache: "no-store" });
+    if (r.status === 404) { forget(); return false; }
+    if (!r.ok) return false;      // the server is unreachable right now: keep it for next time
+  } catch { return false; }
+  // Something else (an invite link opened the app) may have joined a room meanwhile.
+  if (snap.status !== "idle" && snap.status !== "closed") return false;
+  join(last.room, last.name);
+  return true;
+}
+
 // This Kodama, as the room tells it apart from a second one with the same name: a reconnect
 // replaces its old connection instead of standing next to it.
 const device = (() => {
@@ -112,11 +136,16 @@ export const onRoomRemove = (fn) => { removeSubs.add(fn); return () => removeSub
 // Who this Kodama is in a room, with the account's profile picture (which can be switched off).
 const AVATAR_KEY = "kodama-together-show-avatar";
 let identity = { name: "Kodama", avatar: "" };
-export function setIdentity(name, avatar) { identity = { name: (name || "").trim() || "Kodama", avatar: avatar || "" }; }
 // On unless switched off.
 export const showsAvatar = () => { try { return localStorage.getItem(AVATAR_KEY) !== "0"; } catch { return true; } };
 snap.showAvatar = showsAvatar();
 const sharedAvatar = () => (showsAvatar() ? identity.avatar : "");
+export function setIdentity(name, avatar) {
+  const before = sharedAvatar();
+  identity = { name: (name || "").trim() || "Kodama", avatar: avatar || "" };
+  // Back in a room before the account was known (resumed at start-up): show the picture now.
+  if (snap.status === "open" && sharedAvatar() !== before) send({ t: "profile", avatar: sharedAvatar() });
+}
 // The "Listen along" button on the Discord status: on unless switched off.
 const DISCORD_KEY = "kodama-together-discord";
 export const showsDiscord = () => { try { return localStorage.getItem(DISCORD_KEY) !== "0"; } catch { return true; } };
@@ -176,6 +205,7 @@ function onPong(m) {
 export function join(room, name) {
   leave();
   wantRoom = room; wantName = name || identity.name; retries = 0; samples = [];
+  remember(room, wantName);
   set({ status: "connecting", room, error: null, members: [], state: null, played: [], isHost: false, drift: null });
   open();
 }
@@ -235,6 +265,7 @@ function open() {
     const final = { 4001: "kicked", 4002: "full", 4004: "denied", 4005: "closed" }[ev.code];
     if (final) {
       wantRoom = null;
+      forget();
       set({ status: "closed", error: final, room: null, members: [], state: null, queue: [], suggestions: [], waiting: [], isHost: false });
       if (final !== "closed") notice({ kind: final });
       return;
@@ -256,6 +287,7 @@ export function reconnect() {
 
 export function leave() {
   wantRoom = null;
+  forget();
   clearInterval(pingTimer);
   const s = ws; ws = null;
   if (s) { try { s.close(); } catch { /* already */ } }

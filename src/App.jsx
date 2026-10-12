@@ -30,7 +30,7 @@ import { openStoreWindow } from "./store/window.js";
 import { parseStoreLink } from "./store/web.js";
 import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
-import { join as joinTogether, isRoomListener, getTogether, requestAdd, suggest as suggestToRoom, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
+import { join as joinTogether, resumeLastRoom, isRoomListener, getTogether, requestAdd, suggest as suggestToRoom, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
@@ -4808,6 +4808,10 @@ export default function App() {
     }, 300);
     return () => clearInterval(iv);
   }, [demoMode, currentTrack, audioRef]);
+
+  // ListenTogether: back into the room Kodama was in when it stopped (a crash, a closed window,
+  // a reload), if that room still exists. A host back within the room's minute stays host.
+  useEffect(() => { resumeLastRoom().catch(() => {}); }, []);
 
   // Deep links: kodama://song/<videoId>, and kodama://store/<kind>/<id> from the store website.
   // Handles both cold start (getCurrent) and while the app is already running (onOpenUrl, routed
