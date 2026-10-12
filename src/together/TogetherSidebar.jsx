@@ -6,9 +6,9 @@
 import { useState, useEffect } from "react";
 import { Button, PopoverRoot, PopoverContent, PopoverDialog, Spinner } from "@heroui/react";
 import { thumb, useLang, useZoom } from "../context.jsx";
-import { Users, Copy, Check, SignOut, Queue } from "../icons.jsx";
+import { Users, Copy, Check, SignOut, Queue, ArrowsClockwise } from "../icons.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
-import { useTogether, startRoom, join, leave, inviteLink, parseRoomInput, setIdentity, closeRoom, handOverAndLeave } from "./together.js";
+import { useTogether, startRoom, join, leave, reconnect, inviteLink, parseRoomInput, setIdentity, closeRoom, handOverAndLeave } from "./together.js";
 
 // A colour per member, stable for the session (the id is the room's, not the person's).
 export function memberColor(id = "") {
@@ -170,7 +170,8 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
     }).catch(() => {});
   };
   const shown = r.members.slice(0, 3);
-  const sub = r.status === "open" ? t("togetherInRoom", { c: r.members.length }) : t("togetherConnecting");
+  const lost = r.status === "reconnecting";
+  const sub = r.status === "open" ? t("togetherInRoom", { c: r.members.length }) : lost ? t("togetherConnectionLost") : t("togetherConnecting");
 
   // ── Collapsed sidebar: one avatar with a ring and the count, or the entry's icon ──
   if (collapsed) {
@@ -235,8 +236,11 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
 
   const admin = r.isHost || r.you?.role === "cohost";
   // A react-aria button: as the host's, it is the trigger of a popover, which a plain button is not.
+  // Without a connection the host's hand-over and close cannot reach the room: leaving then just
+  // leaves (the room passes on by itself after a minute), and the popover is not offered.
+  const hostMenu = r.isHost && !lost;
   const leaveBtn = (
-    <Button variant="ghost" isIconOnly onPress={r.isHost ? undefined : leave} aria-label={t("togetherLeave")}
+    <Button variant="ghost" isIconOnly onPress={hostMenu ? undefined : leave} aria-label={t("togetherLeave")}
       className={`${iconBtn} w-[34px]`} {...softBtn} style={{ ...softBtn.style, color: "var(--status-danger)" }}>
       <SignOut size={15} />
     </Button>
@@ -259,7 +263,13 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
         </span>
       </button>
       <div className="flex items-center gap-1.5">
-        {admin ? (
+        {lost ? (
+          // The connection dropped: Kodama keeps trying by itself, this tries right now.
+          <button type="button" onClick={reconnect}
+            className={`${iconBtn} flex-1 gap-2 text-[length:var(--t13)] font-semibold bg-accent text-[var(--accent-foreground)] hover:brightness-110`}>
+            <ArrowsClockwise size={14} />{t("togetherReconnect")}
+          </button>
+        ) : admin ? (
           <button type="button" onClick={copy}
             className={`${iconBtn} flex-1 gap-2 text-[length:var(--t13)] font-semibold bg-accent text-[var(--accent-foreground)] hover:brightness-110`}>
             {copied ? <Check size={14} /> : <Copy size={14} />}{copied ? t("togetherCopied") : t("togetherInvite")}
@@ -270,7 +280,7 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
             <Queue size={14} />{t("togetherOpenRoom")}
           </button>
         )}
-        {admin && (
+        {(admin || lost) && (
           <Tooltip text={t("togetherOpenRoom")}>
             <button type="button" onClick={openRoomTab} aria-label={t("togetherOpenRoom")}
               className={iconBtn} {...softBtn} style={{ ...softBtn.style, color: "var(--text-primary)" }}>
@@ -278,7 +288,7 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
             </button>
           </Tooltip>
         )}
-        {r.isHost
+        {hostMenu
           ? <HostLeavePopover r={r} t={t}>{leaveBtn}</HostLeavePopover>
           : <Tooltip text={t("togetherLeave")}>{leaveBtn}</Tooltip>}
       </div>

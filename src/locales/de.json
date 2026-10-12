@@ -1298,6 +1298,8 @@
   "togetherJoinPlaceholder": "Raumcode oder Link",
   "togetherJoin": "Beitreten",
   "togetherUnreachable": "Diesen Raum gibt es nicht oder er ist geschlossen.",
+  "togetherConnectionLost": "Verbindung weg, versuche erneut…",
+  "togetherReconnect": "Neu verbinden",
   "togetherConnecting": "Verbinde…",
   "togetherYourRoom": "Dein Raum",
   "togetherRoomOf": "Raum von %n",

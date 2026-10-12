@@ -1298,6 +1298,8 @@
   "togetherJoinPlaceholder": "Room code or link",
   "togetherJoin": "Join",
   "togetherUnreachable": "That room doesn't exist or has closed.",
+  "togetherConnectionLost": "Connection lost, trying again…",
+  "togetherReconnect": "Reconnect",
   "togetherConnecting": "Connecting…",
   "togetherYourRoom": "Your room",
   "togetherRoomOf": "%n's room",

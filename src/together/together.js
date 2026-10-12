@@ -247,6 +247,13 @@ function open() {
   };
 }
 
+/** Try the room again now, instead of waiting out the retry delay (the card's Reconnect). */
+export function reconnect() {
+  if (!wantRoom) return;
+  retries = 0;
+  reconnectNow();
+}
+
 export function leave() {
   wantRoom = null;
   clearInterval(pingTimer);
