@@ -726,7 +726,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
     { id: "language",    label: t("language"),    iconEl: <Translate size={18} /> },
     { id: "storage",    label: t("storage"),     iconEl: <HardDrives size={18} /> },
     { id: "sicherheit", label: t("security"),   iconEl: <Lock size={18} /> },
-    { id: "overlay",    label: t("overlay"),     iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    { id: "overlay",    label: t("overlay"),     iconEl: <ScreencastSimple size={18} /> },
     ...(extensionSettings.length ? [{ id: "extensions", label: t("extensionsTab"), iconEl: <PuzzlePiece size={18} /> }] : []),
     { id: "experimental", label: t("experimental"), iconEl: <Flask size={18} /> },
     { id: "update",     label: t("update"),      iconEl: <ArrowsClockwise size={18} /> },
@@ -1849,10 +1849,11 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             {tab === "overlay" && (
               <>
                 {/* The editor is moving out into its own app; said here, where people come to it. */}
-                <CardRoot variant="secondary" className="bg-surface-1 rounded-[var(--r-2xl)]! flex flex-row items-center gap-3 px-4 py-3 mb-2">
-                  <ScreencastSimple size={18} className="shrink-0 text-secondary" />
-                  <div className="flex-1 text-[length:var(--t12)] text-secondary leading-snug">{t("ovlMovingToOfuda")}</div>
-                  <Button variant="ghost" size="sm" className="shrink-0" onPress={() => openUrl("https://ofuda.kiyoshi.dev/").catch(console.error)}>
+                {/* In the accent, so it reads as news rather than as one more grey setting. */}
+                <CardRoot variant="secondary" className="bg-accent-dim! rounded-[var(--r-2xl)]! flex flex-row items-center gap-3 px-4 py-3 mb-2">
+                  <ScreencastSimple size={18} className="shrink-0 text-accent" />
+                  <div className="flex-1 text-[length:var(--t12)] text-primary leading-snug">{t("ovlMovingToOfuda")}</div>
+                  <Button variant="ghost" size="sm" className="shrink-0 text-accent! font-semibold" onPress={() => openUrl("https://ofuda.kiyoshi.dev/").catch(console.error)}>
                     Ofuda →
                   </Button>
                 </CardRoot>

@@ -2646,10 +2646,6 @@ export default function OverlayEditor({
         <div className="flex items-center gap-2 pr-2 shrink-0">
           <img src="/Kodama%20Logo.png" alt="" width="18" height="18" />
           <span className="text-[length:var(--t13)] font-semibold text-primary">{t("ovlEditorTitle")}</span>
-          {/* Set like a superscript beside the wordmark: raised against the cap height rather
-              than centred on it, so it reads as a qualifier on the name instead of a second
-              word in the row. */}
-          <span className="text-[9px] font-bold tracking-wider text-white leading-none relative -top-[5px] -ml-1">BETA</span>
         </div>
 
         {/* The four menus read as one segmented control, like the icon groups opposite. */}
