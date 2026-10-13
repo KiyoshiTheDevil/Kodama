@@ -103,7 +103,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "storage-cache",     label: t("storageCache") },
     ] },
     { id: "sicherheit",    label: t("security"),      iconEl: <Lock size={18} /> },
-    { id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} />, badge: "Beta" },
+    { id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} /> },
     ...(extensionSettings.length ? [{ id: "extensions", label: t("extensionsTab"), iconEl: <PuzzlePiece size={18} /> }] : []),
     { id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> },
     { id: "experimental",  label: t("experimental"),  iconEl: <Flask size={18} /> },
