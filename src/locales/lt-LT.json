@@ -580,7 +580,7 @@
   "showAgentTagsDesc": "Rodo atlikėjus kaip žymes dainos teksto lango apačioje",
   "syllableZoom": "Skiemenų priartinimas",
   "syllableZoomDesc": "Švelnus kas skiemenis priartinimas ant dainų tekstų, kuriems galima kas skiemenė sinchronizacija",
-  "fluidLyrics": "„Fluid“ dainų tekstai",
+  "fluidLyrics": "„Fluid“ dainų žodžiai",
   "fluidLyricsDesc": "Sklandus slinkimas su švelniomis, natūraliai atrodančiomis linijų animacijomis ir efektais",
   "importLyrics": "Importuoti dainos tekstą (.lrc/.ttml)",
   "removeCustomLyrics": "Pašalinti importuotą dainos tekstą",
