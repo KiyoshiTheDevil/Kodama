@@ -15,7 +15,8 @@
     "flag": "<img src='/toki pona logo.svg' style='width:100%;height:100%;object-fit:cover;display:block;' />",
     "translators": [
       "SeliliPona"
-    ]
+    ],
+    "comingSoon": true
   },
   {
     "code": "lt-LT",
@@ -30,13 +31,17 @@
     "label": "Português (Brasil)",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 7\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"10\" height=\"7\" fill=\"#009739\"/><polygon points=\"5,1 9,3.5 5,6 1,3.5\" fill=\"#FEDD00\"/><circle cx=\"5\" cy=\"3.5\" r=\"1.7\" fill=\"#012169\"/></svg>",
     "translators": [
-      "MatheusFernan"
+      "MatheusFernan",
+      "Lucasamiel0406"
     ]
   },
   {
     "code": "pt-PT",
     "label": "Português (Portugal)",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 30 20\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"30\" height=\"20\" fill=\"#DA291C\"/><rect width=\"12\" height=\"20\" fill=\"#046A38\"/><circle cx=\"12\" cy=\"10\" r=\"4\" fill=\"#FFE900\"/><circle cx=\"12\" cy=\"10\" r=\"2.4\" fill=\"#DA291C\"/><rect x=\"11\" y=\"8.6\" width=\"2\" height=\"2.8\" rx=\"0.4\" fill=\"#fff\"/></svg>",
+    "translators": [
+      "nimigames649"
+    ],
     "comingSoon": true
   },
   {
@@ -51,12 +56,18 @@
   {
     "code": "es-MX",
     "label": "Español (México)",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#006847\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CE1126\"/></svg>"
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#006847\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CE1126\"/></svg>",
+    "translators": [
+      "PatoSinPico"
+    ]
   },
   {
     "code": "ru-RU",
     "label": "Русский",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"3\" height=\"2\" fill=\"#FFFFFF\"/><rect width=\"3\" height=\"1.333\" y=\"0.667\" fill=\"#0039A6\"/><rect width=\"3\" height=\"0.667\" y=\"1.333\" fill=\"#D52B1E\"/></svg>"
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"3\" height=\"2\" fill=\"#FFFFFF\"/><rect width=\"3\" height=\"1.333\" y=\"0.667\" fill=\"#0039A6\"/><rect width=\"3\" height=\"0.667\" y=\"1.333\" fill=\"#D52B1E\"/></svg>",
+    "translators": [
+      "fuyudji"
+    ]
   },
   {
     "code": "id-ID",
@@ -70,7 +81,11 @@
   {
     "code": "fr-FR",
     "label": "Français",
-    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#0055A4\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#EF4135\"/></svg>"
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#0055A4\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#FFFFFF\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#EF4135\"/></svg>",
+    "translators": [
+      "Felzow47",
+      "Anokino"
+    ]
   },
   {
     "code": "hu-HU",
@@ -88,6 +103,9 @@
     "code": "he-IL",
     "label": "עברית",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 22 16\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"22\" height=\"16\" fill=\"#fff\"/><rect y=\"1.5\" width=\"22\" height=\"2.5\" fill=\"#0038B8\"/><rect y=\"12\" width=\"22\" height=\"2.5\" fill=\"#0038B8\"/><g fill=\"none\" stroke=\"#0038B8\" stroke-width=\"0.7\"><polygon points=\"11,5.2 13.6,9.7 8.4,9.7\"/><polygon points=\"11,10.8 8.4,6.3 13.6,6.3\"/></g></svg>",
+    "translators": [
+      "nadaviko15"
+    ],
     "comingSoon": true
   }
 ]
