@@ -34,6 +34,12 @@
     ]
   },
   {
+    "code": "pt-PT",
+    "label": "Português (Portugal)",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 30 20\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"30\" height=\"20\" fill=\"#DA291C\"/><rect width=\"12\" height=\"20\" fill=\"#046A38\"/><circle cx=\"12\" cy=\"10\" r=\"4\" fill=\"#FFE900\"/><circle cx=\"12\" cy=\"10\" r=\"2.4\" fill=\"#DA291C\"/><rect x=\"11\" y=\"8.6\" width=\"2\" height=\"2.8\" rx=\"0.4\" fill=\"#fff\"/></svg>",
+    "comingSoon": true
+  },
+  {
     "code": "it-IT",
     "label": "Italiano",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 3 2\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"1\" height=\"2\" fill=\"#008C45\"/><rect width=\"1\" height=\"2\" x=\"1\" fill=\"#F4F5F0\"/><rect width=\"1\" height=\"2\" x=\"2\" fill=\"#CD212A\"/></svg>",
@@ -76,6 +82,12 @@
     "code": "vi-VN",
     "label": "Tiếng Việt",
     "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 30 20\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"30\" height=\"20\" fill=\"#DA251D\"/><polygon points=\"15.00,3.50 16.46,7.99 21.18,7.99 17.36,10.77 18.82,15.26 15.00,12.48 11.18,15.26 12.64,10.77 8.82,7.99 13.54,7.99\" fill=\"#FFFF00\"/></svg>",
+    "comingSoon": true
+  },
+  {
+    "code": "he-IL",
+    "label": "עברית",
+    "flag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 22 16\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"22\" height=\"16\" fill=\"#fff\"/><rect y=\"1.5\" width=\"22\" height=\"2.5\" fill=\"#0038B8\"/><rect y=\"12\" width=\"22\" height=\"2.5\" fill=\"#0038B8\"/><g fill=\"none\" stroke=\"#0038B8\" stroke-width=\"0.7\"><polygon points=\"11,5.2 13.6,9.7 8.4,9.7\"/><polygon points=\"11,10.8 8.4,6.3 13.6,6.3\"/></g></svg>",
     "comingSoon": true
   }
 ]
