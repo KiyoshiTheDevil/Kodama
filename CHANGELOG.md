@@ -10,6 +10,8 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.42] - 2026-10-13
+
 Changes:
 - Listen together: start a room, send the link, and everyone hears the same song at the same moment
 - Listen together: roles (host, co-host, member, listener), a member limit, an optional waiting room, removing people and handing the room over
