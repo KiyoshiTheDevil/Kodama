@@ -12,7 +12,13 @@
   [![Tauri](https://img.shields.io/badge/Tauri-2.x-24c8db?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app)
   [![Crowdin](https://img.shields.io/badge/translate-Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=white)](https://crowdin.com/project/kiyoshi-music)
   [![License](https://img.shields.io/badge/license-AGPL_v3-3da639?style=for-the-badge)](LICENSE)
+
+  <p><a href="https://kodama.kiyoshi.dev"><b>kodama.kiyoshi.dev</b></a> · <a href="https://kodama.kiyoshi.dev/store/">Store</a> · <a href="https://discord.gg/PzSsPF7KW">Discord</a></p>
 </div>
+
+<p align="center">
+  <img src="docs/shots/home.webp" alt="Kodama, home view" width="900">
+</p>
 
 ---
 
@@ -20,23 +26,24 @@
 
 ## Features
 
-- **Synced lyrics** with word- and syllable-level timing, plus **Unison** community lyrics.
-- **Lyrics Composer** for creating and editing your own.
-- **Crossfade** and a built-in **visualizer**.
-- **Remote control** from your phone.
-- **OBS overlay** for streaming.
-- **Offline downloads**, Discord Rich Presence, and Last.fm scrobbling.
+- **Synced lyrics** line, word and syllable by syllable, with translations and romaji, plus **Unison** community lyrics.
+- **Listen together**: start a room, send the link, and your friends hear the same song at the same moment.
+- A **visualizer**, **themes** and dynamic accent colours drawn from the cover.
+- A **store** with themes, visualizer and equalizer presets and extensions, at [kodama.kiyoshi.dev/store](https://kodama.kiyoshi.dev/store/).
+- **Crossfade**, a ten-band **equalizer** and a mini player.
+- **Remote control** from your phone over your local network.
+- **Overlay editor** for streaming. It is moving into its own app, [Ofuda](https://ofuda.kiyoshi.dev), which works with any music player.
+- **Offline downloads**, Discord Rich Presence and Last.fm scrobbling.
+- Accessibility options: reduce motion, mono audio, a readable accent and song announcements for screen readers.
 
-## Reporting issues and bugs
-
-I highly recommend to send a bug report in the new [Discord-Server](https://discord.gg/rhreShDJxn), because that's easier for me to access, track, sort and handle in contrast to GitHub's unstable platform.
-**Starting August, I will stop actively checking issues on GitHub.**
+> A Google account is not required to use the player, Premium isn't required either.
+> Please be aware that some content might be inaccessible due to Premium restrictions.
 
 ## Download
 
-Grab the latest build from the [**Releases**](https://github.com/KiyoshiTheDevil/Kodama/releases/latest) page:
+Get the latest version from [**kodama.kiyoshi.dev**](https://kodama.kiyoshi.dev) or the [**Releases**](https://github.com/KiyoshiTheDevil/Kodama/releases/latest) page.
 
-**Windows:** download and run the `*_x64-setup.exe` installer from the latest release.
+**Windows:** download and run the `*_x64-setup.exe` installer.
 
 **macOS (Apple Silicon):** the build is **unsigned**, so install it with this command (it
 downloads the latest release and avoids Gatekeeper's quarantine):
@@ -45,28 +52,21 @@ downloads the latest release and avoids Gatekeeper's quarantine):
 curl -fsSL https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/install.sh | bash
 ```
 
-Automatic Updates on macOS are currently not functional. Hopefully I can fix it in the near future.
+## Bugs and ideas
 
-## Screenshots
+Please send bug reports and suggestions on the [Discord server](https://discord.gg/PzSsPF7KW). It's easier for me to keep track of them there than on GitHub, and you can chat about the project too. There's also a bug report button inside the app.
 
-<!-- TODO: add fresh screenshots of the current app (player, lyrics, library, settings). -->
-No screenshot available... yet.
+**I no longer actively check issues here on GitHub.**
 
+## Translations
 
-> A Google account is not required to use the player, Premium isn't required either.
-> Please be aware, that some content might be inaccessable due to Premium restrictions.
-
-## NEW! Discord Server
-
-Hey! I made a dedicated Discord server for the App, where you can chat about the project and send in bugs and suggestions more directly
-
->> [https://discord.gg/PzSsPF7KW](https://discord.gg/rhreShDJxn)
+Kodama is translated by the community on [Crowdin](https://crowdin.com/project/kiyoshi-music). Every bit of help is welcome, and translators are credited in the app.
 
 ## For Developers
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v20+
 - [Rust](https://rustup.rs/) (stable)
 - [Python](https://www.python.org/) 3.10+
 
@@ -84,12 +84,9 @@ npm install
 cd python-backend
 pip install -r requirements.txt
 cd ..
-
-# 4. (Optional) Authenticate with your YouTube account
-cd python-backend
-python setup_auth.py
-cd ..
 ```
+
+Signing in with your YouTube account happens inside the app.
 
 ### Run in development mode
 
@@ -114,8 +111,6 @@ See [CHANGELOG.md](CHANGELOG.md) for a full version history.
 Kodama is licensed under the **[GNU Affero General Public License v3.0](LICENSE)** (AGPL-3.0).
 You are free to use, study, modify and redistribute it, provided derivative works remain under
 the same license and their source is made available.
-
-The bundled lyrics Composer is a vendored component licensed under the AGPL-3.0 as well.
 
 ## Disclaimer
 
