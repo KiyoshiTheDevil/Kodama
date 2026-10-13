@@ -1198,12 +1198,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 </div>
 
                 <div id="set-sec-ap-icon" data-settings-section="ap-icon" style={{ scrollMarginTop: 8 }}>
-                <SectionLabel>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {t("appIcon")}
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span>
-                  </span>
-                </SectionLabel>
+                <SectionLabel>{t("appIcon")}</SectionLabel>
                 <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 10px", paddingLeft: 2 }}>{t("appIconDesc")}</div>
                 {APP_ICON_GROUPS.map(group => (
                   <div key={group.id} style={{ marginBottom: 12 }}>
@@ -1329,7 +1324,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   </Button>
                 </SettingRow>
 
-                <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("crossfade")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span></span>} description={`${t("crossfadeDesc")}: ${crossfade}s`} icon={<Sliders />}>
+                <SettingRow label={t("crossfade")} description={`${t("crossfadeDesc")}: ${crossfade}s`} icon={<Sliders />}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <Slider min={0} max={12} step={1} value={crossfade} onChange={onCrossfadeChange} width={120} />
                     <span style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", width: 28 }}>{crossfade}s</span>
