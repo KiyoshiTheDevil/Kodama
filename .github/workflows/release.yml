@@ -137,7 +137,9 @@ jobs:
           # The point of the whole step: fail loudly if Node slipped back in.
           FULL=$(stat -c %s out/*_x64-setup.exe); SLIM=$(stat -c %s "$UPD")
           echo "full: $FULL bytes, slim: $SLIM bytes"
-          [ "$SLIM" -lt $((FULL - 50000000)) ] || { echo "::error::slim installer is not smaller by the size of node.exe"; exit 1; }
+          # node.exe is 81 MB on disk but only about 22 MB inside the compressed installer
+          # (alpha.42: 134.9 MB full, 112.9 MB slim). 50 MB, the first guess, failed that release.
+          [ "$SLIM" -lt $((FULL - 15000000)) ] || { echo "::error::slim installer is not smaller by the size of node.exe"; exit 1; }
           ls -la out
       - uses: actions/upload-artifact@v4
         with:
