@@ -59,6 +59,7 @@ import { QueuePanel } from "./ui/queue-panel.jsx";
 import { LibraryView } from "./views/library-view.jsx";
 import { SearchView } from "./views/search-view.jsx";
 import { HomeView } from "./views/home-view.jsx";
+import { backendReady } from "./backend-ready.js";
 import { ArtistView } from "./views/artist-view.jsx";
 import { CoverView } from "./views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "./visualizer/defaults.js";
@@ -3389,10 +3390,17 @@ export default function App() {
     return () => { cancelled = true; clearTimeout(tid); };
   }, [ffmpegSetupDone]);
 
+  // The splash stays until the backend answers (at least its 1.7 s), so a cold start shows the
+  // logo a moment longer instead of an empty home page.
   useEffect(() => {
-    const fadeTimer = setTimeout(() => setSplashFading(true), 1700);
-    const hideTimer = setTimeout(() => setShowSplash(false), 2150);
-    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
+    let hideTimer, cancelled = false;
+    const minShown = new Promise((res) => setTimeout(res, 1700));
+    Promise.all([minShown, backendReady]).then(() => {
+      if (cancelled) return;
+      setSplashFading(true);
+      hideTimer = setTimeout(() => setShowSplash(false), 450);
+    });
+    return () => { cancelled = true; clearTimeout(hideTimer); };
   }, []);
 
   const [view, setView] = useState("home");

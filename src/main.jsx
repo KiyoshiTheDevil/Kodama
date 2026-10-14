@@ -10,9 +10,11 @@ import { installErrorCapture } from "./bug-diagnostics.js";
 import { installThemeRescue } from "./theme-rescue.js";
 import { pruneLyricsCache } from "./lyrics/cache.js";
 import { installImageFallback } from "./ui/image-fallback.js";
+import { installBackendGate } from "./backend-ready.js";
 import "./index.css";
 
 installErrorCapture(); // capture frontend errors for the bug-report tool
+installBackendGate(); // requests to the backend wait until it is up, before any view asks for data
 // Ctrl+Shift+Alt+T back to the built-in dark theme. Installed here rather than in each window's
 // entry point because every window boots through this file, and a hatch that exists in only some
 // of them is one the listener cannot rely on.
