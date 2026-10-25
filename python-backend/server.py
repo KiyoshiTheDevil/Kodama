@@ -3331,11 +3331,29 @@ if not _ANDROID:
     # run the generator with, and that is defined just above.
     threading.Thread(target=_prepare_runtime, daemon=True).start()
 
+def _android_stream_url(video_id):
+    """Android: the app's own extractor (NewPipeExtractor, StreamExtractor.kt), called through
+    Chaquopy. yt-dlp there has no Node for the PO token and finds a format for only part of the
+    songs, so this goes first and yt-dlp is the fallback. None when it has nothing."""
+    try:
+        from java import jclass
+        url = jclass("dev.kodama.music.StreamExtractor").audioUrl(video_id)
+        return str(url) if url else None
+    except Exception as e:
+        print(f"[newpipe] {video_id}: {e}", flush=True)
+        return None
+
 @app.route("/stream/<video_id>")
 def stream_url(video_id):
     global _LAST_STREAM_ERROR
     last_err = None
     _t_total = time.time()
+
+    if _ANDROID:
+        url = _android_stream_url(video_id)
+        if url:
+            print(f"[stream] {video_id}: NewPipe in {time.time() - _t_total:.2f}s", flush=True)
+            return jsonify({"url": url})
 
     # ── Tier 0+1: PO token first, then the app session ───────────────────────
     # Tier 0 is the authenticated web_music client with a freshly minted GVS PO token, which

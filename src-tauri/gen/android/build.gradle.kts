@@ -15,6 +15,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // NewPipeExtractor is published there only (see app/build.gradle.kts).
+        maven("https://jitpack.io")
     }
 }
 

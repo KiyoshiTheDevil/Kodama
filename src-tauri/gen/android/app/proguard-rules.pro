@@ -1,3 +1,12 @@
+# Kodama: called from Python by name (server.py, via Chaquopy), so the shrinker cannot see it.
+-keep class dev.kodama.music.StreamExtractor { *; }
+# NewPipeExtractor and the JavaScript engine it deciphers with work through reflection.
+-keep class org.schabi.newpipe.extractor.** { *; }
+-keep class org.mozilla.javascript.** { *; }
+-dontwarn org.mozilla.javascript.**
+-dontwarn java.beans.**
+-dontwarn javax.script.**
+
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
