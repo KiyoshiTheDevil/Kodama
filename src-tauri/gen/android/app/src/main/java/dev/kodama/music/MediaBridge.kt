@@ -100,6 +100,17 @@ object MediaBridge {
     @JavascriptInterface
     fun audioOutput(): String = AudioOutputs.current()
 
+    /** Signing in to YouTube Music; the outcome comes back on window.__kodamaLogin. */
+    @JavascriptInterface
+    fun openLogin(profile: String, confirmLabel: String, switchHint: String) {
+      main.post { LoginActivity.start(appContext, profile, confirmLabel, switchHint) }
+    }
+
+    @JavascriptInterface
+    fun closeLogin() {
+      main.post { LoginActivity.close() }
+    }
+
     /** The system's own output picker, the one an app may open (it cannot switch by itself). */
     @JavascriptInterface
     fun openOutputPicker() {

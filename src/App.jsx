@@ -3132,30 +3132,45 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
 
   useEffect(() => {
     let unlistenComplete, unlistenCancelled, unlistenFailed;
+    const complete = () => {
+      setStep("success");
+      setTimeout(() => onSuccess(), 1000);
+    };
+    const cancelled = () => setStep("start");
+    // Cookies arrived but the backend could not use them. Saying so beats the green tick
+    // the app used to show while the account quietly failed to appear.
+    const failed = (reason) => {
+      setFailure(typeof reason === "string" ? reason : "");
+      setStep("failed");
+    };
+    // Android: the sign-in runs in an activity of the app (LoginActivity.kt), which reports
+    // here with the same three outcomes.
+    const fromAndroid = ({ type, value } = {}) => {
+      if (type === "complete") complete();
+      else if (type === "failed") failed(value);
+      else if (type === "cancelled") cancelled();
+    };
+    window.__kodamaLogin = fromAndroid;
     import("@tauri-apps/api/event").then(({ listen }) => {
-      listen("login-complete", () => {
-        setStep("success");
-        setTimeout(() => onSuccess(), 1000);
-      }).then(fn => { unlistenComplete = fn; });
-      listen("login-cancelled", () => {
-        setStep("start");
-      }).then(fn => { unlistenCancelled = fn; });
-      // Cookies arrived but the backend could not use them. Saying so beats the green tick
-      // the app used to show while the account quietly failed to appear.
-      listen("login-failed", (e) => {
-        setFailure(typeof e?.payload === "string" ? e.payload : "");
-        setStep("failed");
-      }).then(fn => { unlistenFailed = fn; });
+      listen("login-complete", complete).then(fn => { unlistenComplete = fn; });
+      listen("login-cancelled", cancelled).then(fn => { unlistenCancelled = fn; });
+      listen("login-failed", (e) => failed(e?.payload)).then(fn => { unlistenFailed = fn; });
     });
     return () => {
       if (unlistenComplete) unlistenComplete();
       if (unlistenCancelled) unlistenCancelled();
       if (unlistenFailed) unlistenFailed();
+      if (window.__kodamaLogin === fromAndroid) delete window.__kodamaLogin;
     };
   }, []);
 
   const startLogin = async () => {
     const name = forcedProfileName || ("account_" + Date.now());
+    if (window.KodamaAndroid) {
+      window.KodamaAndroid.openLogin(name, t("loginUseThisAccount"), t("loginSwitchAccountHint"));
+      setStep("waiting");
+      return;
+    }
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("open_login_window", {
@@ -3170,6 +3185,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
   };
 
   const cancelLogin = async () => {
+    if (window.KodamaAndroid) { window.KodamaAndroid.closeLogin(); setStep("start"); return; }
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("close_login_window");

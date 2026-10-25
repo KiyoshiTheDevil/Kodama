@@ -364,46 +364,8 @@ const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleW
 // then finish — instead of the login auto-closing on the default account. Clicking the
 // button sets KODAMA_DONE=1, which the poll waits for. Runs from an initialization script,
 // so it executes regardless of the page CSP; it only touches the DOM (no injected <script>).
-const LOGIN_INIT_JS: &str = r#"
-(function () {
-  if (location.hostname.indexOf('music.youtube.com') === -1) return;
-  var L = window.__KODAMA_LABELS__ || { confirm: 'Use this account', hint: '' };
-  function setCookie(name, val) {
-    try { document.cookie = name + '=' + (val || '') + ';path=/;max-age=3600'; } catch (e) {}
-  }
-  function readDsid() {
-    try {
-      if (window.ytcfg && typeof ytcfg.get === 'function') return ytcfg.get('DELEGATED_SESSION_ID') || '';
-    } catch (e) {}
-    return '';
-  }
-  setInterval(function () { setCookie('KODAMA_DSID', readDsid()); }, 1000);
-  function injectBar() {
-    if (!document.body || document.getElementById('kodama-confirm-bar')) return;
-    var bar = document.createElement('div');
-    bar.id = 'kodama-confirm-bar';
-    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 20px;background:rgba(15,15,15,0.97);border-top:1px solid rgba(255,255,255,0.14);font-family:system-ui,-apple-system,sans-serif;';
-    if (L.hint) {
-      var hint = document.createElement('span');
-      hint.textContent = L.hint;
-      hint.style.cssText = 'color:#b4b4b4;font-size:13px;max-width:520px;';
-      bar.appendChild(hint);
-    }
-    var btn = document.createElement('button');
-    btn.textContent = L.confirm;
-    btn.style.cssText = 'background:#f5f5f5;color:#0d0d0d;font-weight:600;font-size:14px;border:none;border-radius:9px;padding:11px 24px;cursor:pointer;';
-    btn.onclick = function () {
-      setCookie('KODAMA_DSID', readDsid());
-      setCookie('KODAMA_DONE', '1');
-      btn.disabled = true;
-      btn.style.opacity = '0.6';
-    };
-    bar.appendChild(btn);
-    document.body.appendChild(bar);
-  }
-  var iv = setInterval(function () { injectBar(); if (document.getElementById('kodama-confirm-bar')) clearInterval(iv); }, 500);
-})();
-"#;
+// In its own file because the Android login (LoginActivity.kt) runs the same script.
+const LOGIN_INIT_JS: &str = include_str!("login_init.js");
 
 #[tauri::command]
 pub async fn open_login_window(

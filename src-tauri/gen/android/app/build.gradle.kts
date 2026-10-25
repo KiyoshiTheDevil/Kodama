@@ -57,6 +57,16 @@ android {
     }
 }
 
+// The sign-in window's script, shared with the desktop (src-tauri/src/login_init.js): copied into
+// the app's assets on every build, so there is one copy of it to keep.
+val kodamaAssets = layout.buildDirectory.dir("generated/kodama-assets")
+val copyLoginScript by tasks.registering(Copy::class) {
+    from("../../../src/login_init.js")
+    into(kodamaAssets)
+}
+android.sourceSets.getByName("main").assets.srcDir(kodamaAssets)
+tasks.named("preBuild") { dependsOn(copyLoginScript) }
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
