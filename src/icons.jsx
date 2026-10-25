@@ -168,6 +168,8 @@ export const ArrowsClockwise    = fa("arrows-rotate");
 export const ArrowsLeftRight    = fa("right-left");
 export const Link               = fa("link");
 export const PushPin            = fa("thumbtack");
+export const ThumbsUp           = fa("thumbs-up");
+export const ChatCircle         = fa("comment");
 export const ClockCounterClockwise = fa("clock-rotate-left");
 export const Clock              = fa("clock");
 

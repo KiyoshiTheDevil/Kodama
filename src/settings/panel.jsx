@@ -206,7 +206,7 @@ function LastfmRow() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: tokenRef.current }),
       }).then(r => r.json());
-      if (d.connected) { setStatus(s => ({ ...s, connected: true, username: d.username })); window.dispatchEvent(new Event("lastfm-changed")); toast.success(t("lastfmConnected")); }
+      if (d.connected) { setStatus(s => ({ ...s, connected: true, expired: false, username: d.username })); window.dispatchEvent(new Event("lastfm-changed")); toast.success(t("lastfmConnected")); }
       else toast.danger(t("lastfmAuthFailed"));
     } catch { toast.danger(t("lastfmError")); }
     setPhase("idle");
@@ -214,7 +214,7 @@ function LastfmRow() {
 
   const disconnect = async () => {
     try { await fetch(`${API}/lastfm/disconnect`, { method: "POST" }); } catch {}
-    setStatus(s => ({ ...s, connected: false, username: "" }));
+    setStatus(s => ({ ...s, connected: false, expired: false, username: "" }));
     window.dispatchEvent(new Event("lastfm-changed"));
     toast.success(t("lastfmDisconnected"));
   };
@@ -248,7 +248,7 @@ function LastfmRow() {
     <>
     <SettingRow
       label="Last.fm"
-      description={status.connected ? t("lastfmConnectedDesc") : (phase === "awaiting" ? t("lastfmAwaitingDesc") : t("lastfmDesc"))}
+      description={status.connected ? t("lastfmConnectedDesc") : (phase === "awaiting" ? t("lastfmAwaitingDesc") : (status.expired ? t("lastfmExpiredDesc") : t("lastfmDesc")))}
       icon={<BrandLastfm />}
     >
       {control}

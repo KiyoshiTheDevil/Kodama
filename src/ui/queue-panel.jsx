@@ -8,6 +8,8 @@ import { API, thumb, useLang, useAnimations, useZoom } from "../context.jsx";
 import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash, X } from "../icons.jsx";
 import { ExplicitBadge } from "./rows.jsx";
 import { Tooltip } from "./tooltip.jsx";
+import { Toggle } from "./settings-controls.jsx";
+import { CommentsTab } from "./comments-tab.jsx";
 import { ContextMenu, CtxItem } from "./context-menu.jsx";
 import { FadeEditorModal } from "../modals/fade-editor-modal.jsx";
 import { dissolve } from "../effects/particle-burst.js";
@@ -139,7 +141,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
   );
 }
 
-export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible }) {
+export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible, autoplay, onAutoplayChange }) {
   // ListenTogether: in a room the Queue tab becomes the Room tab. The host keeps their own queue
   // under the room's header (it is the room's queue, and can still be reordered). A listener's
   // own queue is only the room's song, so their list is the room's: its song, then its queue,
@@ -397,7 +399,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       <div className="px-3 pt-11 shrink-0">
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
-            {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["about", t("aboutSong")]].map(([id, label], i, all) => (
+            {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["comments", t("comments")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
               <button key={id} type="button" onClick={() => setPanelTab(id)}
                 style={{ height: TAB_H, borderRadius: tabCorners(i > 0, i < all.length - 1) }}
                 className={`flex-1 border-0 cursor-default select-none text-[length:var(--t12)] font-semibold transition-[background-color,color] duration-150 ${
@@ -419,7 +421,20 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       </div>
 
       {panelTab === "queue" && inRoom && <TogetherRoomHeader />}
+      {/* Autoplay sits with the queue it extends, not only in the settings. Not in a room:
+          there the queue is the room's and nothing is added on its own. */}
+      {panelTab === "queue" && !inRoom && onAutoplayChange && (
+        <div className="flex items-center justify-between gap-3 mx-3 mb-1.5 px-3 py-2 rounded-[var(--r-lg)] bg-[var(--fill-subtle)] shrink-0">
+          <div className="min-w-0">
+            <div id="qp-autoplay-label" className="text-[length:var(--t12)] font-semibold text-primary">{t("autoplay")}</div>
+            <div className="text-[length:var(--t11)] text-muted truncate">{t("autoplayQueueDesc")}</div>
+          </div>
+          <Toggle value={autoplay} onChange={onAutoplayChange} aria-labelledby="qp-autoplay-label" />
+        </div>
+      )}
       {panelTab === "people" && inRoom && <TogetherPeopleTab />}
+
+      {panelTab === "comments" && <CommentsTab key={currentTrack?.videoId || "none"} videoId={currentTrack?.videoId} />}
 
       {/* About Song tab */}
       {panelTab === "about" && (

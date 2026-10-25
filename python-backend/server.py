@@ -1463,6 +1463,8 @@ def lastfm_status():
         "enabled": _lastfm_enabled(),
         "connected": bool(meta.get("lastfm_session")),
         "username": meta.get("lastfm_user", ""),
+        # Last.fm rejected the stored session: a new API key, or access revoked on Last.fm.
+        "expired": bool(meta.get("lastfm_expired")),
     })
 
 @app.route("/lastfm/connect")
@@ -1492,6 +1494,7 @@ def lastfm_session():
     meta = _read_active_meta()
     meta["lastfm_session"] = sess.get("key", "")
     meta["lastfm_user"] = sess.get("name", "")
+    meta.pop("lastfm_expired", None)
     _write_active_meta(meta)
     return jsonify({"connected": True, "username": sess.get("name", "")})
 
@@ -1500,6 +1503,7 @@ def lastfm_disconnect():
     meta = _read_active_meta()
     meta.pop("lastfm_session", None)
     meta.pop("lastfm_user", None)
+    meta.pop("lastfm_expired", None)
     _write_active_meta(meta)
     return jsonify({"connected": False})
 
@@ -1522,6 +1526,14 @@ def _lastfm_track_action(method, http="POST", extra=None):
     if extra:
         params.update(extra(d))
     ok, data = _lastfm_call(method, params, http=http, signed=True)
+    if not ok and data.get("error") == 9:
+        # Invalid session key. It does not come back by retrying: the session was made with an
+        # API key Kodama no longer uses, or the user revoked access. Drop it and say so, rather
+        # than failing every scrobble in silence while settings still show "connected".
+        meta.pop("lastfm_session", None)
+        meta["lastfm_expired"] = True
+        _write_active_meta(meta)
+        return jsonify({"ok": False, "expired": True}), 401
     return (jsonify({"ok": True}), 200) if ok else (jsonify({"ok": False, "error": data}), 502)
 
 @app.route("/lastfm/now-playing", methods=["POST"])
@@ -4311,6 +4323,98 @@ def ytmusic_add_history():
         status = getattr(resp, "status_code", None)
         return jsonify({"ok": status == 204, "status": status})
     except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+_YT_NEXT_URL = "https://www.youtube.com/youtubei/v1/next?prettyPrint=false"
+
+def _yt_next(body, hl):
+    ctx = {"client": {"clientName": "WEB", "clientVersion": "2.20250101.00.00", "hl": hl or "en"}}
+    r = requests.post(_YT_NEXT_URL, json={"context": ctx, **body},
+                      headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+def _yt_walk(o):
+    if isinstance(o, dict):
+        yield o
+        for v in o.values():
+            yield from _yt_walk(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _yt_walk(v)
+
+@app.route("/song/comments/<video_id>")
+def get_song_comments(video_id):
+    # YouTube Music has no comments of its own: it shows those of the YouTube video with the
+    # same id, which also exists behind an ordinary song (its "Topic" video). ytmusicapi cannot
+    # read them, so this asks InnerTube's /next the way youtube.com does: the watch page holds a
+    # token for the comment section, that token returns the first page (Top) plus the tokens
+    # for the "Newest" order and for the next page. Many songs have comments turned off.
+    hl = request.args.get("hl", "en")
+    sort = request.args.get("sort", "top")
+    cont = request.args.get("continuation", "")
+    try:
+        if not cont:
+            watch = _yt_next({"videoId": video_id}, hl)
+            for o in _yt_walk(watch):
+                isr = o.get("itemSectionRenderer")
+                if isr and isr.get("sectionIdentifier") == "comment-item-section":
+                    for c in isr.get("contents", []):
+                        cont = (c.get("continuationItemRenderer", {}).get("continuationEndpoint", {})
+                                 .get("continuationCommand", {}).get("token", "")) or cont
+                    break
+            if not cont:
+                return jsonify({"comments": [], "next": None, "disabled": True})
+        d = _yt_next({"continuation": cont}, hl)
+        # The first page offers the two orders; "Newest" is a second request with its token.
+        if not request.args.get("continuation") and sort == "new":
+            for o in _yt_walk(d):
+                menu = o.get("sortFilterSubMenuRenderer")
+                if menu:
+                    items = menu.get("subMenuItems", [])
+                    if len(items) > 1:
+                        tok = items[1].get("serviceEndpoint", {}).get("continuationCommand", {}).get("token")
+                        if tok:
+                            d = _yt_next({"continuation": tok}, hl)
+                    break
+        ents = {}
+        for m in d.get("frameworkUpdates", {}).get("entityBatchUpdate", {}).get("mutations", []):
+            p = (m.get("payload") or {}).get("commentEntityPayload")
+            if p:
+                ents[p.get("properties", {}).get("commentId")] = p
+        comments, nxt = [], None
+        for o in _yt_walk(d):
+            cir = o.get("continuationItemRenderer")
+            if cir:
+                tok = (cir.get("continuationEndpoint", {}).get("continuationCommand", {}).get("token")
+                       or cir.get("button", {}).get("buttonRenderer", {}).get("command", {})
+                             .get("continuationCommand", {}).get("token"))
+                if tok:
+                    nxt = tok
+            vm = (o.get("commentThreadRenderer") or {}).get("commentViewModel", {}).get("commentViewModel")
+            if not vm:
+                continue
+            p = ents.get(vm.get("commentId"))
+            if not p:
+                continue
+            pr, au, tb = p.get("properties", {}), p.get("author", {}), p.get("toolbar", {})
+            comments.append({
+                "id": pr.get("commentId"),
+                "author": au.get("displayName", ""),
+                "avatar": au.get("avatarThumbnailUrl", ""),
+                "isCreator": bool(au.get("isCreator")),
+                "isArtist": bool(au.get("isArtist")),
+                "isVerified": bool(au.get("isVerified")),
+                "text": (pr.get("content") or {}).get("content", ""),
+                "published": pr.get("publishedTime", ""),
+                "likes": tb.get("likeCountNotliked", "") or "",
+                "replies": tb.get("replyCount", "") or "",
+                "pinned": bool(vm.get("pinnedText")),
+            })
+        return jsonify({"comments": comments, "next": nxt, "disabled": False})
+    except Exception as e:
+        print(f"[comments] {video_id}: {e}", flush=True)
         return jsonify({"error": str(e)}), 502
 
 

@@ -1492,8 +1492,12 @@ function vibrantAccentFromImage(img, satMin = 0.5, light = 0.6) {
 // Set by App when a song is queued into an empty player: the Player then loads that next track
 // ready but does not start it. Shared between the two components through the module.
 const startPaused = { next: false };
+// The length the Player measured for the song it plays. Songs from the "All" search tab, radio,
+// autoplay and uploads often come without a length, and scrobbling skipped them as too short
+// (issue #19). Shared through the module like startPaused.
+const measuredLength = { videoId: null, secs: 0 };
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist, autoplay = true }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -1662,6 +1666,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     if (idx === -1) return null;
     if (dir === "next") {
       if (shuffleRef.current) return q[Math.floor(Math.random() * q.length)];
+      // Back to the start only when repeating the whole queue. It used to wrap whatever the
+      // repeat setting, so with repeat off an album or playlist still started over.
+      if (idx === q.length - 1 && repeatRef.current !== "all") return null;
       return q[(idx + 1) % q.length];
     }
     return q[(idx - 1 + q.length) % q.length];
@@ -1671,6 +1678,32 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // rapid skips (fired faster than React can commit + run the trackRef effect) each reads the
   // freshly chosen track instead of the stale one — otherwise quick successive skips under-
   // advance and the displayed track info lags several songs behind until the effects catch up.
+  // Autoplay: with repeat off, the last song of the queue (a single, an album, a playlist)
+  // brings its related songs, so playback carries on the way YouTube Music does instead of
+  // stopping. Fetched as soon as the last song starts, so the next one is there in time for a
+  // crossfade. Not in a ListenTogether room: there the queue belongs to the room.
+  const autoplayFetchedRef = useRef(null);
+  useEffect(() => {
+    if (!autoplay || repeat !== "none" || shuffle || !track?.videoId) return;
+    const room = getTogether();
+    if (room.status === "open" || room.status === "reconnecting") return;
+    const q = queueRef.current;
+    if (!q.length || q[q.length - 1].videoId !== track.videoId) return;
+    if (autoplayFetchedRef.current === track.videoId) return;
+    autoplayFetchedRef.current = track.videoId;
+    const seed = track.videoId;
+    fetch(`${API}/radio/_?videoId=${encodeURIComponent(seed)}`)
+      .then(r => r.json())
+      .then(d => setQueue(cur => {
+        // Only while that song is still the last one: the listener may have added songs since.
+        if (!cur.length || cur[cur.length - 1].videoId !== seed) return cur;
+        const have = new Set(cur.map(x => x.videoId));
+        const rest = (d.tracks || []).filter(x => x?.videoId && !have.has(x.videoId));
+        return rest.length ? [...cur, ...rest] : cur;
+      }))
+      .catch(() => { autoplayFetchedRef.current = null; });
+  }, [autoplay, repeat, shuffle, track?.videoId, queue.length, setQueue]);
+
   const goAdjacent = useCallback((dir) => {
     const tk = getAdjacentTrack(dir);
     if (tk) { trackRef.current = tk; setTrack(tk); }
@@ -1921,6 +1954,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     const onDur = () => {
       const d = a.duration > 0 ? a.duration : (parseDurationToSeconds(track?.duration) || 0);
       setDuration(d);
+      if (a.duration > 0) { measuredLength.videoId = track?.videoId || null; measuredLength.secs = a.duration; }
     };
 
     const onEnd = () => {
@@ -4077,14 +4111,27 @@ export default function App() {
       primaryOnly: loadPrimaryArtistOnly(),
       overrides: loadOverrides(),
     }),
-    duration: parseDurationToSeconds(tr?.duration) || 0,
+    duration: parseDurationToSeconds(tr?.duration)
+      || (measuredLength.videoId === tr?.videoId ? Math.round(measuredLength.secs) : 0),
   });
   const lfmPost = (path, body) => {
     if (!lastfmConnectedRef.current) return;
-    fetch(`${API}/lastfm/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+    fetch(`${API}/lastfm/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(r => { if (r.status === 401) window.dispatchEvent(new Event("lastfm-changed")); })
+      .catch(() => {});
   };
+  // Said once per session: a connection Last.fm no longer accepts would otherwise only show
+  // as scrobbles that never arrive.
+  const lastfmExpiredToldRef = useRef(false);
   const refreshLastfm = useCallback(() => {
-    fetch(`${API}/lastfm/status`).then(r => r.json()).then(d => { lastfmConnectedRef.current = !!d.connected; }).catch(() => {});
+    fetch(`${API}/lastfm/status`).then(r => r.json()).then(d => {
+      lastfmConnectedRef.current = !!d.connected;
+      if (d.expired && !lastfmExpiredToldRef.current) {
+        lastfmExpiredToldRef.current = true;
+        const lang = localStorage.getItem("kiyoshi-lang") || "de";
+        toast.warning(translate(lang, "lastfmExpired"), { description: translate(lang, "lastfmExpiredDesc"), timeout: 0 });
+      }
+    }).catch(() => {});
   }, []);
   useEffect(() => {
     refreshLastfm();
@@ -4135,7 +4182,8 @@ export default function App() {
       const st = ytHistoryRef.current;
       if (!st.videoId || st.sent) return;
       st.played += 1;
-      const duration = parseDurationToSeconds(currentTrack?.duration) || 0;
+      const duration = parseDurationToSeconds(currentTrack?.duration)
+        || (measuredLength.videoId === currentTrack?.videoId ? measuredLength.secs : 0);
       if (duration < 30) return;
       const threshold = Math.min(duration / 2, 240); // >50% or >4min
       if (st.played >= threshold) {
@@ -6410,7 +6458,7 @@ export default function App() {
             zIndex: fullscreen ? 105 : "auto",
             padding: fullscreen ? 0 : "0 8px 8px 4px",
           }}>
-          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)}
+          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay}
             track={currentTrack}
             setTrack={setTrackGuarded}
             queue={queue}
@@ -6617,6 +6665,8 @@ export default function App() {
             </div>
           )}
           <QueuePanel
+            autoplay={autoplay}
+            onAutoplayChange={setAutoplay}
             queue={queue}
             setQueue={setQueue}
             currentTrack={currentTrack}
