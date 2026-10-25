@@ -1,13 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { API, thumb, useLang } from "../context.jsx";
 import { GridCard, TrackRow } from "../ui/rows.jsx";
+import { SearchBox } from "../ui/search-box.jsx";
 
-export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onOpenPlaylist, onContextMenu, onTrackContextMenu, hideExplicit }) {
+export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onOpenPlaylist, onContextMenu, onTrackContextMenu, hideExplicit }) {
   const [filter, setFilter] = useState("all");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const t = useLang();
+  // The page has its own field, so search is reachable with the sidebar collapsed. Opened
+  // without a search, the cursor is already in it.
+  const inputRef = useRef(null);
+  useEffect(() => { if (!query) inputRef.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const field = <SearchBox ref={inputRef} large value={query} onSubmit={onSearch} className="max-w-[560px]" />;
 
   useEffect(() => {
     if (!query) return;
@@ -33,8 +39,9 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
   ];
 
   if (!query) return (
-    <div style={{ padding: 28, color: "var(--text-secondary)" }}>
-      {t("searchPrompt")}
+    <div style={{ padding: "20px 28px" }}>
+      {field}
+      <div style={{ marginTop: 16, color: "var(--text-secondary)" }}>{t("searchPrompt")}</div>
     </div>
   );
 
@@ -109,6 +116,7 @@ export function SearchView({ query, onPlay, currentTrack, isPlaying, onOpenArtis
     <div style={{ padding: "20px 12px" }}>
       {/* Header */}
       <div style={{ padding: "0 16px", marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>{field}</div>
         <div style={{ fontSize: "var(--t18)", fontWeight: 500, marginBottom: 12 }}>
           {t("searchResultsFor")} „{query}"
         </div>

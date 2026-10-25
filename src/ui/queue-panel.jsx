@@ -141,7 +141,7 @@ function QueueRow({ track, globalIdx, isDraggable, dimmed, isActive, isBeingDrag
   );
 }
 
-export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible, autoplay, onAutoplayChange }) {
+export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, onClose, likedIds, onToggleLike, visible, autoplay, onAutoplayChange, compactTop = false }) {
   // ListenTogether: in a room the Queue tab becomes the Room tab. The host keeps their own queue
   // under the room's header (it is the room's queue, and can still be reordered). A listener's
   // own queue is only the room's song, so their list is the room's: its song, then its queue,
@@ -396,7 +396,9 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   return (
     <div className="flex flex-col h-full relative">
       {/* Header */}
-      <div className="px-3 pt-11 shrink-0">
+      {/* pt-11 keeps the tabs clear of what floats over the panel's top (the fullscreen and
+          macOS window chrome). Below the Windows/Linux title bar nothing does. */}
+      <div className={`px-3 shrink-0 ${compactTop ? "pt-3" : "pt-11"}`}>
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
             {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["comments", t("comments")], ["about", t("aboutSong")]].map(([id, label], i, all) => (

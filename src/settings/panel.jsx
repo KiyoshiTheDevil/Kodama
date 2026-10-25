@@ -1556,7 +1556,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 <SectionLabel>{t("appFont")}</SectionLabel>
                 <div className="setting-rows flex flex-col">
                   {[
-                    { id: "default",  label: t("appFontDefault"),  font: "'MiSans Latin', system-ui, sans-serif" },
+                    { id: "default",  label: t("appFontDefault"),  font: "'Onest', system-ui, sans-serif" },
+                    { id: "misans",   label: t("appFontMiSans"),   font: "'MiSans Latin', system-ui, sans-serif" },
                     { id: "dyslexic", label: t("appFontDyslexic"), font: "'OpenDyslexic', system-ui, sans-serif" },
                   ].map(f => (
                     <div

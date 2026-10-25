@@ -9,7 +9,7 @@ import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
-import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
+import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ChevronLeft, ChevronRight, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
@@ -59,6 +59,8 @@ import { QueuePanel } from "./ui/queue-panel.jsx";
 import { LibraryView } from "./views/library-view.jsx";
 import { SearchView } from "./views/search-view.jsx";
 import { HomeView } from "./views/home-view.jsx";
+import { SearchBox } from "./ui/search-box.jsx";
+import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
 import { ArtistView } from "./views/artist-view.jsx";
 import { CoverView } from "./views/cover-view.jsx";
@@ -560,21 +562,72 @@ class IpcAudio {
   }
 }
 
-function TitleBar() {
+// The title bar (Windows/Linux; macOS draws its own): one bar across the window, 56px, with one
+// middle line for everything in it. The sidebar's header lives here (collapse, logo); then Back,
+// Forward and Refresh from the content's edge, the search centred in the room that is left, the
+// sidebar's account actions (rendered into `slotRef` by the sidebar itself), the window buttons.
+// Every round button in it is 32px, the window buttons 32px high, so the row reads as one.
+const TITLEBAR_H = 56;
+// In px, not w-8: the root font size here is 14px, which makes w-8 28px.
+const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
+function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null }) {
+  const t = useLang();
+  const navBtn = `${TITLEBAR_BTN} bg-[var(--fill-subtle)]! data-[disabled=true]:opacity-40`;
   return (
     <div style={{
-      height: 32, display: "flex", alignItems: "center",
-      justifyContent: "flex-end", padding: "0 8px",
-      position: "fixed", top: 4, left: 0, right: 0, zIndex: 9998,
+      height: TITLEBAR_H, position: "fixed", top: 0, left: 0, right: 0, zIndex: 9998,
       pointerEvents: "none",
     }}>
-      <div data-tauri-drag-region style={{
-        position: "absolute", top: 0, left: 80, right: 80, bottom: 0,
-        pointerEvents: "all",
-      }} />
-      {/* Slightly smaller than in the tool windows: this bar is 32px and floats over the
-          content, where a 30px chip would leave no margin at all. */}
-      <WindowControls height={28} width={38} />
+      {/* The whole bar drags the window; the controls sit above it and take their own clicks.
+          The logo lets clicks through, so it is a handle too. */}
+      <div data-tauri-drag-region style={{ position: "absolute", inset: 0, pointerEvents: "all" }} />
+      <div style={{
+        position: "absolute", top: 0, bottom: 0, insetInlineStart: 12, insetInlineEnd: 8,
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        {/* As wide as the sidebar beneath it while there is room, so Back starts at the
+            content's edge; collapsed, just as wide as it needs. */}
+        <div className="flex items-center gap-2 shrink-0" style={{ minWidth: Math.max(0, sidebarW - 12) }}>
+          <Tooltip text={collapsed ? t("expand") : (t("collapse") || "Collapse")}>
+            <Button variant="ghost" isIconOnly onPress={onToggleCollapse} className={TITLEBAR_BTN} style={{ pointerEvents: "all" }}
+              aria-label={collapsed ? t("expand") : (t("collapse") || "Collapse")}>
+              {collapsed ? <CaretLineRight size={15} /> : <CaretLineLeft size={15} />}
+            </Button>
+          </Tooltip>
+          <img src="/Kodama%20Logo.png" alt="" width="20" height="20" className="shrink-0" draggable={false} />
+          <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">Kodama</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0" style={{ pointerEvents: "all" }}>
+          <Tooltip text={t("back")}>
+            <Button variant="ghost" isIconOnly aria-label={t("back")} isDisabled={!canBack} onPress={onBack} className={navBtn}>
+              <ChevronLeft size={13} className="rtl:-scale-x-100" />
+            </Button>
+          </Tooltip>
+          <Tooltip text={t("forward")}>
+            <Button variant="ghost" isIconOnly aria-label={t("forward")} isDisabled={!canForward} onPress={onForward} className={navBtn}>
+              <ChevronRight size={13} className="rtl:-scale-x-100" />
+            </Button>
+          </Tooltip>
+          <Tooltip text={t("refresh")}>
+            <Button variant="ghost" isIconOnly aria-label={t("refresh")} onPress={onRefresh} className={TITLEBAR_BTN}>
+              <ArrowClockwise size={14} />
+            </Button>
+          </Tooltip>
+        </div>
+        {/* The search, as in Discord or VS Code: always in reach, the sidebar collapsed or not,
+            and no room taken from the content. Centred in what is left between the buttons and
+            shrinking with it down to 160px. Ctrl+K puts the cursor in it from anywhere. */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
+          <div style={{ width: "100%", maxWidth: 480, minWidth: 160, pointerEvents: "all" }}>
+            <SearchBox ref={searchRef} compact value={searchQuery} onSubmit={onSearch}
+              localSearch={settingsSearch} placeholder={settingsSearch ? t("searchSettings") : undefined} />
+          </div>
+        </div>
+        <div ref={slotRef} className="shrink-0 flex items-center" style={{ pointerEvents: "all" }} />
+        <div className="shrink-0" style={{ pointerEvents: "all" }}>
+          <WindowControls height={32} width={40} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -607,24 +660,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle }) {
-  const [query, setQuery] = useState("");
-  // Search autocomplete: debounced suggestion fetch + a dropdown under the field.
-  const [suggestions, setSuggestions] = useState([]);
-  const [sugActive, setSugActive] = useState(-1); // keyboard-highlighted suggestion
-  const [sugOpen, setSugOpen] = useState(false);
-  const sugBlurRef = useRef(null);
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) { setSuggestions([]); return; }
-    const id = setTimeout(() => {
-      fetch(`${API}/search/suggestions?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(d => setSuggestions(Array.isArray(d.suggestions) ? d.suggestions : []))
-        .catch(() => {});
-    }, 180);
-    return () => clearTimeout(id);
-  }, [query]);
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle, searchQuery = "", titleSlot = null }) {
   const [tooltip, setTooltip] = useState(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [tetoVisible, setTetoVisible] = useState(false);
@@ -646,6 +682,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     setQuitHolding(false);
     if (quitHoldTimer.current) { clearTimeout(quitHoldTimer.current); quitHoldTimer.current = null; }
   };
+  // In a ListenTogether room: its card then shows at the sidebar's foot.
+  const inTogetherRoom = useTogetherValue((x) => x.status !== "idle" && x.status !== "closed");
   const [pinnedPlaylists, setPinnedPlaylists] = useState([]);
   const [recentPlaylists, setRecentPlaylists] = useState([]);
   const anim = useAnimations();
@@ -692,105 +730,36 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
   const isPinned = (pl) => pinnedPlaylists.some(p => sidebarItemId(p) === sidebarItemId(pl));
   const openItem = (pl) => { if (pl.type === "album") onOpenAlbum?.(pl); else if (pl.type === "artist") onOpenArtist?.(pl); else onOpenPlaylist(pl); };
 
-  useEffect(() => {
-    if (tetoVisible && !query.toLowerCase().includes("teto")) hideTeto();
-  }, [query]);
-
   const hideTeto = () => {
     setTetoLeaving(true);
     clearTimeout(tetoTimerRef.current);
     tetoTimerRef.current = setTimeout(() => { setTetoVisible(false); setTetoLeaving(false); }, 450);
   };
 
-  const handleSubmit = (value) => {
-    const q = value.trim();
-    if (!q) return;
-    setSugOpen(false);
-    // Paste a YouTube / YT Music playlist link (or a bare playlist id) -> open it
-    // directly. Works for unlisted "link only" playlists, which never show in search.
-    let plId = null;
-    const urlM = q.match(/[?&]list=([A-Za-z0-9_-]+)/);
-    if (urlM && /(?:music\.)?youtube\.com|youtu\.be/i.test(q)) plId = urlM[1];
-    else if (/^(VL)?(PL|OLAK5uy_|RDCLAK|RDAMPL)[A-Za-z0-9_-]{10,}$/.test(q)) plId = q;
-    if (plId) {
-      onCloseOverlay?.();
-      onOpenPlaylist?.({ playlistId: plId.replace(/^VL/, "") });
-      setQuery("");
-      return;
-    }
-    onSearch(q);
-    setView("search");
-    onCloseOverlay?.();
-    if (q.toLowerCase().includes("teto")) {
-      clearTimeout(tetoTimerRef.current);
-      setTetoLeaving(false);
-      setTetoVisible(true);
-    } else if (tetoVisible) {
-      hideTeto();
-    }
-  };
+  // Teto answers every search, from the sidebar field or the search page's.
+  useEffect(() => {
+    const onSearched = (e) => {
+      if (String(e.detail || "").toLowerCase().includes("teto")) {
+        clearTimeout(tetoTimerRef.current);
+        setTetoLeaving(false);
+        setTetoVisible(true);
+      } else if (tetoVisible) {
+        hideTeto();
+      }
+    };
+    window.addEventListener("kodama-searched", onSearched);
+    return () => window.removeEventListener("kodama-searched", onSearched);
+  }, [tetoVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pickSuggestion = (s) => { setQuery(s); setSugActive(-1); handleSubmit(s); };
-  // Dropdown of live suggestions, positioned under the (relatively-positioned) field wrapper.
-  // Styled like the app's other popovers — same surface, radius, elevation and entry motion —
-  // rather than the flat bordered box it used to be, and keyboard-navigable.
-  const suggestionsOpen = sugOpen && query.trim().length >= 2 && suggestions.length > 0;
-  const suggestionsBox = suggestionsOpen ? (
-    <div
-      onMouseDown={e => e.preventDefault()} /* keep field focus so onClick fires before blur */
-      className="animate-[sugDropIn_0.16s_cubic-bezier(0.22,1,0.36,1)]"
-      style={{
-        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 60, marginTop: 8,
-        // Exactly what a HeroUI popover renders as, so this list belongs to the same family
-        // as every menu in the app: the overlay surface, its shadow, no border at all, and
-        // min(32px, --radius-3xl) — which resolves to 24px here, not the 12 this used to have.
-        background: "var(--overlay)",
-        borderRadius: "min(32px, var(--radius-3xl))",
-        boxShadow: "var(--elevation-3)",
-        overflow: "hidden", padding: 6,
-      }}
-    >
-      {suggestions.map((s, i) => {
-        const active = i === sugActive;
-        // Rows are pills: with 6px of padding inside a 24px corner, anything squarer leaves a
-        // visible gap between the row and the shape holding it. The accent-dim/accent pair is
-        // how the rest of the app marks a chosen row (font picker, sidebar).
-        return (
-          <div key={i} onClick={() => pickSuggestion(s)} onMouseEnter={() => setSugActive(i)}
-            style={{
-              display: "flex", alignItems: "center", height: 34, padding: "0 14px",
-              borderRadius: "var(--r-full)", cursor: "default", fontSize: "var(--t13)",
-              fontWeight: active ? 600 : 400,
-              color: active ? "var(--accent)" : "var(--text-secondary)",
-              background: active ? "var(--accent-dim)" : "transparent",
-              transition: "background 0.12s, color 0.12s",
-            }}
-          >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s}</span>
-          </div>
-        );
-      })}
-    </div>
-  ) : null;
-  const onSuggestionKey = (e) => {
-    if (!suggestionsOpen) return;
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const n = suggestions.length;
-      const step = e.key === "ArrowDown" ? 1 : -1;
-      setSugActive(i => (i + step + 1 + (n + 1)) % (n + 1) - 1);
-    } else if (e.key === "Enter" && sugActive >= 0) {
-      e.preventDefault();
-      pickSuggestion(suggestions[sugActive]);
-    } else if (e.key === "Escape") {
-      setSugOpen(false);
-      setSugActive(-1);
-    }
+  const handleSubmit = (q) => {
+    onSearch(q);
+    onCloseOverlay?.();
   };
-  const sugFocus = () => { clearTimeout(sugBlurRef.current); setSugOpen(true); };
-  const sugBlur = () => { sugBlurRef.current = setTimeout(() => setSugOpen(false), 150); };
 
   const mainNavItems = [
+    // macOS keeps the field in the sidebar header, which has no room for it collapsed: the
+    // search page has its own. Elsewhere the field sits in the title bar and is always there.
+    ...(collapsed && IS_MAC ? [{ id: "search", label: t("search"), iconEl: <MagnifyingGlass size={16} /> }] : []),
     { id: "home",    label: t("home"),    iconEl: <House size={16} /> },
     { id: "library", label: t("library"), iconEl: <Books size={16} /> },
   ];
@@ -963,8 +932,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
 
   // Shared account-menu popover — used by both the expanded profile button and the
   // collapsed avatar trigger. min-w-56 keeps it readable when the trigger is tiny.
-  const accountMenu = (
-    <DropdownPopover placement="top start"
+  const accountMenuAt = (placement) => (
+    <DropdownPopover placement={placement}
       className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-3 data-[entering]:duration-300 data-[entering]:ease-out data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:slide-out-to-bottom-3 data-[exiting]:duration-200 data-[exiting]:ease-in"
     >
       <DropdownMenu onAction={handleAccountAction} aria-label={t("account")} className="min-w-56">
@@ -1029,31 +998,64 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       </DropdownMenu>
     </DropdownPopover>
   );
+  const accountMenu = accountMenuAt("top start");
+
+  // Windows/Linux: Listen together, the news bell and the account sit in the title bar, right
+  // before the window buttons. They are still the sidebar's (its state, its menu), rendered
+  // into the bar's slot. macOS has no such bar and keeps them at the foot of the sidebar.
+  const avatarFace = currentProfileData?.avatar
+    ? <img src={thumb(currentProfileData.avatar)} alt="" className="w-full h-full object-cover" />
+    : (currentProfileData?.displayName || "?")[0].toUpperCase();
+  const titleActions = (
+    <div className="flex items-center gap-1">
+      <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed placement="bottom end" />
+      <div className="relative shrink-0 flex">
+        <Button variant="ghost" isIconOnly onPress={onOpenNews}
+          className={TITLEBAR_BTN}
+          aria-label={t("news") || "Neuigkeiten"} style={{ contain: "layout style" }}>
+          <Bell size={15} />
+        </Button>
+        {newsUnread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-[var(--r-full)] text-[9px] font-bold leading-none pointer-events-none"
+            style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 0 0 2px var(--bg-base)" }}>{newsUnread > 9 ? "9+" : newsUnread}</span>
+        )}
+      </div>
+      <Dropdown>
+        <DropdownTrigger aria-label={currentProfileData?.displayName || t("account")}
+          className="w-[28px] h-[28px] mx-1 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
+          style={{ contain: "layout style" }}>
+          {avatarFace}
+        </DropdownTrigger>
+        {accountMenuAt("bottom end")}
+      </Dropdown>
+    </div>
+  );
 
   return (
-    <div className="w-full h-full bg-transparent flex flex-col pt-4 shrink-0 rounded-xl overflow-hidden"
+    // Windows/Linux: the sidebar starts below the title bar, which carries its header (collapse,
+    // logo, refresh) as part of the one bar across the window.
+    <div className={cn("w-full h-full bg-transparent flex flex-col shrink-0 rounded-xl overflow-hidden", IS_MAC ? "pt-4" : "pt-[60px]")}
       style={{ visibility: settingsOpen ? "hidden" : "visible" }}>
 
       <SidebarTooltip tooltip={tooltip} />
 
-      {/* Header. macOS (variant D): the search field sits at the very top, flanked by the
+      {/* Header, macOS only (variant D): the search field sits at the very top, flanked by the
           native traffic lights (left padding clears them); refresh + collapse move to the
-          right. Windows/Linux keep the logo + title header with the search row below.
-          On macOS the bar is a drag region (the empty traffic-light pad is the grab area;
-          the search field + buttons stay interactive as children). */}
-      <div
-        {...(IS_MAC ? { "data-tauri-drag-region": true } : {})}
+          right. The bar is a drag region (the empty traffic-light pad is the grab area; the
+          search field + buttons stay interactive as children). Elsewhere all of this is in
+          the title bar. */}
+      {IS_MAC && <div
+        data-tauri-drag-region
         className={cn(
           "flex items-center gap-2",
-          (IS_MAC && !collapsed) ? "pb-3" : "pb-4",
-          collapsed ? "justify-center px-3" : "justify-start",
-          !collapsed && (IS_MAC ? "pl-[72px] pr-2.5" : "px-3"),
-          collapsed && IS_MAC && "pt-8",
+          collapsed ? "pb-4" : "pb-3",
+          collapsed ? "justify-center px-3" : "justify-start pl-[72px] pr-2.5",
+          collapsed && "pt-8",
         )}
       >
         {/* Collapse toggle: leading on Windows/Linux and when collapsed; on macOS-expanded
             it moves to the trailing side (after the search). */}
-        {(!IS_MAC || collapsed) && (
+        {collapsed && (
           <Button
             variant="ghost" size="sm" isIconOnly
             onPress={onToggleCollapse}
@@ -1071,19 +1073,9 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           </Button>
         )}
 
-        {!collapsed && (IS_MAC ? (
+        {!collapsed && (
           <>
-            <div className="flex-1 min-w-0" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
-              onFocus={sugFocus} onBlur={sugBlur}>
-              <SearchFieldRoot aria-label={t("search")} value={query} onChange={v => { setQuery(v); setSugActive(-1); }} onSubmit={handleSubmit} className="w-full">
-                <SearchFieldGroup className="rounded-[var(--r-full)]!">
-                  <SearchFieldSearchIcon><MagnifyingGlass size={16} /></SearchFieldSearchIcon>
-                  <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
-                  <SearchFieldClearButton />
-                </SearchFieldGroup>
-              </SearchFieldRoot>
-              {suggestionsBox}
-            </div>
+            <SearchBox data-sidebar-search className="flex-1 min-w-0" value={searchQuery} onSubmit={handleSubmit} />
             <Button variant="ghost" size="sm" isIconOnly onPress={onRefreshView} className="shrink-0 rounded-[var(--r-full)]" title={t("refresh")} style={{ contain: "layout style" }}>
               <ArrowClockwise size={14} />
             </Button>
@@ -1091,51 +1083,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               <CaretLineLeft size={16} />
             </Button>
           </>
-        ) : (
-          <>
-            <img src="/Kodama%20Logo.png" alt="Kodama" width="20" height="20" className="shrink-0" />
-            <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">Kodama</span>
-            <div className="ml-auto flex items-center gap-0.5 shrink-0">
-              <Button
-                variant="ghost" size="sm" isIconOnly
-                onPress={onRefreshView}
-                className="shrink-0 rounded-[var(--r-full)]"
-                title={t("refresh")}
-                style={{ contain: "layout style" }}
-              >
-                <ArrowClockwise size={14} />
-              </Button>
-            </div>
-          </>
-        ))}
-      </div>
-
-      {/* Search row — Windows/Linux only (macOS shows the search inside the header above).
-          contain:layout style isolates React Aria's data-attribute updates from app-wide
-          style recalcs without the paint-clipping of contain:content.
-          px-2, not px-3: the same inset as the pinned/recent block below, so the search field,
-          the nav buttons and those groups all paint to one edge. */}
-      {!collapsed && !IS_MAC && (
-        <div className="px-2 mb-3" style={{ contain: "layout style", position: "relative", zIndex: sugOpen ? 70 : "auto" }}
-          onFocus={sugFocus} onBlur={sugBlur}>
-          <SearchFieldRoot
-            aria-label={t("search")}
-            value={query}
-            onChange={setQuery}
-            onSubmit={handleSubmit}
-            className="w-full"
-          >
-            <SearchFieldGroup className="rounded-[var(--r-full)]!">
-              <SearchFieldSearchIcon>
-                <MagnifyingGlass size={16} />
-              </SearchFieldSearchIcon>
-              <SearchFieldInput placeholder={t("search")} onKeyDown={onSuggestionKey} />
-              <SearchFieldClearButton />
-            </SearchFieldGroup>
-          </SearchFieldRoot>
-          {suggestionsBox}
-        </div>
-      )}
+        )}
+      </div>}
 
       {/* Main + secondary nav — HeroUI ListBox */}
       <div className="px-2">
@@ -1176,7 +1125,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       {/* User info + account menu — expanded */}
       {!collapsed && (
         <div className="mt-auto px-2 pb-2.5">
-          <hr className="mb-2 mx-2 border-t border-border" />
+          {(IS_MAC || updateInfo || inTogetherRoom) && <hr className="mb-2 mx-2 border-t border-border" />}
           {updateInfo && (
             // Three states, in the order they happen: found, fetching, ready. Only the last
             // one acts on a click, because it is the only one with something to act on; the
@@ -1204,8 +1153,10 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
               </span>
             </div>
           )}
-          <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} />
-          <div className="flex items-center gap-1">
+          {/* Elsewhere the entry is in the title bar, but a room's card (members, invite, leave,
+              close) stays here: the bar only has room for its icon. */}
+          <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} roomOnly={!IS_MAC} />
+          {IS_MAC && <div className="flex items-center gap-1">
             <div className="flex-1 min-w-0">
               <Dropdown>
                 <DropdownTrigger
@@ -1243,17 +1194,17 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                   style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 0 0 2px var(--bg-surface)" }}>{newsUnread > 9 ? "9+" : newsUnread}</span>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
       {/* User info + settings — collapsed */}
       {collapsed && (
         <div className="mt-auto">
-          <hr className="my-1 mx-4 border-t border-border" />
+          {(IS_MAC || updateInfo || offlineMode || isActuallyOffline) && <hr className="my-1 mx-4 border-t border-border" />}
           <div className="flex flex-col items-center gap-1 py-2">
-            <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed />
-            <Dropdown>
+            {IS_MAC && <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed />}
+            {IS_MAC && <Dropdown>
               <DropdownTrigger
                 className="w-9 h-9 rounded-[var(--r-full)] bg-accent flex items-center justify-center text-[length:var(--t11)] font-medium overflow-hidden shrink-0"
                 style={{ contain: "layout style" }}
@@ -1265,7 +1216,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                   : (currentProfileData?.displayName || "?")[0].toUpperCase()}
               </DropdownTrigger>
               {accountMenu}
-            </Dropdown>
+            </Dropdown>}
             {updateInfo && (
               <div
                 className="w-9 h-9 rounded-sm flex items-center justify-center text-accent"
@@ -1305,6 +1256,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
           </div>
         </div>
       )}
+
+      {!IS_MAC && titleSlot && createPortal(titleActions, titleSlot)}
 
       {/* 🎵 Easter Egg: Kasane Teto */}
       {tetoVisible && createPortal(
@@ -2374,7 +2327,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           </SliderTrack>
         </SliderRoot>
       </div>
-      <div style={{ height: 88, display: "flex", alignItems: "center", padding: fullscreen ? "0 20px 0 16px" : "0 20px 0 0", gap: 16 }}>
+      {/* 16px on the left in both modes: the cover starts where the seek bar above it does.
+          The bar used to sit beside the sidebar, which made that inset; it now spans the window. */}
+      <div style={{ height: 88, display: "flex", alignItems: "center", padding: "0 20px 0 16px", gap: 16 }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, width: 340, minWidth: 0 }}>
           <div style={{
@@ -3439,6 +3394,7 @@ export default function App() {
 
   const [view, setView] = useState("home");
   const [navHistory, setNavHistory] = useState([]); // navigation history stack for back button
+  const [navForward, setNavForward] = useState([]); // what Back left, for Forward; any new step clears it
   const [appKey, setAppKey] = useState(0); // increment to force full re-render
   const [switchingTo, setSwitchingTo] = useState(null); // profile being switched to → loading overlay
   const [viewRefreshKey, setViewRefreshKey] = useState(0); // increment to refresh current view
@@ -3823,6 +3779,25 @@ export default function App() {
     document.getElementById("set-sec-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+  // While the settings are open, the title bar's search looks through them: picking a hit opens
+  // its tab, scrolls to its section and lights the row up.
+  const goToSetting = useCallback((e, label) => {
+    setSettingsTab(e.tab);
+    setTimeout(() => {
+      if (e.sec) selectSettingsSection(e.sec);
+      if (!e.s) setTimeout(() => flashSetting(label), e.sec ? 350 : 0);
+    }, 80);
+  }, [selectSettingsSection]); // eslint-disable-line react-hooks/exhaustive-deps
+  const settingsLocalSearch = useCallback((q) => {
+    const lang = localStorage.getItem("kiyoshi-lang") || "de";
+    const debugUnlocked = localStorage.getItem("kiyoshi-debug-unlocked") === "true";
+    return searchSettings(q, (k) => translate(lang, k), {
+      debugUnlocked, tAlt: lang.startsWith("en") ? null : (k) => translate("en", k),
+    }).map((h, i) => ({
+      id: `${h.e.tab}|${h.e.sec || ""}|${h.e.k}|${i}`, label: h.label, sub: h.sub,
+      pick: () => goToSetting(h.e, h.label),
+    }));
+  }, [goToSetting]);
   const closeSettings = useCallback(() => {
     setSettingsClosing(true);
     setTimeout(() => { setSettingsOpen(false); setSettingsClosing(false); }, 240);
@@ -3876,20 +3851,19 @@ export default function App() {
     applyShape(on ? "sharp" : "round");
   }, []);
 
+  // "default" is Onest (the --font in index.css); MiSans, the font before it, stays selectable.
+  const APP_FONT_STACKS = { misans: "'MiSans Latin', system-ui, sans-serif", dyslexic: "'OpenDyslexic', system-ui, sans-serif" };
   const [appFont, setAppFont] = useState(() => {
     const saved = localStorage.getItem("kiyoshi-app-font") || "default";
-    if (saved === "dyslexic") document.documentElement.style.setProperty("--font", "'OpenDyslexic', system-ui, sans-serif");
+    if (APP_FONT_STACKS[saved]) document.documentElement.style.setProperty("--font", APP_FONT_STACKS[saved]);
     return saved;
   });
   const handleAppFontChange = useCallback((id) => {
     setAppFont(id);
     localStorage.setItem("kiyoshi-app-font", id);
-    if (id === "dyslexic") {
-      document.documentElement.style.setProperty("--font", "'OpenDyslexic', system-ui, sans-serif");
-    } else {
-      document.documentElement.style.setProperty("--font", "'MiSans Latin', system-ui, sans-serif");
-    }
-  }, []);
+    if (APP_FONT_STACKS[id]) document.documentElement.style.setProperty("--font", APP_FONT_STACKS[id]);
+    else document.documentElement.style.removeProperty("--font");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [ambientVisualizer, setAmbientVisualizer] = usePersistedState("kiyoshi-ambient-visualizer", true);
   const [instrumentalViz, setInstrumentalViz] = usePersistedState("kiyoshi-instrumental-viz", true);
   const instrumentalVizRef = useRef(instrumentalViz); instrumentalVizRef.current = instrumentalViz;
@@ -5073,9 +5047,45 @@ export default function App() {
     } catch {}
   }, [language, addToast]);
 
+  // Every search goes through here, from the sidebar field or the search page's. A pasted
+  // YouTube / YT Music playlist link (or a bare playlist id) opens that playlist directly: that
+  // way unlisted "link only" playlists, which never show in search, can be reached.
+  const openPlaylistRef = useRef(null); // openPlaylist is declared further down
   const handleSearch = useCallback(q => {
+    let plId = null;
+    const urlM = q.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (urlM && /(?:music\.)?youtube\.com|youtu\.be/i.test(q)) plId = urlM[1];
+    else if (/^(VL)?(PL|OLAK5uy_|RDCLAK|RDAMPL)[A-Za-z0-9_-]{10,}$/.test(q)) plId = q;
+    if (plId) { openPlaylistRef.current?.({ playlistId: plId.replace(/^VL/, "") }); return; }
     setSearchQuery(q);
     setView("search");
+    window.dispatchEvent(new CustomEvent("kodama-searched", { detail: q }));
+  }, []);
+  // Ctrl+K: the cursor into the search field, from anywhere (on macOS Cmd+K, where the field
+  // sits in the sidebar).
+  const titleSearchRef = useRef(null);
+  const [titleSlot, setTitleSlot] = useState(null); // the title bar's spot for the sidebar's account actions
+  // The full-width player bar's height, kept free below the sidebar and the content.
+  // A callback ref, so the measuring starts whenever the bar mounts (after login, too).
+  const [playerBarH, setPlayerBarH] = useState(104);
+  const playerBarRo = useRef(null);
+  const playerBarRef = useCallback((el) => {
+    playerBarRo.current?.disconnect();
+    if (!el) return;
+    playerBarRo.current = new ResizeObserver(() => setPlayerBarH(Math.round(el.offsetHeight)));
+    playerBarRo.current.observe(el);
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "k") return;
+      const el = titleSearchRef.current || document.querySelector("[data-sidebar-search] input");
+      if (!el) return;
+      e.preventDefault();
+      el.focus();
+      el.select?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const addRecentPlaylist = useCallback((pl) => {
@@ -5221,7 +5231,7 @@ export default function App() {
   const openPlaylist = useCallback((item, fromView, refresh = false) => {
     // forcedTitle: when the caller provides a custom title (e.g. "Dusqk – Top Songs"),
     // we keep it and don't let the stream header overwrite it.
-    if (!refresh) setNavHistory(h => [...h, navStateRef.current]);
+    if (!refresh) { setNavHistory(h => [...h, navStateRef.current]); setNavForward([]); }
     const forcedTitle = item.forcedTitle || null;
     setCollection({ title: forcedTitle || item.title, thumbnail: item.thumbnail, tracks: [], total: null, loading: true, progress: 0, cached: false, fromView: fromView || "library", forcedTitle, playlistId: item.playlistId });
     setView("collection");
@@ -5253,8 +5263,10 @@ export default function App() {
     es.onerror = () => { clearInterval(interval); setCollection(c => c ? { ...c, loading: false } : c); es.close(); };
   }, []);
 
+  // With the view it was opened from, as the sidebar's onOpenPlaylist passes it: Back returns there.
+  openPlaylistRef.current = (pl) => openPlaylist(pl, view);
   const openAlbum = useCallback(async (item, fromView, refresh = false) => {
-    if (!refresh) setNavHistory(h => [...h, navStateRef.current]);
+    if (!refresh) { setNavHistory(h => [...h, navStateRef.current]); setNavForward([]); }
     setCollection({ title: item.title, thumbnail: item.thumbnail, tracks: [], total: null, loading: false, progress: 0, cached: false, fromView: fromView || "library", isAlbum: true, browseId: item.browseId });
     setView("collection");
     addRecentPlaylist({ browseId: item.browseId, title: item.title, thumbnail: item.thumbnail, type: "album" });
@@ -5971,6 +5983,7 @@ export default function App() {
 
   const openArtist = useCallback((item, fromView) => {
     setNavHistory(h => [...h, navStateRef.current]);
+    setNavForward([]);
     setArtistView({ browseId: item.browseId, fromView: fromView || view });
     setView("artist");
     if (item.browseId && item.title) {
@@ -5991,14 +6004,16 @@ export default function App() {
   // Navigate to a top-level section (sidebar links) — always clears history.
   const navigateTo = useCallback((v) => {
     setNavHistory([]);
+    setNavForward([]);
     setView(v);
   }, []);
 
   // Go back one step in history; falls back to home if the stack is empty.
   const goBack = useCallback(() => {
     setNavHistory(h => {
-      if (h.length === 0) { setView("home"); return h; }
+      if (h.length === 0) { if (navStateRef.current.view !== "home") setNavForward(f => [...f, navStateRef.current]); setView("home"); return h; }
       const prev = h[h.length - 1];
+      setNavForward(f => [...f, navStateRef.current]);
       setView(prev.view);
       // Always restore collection (null for non-collection views so loading guards don't crash)
       setCollection(prev.collection ?? null);
@@ -6006,6 +6021,37 @@ export default function App() {
       return h.slice(0, -1);
     });
   }, []);
+  // The way back again, step by step: what Back left behind, in order.
+  const goForward = useCallback(() => {
+    setNavForward(f => {
+      if (f.length === 0) return f;
+      const next = f[f.length - 1];
+      setNavHistory(h => [...h, navStateRef.current]);
+      setView(next.view);
+      setCollection(next.collection ?? null);
+      setArtistView(next.artistView ?? null);
+      return f.slice(0, -1);
+    });
+  }, []);
+  const canGoBack = navHistory.length > 0 || view !== "home";
+  const canGoForward = navForward.length > 0;
+  // The mouse's side buttons and Alt+Left/Right, as in a browser.
+  useEffect(() => {
+    const onMouse = (e) => {
+      if (e.button === 3) { e.preventDefault(); goBack(); }
+      else if (e.button === 4) { e.preventDefault(); goForward(); }
+    };
+    const onKey = (e) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
+      if (e.key === "ArrowLeft") { e.preventDefault(); goBack(); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); goForward(); }
+    };
+    window.addEventListener("mouseup", onMouse);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mouseup", onMouse); window.removeEventListener("keydown", onKey); };
+  }, [goBack, goForward]);
 
   // ── Clear track selection when view changes ─────────────────────────────────
   useEffect(() => { clearSelection(); }, [view]);
@@ -6252,16 +6298,20 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
-        {!fullscreen && !IS_MAC && <TitleBar />}
+        {!fullscreen && !IS_MAC && <TitleBar searchQuery={searchQuery} onSearch={handleSearch} searchRef={titleSearchRef}
+          settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
+          sidebarW={sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth} slotRef={setTitleSlot}
+          canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen} onBack={settingsOpen ? closeSettings : goBack} onForward={goForward}
+          collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onRefresh={() => setViewRefreshKey(k => k + 1)} />}
         <div style={{
           width: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
           minWidth: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
           flexShrink: 0, overflow: "hidden",
           transition: sidebarResizing ? "none" : "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
-          padding: fullscreen ? 0 : "8px 4px 8px 8px",
+          padding: fullscreen ? 0 : `8px 4px ${8 + playerBarH}px 8px`,
           position: "relative",
         }}>
-          <Sidebar view={view} activeNavId={view === "collection" && collection?.playlistId === "LM" ? "liked" : view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
+          <Sidebar searchQuery={searchQuery} titleSlot={titleSlot} view={view} activeNavId={view === "collection" && collection?.playlistId === "LM" ? "liked" : view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
             onSwitchProfile={handleAccountSwitch}
             onAddProfile={async () => {
               try { await fetch(`${API}/auth/begin-add`, { method: "POST" }); } catch {}
@@ -6314,6 +6364,8 @@ export default function App() {
               onClose={closeSettings}
               collapsed={sidebarCollapsed}
               closing={settingsClosing}
+              top={IS_MAC ? 8 : TITLEBAR_H + 4}
+              showHeader={IS_MAC}
             />
           )}
           {/* Drag handle to resize the expanded sidebar */}
@@ -6334,25 +6386,29 @@ export default function App() {
         </div>
         <div
           {...(IS_MAC ? { "data-tauri-drag-region": true } : {})}
-          style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+          style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", paddingBottom: fullscreen ? 0 : playerBarH }}>
           {/* macOS: the gap above the content card (this column's exposed top margin) is a
               drag region, so the window can be moved from the top of the main area too — the
               card and everything inside it stay clickable (they're children, not the region). */}
           <div style={{
             flex: 1, minHeight: 0, overflow: "hidden",
-            borderRadius: "var(--r-xl)",
-            margin: queueOpen ? `${IS_MAC ? 16 : 8}px ${queueWidth + 16}px 4px 4px` : `${IS_MAC ? 16 : 8}px 8px 4px 4px`,
+            // Square: the rounded card read as a box inside the window, its corner right under
+            // the window buttons. Windows/Linux leave the title bar's band free, where the search
+            // and the window buttons sit (fullscreen has neither).
+            margin: queueOpen
+              ? `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px ${queueWidth + 16}px 0 4px`
+              : `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px 0 0 4px`,
             transition: queueResizing ? "none" : (animations ? "margin 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease" : "none"),
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
           <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%" }}>
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
-            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
-            {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={goBack} /></AnimatedView>}
+            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
+            {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={IS_MAC ? goBack : undefined} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
-            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={goBack} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
-            {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={goBack} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
+            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={IS_MAC ? goBack : undefined} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
+            {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={IS_MAC ? goBack : undefined} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}
             {isOffline && view !== "downloads" && (
               <div style={{
@@ -6445,18 +6501,22 @@ export default function App() {
               </div>
             )}
           <div
+            ref={playerBarRef}
             onMouseEnter={() => { overPlayerRef.current = true; }}
             onMouseLeave={() => { overPlayerRef.current = false; armHideRef.current?.(); }}
             style={{
+            // Outside fullscreen the bar runs the full width of the window, under the sidebar
+            // as well, which ends above it. Fixed rather than moved in the tree: the sidebar and
+            // the content column keep their place and leave its measured height free below.
+            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100 }),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             opacity: settingsOpen ? 0 : 1,
             transform: (fullscreen && !playerVisible) ? "translateY(120%)" : "translateY(0)",
             visibility: (settingsOpen || (fullscreen && !playerVisible)) ? "hidden" : "visible",
             transition: "opacity 0.35s ease, transform 0.42s cubic-bezier(0.4,0,0.2,1), visibility 0.42s ease",
             pointerEvents: settingsOpen ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
-            position: "relative",
-            zIndex: fullscreen ? 105 : "auto",
-            padding: fullscreen ? 0 : "0 8px 8px 4px",
+            ...(fullscreen ? { position: "relative", zIndex: 105 } : {}),
+            padding: fullscreen ? 0 : "0 8px 8px 8px",
           }}>
           <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay}
             track={currentTrack}
@@ -6624,10 +6684,10 @@ export default function App() {
           })()}
         </div>
 
-        {/* Queue panel */}
+        {/* Queue panel. Windows/Linux: below the title bar, whose band it used to reach into. */}
         <div style={{
           position: "absolute",
-          top: fullscreen ? 0 : 8,
+          top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
           right: fullscreen ? 0 : 8,
           width: fullscreen ? 360 : queueWidth, bottom: fullscreen ? 0 : 112, zIndex: fullscreen ? 104 : 101,
           // Slide via transform (compositor-only) instead of `right` (per-frame layout).
@@ -6665,6 +6725,7 @@ export default function App() {
             </div>
           )}
           <QueuePanel
+            compactTop={!fullscreen && !IS_MAC}
             autoplay={autoplay}
             onAutoplayChange={setAutoplay}
             queue={queue}
@@ -6701,16 +6762,20 @@ export default function App() {
       )}
 
       {(settingsOpen || settingsClosing) && (
+        // Windows/Linux: below the title bar and square, like the content it covers.
         <div style={{
           position: "absolute",
-          top: fullscreen ? 0 : 8,
+          top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
           // Logical for the same reason as the lyrics overlay above: the reserved sidebar
           // space has to follow the sidebar to the other side when the layout flips.
           insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
-          insetInlineEnd: fullscreen ? 0 : 8,
-          bottom: fullscreen ? 0 : 8,
+          insetInlineEnd: fullscreen || !IS_MAC ? 0 : 8,
+          bottom: fullscreen || !IS_MAC ? 0 : 8,
           zIndex: 150,
-          borderRadius: fullscreen ? 0 : "var(--r-xl)",
+          // Windows/Linux: square, except the top corner beside the sidebar. That one meets the
+          // sidebar and the title bar at once, where a hard corner read as a cut-out block.
+          borderRadius: fullscreen ? 0 : IS_MAC ? "var(--r-xl)" : undefined,
+          borderStartStartRadius: !fullscreen && !IS_MAC ? "var(--r-xl)" : undefined,
           overflow: "hidden",
           animation: animations ? (settingsClosing ? "fadeSlideOut 0.22s cubic-bezier(0.4,0,0.2,1) forwards" : "fadeSlideIn 0.28s cubic-bezier(0.4,0,0.2,1)") : undefined,
         }}>

@@ -8,7 +8,9 @@ import { subscribeSettingsSection, getSettingsSection } from "./section-store.js
 import { SidebarTooltip } from "../ui/tooltip.jsx";
 import { useExtensionsWithSettings } from "./extensions-tab.jsx";
 
-export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing }) {
+// top: where it starts. Below the Windows/Linux title bar, which also carries Back; there the
+// header with its own back button is left out.
+export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing, top = 8, showHeader = true }) {
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
   // This is the list the settings sidebar actually draws. panel.jsx keeps a second one for the
@@ -115,7 +117,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
 
   return (
     <div style={{
-      position: "absolute", top: 8, right: 4, bottom: 8, left: 8, zIndex: 300,
+      position: "absolute", top, right: 4, bottom: 8, left: 8, zIndex: 300,
       background: "transparent",
       borderRadius: "var(--r-xl)",
       display: "flex", flexDirection: "column",
@@ -125,6 +127,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       {/* Icon-only labels while collapsed — shared with the main Sidebar. */}
       <SidebarTooltip tooltip={tooltip} />
       {/* Header */}
+      {showHeader && <>
       <div style={{
         display: "flex", alignItems: "center",
         gap: collapsed ? 0 : 8,
@@ -143,6 +146,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       </div>
 
       <div style={{ height: 1, background: "var(--stroke)", margin: collapsed ? "0 8px 8px" : "0 12px 8px", flexShrink: 0 }} />
+      </>}
 
       {/* Nav items */}
       {/* Same insets as the main sidebar's list so the buttons in the two line up: px-2 rather

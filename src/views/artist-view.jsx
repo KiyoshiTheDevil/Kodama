@@ -209,11 +209,13 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
         {/* Darkening + fade-to-base overlays */}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.55) 75%, var(--bg-base) 100%)" }} />
 
-        {/* Back button */}
-        <Button isIconOnly variant="secondary" className="absolute top-11 left-4 z-10 size-9 rounded-[var(--r-full)] backdrop-blur-md"
-          style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }} onPress={onBack}>
-          <ArrowLeft size={18} />
-        </Button>
+        {/* Back button: only where there is no title bar with Back in it (macOS) */}
+        {onBack && (
+          <Button isIconOnly variant="secondary" className="absolute top-11 left-4 z-10 size-9 rounded-[var(--r-full)] backdrop-blur-md"
+            style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }} onPress={onBack}>
+            <ArrowLeft size={18} />
+          </Button>
+        )}
 
         {/* Content */}
         <div style={{ position: "relative", zIndex: 2, padding: "0 24px 22px" }}>

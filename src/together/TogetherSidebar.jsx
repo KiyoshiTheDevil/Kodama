@@ -97,14 +97,14 @@ function JoinPopoverBody({ name, onDone }) {
   );
 }
 
-function JoinPopover({ name, children }) {
+function JoinPopover({ name, children, placement = "right bottom" }) {
   const t = useLang();
   const zoom = useZoom();
   const [open, setOpen] = useState(false);
   return (
     <PopoverRoot isOpen={open} onOpenChange={setOpen}>
       {children}
-      <PopoverContent placement="right bottom" offset={10} className="p-0 bg-transparent shadow-none">
+      <PopoverContent placement={placement} offset={10} className="p-0 bg-transparent shadow-none">
         <PopoverDialog aria-label={t("togetherTitle")} className="outline-none p-0" style={{ zoom }}>
           <JoinPopoverBody name={name} onDone={() => setOpen(false)} />
         </PopoverDialog>
@@ -156,7 +156,11 @@ function HostLeavePopover({ r, t, children }) {
   );
 }
 
-export function TogetherSidebar({ name, avatar, collapsed }) {
+// placement: where the join popover opens. Beside the sidebar by default; below its button
+// when that sits in the title bar.
+// roomOnly: draw nothing outside a room. For the sidebar foot when the entry itself sits in the
+// title bar: the room card, with its leave and close, still belongs in the sidebar.
+export function TogetherSidebar({ name, avatar, collapsed, placement, roomOnly = false }) {
   const t = useLang();
   const r = useTogether();
   useEffect(() => { setIdentity(name, avatar); }, [name, avatar]);
@@ -172,16 +176,17 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
   const shown = r.members.slice(0, 3);
   const lost = r.status === "reconnecting";
   const sub = r.status === "open" ? t("togetherInRoom", { c: r.members.length }) : lost ? t("togetherConnectionLost") : t("togetherConnecting");
+  if (roomOnly && !inRoom) return null;
 
   // ── Collapsed sidebar: one avatar with a ring and the count, or the entry's icon ──
   if (collapsed) {
     if (!inRoom) {
       return (
-        <JoinPopover name={myName}>
+        <JoinPopover name={myName} placement={placement}>
           <Tooltip text={t("togetherTitle")}>
             <Button variant="ghost" isIconOnly aria-label={t("togetherTitle")}
-              className="w-9 h-9 min-w-9 rounded-[var(--r-full)] text-secondary hover:text-primary">
-              <Users size={16} />
+              className={`${placement ? "w-[32px] h-[32px] min-w-[32px]" : "w-9 h-9 min-w-9"} rounded-[var(--r-full)] text-secondary hover:text-primary`}>
+              <Users size={placement ? 15 : 16} />
             </Button>
           </Tooltip>
         </JoinPopover>
@@ -191,7 +196,7 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
     return (
       <Tooltip text={`${roomName(r, t)} · ${sub}`}>
         <button type="button" onClick={openRoomTab} aria-label={`${roomName(r, t)}, ${sub}`}
-          className="relative w-9 h-9 border-0 bg-transparent cursor-default inline-flex items-center justify-center">
+          className={`relative ${placement ? "w-[32px] h-[32px]" : "w-9 h-9"} border-0 bg-transparent cursor-default inline-flex items-center justify-center`}>
           {first ? <MemberAvatar member={first} size={26} ring="var(--accent)" /> : <Spinner size="sm" />}
           <span className="absolute -bottom-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-[var(--r-full)] text-[10px] font-bold leading-[15px] text-center"
             style={{ background: TINT.card, color: "var(--text-primary)" }}>{r.members.length}</span>
@@ -224,7 +229,7 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
   // Waiting to be let in: nothing to show of the room yet but that, and the way out.
   if (r.status === "waiting") {
     return (
-      <div className="mb-1.5 p-3 flex flex-col gap-2.5 rounded-[var(--r-xl)]" style={{ background: TINT.card }}>
+      <div className="mb-1.5 px-3 py-2 flex flex-col gap-2.5">
         <span className="text-[length:var(--t12)] font-semibold" style={{ color: TINT.sub }}>{t("togetherListening")}</span>
         <span className="flex items-center gap-2.5 text-[length:var(--t13)] text-primary"><Spinner size="sm" />{t("togetherWaitingToJoin")}</span>
         <button type="button" onClick={leave} className={`${iconBtn} gap-2 text-[length:var(--t13)] font-semibold text-primary`} {...softBtn}>
@@ -245,15 +250,17 @@ export function TogetherSidebar({ name, avatar, collapsed }) {
       <SignOut size={15} />
     </Button>
   );
+  // No card of its own: on the sidebar's surface, with the 12px inset of the entries above it,
+  // so the heading, the avatars and the buttons line up with "New playlist" and the navigation.
   return (
-    <div className="mb-1.5 p-3 flex flex-col gap-2.5 rounded-[var(--r-xl)]" style={{ background: TINT.card }}>
+    <div className="mb-1.5 px-3 py-2 flex flex-col gap-2.5">
       <button type="button" onClick={openRoomTab}
         className="flex flex-col gap-1 border-0 bg-transparent p-0 text-left cursor-default min-w-0">
         <span className="text-[length:var(--t12)] font-semibold" style={{ color: TINT.sub }}>{t("togetherListening")}</span>
         <span className="flex items-center gap-2.5 min-w-0">
           <span className="inline-flex items-center shrink-0">
             {shown.length > 0
-              ? shown.map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0 }}><MemberAvatar member={m} size={28} ring={TINT.card} /></span>)
+              ? shown.map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0 }}><MemberAvatar member={m} size={28} ring="var(--bg-base)" /></span>)
               : <Spinner size="sm" />}
           </span>
           <span className="min-w-0">
