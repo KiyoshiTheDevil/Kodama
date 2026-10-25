@@ -583,6 +583,8 @@
   "lyricsOffsetEarlier": "Lyrics earlier",
   "lyricsOffsetLater": "Lyrics later",
   "lyricsOffsetReset": "Reset timing",
+  "lyricsOptions": "Lyrics options",
+  "lyricsOffsetLabel": "Timing",
   "lyricsPreview": "Preview",
   "selectLyricsVersion": "Select",
   "votes": "Votes",

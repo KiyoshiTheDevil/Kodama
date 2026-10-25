@@ -14,6 +14,9 @@ import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
 import { LyricsBrowserModal } from "../modals/lyrics-browser-modal.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { LyricsToolChips, OffsetChips, SourceChip } from "./tool-chips.jsx";
+import { ActionSheet } from "../ui/action-sheet.jsx";
+import { OFFSET_STEP } from "./offset.js";
+import { TranslateLyrics, Romanization } from "../icons.jsx";
 import { useLyricOffset } from "./offset.js";
 import { useLyricsPrefs } from "../preferences.jsx";
 import { BraccatoLyricsView } from "./braccato-view.jsx";
@@ -34,7 +37,7 @@ function nextVocalAfter(lyr, t) {
   return Infinity;
 }
 
-export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true, fadeEdges = false }) {
+export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true, fadeEdges = false, lyricsOptionsRef }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
   // them are per-instance, they were just settings threaded down from App(). Rendered outside
   // the provider these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
@@ -58,6 +61,11 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   const [source, setSource] = useState("");
   const [submitterName, setSubmitterName] = useState(null);
   const [browserOpen, setBrowserOpen] = useState(false);
+  // Compact layout: the hover-revealed chip row (offset, translate, romaji, source) cannot be
+  // reached by touch and sat where a thumb lands on the controls. Its controls are a sheet
+  // instead, opened by the "Aa" button in the player's head (App calls lyricsOptionsRef).
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const { setShowTranslation, setShowRomaji } = useLyricsPrefs();
   const { offset, offsetRef, adjustOffset } = useLyricOffset(track?.videoId);
   // Derived from state rather than syncedRef: a ref change does not re-render, so the offset
   // control would stay hidden until something else happened to redraw.
@@ -457,6 +465,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     if (importLyricsRef) importLyricsRef.current = importCustomLyrics;
     if (removeCustomLyricsRef) removeCustomLyricsRef.current = removeCustomLyrics;
     if (openLyricsBrowserRef) openLyricsBrowserRef.current = () => setBrowserOpen(true);
+    if (lyricsOptionsRef) lyricsOptionsRef.current = () => setOptionsOpen(true);
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -876,7 +885,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
 
       {/* Source badge — HeroUI Chip, glassy. Auto-hides with a slide-out like the
           scrollbar: revealed on cursor activity, slides off-right after idle. */}
-      <div style={{
+      {!fadeEdges && <div style={{
         position: "absolute", bottom: 12 + chipBottomLift, right: 16, zIndex: 2, display: "flex", alignItems: "center", gap: 6,
         transform: scrollActive ? "translateX(0)" : "translateX(calc(100% + 16px))",
         opacity: scrollActive ? 1 : 0,
@@ -897,7 +906,34 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         )}
         <SourceChip language={language} source={source} submitterName={submitterName}
           onPress={() => setBrowserOpen(true)} neighbourLeft={!!lyrics} />
-      </div>
+      </div>}
+
+      <ActionSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} title={translate(language, "lyricsOptions")} items={[
+        ...(hasSyncedLyrics ? [{
+          id: "offset",
+          custom: (
+            <div className="flex items-center gap-3" style={{ minHeight: 46 }}>
+              <span style={{ flex: 1, fontSize: "var(--t14)", color: "var(--text-primary)" }}>{translate(language, "lyricsOffsetLabel")}</span>
+              <button type="button" aria-label={translate(language, "lyricsOffsetEarlier")} onClick={() => adjustOffset(-OFFSET_STEP)}
+                className="size-10 rounded-[var(--r-full)] border-0 cursor-default flex items-center justify-center bg-[var(--fill-subtle)] text-primary active:scale-90 transition-transform">
+                <Minus size={13} weight="bold" />
+              </button>
+              <button type="button" aria-label={translate(language, "lyricsOffsetReset")} onClick={() => adjustOffset(null)}
+                className="border-0 bg-transparent cursor-default tabular-nums text-center"
+                style={{ width: 58, fontSize: "var(--t14)", fontWeight: 600, color: offset ? "var(--accent)" : "var(--text-primary)", fontFamily: "var(--font)" }}>
+                {offset > 0 ? "+" : ""}{String(Number(offset.toFixed(2)))}s
+              </button>
+              <button type="button" aria-label={translate(language, "lyricsOffsetLater")} onClick={() => adjustOffset(OFFSET_STEP)}
+                className="size-10 rounded-[var(--r-full)] border-0 cursor-default flex items-center justify-center bg-[var(--fill-subtle)] text-primary active:scale-90 transition-transform">
+                <Plus size={13} weight="bold" />
+              </button>
+            </div>
+          ),
+        }] : []),
+        ...(lyrics ? [{ id: "tr", label: translate(language, "translateLyrics"), icon: <TranslateLyrics size={16} />, checked: !!showTranslation, keepOpen: true, divider: hasSyncedLyrics, onPress: () => setShowTranslation?.(v => !v) }] : []),
+        ...(lyrics && romanizable ? [{ id: "ro", label: translate(language, "showRomaji"), icon: <Romanization size={16} />, checked: !!showRomaji, keepOpen: true, onPress: () => setShowRomaji?.(v => !v) }] : []),
+        { id: "src", label: translate(language, "browseLyrics"), hint: source || null, divider: true, onPress: () => setBrowserOpen(true) },
+      ]} />
 
       {browserOpen && (
         <LyricsBrowserModal

@@ -4568,6 +4568,7 @@ export default function App() {
   const importLyricsRef = useRef(null);
   const removeCustomLyricsRef = useRef(null);
   const openLyricsBrowserRef = useRef(null);
+  const lyricsOptionsRef = useRef(null); // compact player head's "Aa": the lyrics overlay opens its options sheet
 
   // Reset lyrics state on every track change (incl. auto-advance / prev-next)
   useEffect(() => {
@@ -6987,7 +6988,15 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div style={{ width: 36 }} />
+                {/* The lyrics' options (offset, translation, romaji, source) as a sheet: the
+                    chip row that holds them on the desktop only shows on hover. */}
+                {mode === "lyrics" ? (
+                  <Button variant="ghost" isIconOnly aria-label={translate(language, "lyricsOptions")} onPress={() => lyricsOptionsRef.current?.()}
+                    className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary font-bold"
+                    style={{ fontSize: "var(--t14)", fontFamily: "var(--font)" }}>
+                    Aa
+                  </Button>
+                ) : <div style={{ width: 36 }} />}
               </div>
             );
           })()}
@@ -7034,7 +7043,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
               }}>
-                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} fadeEdges={compact} />
+                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} fadeEdges={compact} lyricsOptionsRef={lyricsOptionsRef} />
               </div>
               <div ref={splitCoverRef} style={{
                 // insetInlineStart so the pane starts at the same edge the split ratio is

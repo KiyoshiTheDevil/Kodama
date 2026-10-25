@@ -2,9 +2,11 @@
 // in the same sheet (with a way back) instead of a second menu beside it: at phone width a
 // submenu that opens on hover had nowhere to go and no way back to the main list.
 //
-// items: [{ id, label, icon, onPress, sub: items, danger, disabled, checked, hint, divider }]
+// items: [{ id, label, icon, onPress, sub: items, danger, disabled, checked, hint, divider,
+//          keepOpen, custom }]
 // `divider: true` starts a new group above the item. Pressing an item without `sub` runs it
-// and closes the sheet.
+// and closes the sheet, unless `keepOpen` (a toggle you may want to flip and see). `custom` is
+// a node drawn as the row instead of a button (a stepper, say).
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLang, useZoom } from "../context.jsx";
@@ -59,12 +61,12 @@ export function ActionSheet({ open, onClose, items, title }) {
   const page = stack[stack.length - 1];
   const list = page ? page.items : items;
 
-  const row = (it) => (
+  const row = (it) => it.custom ? <div key={it.id} style={{ padding: "4px 16px" }}>{it.custom}</div> : (
     <button key={it.id} type="button" disabled={it.disabled}
       onClick={() => {
         if (it.sub) { setStack((s) => [...s, { title: it.label, items: it.sub }]); return; }
         it.onPress?.();
-        close();
+        if (!it.keepOpen) close();
       }}
       style={{
         display: "flex", alignItems: "center", gap: 12, width: "100%", minHeight: 46, padding: "0 16px",
