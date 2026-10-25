@@ -5,7 +5,7 @@
 // items: [{ id, label, icon, onPress, sub: items, danger, disabled, checked, hint, divider }]
 // `divider: true` starts a new group above the item. Pressing an item without `sub` runs it
 // and closes the sheet.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLang, useZoom } from "../context.jsx";
 import { CaretLeft, CaretRight, Check } from "../icons.jsx";
@@ -16,6 +16,36 @@ export function ActionSheet({ open, onClose, items, title }) {
   const [stack, setStack] = useState([]); // the sub-lists walked into, as { title, items }
   const [leaving, setLeaving] = useState(false);
   useEffect(() => { if (open) { setStack([]); setLeaving(false); } }, [open]);
+  // Pull it down by the grabber to close it, as with the queue: past 90px, or flicked.
+  const panelRef = useRef(null);
+  const drag = useRef(null);
+  const onGrabDown = (e) => {
+    if (!panelRef.current) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { y0: e.clientY, t0: performance.now(), dy: 0 };
+    panelRef.current.style.animation = "none";
+    panelRef.current.style.transition = "none";
+  };
+  const onGrabMove = (e) => {
+    const d = drag.current;
+    if (!d || !panelRef.current) return;
+    d.dy = Math.max(0, e.clientY - d.y0);
+    panelRef.current.style.transform = `translateY(${d.dy}px)`;
+  };
+  const onGrabUp = () => {
+    const d = drag.current;
+    const el = panelRef.current;
+    drag.current = null;
+    if (!d || !el) return;
+    const fast = d.dy > 30 && d.dy / Math.max(1, performance.now() - d.t0) > 0.6;
+    el.style.transition = "transform 0.22s cubic-bezier(0.22,1,0.36,1)";
+    if (d.dy > 90 || fast) {
+      el.style.transform = "translateY(110%)";
+      setTimeout(() => onClose?.(), 200);
+    } else {
+      el.style.transform = "";
+    }
+  };
   // Slides down first, then tells the owner it is closed.
   const close = () => { setLeaving(true); setTimeout(() => { setLeaving(false); onClose?.(); }, 180); };
   useEffect(() => {
@@ -56,14 +86,16 @@ export function ActionSheet({ open, onClose, items, title }) {
   return createPortal(
     <div style={{ position: "fixed", inset: 0, zIndex: 100500, zoom }} onClick={close}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", animation: leaving ? "fadeOut 0.18s ease forwards" : "fadeIn 0.2s ease" }} />
-      <div role="menu" aria-label={page?.title || title} onClick={(e) => e.stopPropagation()}
+      <div ref={panelRef} role="menu" aria-label={page?.title || title} onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", left: 8, right: 8, bottom: 8, maxHeight: "74%", display: "flex", flexDirection: "column",
           background: "var(--overlay)", borderRadius: 24, boxShadow: "0 -10px 48px rgba(0,0,0,0.55)", overflow: "hidden",
           animation: leaving ? "sheetUp 0.18s ease-in reverse forwards" : "sheetUp 0.26s cubic-bezier(0.22,1,0.36,1)",
         }}>
-        <div style={{ height: 18, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 4, background: "var(--fill-strong)" }} />
+        <div className="touch-none cursor-grab active:cursor-grabbing"
+          onPointerDown={onGrabDown} onPointerMove={onGrabMove} onPointerUp={onGrabUp} onPointerCancel={onGrabUp}
+          style={{ height: 26, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 4, background: "var(--fill-strong)" }} />
         </div>
         {page && (
           <button type="button" onClick={() => setStack((s) => s.slice(0, -1))}

@@ -7097,7 +7097,7 @@ export default function App() {
           </div>
         )}
         {/* Queue panel. Windows/Linux: below the title bar, whose band it used to reach into. */}
-        <div style={{
+        <div data-queue-sheet style={{
           position: "absolute",
           top: fullscreen ? 0 : compact ? 64 : (IS_MAC ? 8 : TITLEBAR_H),
           right: fullscreen || compact ? 0 : 8,
@@ -7106,17 +7106,20 @@ export default function App() {
           // Slide via transform (compositor-only) instead of `right` (per-frame layout).
           // Once settled, drop the transform/will-change entirely — an ancestor transform
           // otherwise neutralises backdrop-filter on descendants (e.g. the scroll-to-top pill).
-          transform: queueOpen ? (queueSettled ? "none" : "translateX(0)") : "translateX(calc(100% + 16px))",
+          // Compact: a sheet, so it comes up from the bottom instead of in from the side.
+          transform: queueOpen ? (queueSettled ? "none" : (compact ? "translateY(0)" : "translateX(0)")) : (compact ? "translateY(100%)" : "translateX(calc(100% + 16px))"),
           // Hidden once slid out: in a narrow window the slide's end could leave its edge in view.
           visibility: queueOpen ? "visible" : "hidden",
           willChange: (queueOpen && queueSettled) ? "auto" : "transform",
           // Keep the panel near-opaque while moving; only switch to the costly ambient
           // backdrop-blur once it has settled, so the slide never repaints the blur.
-          background: ambientBackground
+          // Compact: solid. As a sheet over the player, the see-through glass let the lyrics
+          // shimmer through behind the list.
+          background: ambientBackground && !compact
             ? (queueSettled ? "color-mix(in srgb, var(--bg-surface) 50%, transparent)" : "color-mix(in srgb, var(--bg-surface) 92%, transparent)")
             : "var(--bg-surface)",
-          backdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
-          WebkitBackdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
+          backdropFilter: ambientBackground && queueSettled && !compact ? "blur(32px) saturate(1.4)" : "none",
+          WebkitBackdropFilter: ambientBackground && queueSettled && !compact ? "blur(32px) saturate(1.4)" : "none",
           border: ambientBackground ? "0.5px solid rgba(255,255,255,0.08)" : "none",
           borderRadius: fullscreen ? 0 : compact ? "20px 20px 0 0" : "var(--r-xl)",
           overflow: "hidden",

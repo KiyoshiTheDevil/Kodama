@@ -396,20 +396,67 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
   // Compact layout: the panel is a sheet (App), its head the phone players' one: a grabber,
   // tabs with an underline instead of pills, and autoplay with "clear" in one slim row.
   const compact = useCompact();
+  // Compact: pull the sheet down by its grabber to close it, as on a phone. Moves the panel
+  // (the sheet's own box in App) with the finger; past 110px, or flicked, it closes.
+  const sheetDrag = useRef(null);
+  const onGrabDown = (e) => {
+    const sheet = e.currentTarget.closest("[data-queue-sheet]");
+    if (!sheet) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // App's own transform and transition are set inline too; keep them to hand back.
+    sheetDrag.current = { sheet, y0: e.clientY, t0: performance.now(), dy: 0, transform: sheet.style.transform, transition: sheet.style.transition };
+    sheet.style.transition = "none";
+  };
+  const onGrabMove = (e) => {
+    const d = sheetDrag.current;
+    if (!d) return;
+    d.dy = Math.max(0, e.clientY - d.y0);
+    d.sheet.style.transform = `translateY(${d.dy}px)`;
+  };
+  const onGrabUp = () => {
+    const d = sheetDrag.current;
+    if (!d) return;
+    sheetDrag.current = null;
+    const fast = d.dy > 30 && d.dy / Math.max(1, performance.now() - d.t0) > 0.6;
+    d.sheet.style.transition = "transform 0.25s cubic-bezier(0.22,1,0.36,1)";
+    if (d.dy > 110 || fast) {
+      d.sheet.style.transform = "translateY(100%)";
+      // Closed where it is: App's closed position is this same translateY(100%), so it stays
+      // put when React takes over. Resetting the transform first had it jump back up and
+      // slide down a second time.
+      setTimeout(() => {
+        d.sheet.style.transition = "none";
+        onClose?.();
+        requestAnimationFrame(() => requestAnimationFrame(() => { d.sheet.style.transition = d.transition; }));
+      }, 240);
+    } else {
+      d.sheet.style.transform = d.transform;
+      setTimeout(() => { d.sheet.style.transition = d.transition; }, 260);
+    }
+  };
   const tabList = [["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["comments", t("comments")], ["about", t("aboutSong")]];
   return (
     <div className="flex flex-col h-full relative">
       {compact && (
         <div className="shrink-0">
-          <div className="flex justify-center pt-2 pb-1"><div className="w-9 h-1 rounded-[var(--r-full)] bg-[var(--fill-strong)]" /></div>
-          <div role="tablist" className="flex px-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex justify-center items-center h-7 touch-none cursor-grab active:cursor-grabbing"
+            onPointerDown={onGrabDown} onPointerMove={onGrabMove} onPointerUp={onGrabUp} onPointerCancel={onGrabUp}>
+            <div className="w-10 h-1 rounded-[var(--r-full)] bg-[var(--fill-strong)]" />
+          </div>
+          {/* The same switch as the player's Cover / Lyrics one: one look for both. */}
+          <div className="flex justify-center px-4 pb-1">
+          {/* Theme colours rather than the player's fixed white: this sheet sits on the theme's
+              surface, which is light in the light theme. */}
+          <div role="tablist" className="flex max-w-full" style={{ padding: 3, borderRadius: "var(--r-full)", background: "var(--fill-subtle)" }}>
             {/* Short names: the full ones ("About this song") wrapped at phone width. */}
             {tabList.map(([id, label]) => [id, id === "queue" && !inRoom ? t("upNext") : id === "about" ? t("aboutShort") : label]).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={panelTab === id} onClick={() => setPanelTab(id)}
-                className={`flex-auto min-w-0 h-11 px-2 border-0 bg-transparent cursor-default select-none whitespace-nowrap overflow-hidden text-ellipsis text-[length:var(--t12)] font-semibold uppercase tracking-[0.04em] ${panelTab === id ? "text-primary" : "text-muted hover:text-secondary"}`}
-                style={{ boxShadow: panelTab === id ? "inset 0 -2px 0 var(--text-primary)" : "none" }}
+                className="min-w-0 border-0 cursor-default select-none whitespace-nowrap overflow-hidden text-ellipsis"
+                style={{ padding: "6px 14px", borderRadius: "var(--r-full)", fontSize: "var(--t12)", fontWeight: 600, fontFamily: "var(--font)",
+                  background: panelTab === id ? "var(--fill-strong)" : "transparent", color: panelTab === id ? "var(--text-primary)" : "var(--text-muted)" }}
               >{label}</button>
             ))}
+          </div>
           </div>
           {panelTab === "queue" && !inRoom && (
             <div className="flex items-center gap-2 px-4 py-2">
