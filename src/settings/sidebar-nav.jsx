@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, Button, ListBox, ListBoxItem, ScrollShadowRoot } from "@heroui/react";
 import { API, useLang, useAnimations } from "../context.jsx";
 import { translate } from "../i18n.js";
-import { ArrowLeft, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, PuzzlePiece, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
+import { ArrowLeft, ChevronRight, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, PuzzlePiece, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
 import { subscribeSettingsSection, getSettingsSection } from "./section-store.js";
 import { SidebarTooltip } from "../ui/tooltip.jsx";
@@ -10,7 +10,9 @@ import { useExtensionsWithSettings } from "./extensions-tab.jsx";
 
 // top: where it starts. Below the Windows/Linux title bar, which also carries Back; there the
 // header with its own back button is left out.
-export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing, top = 8, showHeader = true }) {
+// asList: the compact layout's first page of the settings, full width, rows to tap with an
+// arrow, no sub-sections (they are the category's own page); onPick runs after a tab is chosen.
+export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing, top = 8, showHeader = true, asList = false, onPick }) {
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
   // This is the list the settings sidebar actually draws. panel.jsx keeps a second one for the
@@ -117,7 +119,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
 
   return (
     <div style={{
-      position: "absolute", top, right: 4, bottom: 8, left: 8, zIndex: 300,
+      position: "absolute", top, right: asList ? 0 : 4, bottom: asList ? 0 : 8, left: asList ? 0 : 8, zIndex: 300,
       background: "transparent",
       borderRadius: "var(--r-xl)",
       display: "flex", flexDirection: "column",
@@ -166,7 +168,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
         <ListBox
           aria-label={t("appSettings")}
           selectionMode="none"
-          onAction={(key) => { const k = String(key); if (k.startsWith("sec:")) onSectionSelect?.(k.slice(4)); else setTab(k); }}
+          onAction={(key) => { const k = String(key); if (k.startsWith("sec:")) onSectionSelect?.(k.slice(4)); else { setTab(k); onPick?.(k); } }}
           // px-0 for the same reason as the main sidebar's list: .list-box carries p-1, which
           // inset these buttons 4px more than the 8px their container already gives them.
           className="w-full px-0!"
@@ -178,8 +180,8 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 id={item.id}
                 textValue={item.label}
                 className={cn(
-                  "text-[length:var(--t13)] min-h-10 rounded-[var(--r-full)]",
-                  tab === item.id && "bg-accent-dim text-accent",
+                  asList ? "text-[length:var(--t14)] min-h-12 rounded-[var(--r-xl)] gap-3" : "text-[length:var(--t13)] min-h-10 rounded-[var(--r-full)]",
+                  !asList && tab === item.id && "bg-accent-dim text-accent",
                   collapsed && "justify-center"
                 )}
                 onMouseEnter={e => {
@@ -198,11 +200,12 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
                 {!collapsed && item.id === "update" && updateInfo && !item.badge && (
                   <span className="ml-auto shrink-0 w-[7px] h-[7px] rounded-[var(--r-full)] bg-accent" />
                 )}
+                {asList && <ChevronRight size={12} className="shrink-0 text-muted rtl:-scale-x-100" />}
               </ListBoxItem>
             );
             // Discord-style sub-nav: when this page is active, list its sections as indented
             // children with a vertical tree line; the active one (scroll-spy) is highlighted.
-            if (collapsed || tab !== item.id || !item.sections) return [parent];
+            if (asList || collapsed || tab !== item.id || !item.sections) return [parent];
             const children = item.sections.map((sec, i) => (
               <ListBoxItem
                 key={"sec:" + sec.id}

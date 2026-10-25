@@ -4098,10 +4098,14 @@ export default function App() {
     document.getElementById("set-sec-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+  // Compact layout: the settings as two pages, the list of categories and then the one picked.
+  const [settingsPage, setSettingsPage] = useState("list");
+  useEffect(() => { if (settingsOpen) setSettingsPage("list"); }, [settingsOpen]);
   // While the settings are open, the title bar's search looks through them: picking a hit opens
   // its tab, scrolls to its section and lights the row up.
   const goToSetting = useCallback((e, label) => {
     setSettingsTab(e.tab);
+    setSettingsPage("detail"); // compact: straight into the category
     setTimeout(() => {
       if (e.sec) selectSettingsSection(e.sec);
       if (!e.s) setTimeout(() => flashSetting(label), e.sec ? 350 : 0);
@@ -5639,7 +5643,7 @@ export default function App() {
   const tight = compact && appW < 300;
   // The sidebar's width as laid out. Compact: none, except the icon rail while the settings are
   // open, whose categories live there (until the settings get a compact layout of their own).
-  const sideW = fullscreen ? 0 : compact ? (settingsOpen || settingsClosing ? SIDEBAR_COLLAPSED : 0)
+  const sideW = fullscreen ? 0 : compact ? 0
     : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth);
 
   const [customShortcuts, setCustomShortcuts] = useState(() => {
@@ -6650,7 +6654,8 @@ export default function App() {
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
-          canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen} onBack={settingsOpen ? closeSettings : goBack} onForward={goForward}
+          canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen}
+          onBack={settingsOpen ? (compact && settingsPage === "detail" ? () => setSettingsPage("list") : closeSettings) : goBack} onForward={goForward}
           collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onRefresh={() => setViewRefreshKey(k => k + 1)} />}
         <div style={{
           width: sideW,
@@ -6704,7 +6709,7 @@ export default function App() {
             settingsOpen={settingsOpen}
             hideUserHandle={demoMode ? true : hideUserHandle}
           />
-          {(settingsOpen || settingsClosing) && !fullscreen && (
+          {(settingsOpen || settingsClosing) && !fullscreen && !compact && (
             <SettingsSidebarContent
               tab={settingsTab}
               setTab={setSettingsTab}
@@ -7207,8 +7212,24 @@ export default function App() {
           borderStartStartRadius: !fullscreen && !IS_MAC ? "var(--r-xl)" : undefined,
           overflow: "hidden",
           animation: animations ? (settingsClosing ? "fadeSlideOut 0.22s cubic-bezier(0.4,0,0.2,1) forwards" : "fadeSlideIn 0.28s cubic-bezier(0.4,0,0.2,1)") : undefined,
+          ...(compact ? { background: "var(--bg-base)" } : {}),
         }}>
-          <SettingsPanel
+          {/* Compact: the categories first, as a list over the whole width; a tap opens one. */}
+          {compact && settingsPage === "list" ? (
+            <SettingsSidebarContent
+              tab={settingsTab}
+              setTab={setSettingsTab}
+              onSectionSelect={selectSettingsSection}
+              updateInfo={updateInfo}
+              onClose={closeSettings}
+              collapsed={false}
+              closing={settingsClosing}
+              top={0}
+              showHeader={false}
+              asList
+              onPick={() => setSettingsPage("detail")}
+            />
+          ) : <SettingsPanel
             onClose={closeSettings}
             onSectionChange={setSettingsSectionStore}
             accounts={profiles} activeAccount={profiles.find(p => p.active)}
@@ -7364,7 +7385,7 @@ export default function App() {
             getShortcutLabel={getShortcutLabel}
             resetShortcut={resetShortcut}
             resetAllShortcuts={resetAllShortcuts}
-          />
+          />}
         </div>
         )}
 
