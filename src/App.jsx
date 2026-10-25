@@ -570,7 +570,7 @@ class IpcAudio {
 const TITLEBAR_H = 56;
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
 const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
-function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null }) {
+function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false }) {
   const t = useLang();
   const navBtn = `${TITLEBAR_BTN} bg-[var(--fill-subtle)]! data-[disabled=true]:opacity-40`;
   return (
@@ -595,7 +595,8 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
             </Button>
           </Tooltip>
           <img src="/Kodama%20Logo.png" alt="" width="20" height="20" className="shrink-0" draggable={false} />
-          <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">Kodama</span>
+          {/* In the settings the bar says where you are: their name beside the logo. */}
+          <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">{inSettings ? t("settings") : "Kodama"}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" style={{ pointerEvents: "all" }}>
           <Tooltip text={t("back")}>
@@ -6300,6 +6301,7 @@ export default function App() {
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
         {!fullscreen && !IS_MAC && <TitleBar searchQuery={searchQuery} onSearch={handleSearch} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
+          inSettings={settingsOpen && !settingsClosing}
           sidebarW={sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth} slotRef={setTitleSlot}
           canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen} onBack={settingsOpen ? closeSettings : goBack} onForward={goForward}
           collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onRefresh={() => setViewRefreshKey(k => k + 1)} />}
