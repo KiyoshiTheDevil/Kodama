@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, SwitchRoot, SwitchControl, SwitchThumb, CardRoot, ScrollShadowRoot, Tab } from "@heroui/react";
+import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, SwitchRoot, SwitchControl, SwitchThumb, CardRoot, ScrollShadowRoot, Tab } from "@heroui/react";
+import { Dropdown } from "./ui/menu.jsx";
 import { DropdownMenu } from "./ui/zoomed-heroui.jsx";
 import { ContextMenu, CtxItem, CTX_POPOVER_ANIM } from "./ui/context-menu.jsx";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -11,7 +12,7 @@ import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
 import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ChevronLeft, ChevronRight, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
 
-import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, FontScaleContext, TrackNumberContext } from "./context.jsx";
+import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, CompactContext, FontScaleContext, TrackNumberContext } from "./context.jsx";
 import { CreatePlaylistModal, RenamePlaylistModal, DeletePlaylistModal } from "./modals/playlist-modals.jsx";
 import { NewsModal } from "./modals/news-modal.jsx";
 import { BugReportModal } from "./modals/bug-report-modal.jsx";
@@ -62,7 +63,6 @@ import { HomeView } from "./views/home-view.jsx";
 import { SearchBox } from "./ui/search-box.jsx";
 import { CompactTabs } from "./ui/compact-tabs.jsx";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
-import { ActionSheet } from "./ui/action-sheet.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
 import { ArtistView } from "./views/artist-view.jsx";
@@ -1605,7 +1605,6 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // the mini card below).
   const barMode = compact ? "narrow" : barW >= 1080 ? "wide" : barW >= 880 ? "mid" : "narrow";
   const [volPop, setVolPop] = useState(false); // narrower bars: the volume slider is out (pointer on the speaker)
-  const [moreSheet, setMoreSheet] = useState(false); // compact layout: the ⋯ menu as an action sheet
 
   // LRU cache: videoId -> url (max 50 entries, Map preserves insertion order)
   const URL_CACHE_MAX = 50;
@@ -2513,7 +2512,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               )}
             </DropdownTrigger>
             <DropdownPopover placement="top end"
-              className={compact ? "as-sheet" : "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"}
+              className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
             >
               <div className="px-3 pt-2.5 pb-1 text-[length:var(--t12)] font-bold text-muted uppercase tracking-wider">
                 {t("sleepTimer")}
@@ -2566,7 +2565,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 </DropdownTrigger>
                 <DropdownPopover placement="top end"
                   // Compact: a sheet from the bottom rather than a dropdown, as on a phone.
-                  className={compact ? "as-sheet" : "[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"}
+                  className="[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
                 >
                   <DropdownMenu aria-label="More">
                     {/* Narrower bars have no room for these buttons: they move in here. */}
@@ -2579,7 +2578,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                             {sleepRemaining !== null && <span className="ml-auto text-[length:var(--t12)] font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>}
                             <DropdownSubmenuIndicator className={sleepRemaining !== null ? undefined : "ml-auto"} />
                           </DropdownItem>
-                          <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:11rem]"}>
+                          <DropdownPopover className="[--dd-min-w:11rem]">
                             <DropdownMenu aria-label={t("sleepTimer")}
                               onAction={(key) => { if (key === "off") setSleepTimerEnd(null); else setSleepTimerEnd(Date.now() + Number(key) * 60 * 1000); }}>
                               {[5, 10, 15, 20, 30, 45, 60].map(min => (
@@ -2671,7 +2670,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {/* Inline height, not max-h-80: HeroUI sizes its popover from the
                               available viewport space, and that wins over the utility class —
                               with 44 entries the menu grew to the full window height. */}
-                          <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:10rem] overflow-y-auto scrollable"} style={compact ? undefined : { maxHeight: 320 }}>
+                          <DropdownPopover className="[--dd-min-w:10rem] overflow-y-auto scrollable" style={compact ? undefined : { maxHeight: 320 }}>
                             <DropdownMenu aria-label="Language">
                               {TRANSLATION_LANGS.map(({ code, name }) => (
                                 <DropdownItem key={code} textValue={name} onAction={() => setTranslationLang(code)}
@@ -2741,7 +2740,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {t("share")}
                           <DropdownSubmenuIndicator className="ml-auto" />
                         </DropdownItem>
-                        <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:14rem]"}>
+                        <DropdownPopover className="[--dd-min-w:14rem]">
                           <DropdownMenu aria-label={t("share")}>
                             <DropdownSection>
                               <DropdownItem textValue={t("copyShareLink")}
@@ -2909,51 +2908,6 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     );
   }
 
-  // The ⋯ menu as an action sheet (compact layout): the same actions as the dropdown, as data,
-  // so its submenus (sleep timer, translation language, share) open as pages of the sheet.
-  const moreItems = () => {
-    if (!track) return [];
-    const fetched = fetchedBrowseIds[track.videoId] || {};
-    const albumId = track.albumBrowseId || fetched.albumBrowseId;
-    const artistId = track.artistBrowseId || fetched.artistBrowseId;
-    const downloaded = cachedSongIds?.has(track.videoId);
-    const downloading = downloadingIds?.has(track.videoId);
-    const copy = (text) => navigator.clipboard.writeText(text).then(() => toast.success(t("linkCopied"))).catch(() => {});
-    const leave = () => { if (expanded) onExpandToggle(); };
-    return [
-      { id: "sleep", label: t("sleepTimer"), icon: <Moon size={15} weight={sleepRemaining !== null ? "fill" : "regular"} />,
-        hint: sleepRemaining !== null ? formatSleepRemaining(sleepRemaining) : null,
-        sub: [
-          ...[5, 10, 15, 20, 30, 45, 60].map((min) => ({ id: `s${min}`, label: `${min} ${t("minutes")}`, onPress: () => setSleepTimerEnd(Date.now() + min * 60 * 1000) })),
-          ...(sleepRemaining !== null ? [{ id: "soff", label: t("cancelSleepTimer"), icon: <X size={14} />, danger: true, divider: true, onPress: () => setSleepTimerEnd(null) }] : []),
-        ] },
-      { id: "mini", label: t("miniPlayerTooltip"), icon: <MiniPlayerEnter size={15} />, onPress: () => { openMiniPlayer().catch(() => {}); } },
-      { id: "fs", label: t("fullscreenTooltip"), icon: <ArrowsOut size={15} />, onPress: () => onToggleFullscreen?.() },
-      { id: "add", label: t("addToPlaylist"), icon: <Plus size={15} />, divider: true, onPress: () => onAddToPlaylist?.([track]) },
-      { id: "like", label: isLiked ? t("unlike") : t("like"), icon: <Heart size={15} weight={isLiked ? "fill" : "regular"} />, checked: false, onPress: () => toggleLike() },
-      ...(albumId && onOpenAlbum ? [{ id: "album", label: t("goToAlbum"), icon: <VinylRecord size={15} />, divider: true, onPress: () => { leave(); onOpenAlbum({ browseId: albumId, title: track.album }); } }] : []),
-      ...(artistId && onOpenArtist ? [{ id: "artist", label: t("goToArtist"), icon: <Microphone size={15} />, divider: !(albumId && onOpenAlbum), onPress: () => { leave(); onOpenArtist({ browseId: artistId, artist: track.artists }); } }] : []),
-      { id: "refetch", label: t("refetchLyrics"), icon: <ArrowClockwise size={15} />, divider: true, onPress: () => onRefetchLyrics?.() },
-      { id: "import", label: t("importLyrics"), icon: <UploadSimple size={15} />, onPress: () => onImportLyrics?.() },
-      ...(isCustomLyrics ? [{ id: "rmlyr", label: t("removeCustomLyrics"), icon: <Trash size={15} />, danger: true, onPress: () => onRemoveCustomLyrics?.() }] : []),
-      ...(showLyricsTranslation ? [{ id: "tlang", label: (TRANSLATION_LANGS.find(l => l.code === lyricsTranslationLang)?.name) || lyricsTranslationLang, icon: <Translate size={15} />,
-        sub: TRANSLATION_LANGS.map(({ code, name }) => ({ id: code, label: name, checked: lyricsTranslationLang === code, onPress: () => setTranslationLang(code) })) }] : []),
-      { id: "browse", label: t("browseLyrics"), icon: <Microphone size={15} />, onPress: () => onOpenLyricsBrowser?.() },
-      downloaded ? { id: "dl", label: t("downloaded"), icon: <DownloadSimple size={15} />, divider: true, disabled: true }
-        : downloading ? { id: "dl", label: t("downloading"), icon: <DownloadSimple size={15} />, divider: true, disabled: true }
-        : { id: "dl", label: t("download"), icon: <DownloadSimple size={15} />, divider: true, onPress: () => onDownloadSong?.(track) },
-      { id: "mp3", label: t("saveAsMp3"), icon: <MusicNote size={15} />, onPress: () => onExportSong?.(track, "mp3") },
-      { id: "opus", label: t("saveAsOpus"), icon: <MusicNote size={15} />, onPress: () => onExportSong?.(track, "opus") },
-      { id: "eq", label: t("eqTitle"), icon: <EqualizerIcon size={15} />, divider: true, onPress: () => openEqualizerWindow() },
-      { id: "scrob", label: t("scrobbleEdit"), icon: <PencilSimple size={15} />, onPress: () => onEditScrobble?.(track) },
-      { id: "share", label: t("share"), icon: <ShareNodes size={15} />, divider: true, sub: [
-        { id: "sk", label: t("copyShareLink"), icon: <ShareNodes size={15} />, onPress: () => copy(buildShareLink(track)) },
-        { id: "sy", label: t("copyYtMusicLink"), icon: <Copy size={15} />, onPress: () => copy(`https://music.youtube.com/watch?v=${track.videoId}`) },
-        { id: "st", label: t("copyYoutubeLink"), icon: <Copy size={15} />, onPress: () => copy(`https://youtube.com/watch?v=${track.videoId}`) },
-      ] },
-    ];
-  };
-
   // Compact layout, player expanded: laid out like a phone player. The view above (cover,
   // lyrics or video, switched at its top) keeps its place; below it the song with its heart,
   // a seek bar big enough to grab with the times under it, the transport, and a last row with
@@ -3028,16 +2982,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           </Button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, lineHeight: 0 }}>
-          <OutputDeviceChip value={audioOutput} onChange={onAudioOutputChange} asSheet />
+          <OutputDeviceChip value={audioOutput} onChange={onAudioOutputChange} />
           <div style={{ flex: 1 }} />
           {queueEl}
-          <Button variant="ghost" isIconOnly aria-label={t("rowMoreActions")} isDisabled={!track}
-            onPress={() => { fetchMoreBrowseIds(); setMoreSheet(true); }}
-            className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
-            <DotsThreeVertical size={18} />
-          </Button>
+          {moreEl}
         </div>
-        <ActionSheet open={moreSheet} onClose={() => setMoreSheet(false)} items={moreItems()} title={track?.title} />
       </div>
     );
   }
@@ -5671,6 +5620,11 @@ export default function App() {
     return () => window.removeEventListener("resize", check);
   }, [uiZoom]);
   const compact = appW < COMPACT_BELOW && !fullscreen;
+  // For CSS (sheets, modals): <html data-compact> while the compact layout is on.
+  useEffect(() => {
+    if (compact) document.documentElement.setAttribute("data-compact", "");
+    else document.documentElement.removeAttribute("data-compact");
+  }, [compact]);
   // Below ~300px the title bar would drop the app's name to keep its buttons. With the window
   // buttons hidden in the compact layout there is room down to the 360px minimum, so this only
   // matters again if they come back (it was 420 with them).
@@ -6647,6 +6601,7 @@ export default function App() {
     <AnimationContext.Provider value={animations}>
     <FontScaleContext.Provider value={appFontScale}>
     <ZoomContext.Provider value={uiZoom}>
+    <CompactContext.Provider value={compact}>
     <LyricsPrefsProvider value={lyricsPrefs}>
     <PlaybackPrefsProvider value={playbackPrefs}>
       <style>{GLOBAL_KEYFRAMES}</style>
@@ -7802,6 +7757,7 @@ export default function App() {
       </div>
     </PlaybackPrefsProvider>
     </LyricsPrefsProvider>
+    </CompactContext.Provider>
     </ZoomContext.Provider>
     </FontScaleContext.Provider>
     </AnimationContext.Provider>

@@ -9,7 +9,8 @@ import { Crown, X, Gear, DotsThreeVertical, CaretDown, CaretUp, Check } from "..
 import { Tooltip } from "../ui/tooltip.jsx";
 import { Toggle } from "../ui/settings-controls.jsx";
 import { useTogether, useTogetherValue, hostConfig, setShowAvatar, setShowDiscord, setRole, kick, admit, deny, vote, acceptSuggestion, dismissSuggestion } from "./together.js";
-import { Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
+import { DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
+import { Dropdown } from "../ui/menu.jsx";
 import { DropdownMenu } from "../ui/zoomed-heroui.jsx";
 import { MemberAvatar, roomName } from "./TogetherSidebar.jsx";
 

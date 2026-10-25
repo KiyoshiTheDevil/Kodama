@@ -4,6 +4,9 @@
 import { useRef } from "react";
 import { Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
 import { DropdownMenu } from "./zoomed-heroui.jsx";
+import { useCompact } from "../context.jsx";
+import { ActionSheet } from "./action-sheet.jsx";
+import { menuChildrenToItems } from "./menu.jsx";
 
 // Shared enter/exit animation for HeroUI dropdown popovers (context menus, account menu).
 export const CTX_POPOVER_ANIM =
@@ -16,6 +19,9 @@ export const CTX_POPOVER_ANIM =
 // <DropdownItem>s (and <DropdownSection>s / submenus) as children.
 export function ContextMenu({ x, y, zoom = 1, onClose, ariaLabel, minWidth = 200, placement = "bottom start", children }) {
   const anchorRef = useRef(null);
+  const compact = useCompact();
+  // Compact layout: the same items as a sheet from the bottom (see menu.jsx).
+  if (compact) return <ActionSheet open onClose={onClose} title={ariaLabel} items={menuChildrenToItems(children)} />;
   return (
     <Dropdown isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
       <DropdownTrigger
@@ -51,3 +57,4 @@ export function CtxItem({ icon: Icon, label, onSelect, danger, id, textValue }) 
     </DropdownItem>
   );
 }
+CtxItem.isCtxItem = true; // read by menuChildrenToItems (menu.jsx), which builds the compact sheet

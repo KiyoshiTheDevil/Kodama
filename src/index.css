@@ -1292,26 +1292,8 @@ img.img-failed {
 .legal-app a:hover { text-decoration: underline; }
 .legal-app .updated { color: var(--text-muted); font-size: var(--t11); margin: 0 0 12px; }
 
-/* Menus as a sheet from the bottom (compact layout): at phone width a dropdown hanging off a
-   small button covers the content at odd places and is hard to hit. The popover's inline
-   position is overridden, so the same menus serve both layouts. */
+/* Used by ActionSheet (src/ui/action-sheet.jsx), the compact layout's menus. */
 @keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
-.as-sheet {
-  position: fixed !important;
-  top: auto !important; left: 8px !important; right: 8px !important; bottom: 8px !important;
-  width: auto !important; min-width: 0 !important; max-width: none !important;
-  max-height: 72vh !important; overflow-y: auto !important;
-  border-radius: 24px !important;
-  box-shadow: 0 -10px 48px rgba(0, 0, 0, 0.55) !important;
-  padding-top: 18px !important;
-}
-.as-sheet::before {
-  content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px;
-  margin-left: -18px; border-radius: 4px; background: var(--fill-strong);
-}
-.as-sheet[data-entering] { animation: sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
-.as-sheet[data-exiting] { animation: sheetUp 0.18s ease-in reverse; }
-.as-sheet [role="menuitem"] { min-height: 44px; }
 
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 

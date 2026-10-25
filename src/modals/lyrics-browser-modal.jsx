@@ -6,7 +6,8 @@
 import { useState, useEffect, useMemo, useContext } from "react";
 import { useAnimatedClose } from "./use-animated-close.js";
 import { ExtensionSlot } from "../extensions/slot.jsx";
-import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
+import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
+import { Dropdown } from "../ui/menu.jsx";
 import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy, PencilSimple } from "../icons.jsx";
 import { API, useLang, LangContext } from "../context.jsx";

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { parseColor } from "react-aria-components";
-import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleButton, ToggleButtonGroupRoot, ProgressBar, ProgressBarTrack, ProgressBarFill, KbdRoot, KbdContent, ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, Dropdown, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
+import { cn, Button, CardRoot, InputRoot, TextFieldRoot, Spinner, toast, ToggleButton, ToggleButtonGroupRoot, ProgressBar, ProgressBarTrack, ProgressBarFill, KbdRoot, KbdContent, ColorAreaRoot, ColorAreaThumb, ColorSliderRoot, ColorSliderTrack, ColorSliderThumb, ColorSwatchRoot, DropdownTrigger, DropdownPopover, DropdownItem } from "@heroui/react";
+import { Dropdown } from "../ui/menu.jsx";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { LANGUAGES, translate, translationProgress } from "../i18n.js";

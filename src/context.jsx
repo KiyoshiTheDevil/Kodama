@@ -65,6 +65,12 @@ export const useAnimations = () => useContext(AnimationContext);
 export const ZoomContext = createContext(1);
 export const useZoom = () => useContext(ZoomContext);
 
+// The compact layout (narrow windows, portrait monitors, high zoom; see App). Menus become
+// sheets from the bottom and modals full-height sheets while it is on, so any component can
+// ask instead of having it passed down. Also mirrored as <html data-compact> for CSS.
+export const CompactContext = createContext(false);
+export const useCompact = () => useContext(CompactContext);
+
 // ─── Font Scale Context ───────────────────────────────────────────────────────
 export const FontScaleContext = createContext(1);
 export const useFontScale = () => useContext(FontScaleContext);
