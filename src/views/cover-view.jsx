@@ -234,7 +234,9 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         </div>
 
         {/* Track info */}
-        {roomForInfo && <div style={{ textAlign: "center", maxWidth: (compact ? 360 : 520) * scale, animation: "fadeIn 0.2s ease" }}>
+        {/* fill (the compact player): never, since its head right below always names the song.
+            Only the height used to hide it there, and a tall phone screen has height to spare. */}
+        {roomForInfo && !fill && <div style={{ textAlign: "center", maxWidth: (compact ? 360 : 520) * scale, animation: "fadeIn 0.2s ease" }}>
           <div style={{ fontSize: compact ? 17 * scale : scaled("var(--t22)"), fontWeight: 700, color: "#fff", marginBottom: (compact ? 3 : 6) * scale, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 * scale, lineHeight: 1.3 }}>
             <span style={{ overflowWrap: "anywhere" }}>{track.title}</span>
             {/* The badge is a shared component with its own fixed size. Shrunk from the outside

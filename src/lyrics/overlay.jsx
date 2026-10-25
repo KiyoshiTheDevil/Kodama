@@ -865,7 +865,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       // Compact player: the lyrics start below the Cover/Lyrics switch (its 64px head) rather
       // than running behind it, and fade in and out at both edges of what is left.
       ...(fadeEdges ? {
-        top: 64,
+        top: "calc(64px + var(--safe-top-z))",
         WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%)",
         maskImage: "linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%)",
       } : {}),

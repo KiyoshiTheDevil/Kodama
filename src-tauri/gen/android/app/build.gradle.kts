@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("rust")
+    id("com.chaquo.python")
 }
 
 val tauriProperties = Properties().apply {
@@ -30,9 +31,9 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
+            packaging {
+                // 64-bit only, see buildSrc/.../RustPlugin.kt.
+                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
                 jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
             }
         }
@@ -55,6 +56,37 @@ android {
 
 rust {
     rootDirRel = "../../../"
+}
+
+// Kodama's backend, run inside the app: the same server.py as on the desktop, started by
+// android_main.py from MainActivity. Only those two files are taken from python-backend, which
+// also holds caches, build output and the desktop's ffmpeg.
+//
+// Packages: what the server needs to load and to browse. Left out for now: the desktop's PO-token
+// path (yt-dlp-ejs, bgutil), which needs Node, and numpy/scipy/Pillow, which only the video sync
+// and the download tagging import, and only when they run.
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        // Unpacked to real files on first start: pykakasi opens its dictionaries by path, which
+        // fails on files left inside the APK.
+        extractPackages("pykakasi")
+        pip {
+            install("flask")
+            install("flask-cors")
+            install("requests")
+            install("ytmusicapi==1.12.2")
+            install("yt-dlp")
+            install("mutagen")
+            install("pykakasi")
+        }
+    }
+    sourceSets {
+        getByName("main") {
+            srcDir("../../../../python-backend")
+            include("server.py", "android_main.py")
+        }
+    }
 }
 
 dependencies {

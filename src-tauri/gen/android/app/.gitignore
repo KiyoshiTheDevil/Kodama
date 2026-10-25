@@ -3,5 +3,6 @@
 /src/main/assets/tauri.conf.json
 /tauri.build.gradle.kts
 /proguard-tauri.pro
-/tauri.properties# Copied from bundle.resources (public/App-Icons) on every build.
+/tauri.properties
+# Copied from bundle.resources (public/App-Icons) on every build.
 /src/main/assets/App-Icons/

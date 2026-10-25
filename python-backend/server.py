@@ -232,10 +232,18 @@ def diag():
         "lastStreamError": _LAST_STREAM_ERROR,
     })
 
+# Android: the app runs this module inside its own process (Chaquopy, see android_main.py) and
+# names the folder to keep the data in. Nothing there can be downloaded or spawned the way the
+# desktop does (Node, the PO-token generator), so those steps check this flag.
+_ANDROID_DATA = os.environ.get("KODAMA_DATA_DIR")
+_ANDROID = bool(_ANDROID_DATA)
+
 # When frozen as a PyInstaller --onefile bundle store all user data in a
 # platform-appropriate location so uninstallers can clean it up cleanly.
 # In dev mode, keep data next to server.py for convenience.
-if getattr(sys, 'frozen', False):
+if _ANDROID:
+    _base_dir = _ANDROID_DATA
+elif getattr(sys, 'frozen', False):
     if sys.platform == 'win32':
         # Windows: %LOCALAPPDATA%\dev.kodama.music
         _data_root = os.environ.get('LOCALAPPDATA', os.path.dirname(sys.executable))
@@ -2526,6 +2534,12 @@ def _get_kakasi():
     global _kakasi
     if _kakasi is None:
         import pykakasi
+        if _ANDROID:
+            # pykakasi finds its dictionaries through importlib.resources, which Chaquopy answers
+            # with its own path objects that os.path.join refuses. The files themselves are
+            # unpacked next to the package (extractPackages in the app's build.gradle.kts).
+            from pykakasi import properties as _pk_props
+            _pk_props.Configurations.data_path = os.path.join(os.path.dirname(pykakasi.__file__), "data")
         _kakasi = pykakasi.kakasi()
     return _kakasi
 
@@ -3309,10 +3323,13 @@ def _start_pot_server():
     except Exception as e:
         print(f"[pot] failed to start bgutil server: {e}", flush=True)
 
-_start_pot_server()
-# Started only now, because it may call _start_pot_server itself once it has found a Node to
-# run the generator with, and that is defined just above.
-threading.Thread(target=_prepare_runtime, daemon=True).start()
+# Neither on Android: there is no Node to run the generator with, and fetching one is what
+# _prepare_runtime would do. Streams come from the app's own extractor there instead.
+if not _ANDROID:
+    _start_pot_server()
+    # Started only now, because it may call _start_pot_server itself once it has found a Node to
+    # run the generator with, and that is defined just above.
+    threading.Thread(target=_prepare_runtime, daemon=True).start()
 
 @app.route("/stream/<video_id>")
 def stream_url(video_id):

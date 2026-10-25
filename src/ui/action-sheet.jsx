@@ -90,7 +90,8 @@ export function ActionSheet({ open, onClose, items, title }) {
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", animation: leaving ? "fadeOut 0.18s ease forwards" : "fadeIn 0.2s ease" }} />
       <div ref={panelRef} role="menu" aria-label={page?.title || title} onClick={(e) => e.stopPropagation()}
         style={{
-          position: "absolute", left: 8, right: 8, bottom: 8, maxHeight: "74%", display: "flex", flexDirection: "column",
+          // Clear of a phone's gesture bar (0 elsewhere); inside the zoom, hence the -z value.
+          position: "absolute", left: 8, right: 8, bottom: "calc(8px + var(--safe-bottom-z))", maxHeight: "74%", display: "flex", flexDirection: "column",
           background: "var(--overlay)", borderRadius: 24, boxShadow: "0 -10px 48px rgba(0,0,0,0.55)", overflow: "hidden",
           animation: leaving ? "sheetUp 0.18s ease-in reverse forwards" : "sheetUp 0.26s cubic-bezier(0.22,1,0.36,1)",
         }}>

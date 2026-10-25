@@ -586,7 +586,8 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
   }, 160);
   return (
     <div style={{
-      height: TITLEBAR_H, position: "fixed", top: 0, left: 0, right: 0, zIndex: 9998,
+      // Below a phone's status bar (0 elsewhere): fixed, so the shell's own inset does not move it.
+      height: TITLEBAR_H, position: "fixed", top: "var(--safe-top-z)", left: 0, right: 0, zIndex: 9998,
       pointerEvents: "none",
     }}>
       {/* The whole bar drags the window; the controls sit above it and take their own clicks.
@@ -3201,6 +3202,7 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
     <div style={{
       position: "fixed", inset: 0, background: "var(--bg-base)",
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000,
+      paddingTop: "var(--safe-top-z)", paddingBottom: "var(--safe-bottom-z)", // a phone's bars
     }}>
       <CardRoot variant="secondary" className="relative gap-0!"
         style={{ width: 420, maxWidth: "92vw", padding: 36, boxShadow: "var(--elevation-4)" }}>
@@ -3346,7 +3348,7 @@ function LanguagePickerScreen({ currentLanguage, onConfirm }) {
       position: "fixed", inset: 0, background: "var(--bg-base)",
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000,
       animation: "fadeIn 0.3s ease",
-      overflowY: "auto", padding: "20px 0",
+      overflowY: "auto", padding: "calc(20px + var(--safe-top-z)) 0 calc(20px + var(--safe-bottom-z))", // + a phone's bars
     }}>
       <CardRoot variant="secondary" className="flex flex-col gap-0! shrink-0"
         style={{ width: 420, maxWidth: "92vw", padding: 36, maxHeight: "calc(100vh - 40px)", boxShadow: "var(--elevation-4)" }}>
@@ -3652,7 +3654,9 @@ function AmbientBackdrop({ thumbnail }) {
 
   if (layers.length === 0) return null;
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: -1, pointerEvents: "none", overflow: "hidden" }}>
+    // Past the shell's top and bottom, behind a phone's status and gesture bars, which the shell
+    // keeps clear of.
+    <div style={{ position: "absolute", left: 0, right: 0, top: "calc(-1 * var(--safe-top-z))", bottom: "calc(-1 * var(--safe-bottom-z))", zIndex: -1, pointerEvents: "none", overflow: "hidden" }}>
       {layers.map((layer) => (
         <div
           key={layer.key}
@@ -6645,7 +6649,7 @@ export default function App() {
       {flashbang && (
         <div onAnimationEnd={() => setFlashbang(false)} style={{ position: "fixed", inset: 0, zIndex: 999999, pointerEvents: "none", background: "white", animation: "flashbangFade 3s ease-out forwards" }} />
       )}
-      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `${100 / uiZoom}vh`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: "default", zoom: uiZoom }}>
+      <div data-ambient={ambientBackground && currentTrack?.thumbnail ? "true" : undefined} style={{ display: "flex", height: `calc((100vh - var(--safe-top) - var(--safe-bottom)) / ${uiZoom})`, marginTop: `calc(var(--safe-top) / ${uiZoom})`, background: "var(--bg-base)", position: "relative", isolation: "isolate", cursor: "default", zoom: uiZoom }}>
         {/* Experimental: the playing track's cover as a heavily-blurred, theme-tinted ambient
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
@@ -6866,7 +6870,8 @@ export default function App() {
             // as well, which ends above it. Fixed rather than moved in the tree: the sidebar and
             // the content column keep their place and leave its measured height free below.
             // Compact: above the open player, whose background runs on behind the controls.
-            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: compact ? 101 : 100 }),
+            // Above a phone's gesture bar (0 elsewhere).
+            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: "var(--safe-bottom-z)", zIndex: compact ? 101 : 100 }),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             opacity: settingsOpen ? 0 : 1,
             transform: (fullscreen && !playerVisible) ? "translateY(120%)" : "translateY(0)",
@@ -6951,7 +6956,8 @@ export default function App() {
           // Below the title bar and above the player bar, whose height is measured: the bar runs
           // the full width now and grows to two rows in narrow windows.
           // Compact: the open player takes the whole window, its head where the title bar was.
-          top: overlayOpen ? (fullscreen || compact ? 0 : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
+          // On a phone it runs on behind the status bar (past the shell's top), its head below it.
+          top: overlayOpen ? (fullscreen ? 0 : compact ? "calc(-1 * var(--safe-top-z))" : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
           // Logical, not physical: this reserves the sidebar's space, and the sidebar sits at
           // the inline start -- which is the right-hand side once the layout is flipped. With
           // plain left/right the overlay left an empty band on one side and ran underneath the
@@ -6960,7 +6966,7 @@ export default function App() {
           insetInlineEnd: fullscreen || compact ? 0 : (queueOpen ? queueWidth + 16 : 8),
           // Compact: down to the window's edge, so the controls sit on the same background as the
           // view above them instead of the app's own; the panes stop above the controls (paneBottom).
-          bottom: fullscreen || compact ? 0 : playerBarH + 6,
+          bottom: fullscreen ? 0 : compact ? (overlayOpen ? "calc(-1 * var(--safe-bottom-z))" : 0) : playerBarH + 6,
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
           borderRadius: fullscreen || compact ? 0 : "var(--r-xl)",
@@ -6980,7 +6986,7 @@ export default function App() {
             return (
               // In the title bar's place (which is hidden while the player is open), so it is the
               // window's drag handle too; its buttons still take their own clicks.
-              <div data-tauri-drag-region style={{ position: "absolute", top: 0, left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8 }}>
+              <div data-tauri-drag-region style={{ position: "absolute", top: "var(--safe-top-z)", left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8 }}>
                 <Button variant="ghost" isIconOnly aria-label={translate(language, "collapse")} onPress={() => setOverlayOpen(false)}
                   className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
                   <CaretDown size={18} />
@@ -7040,7 +7046,8 @@ export default function App() {
             // Compact: side by side leaves each half too narrow, so the video sits at the top in
             // the full width, below the head (64px), and the lyrics run underneath it.
             const stackVideo = compact && videoSplitActive;
-            const paneBottom = compact && !fullscreen ? playerBarH : 0;
+            // The panes end above the controls, which sit above a phone's gesture bar.
+            const paneBottom = compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0;
             const videoH = Math.round(appW * 9 / 16);
             const coverPct = `${(splitRatio * 100).toFixed(2)}%`;
             const lyricsPct = `${((1 - splitRatio) * 100).toFixed(2)}%`;
@@ -7068,7 +7075,7 @@ export default function App() {
                 // insetInlineStart so the pane starts at the same edge the split ratio is
                 // measured from. No divider line: the two panes share one ambient background and
                 // the line only cut through it. The drag handle below still shows its bar on hover.
-                position: "absolute", top: 0, bottom: paneBottom, insetInlineStart: 0,
+                position: "absolute", top: compact ? "var(--safe-top-z)" : 0, bottom: paneBottom, insetInlineStart: 0,
                 width: coverSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
@@ -7080,7 +7087,7 @@ export default function App() {
                   when the video-split setting is on. Replaces the cover pane while active. */}
               <div ref={splitVideoRef} style={{
                 position: "absolute", insetInlineStart: 0,
-                ...(compact ? { top: 64, ...(stackVideo ? { height: videoH } : { bottom: paneBottom }) } : { top: 0, bottom: 0 }),
+                ...(compact ? { top: "calc(64px + var(--safe-top-z))", ...(stackVideo ? { height: videoH } : { bottom: paneBottom }) } : { top: 0, bottom: 0 }),
                 width: videoSplitActive && !stackVideo ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
                 transition: paneTransition,

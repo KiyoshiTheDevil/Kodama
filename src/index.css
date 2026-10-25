@@ -1273,6 +1273,17 @@ img.img-failed {
    with everything else. The bar is inside the shell: at 150 % it is not 112px tall but 168, and
    a fixed offset would no longer clear it. Written here rather than as a class on the provider,
    next to the zoom it depends on. Unlayered, to beat .toast-region--bottom-end's own 1rem. */
+/* The system bars on a phone (Android draws the app under the status bar and the gesture bar;
+   index.html asks for viewport-fit=cover so the web view reports them). 0 everywhere else.
+   The app's shell keeps clear of them while backgrounds run on behind them. The -z variants are
+   for use inside the zoomed shell, whose lengths are multiplied by the zoom. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top-z: calc(var(--safe-top) / var(--ui-zoom, 1));
+  --safe-bottom-z: calc(var(--safe-bottom) / var(--ui-zoom, 1));
+}
+
 .toast-region {
   zoom: var(--ui-zoom, 1);
   /* The player bar's measured height (App sets it): it grows to two rows in narrow windows and
@@ -1322,4 +1333,6 @@ html[data-compact] .modal__dialog {
   width: 100% !important; max-width: none !important;
   border-radius: 24px 24px 0 0 !important;
   padding-top: 30px !important;
+  /* Clear of a phone's gesture bar, while the sheet itself runs down to the edge. */
+  padding-bottom: var(--safe-bottom) !important;
 }
