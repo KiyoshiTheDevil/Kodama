@@ -822,11 +822,12 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       onMouseMove={wakeScrollbar} onWheel={wakeScrollbar} onMouseLeave={sleepScrollbar}
       style={{
       position: "absolute", inset: 0, zIndex: 50,
-      // Compact player: the lines fade out at the top (under the Cover/Lyrics switch) and at
-      // the bottom instead of running under them.
+      // Compact player: the lyrics start below the Cover/Lyrics switch (its 64px head) rather
+      // than running behind it, and fade in and out at both edges of what is left.
       ...(fadeEdges ? {
-        WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 84px, #000 calc(100% - 40px), transparent 100%)",
-        maskImage: "linear-gradient(to bottom, transparent 0, #000 84px, #000 calc(100% - 40px), transparent 100%)",
+        top: 64,
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%)",
+        maskImage: "linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%)",
       } : {}),
       display: "flex", flexDirection: "column", overflow: "hidden",
     }}>

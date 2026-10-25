@@ -2915,7 +2915,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   if (compact && expanded && !fullscreen) {
     return (
       <div ref={barRef} style={{ padding: "4px 22px 12px", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          {/* The big cover is gone while the lyrics or the video fill the view: a small one
+              comes in beside the title instead, so the song is still recognisable at a glance. */}
+          {(showLyrics || showVideoView) && track?.thumbnail && (
+            <img key={track.videoId} src={thumb(track.thumbnail)} alt=""
+              style={{ width: 48, height: 48, borderRadius: "var(--r-md)", objectFit: "cover", flexShrink: 0,
+                animation: anim ? "coverPop 0.4s cubic-bezier(0.34,1.56,0.64,1)" : "none" }} />
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 19, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{loading ? t("loading") : (track?.title || "")}</span>
@@ -6638,7 +6645,7 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
-        {!fullscreen && !IS_MAC && !(compact && overlayOpen) && <TitleBar searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
+        {!fullscreen && !IS_MAC && !(compact && (overlayOpen || queueOpen)) && <TitleBar searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
@@ -7071,13 +7078,31 @@ export default function App() {
           })()}
         </div>
 
+        {/* Compact layout, queue open: the song above the queue's sheet, with play/pause, as in
+            YT Music. Tapping it (anywhere but the button) closes the queue. It stands where the
+            title bar was, so it is the window's drag handle too. */}
+        {compact && queueOpen && currentTrack && (
+          <div data-tauri-drag-region onClick={(e) => { if (!e.target.closest("button")) setQueueOpen(false); }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, height: 64, zIndex: 101, display: "flex", alignItems: "center", gap: 12, padding: "0 12px 0 16px", cursor: "default", background: "var(--bg-base)" }}>
+            <img src={thumb(currentTrack.thumbnail)} alt="" style={{ width: 44, height: 44, borderRadius: "var(--r-md)", objectFit: "cover", flexShrink: 0, pointerEvents: "none" }} />
+            <div style={{ flex: 1, minWidth: 0, pointerEvents: "none" }}>
+              <div style={{ fontSize: "var(--t14)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentTrack.title}</div>
+              <div style={{ fontSize: "var(--t12)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentTrack.artists}</div>
+            </div>
+            <Button variant="ghost" isIconOnly aria-label={translate(language, "scPlayPause")}
+              onPress={() => { const a = audioRef.current; if (!a) return; if (isPlaying) { a.pause(); setIsPlaying(false); } else { a.play(); setIsPlaying(true); } }}
+              className="w-[44px] h-[44px] min-w-[44px] rounded-[var(--r-full)] text-primary">
+              {isPlaying ? <Pause size={22} weight="fill" /> : <Play size={22} weight="fill" />}
+            </Button>
+          </div>
+        )}
         {/* Queue panel. Windows/Linux: below the title bar, whose band it used to reach into. */}
         <div style={{
           position: "absolute",
-          top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
-          right: fullscreen ? 0 : 8,
-          // Compact: the whole width, as a layer over the content.
-          width: fullscreen ? 360 : compact ? "calc(100% - 16px)" : queueWidth, bottom: fullscreen ? 0 : playerBarH + 6, zIndex: fullscreen ? 104 : 101,
+          top: fullscreen ? 0 : compact ? 64 : (IS_MAC ? 8 : TITLEBAR_H),
+          right: fullscreen || compact ? 0 : 8,
+          // Compact: a sheet over everything below the song strip (see below), as in YT Music.
+          width: fullscreen ? 360 : compact ? "100%" : queueWidth, bottom: fullscreen || compact ? 0 : playerBarH + 6, zIndex: fullscreen ? 104 : 101,
           // Slide via transform (compositor-only) instead of `right` (per-frame layout).
           // Once settled, drop the transform/will-change entirely — an ancestor transform
           // otherwise neutralises backdrop-filter on descendants (e.g. the scroll-to-top pill).
@@ -7093,7 +7118,7 @@ export default function App() {
           backdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
           WebkitBackdropFilter: ambientBackground && queueSettled ? "blur(32px) saturate(1.4)" : "none",
           border: ambientBackground ? "0.5px solid rgba(255,255,255,0.08)" : "none",
-          borderRadius: fullscreen ? 0 : "var(--r-xl)",
+          borderRadius: fullscreen ? 0 : compact ? "20px 20px 0 0" : "var(--r-xl)",
           overflow: "hidden",
           transition: queueResizing ? "none" : (animations
             ? `transform 0.3s cubic-bezier(0.4,0,0.2,1), background 0.25s ease, visibility 0s linear ${queueOpen ? "0s" : "0.3s"}`

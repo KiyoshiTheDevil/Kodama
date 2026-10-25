@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
 import { Button, CardRoot, ChipRoot, ChipLabel, ScrollShadowRoot } from "@heroui/react";
-import { API, thumb, useLang, useAnimations, useZoom } from "../context.jsx";
+import { API, thumb, useLang, useAnimations, useZoom, useCompact } from "../context.jsx";
 import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash, X } from "../icons.jsx";
 import { ExplicitBadge } from "./rows.jsx";
 import { Tooltip } from "./tooltip.jsx";
@@ -393,12 +393,43 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
 
 
   useEffect(() => { setRowMenu(null); }, [queue, panelTab, visible]);
+  // Compact layout: the panel is a sheet (App), its head the phone players' one: a grabber,
+  // tabs with an underline instead of pills, and autoplay with "clear" in one slim row.
+  const compact = useCompact();
+  const tabList = [["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["comments", t("comments")], ["about", t("aboutSong")]];
   return (
     <div className="flex flex-col h-full relative">
+      {compact && (
+        <div className="shrink-0">
+          <div className="flex justify-center pt-2 pb-1"><div className="w-9 h-1 rounded-[var(--r-full)] bg-[var(--fill-strong)]" /></div>
+          <div role="tablist" className="flex px-4" style={{ borderBottom: "1px solid var(--border)" }}>
+            {/* Short names: the full ones ("About this song") wrapped at phone width. */}
+            {tabList.map(([id, label]) => [id, id === "queue" && !inRoom ? t("upNext") : id === "about" ? t("aboutShort") : label]).map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={panelTab === id} onClick={() => setPanelTab(id)}
+                className={`flex-auto min-w-0 h-11 px-2 border-0 bg-transparent cursor-default select-none whitespace-nowrap overflow-hidden text-ellipsis text-[length:var(--t12)] font-semibold uppercase tracking-[0.04em] ${panelTab === id ? "text-primary" : "text-muted hover:text-secondary"}`}
+                style={{ boxShadow: panelTab === id ? "inset 0 -2px 0 var(--text-primary)" : "none" }}
+              >{label}</button>
+            ))}
+          </div>
+          {panelTab === "queue" && !inRoom && (
+            <div className="flex items-center gap-2 px-4 py-2">
+              <span id="qp-autoplay-label-c" className="text-[length:var(--t13)] font-semibold text-primary">{t("autoplay")}</span>
+              {onAutoplayChange && <Toggle value={autoplay} onChange={onAutoplayChange} aria-labelledby="qp-autoplay-label-c" />}
+              <div className="flex-1" />
+              {!isListener && (
+                <Button variant="ghost" size="sm" onPress={() => setQueue([])}
+                  className="gap-1.5 rounded-[var(--r-full)] text-muted hover:text-[var(--status-danger)]!">
+                  <Trash size={13} />{t("clearQueue")}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Header */}
       {/* pt-11 keeps the tabs clear of what floats over the panel's top (the fullscreen and
           macOS window chrome). Below the Windows/Linux title bar nothing does. */}
-      <div className={`px-3 shrink-0 ${compactTop ? "pt-3" : "pt-11"}`}>
+      {!compact && <div className={`px-3 shrink-0 ${compactTop ? "pt-3" : "pt-11"}`}>
         <div className="flex items-center gap-1.5 mb-2.5">
           <div className="flex flex-1 items-center" style={{ gap: TAB_GAP }}>
             {[["queue", inRoom ? t("togetherRoomTab") : t("queue")], ...(inRoom ? [["people", t("togetherPeopleTab")]] : []), ["comments", t("comments")], ["about", t("aboutSong")]].map(([id, label], i, all) => (
@@ -420,12 +451,12 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
             ><Trash size={13} /></Button>
           </Tooltip>
         </div>
-      </div>
+      </div>}
 
       {panelTab === "queue" && inRoom && <TogetherRoomHeader />}
       {/* Autoplay sits with the queue it extends, not only in the settings. Not in a room:
           there the queue is the room's and nothing is added on its own. */}
-      {panelTab === "queue" && !inRoom && onAutoplayChange && (
+      {panelTab === "queue" && !inRoom && onAutoplayChange && !compact && (
         <div className="flex items-center justify-between gap-3 mx-3 mb-1.5 px-3 py-2 rounded-[var(--r-lg)] bg-[var(--fill-subtle)] shrink-0">
           <div className="min-w-0">
             <div id="qp-autoplay-label" className="text-[length:var(--t12)] font-semibold text-primary">{t("autoplay")}</div>
