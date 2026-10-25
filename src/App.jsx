@@ -1556,6 +1556,20 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState("none");
   const t = useLang();
+  // The bar's own width decides its layout (see the return): wide, mid, or narrow in two rows.
+  // A callback ref, so it measures whenever the bar mounts.
+  const [barW, setBarW] = useState(1400);
+  const barRo = useRef(null);
+  const barRef = useCallback((el) => {
+    barRo.current?.disconnect();
+    if (!el) return;
+    barRo.current = new ResizeObserver(() => setBarW(el.clientWidth));
+    barRo.current.observe(el);
+  }, []);
+  // Mid needs ~880px: the title area (at least 220), the transport and the right cluster.
+  // Below that the title was squeezed to a few letters, so the bar goes to two rows instead.
+  const barMode = barW >= 1080 ? "wide" : barW >= 880 ? "mid" : "narrow";
+  const [volPop, setVolPop] = useState(false); // narrower bars: the volume slider is out (pointer on the speaker)
 
   // LRU cache: videoId -> url (max 50 entries, Map preserves insertion order)
   const URL_CACHE_MAX = 50;
@@ -2289,59 +2303,19 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return tooltip ? <Tooltip text={tooltip}>{btn}</Tooltip> : btn;
   };
 
-  return (
-    <div style={{ background: fullscreen ? "color-mix(in srgb, var(--bg-base) 60%, transparent)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
-      {/* Seek slider — HeroUI Slider, sits between the content view and the player controls */}
-      {/* Left-to-right regardless of layout direction: this is a time axis, and time runs the
-          same way for everyone. Elapsed belongs on the left, remaining on the right. */}
-      <div dir="ltr" className={cn("seek-band", fullscreen && "seek-fullscreen")} style={{ height: 10, display: "flex", alignItems: "center", padding: fullscreen ? "0" : "0 16px" }}>
-        <SliderRoot
-          aria-label="Seek"
-          value={track ? (seekDrag !== null ? seekDrag : progress) : 0}
-          minValue={0}
-          maxValue={duration || 1}
-          step={0.25}
-          isDisabled={!track}
-          onChange={(v) => setSeekDrag(v)}
-          onChangeEnd={(v) => { const a = audioRef.current; if (a && duration) a.currentTime = v; setSeekDrag(null); }}
-          className={cn("player-seek w-full", seekDrag !== null && "seeking")}
-        >
-          <SliderTrack>
-            {/* Buffer fill, behind the played fill. Byte-based, so it maps onto the seconds axis
-                only approximately — fine for an indicator, and the same approximation YouTube
-                makes. Shown for the whole time a network stream is playing, including once it is
-                fully buffered: on a fast line the download finishes before playback even starts,
-                so hiding it at 100% meant it was never visible at all. Absent entirely for the
-                classic path and local files, where there is genuinely nothing to report. */}
-            {track && buffered !== null && !preparing && (
-              <div
-                className="seek-buffer"
-                aria-hidden="true"
-                style={{ width: `${Math.max(0, Math.min(1, buffered)) * 100}%` }}
-              />
-            )}
-            {/* Indeterminate sweep for the stretch where there is nothing to measure: the URL is
-                still being resolved, so no bytes have moved and no duration is known yet. */}
-            {track && preparing && <div className="seek-preparing" aria-hidden="true" />}
-            <SliderFill />
-            <SliderThumb className="after:hidden! bg-transparent! shadow-none! w-0! min-w-0!" />
-          </SliderTrack>
-        </SliderRoot>
-      </div>
-      {/* 16px on the left in both modes: the cover starts where the seek bar above it does.
-          The bar used to sit beside the sidebar, which made that inset; it now spans the window. */}
-      <div style={{ height: 88, display: "flex", alignItems: "center", padding: "0 20px 0 16px", gap: 16 }}>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, width: 340, minWidth: 0 }}>
+  // ── The bar's parts, laid out in the return below for the bar's width ──
+  const leftEl = (
+    <>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, ...(barMode === "wide" ? { width: 340 } : { flex: "1 1 0", maxWidth: barMode === "mid" ? 340 : undefined, minWidth: barMode === "mid" ? 220 : 0 }) }}>
           <div style={{
-            width: 72, height: 72, borderRadius: "var(--r-xl)", flexShrink: 0, overflow: "hidden", background: "var(--bg-elevated)",
+            width: barMode === "narrow" ? 48 : 72, height: barMode === "narrow" ? 48 : 72, borderRadius: "var(--r-xl)", flexShrink: 0, overflow: "hidden", background: "var(--bg-elevated)",
             animation: anim && track ? "coverPop 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none",
           }}>
             {track?.thumbnail
               ? <img src={thumb(hiResThumb(track.thumbnail, 800))} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <div style={{ width: "100%", height: "100%", background: track ? "var(--placeholder-gradient)" : "transparent" }} />}
           </div>
-          <div style={{ overflow: "hidden" }}>
+          <div style={{ overflow: "hidden", minWidth: 0, flex: barMode === "wide" ? undefined : "1 1 auto" }}>
             <div style={{ fontSize: "var(--t13)", fontWeight: 500, display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
               {loading ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -2360,9 +2334,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 onBeforeNavigate={() => { if (expanded) onExpandToggle(); }}
               />
             </div>
-            <div style={{ fontSize: "var(--t10)", color: "var(--text-muted)", marginTop: 2 }}>
-              {track ? `${fmt(progress)} / ${fmt(duration)}` : ""}
-            </div>
+            {barMode !== "narrow" && (
+              <div style={{ fontSize: "var(--t10)", color: "var(--text-muted)", marginTop: 2 }}>
+                {track ? `${fmt(progress)} / ${fmt(duration)}` : ""}
+              </div>
+            )}
           </div>
           {/* Like button */}
           <Tooltip text={isLiked ? t("unlike") : t("like")}>
@@ -2374,7 +2350,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             </Button>
           </Tooltip>
         </div>
-
+    </>
+  );
+  const transportEl = (
+    <>
         {/* Transport stays left-to-right even when the app is flipped. These controls refer to
             the timeline, not to the reading order: "previous" is earlier in the song, and every
             player the user knows puts earlier on the left. Mirroring them is a known way to
@@ -2432,19 +2411,16 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             repeat === "one" ? t("repeatOne") : repeat === "all" ? t("repeatAll") : t("repeat")
           )}
         </div>
-
-        {/* Right cluster. Width is fixed so the transport in the middle keeps its position
-            instead of shifting whenever a control appears or hides. Budget at 36px per icon
-            button: volume 112 (icon + slider), five toggles 180, video switch 68, expand +
-            fullscreen 72, gaps 16 → ~448. Keep some slack here when adding another control,
-            and mind that left (340) + this + transport (224) must stay under the window's
-            minWidth in tauri.conf.json. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, width: 460, justifyContent: "flex-end", lineHeight: 0 }}>
+    </>
+  );
+  const volumeEl = (
+    <>
           {/* Volume icon + slider. Left-to-right as a unit: quiet on the left and loud on the
               right is a physical convention, and the speaker belongs beside the quiet end.
               The cluster around it still mirrors, so the whole group moves to the other side
               of the bar -- which is exactly what Spotify does in its Arabic layout. */}
-          <div data-volume-area dir="ltr" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div data-volume-area dir="ltr" style={{ display: "flex", alignItems: "center", gap: barMode === "wide" || volPop ? 6 : 0, position: "relative" }}
+            onMouseEnter={() => setVolPop(true)} onMouseLeave={() => setVolPop(false)}>
           <Tooltip text={volume === 0 ? t("unmute") : t("mute")}>
             <Button variant="ghost" isIconOnly
               onPress={() => {
@@ -2464,7 +2440,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             </Button>
           </Tooltip>
           {/* Volume slider */}
-          <div className="vol-band" style={{ width: 70, height: 16, display: "flex", alignItems: "center", flexShrink: 0 }}>
+          {/* Narrower bars: the slider slides out beside the speaker while the pointer is on it,
+              as on YouTube. Not floating above: that is where the speaker's tooltip shows. */}
+          <div className="vol-band" style={barMode === "wide" || volPop
+            ? { width: 70, height: 16, display: "flex", alignItems: "center", flexShrink: 0, transition: "width 0.2s ease" }
+            : { width: 0, height: 16, display: "flex", alignItems: "center", flexShrink: 0, overflow: "hidden", transition: "width 0.2s ease" }}>
             <SliderRoot
               aria-label="Volume"
               value={volume}
@@ -2480,6 +2460,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             </SliderRoot>
           </div>
           </div>
+    </>
+  );
+  const sleepEl = (
+    <>
           {/* Sleep Timer — HeroUI Dropdown */}
           <Dropdown>
             <DropdownTrigger
@@ -2525,7 +2509,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               </DropdownMenu>
             </DropdownPopover>
           </Dropdown>
-
+    </>
+  );
+  const moreEl = (
+    <>
           {/* More Info dropdown — HeroUI Dropdown */}
           {track && (() => {
             const fetched = fetchedBrowseIds[track?.videoId] || {};
@@ -2545,8 +2532,44 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                   className="[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
                 >
                   <DropdownMenu aria-label="More">
+                    {/* Narrower bars have no room for these buttons: they move in here. */}
+                    {barMode !== "wide" ? (
+                      <DropdownSection>
+                        <DropdownSubmenuTrigger>
+                          <DropdownItem textValue={t("sleepTimer")} className={sleepRemaining !== null ? "text-accent" : undefined}>
+                            <Moon size={14} weight={sleepRemaining !== null ? "fill" : "regular"} />
+                            {t("sleepTimer")}
+                            {sleepRemaining !== null && <span className="ml-auto text-[length:var(--t12)] font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>}
+                            <DropdownSubmenuIndicator className={sleepRemaining !== null ? undefined : "ml-auto"} />
+                          </DropdownItem>
+                          <DropdownPopover className="[--dd-min-w:11rem]">
+                            <DropdownMenu aria-label={t("sleepTimer")}
+                              onAction={(key) => { if (key === "off") setSleepTimerEnd(null); else setSleepTimerEnd(Date.now() + Number(key) * 60 * 1000); }}>
+                              {[5, 10, 15, 20, 30, 45, 60].map(min => (
+                                <DropdownItem key={min} id={String(min)} textValue={`${min} ${t("minutes")}`}>{min} {t("minutes")}</DropdownItem>
+                              ))}
+                              {sleepRemaining !== null ? (
+                                <DropdownItem id="off" textValue={t("cancelSleepTimer")} className="text-[var(--status-danger)]">
+                                  <X size={13} />{t("cancelSleepTimer")}
+                                </DropdownItem>
+                              ) : null}
+                            </DropdownMenu>
+                          </DropdownPopover>
+                        </DropdownSubmenuTrigger>
+                        <DropdownItem textValue={t("miniPlayerTooltip")} onAction={() => { openMiniPlayer().catch(() => {}); }}>
+                          <MiniPlayerEnter size={14} />
+                          {t("miniPlayerTooltip")}
+                        </DropdownItem>
+                        {barMode === "narrow" && videoAvailable ? (
+                          <DropdownItem textValue={showVideoView ? t("audioViewTooltip") : t("videoViewTooltip")} onAction={() => onSetVideoView?.(!showVideoView)}>
+                            {showVideoView ? <HeadphonesSimple size={14} /> : <ClapperboardPlay size={14} />}
+                            {showVideoView ? t("audioViewTooltip") : t("videoViewTooltip")}
+                          </DropdownItem>
+                        ) : null}
+                      </DropdownSection>
+                    ) : null}
                     {/* Add to Playlist (submenu) + Like */}
-                    <DropdownSection>
+                    <DropdownSection className={barMode !== "wide" ? "w-full border-t border-border mt-1 pt-1" : undefined}>
                       <DropdownItem textValue={t("addToPlaylist")} onAction={() => onAddToPlaylist?.([track])}>
                         <Plus size={14} />
                         {t("addToPlaylist")}
@@ -2703,7 +2726,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               </Dropdown>
             );
           })()}
-
+    </>
+  );
+  const queueEl = (
+    <>
           {/* Queue toggle */}
           <Tooltip text={t("queueTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleQueue}
@@ -2712,6 +2738,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <Queue size={16} />
             </Button>
           </Tooltip>
+    </>
+  );
+  const miniEl = (
+    <>
           {/* Mini player — opens the small always-on-top window */}
           <Tooltip text={t("miniPlayerTooltip")}>
             <Button variant="ghost" isIconOnly onPress={() => { openMiniPlayer().catch(() => {}); }}
@@ -2720,6 +2750,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <MiniPlayerEnter size={16} />
             </Button>
           </Tooltip>
+    </>
+  );
+  const lyricsEl = (
+    <>
           {/* Lyrics toggle */}
           <Tooltip text={t("lyricsTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleLyrics}
@@ -2728,6 +2762,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <ChatText size={16} />
             </Button>
           </Tooltip>
+    </>
+  );
+  const avEl = (
+    <>
           {/* Audio/Video switch — a single icon-thumb toggle (own dedicated slot, not squeezed
               between the other icon buttons). Always shown; greyed out + disabled until a
               synced video is actually available for this track. */}
@@ -2754,6 +2792,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               </SwitchRoot>
             </Tooltip>
           </div>
+    </>
+  );
+  const expandEl = (
+    <>
           {/* Expand toggle — hidden in fullscreen (overlay is always open there) */}
           {!fullscreen && (
             <Button variant="ghost" isIconOnly onPress={onExpandToggle}
@@ -2762,6 +2804,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <CaretUp size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" }} />
             </Button>
           )}
+    </>
+  );
+  const fullscreenEl = (
+    <>
           {/* Fullscreen toggle */}
           <Tooltip text={t("fullscreenTooltip")}>
             <Button variant="ghost" isIconOnly onPress={onToggleFullscreen}
@@ -2770,10 +2816,92 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               {fullscreen ? <ArrowsIn size={18} /> : <ArrowsOut size={18} />}
             </Button>
           </Tooltip>
+    </>
+  );
 
-        </div>
-
+  return (
+    <div ref={barRef} style={{ background: fullscreen ? "color-mix(in srgb, var(--bg-base) 60%, transparent)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
+      {/* Seek slider — HeroUI Slider, sits between the content view and the player controls */}
+      {/* Left-to-right regardless of layout direction: this is a time axis, and time runs the
+          same way for everyone. Elapsed belongs on the left, remaining on the right. */}
+      <div dir="ltr" className={cn("seek-band", fullscreen && "seek-fullscreen")} style={{ height: 10, display: "flex", alignItems: "center", padding: fullscreen ? "0" : "0 16px" }}>
+        <SliderRoot
+          aria-label="Seek"
+          value={track ? (seekDrag !== null ? seekDrag : progress) : 0}
+          minValue={0}
+          maxValue={duration || 1}
+          step={0.25}
+          isDisabled={!track}
+          onChange={(v) => setSeekDrag(v)}
+          onChangeEnd={(v) => { const a = audioRef.current; if (a && duration) a.currentTime = v; setSeekDrag(null); }}
+          className={cn("player-seek w-full", seekDrag !== null && "seeking")}
+        >
+          <SliderTrack>
+            {/* Buffer fill, behind the played fill. Byte-based, so it maps onto the seconds axis
+                only approximately — fine for an indicator, and the same approximation YouTube
+                makes. Shown for the whole time a network stream is playing, including once it is
+                fully buffered: on a fast line the download finishes before playback even starts,
+                so hiding it at 100% meant it was never visible at all. Absent entirely for the
+                classic path and local files, where there is genuinely nothing to report. */}
+            {track && buffered !== null && !preparing && (
+              <div
+                className="seek-buffer"
+                aria-hidden="true"
+                style={{ width: `${Math.max(0, Math.min(1, buffered)) * 100}%` }}
+              />
+            )}
+            {/* Indeterminate sweep for the stretch where there is nothing to measure: the URL is
+                still being resolved, so no bytes have moved and no duration is known yet. */}
+            {track && preparing && <div className="seek-preparing" aria-hidden="true" />}
+            <SliderFill />
+            <SliderThumb className="after:hidden! bg-transparent! shadow-none! w-0! min-w-0!" />
+          </SliderTrack>
+        </SliderRoot>
       </div>
+      {/* Three widths. Wide: one row as always. Mid: the title area may shrink; the volume
+          slider and the sleep timer / mini player step into the speaker and the ⋯ menu. Narrow
+          (small windows, portrait monitors, high zoom): two rows, the song and its panels above,
+          the transport below. Measured on the bar itself, so zoom and font size count too. */}
+      {barMode === "narrow" ? (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px 0", minWidth: 0 }}>
+            {leftEl}
+            {queueEl}
+            {lyricsEl}
+            {moreEl}
+          </div>
+          <div style={{ height: 48, display: "flex", alignItems: "center", padding: "0 16px 2px", gap: 8 }}>
+            <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)", minWidth: 72, fontVariantNumeric: "tabular-nums" }}>
+              {track ? `${fmt(progress)} / ${fmt(duration)}` : ""}
+            </span>
+            {transportEl}
+            <div style={{ display: "flex", alignItems: "center", gap: 2, minWidth: 72, justifyContent: "flex-end", lineHeight: 0 }}>
+              {volumeEl}
+              {expandEl}
+              {fullscreenEl}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div style={{ height: 88, display: "flex", alignItems: "center", padding: "0 20px 0 16px", gap: barMode === "wide" ? 16 : 10 }}>
+          {leftEl}
+          {transportEl}
+          {/* Right cluster. Wide: fixed width, so the transport in the middle keeps its place
+              when a control appears or hides (budget ~448 at 36px per button; mind the window's
+              minWidth in tauri.conf.json). Mid: as wide as what is in it. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 2, justifyContent: "flex-end", lineHeight: 0, flexShrink: 0, ...(barMode === "wide" ? { width: 460 } : {}) }}>
+            {volumeEl}
+            {barMode === "wide" && sleepEl}
+            {moreEl}
+            {queueEl}
+            {barMode === "wide" && miniEl}
+            {lyricsEl}
+            {avEl}
+            {expandEl}
+            {fullscreenEl}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6585,14 +6713,16 @@ export default function App() {
           </div>
         <div style={{
           position: "absolute",
-          top: overlayOpen ? (fullscreen ? 0 : 8) : "100%",
+          // Below the title bar and above the player bar, whose height is measured: the bar runs
+          // the full width now and grows to two rows in narrow windows.
+          top: overlayOpen ? (fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
           // Logical, not physical: this reserves the sidebar's space, and the sidebar sits at
           // the inline start -- which is the right-hand side once the layout is flipped. With
           // plain left/right the overlay left an empty band on one side and ran underneath the
           // sidebar on the other. Same for the queue panel, which is docked at the inline end.
           insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
           insetInlineEnd: fullscreen ? 0 : (queueOpen ? queueWidth + 16 : 8),
-          bottom: fullscreen ? 0 : 112,
+          bottom: fullscreen ? 0 : playerBarH + 6,
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
           borderRadius: fullscreen ? 0 : "var(--r-xl)",
@@ -6691,7 +6821,7 @@ export default function App() {
           position: "absolute",
           top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
           right: fullscreen ? 0 : 8,
-          width: fullscreen ? 360 : queueWidth, bottom: fullscreen ? 0 : 112, zIndex: fullscreen ? 104 : 101,
+          width: fullscreen ? 360 : queueWidth, bottom: fullscreen ? 0 : playerBarH + 6, zIndex: fullscreen ? 104 : 101,
           // Slide via transform (compositor-only) instead of `right` (per-frame layout).
           // Once settled, drop the transform/will-change entirely — an ancestor transform
           // otherwise neutralises backdrop-filter on descendants (e.g. the scroll-to-top pill).
