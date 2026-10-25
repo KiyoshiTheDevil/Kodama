@@ -7,7 +7,36 @@ import { Dropdown } from "./menu.jsx"; // a sheet from the bottom in the compact
 import { useLang } from "../context.jsx";
 import { SpeakerHigh, Check } from "../icons.jsx";
 
-export function OutputDeviceChip({ value, onChange }) {
+// Android routes the sound itself (the newest headset or Bluetooth device wins) and lets no app
+// switch it, so there the chip says where it goes, follows when that changes, and opens the
+// system's own output picker when tapped. The name comes from the app around the page
+// (MediaBridge.kt): a device's own name, "wired", "external", or "" for the phone's speaker.
+function AndroidOutputChip() {
+  const t = useLang();
+  const [name, setName] = useState(() => window.KodamaAndroid?.audioOutput?.() ?? "");
+  useEffect(() => {
+    window.__kodamaAudioOutput = setName;
+    return () => { if (window.__kodamaAudioOutput === setName) delete window.__kodamaAudioOutput; };
+  }, []);
+  const label = name === "" ? (t("audioOutputPhone") || "Phone speaker")
+    : name === "wired" ? (t("audioOutputWired") || "Headphones")
+    : name === "external" ? (t("audioOutputExternal") || "External device")
+    : name;
+  return (
+    <button type="button" aria-label={t("audioOutput") || "Output device"} onClick={() => window.KodamaAndroid?.openOutputPicker?.()}
+      className="min-w-0 max-w-[60%] flex items-center gap-2 h-8 px-2.5 rounded-[var(--r-full)] border-0 bg-transparent cursor-default leading-normal text-[length:var(--t12)] text-secondary hover:text-primary hover:bg-hover"
+      style={{ fontFamily: "var(--font)" }}>
+      <SpeakerHigh size={14} className="shrink-0 text-accent" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+export function OutputDeviceChip(props) {
+  return window.KodamaAndroid ? <AndroidOutputChip /> : <DesktopOutputChip {...props} />;
+}
+
+function DesktopOutputChip({ value, onChange }) {
   const t = useLang();
   const [devices, setDevices] = useState([]);
   const [systemDefault, setSystemDefault] = useState(null);

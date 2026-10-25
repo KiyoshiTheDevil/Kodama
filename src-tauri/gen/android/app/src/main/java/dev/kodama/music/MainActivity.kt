@@ -3,6 +3,7 @@ package dev.kodama.music
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.webkit.WebView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
@@ -20,6 +21,11 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     keepClearOfSystemBars()
     startBackend()
+  }
+
+  // The page's line to Android: media controls and the audio output (MediaBridge.kt).
+  override fun onWebViewCreate(webView: WebView) {
+    MediaBridge.attach(webView)
   }
 
   // Android draws the app under the status bar and the gesture bar (edge to edge, enforced for

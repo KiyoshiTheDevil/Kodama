@@ -2107,24 +2107,28 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   mediaCtlRef.current = { togglePlay, getAdjacentTrack, goAdjacent, setTrack, setIsPlaying, queue };
   useEffect(() => {
     let unlisten;
+    const handle = (payload) => {
+      const { action, position } = payload || {};
+      const h = mediaCtlRef.current;
+      const a = audioRef.current;
+      switch (action) {
+        case "play":     if (a && a.paused) { a.play(); h.setIsPlaying(true); } break;
+        case "pause":    if (a && !a.paused) { a.pause(); h.setIsPlaying(false); } break;
+        case "toggle":   h.togglePlay(); break;
+        case "next":     h.goAdjacent("next"); break;
+        case "previous": h.goAdjacent("prev"); break;
+        case "stop":     if (a) { a.pause(); h.setIsPlaying(false); } break;
+        case "seek":     if (a && typeof position === "number") a.currentTime = position; break;
+        default: break;
+      }
+    };
+    // Android: the notification and the lock screen call in here (MediaBridge.kt in the
+    // Android project), with the same actions.
+    window.__kodamaMediaControl = handle;
     import("@tauri-apps/api/event").then(({ listen }) => {
-      listen("media-control", (e) => {
-        const { action, position } = e.payload || {};
-        const h = mediaCtlRef.current;
-        const a = audioRef.current;
-        switch (action) {
-          case "play":     if (a && a.paused) { a.play(); h.setIsPlaying(true); } break;
-          case "pause":    if (a && !a.paused) { a.pause(); h.setIsPlaying(false); } break;
-          case "toggle":   h.togglePlay(); break;
-          case "next":     h.goAdjacent("next"); break;
-          case "previous": h.goAdjacent("prev"); break;
-          case "stop":     if (a) { a.pause(); h.setIsPlaying(false); } break;
-          case "seek":     if (a && typeof position === "number") a.currentTime = position; break;
-          default: break;
-        }
-      }).then(fn => { unlisten = fn; });
+      listen("media-control", (e) => handle(e.payload)).then(fn => { unlisten = fn; });
     });
-    return () => { if (unlisten) unlisten(); };
+    return () => { if (unlisten) unlisten(); if (window.__kodamaMediaControl === handle) delete window.__kodamaMediaControl; };
   }, []);
 
   // LAN remote bridge: while enabled, push now-playing state to the backend and drain
@@ -4840,7 +4844,11 @@ export default function App() {
       if (cancelled) return;
       try {
         const { invoke } = await import("@tauri-apps/api/core");
+        // Android: the media session lives in the app around the page (MediaBridge.kt), which
+        // takes the same values the desktop's OS media controls do.
+        const android = window.KodamaAndroid;
         if (!currentTrack) {
+          if (android) { android.mediaClear(); return; }
           invoke("clear_discord_rpc").catch(() => {});
           invoke("media_clear").catch(() => {});
           return;
@@ -4860,7 +4868,7 @@ export default function App() {
           : (currentTrack.artists || "");
 
         // OS media controls (SMTC / Now Playing / MPRIS) — always on, independent of Discord.
-        invoke("media_update", {
+        const mediaState = {
           title: currentTrack.title || "",
           artist: artistStr,
           album: currentTrack.album || "",
@@ -4868,7 +4876,9 @@ export default function App() {
           duration: dur,
           elapsed: a?.currentTime || 0,
           paused: !isPlaying,
-        }).catch(() => {});
+        };
+        if (android) { android.mediaUpdate(JSON.stringify(mediaState)); return; } // no Discord there
+        invoke("media_update", mediaState).catch(() => {});
 
         // Discord Rich Presence — opt-in via setting.
         if (!discordRpc) {
