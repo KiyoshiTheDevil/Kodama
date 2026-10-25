@@ -3731,8 +3731,17 @@ def stream_playlist(playlist_id):
         try:
             CHUNK = 200
 
-            # Local profile: serve from SQLite
+            # Local profile: its own playlists and liked songs come from SQLite. Any other playlist
+            # (the home page's, an artist's, a search hit) is not in there and is fetched from
+            # YouTube Music below like for an account; served from SQLite it came up with 0 songs.
+            local_owned = False
             if is_local_profile(_current_profile):
+                if playlist_id == "LM":
+                    local_owned = True
+                else:
+                    with local_db(_current_profile) as db:
+                        local_owned = db.execute("SELECT 1 FROM playlists WHERE playlist_id=?", (playlist_id,)).fetchone() is not None
+            if local_owned:
                 with local_db(_current_profile) as db:
                     if playlist_id == "LM":
                         rows = db.execute(
