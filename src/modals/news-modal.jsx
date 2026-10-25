@@ -5,8 +5,8 @@ import { useState } from "react";
 import { cn, Button, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger } from "@heroui/react";
 import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Megaphone, Star, ArrowClockwise } from "../icons.jsx";
-import { thumb } from "../context.jsx";
+import { Megaphone, Star, ArrowClockwise, CaretLeft } from "../icons.jsx";
+import { thumb, useCompact } from "../context.jsx";
 
 // Tiny inline markdown: **bold**, *italic*, `code`, [text](url). Links open externally.
 function renderInline(text, kp) {
@@ -63,6 +63,12 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
   const [selectedId, setSelectedId] = useState(() => list[0]?.id || null);
   const selected = list.find(n => n.id === selectedId) || list[0] || null;
   const sb = selected ? badgeFor(selected.type) : null;
+  // Compact layout: the list, then the article it opens (with a way back), one at a time.
+  // Side by side the two were squeezed to a few words a line at phone width.
+  const compact = useCompact();
+  const [page, setPage] = useState("list");
+  const showList = !compact || page === "list";
+  const showArticle = !compact || page === "article";
 
   return (
     <ModalRoot isOpen onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -78,15 +84,15 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
               {list.length === 0 ? (
                 <div className="text-[length:var(--t13)] text-muted text-center py-12">{t("newsEmpty") || "Keine Neuigkeiten."}</div>
               ) : (
-                <div className="flex" style={{ height: "62vh" }}>
+                <div className="flex" style={{ height: compact ? "68vh" : "62vh" }}>
                   {/* Left: entry list */}
-                  <div className="w-[268px] shrink-0 border-r border-border overflow-y-auto overflow-x-hidden">
+                  {showList && <div className={compact ? "flex-1 min-w-0 overflow-y-auto overflow-x-hidden" : "w-[268px] shrink-0 border-r border-border overflow-y-auto overflow-x-hidden"}>
                     {list.map((n) => {
                       const b = badgeFor(n.type);
                       const unread = unreadIds?.has(n.id);
                       const active = n.id === (selected?.id);
                       return (
-                        <button key={n.id} onClick={() => setSelectedId(n.id)}
+                        <button key={n.id} onClick={() => { setSelectedId(n.id); if (compact) setPage("article"); }}
                           className={cn("w-full text-left flex gap-2.5 px-3 py-2.5 border-b border-border transition-colors duration-100",
                             active ? "bg-accent-dim" : "hover:bg-hover")}>
                           {n.image
@@ -104,13 +110,20 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                         </button>
                       );
                     })}
-                  </div>
+                  </div>}
                   {/* Right: full entry */}
-                  <div className="flex-1 min-w-0 overflow-y-auto">
+                  {showArticle && <div className="flex-1 min-w-0 overflow-y-auto">
+                    {compact && (
+                      <button type="button" onClick={() => setPage("list")}
+                        className="flex items-center gap-2 w-full px-4 h-11 border-0 border-b border-border bg-transparent cursor-default text-left font-semibold text-primary"
+                        style={{ fontSize: "var(--t13)", fontFamily: "var(--font)" }}>
+                        <CaretLeft size={13} />{t("back")}
+                      </button>
+                    )}
                     {selected && (
                       <>
                         {selected.image && <img src={thumb(selected.image)} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: "cover" }} />}
-                        <div className="px-6 py-5">
+                        <div className={compact ? "px-4 py-4" : "px-6 py-5"}>
                           <div className="flex items-center gap-2 mb-2.5 flex-wrap">
                             <span className="text-[length:var(--t10)] font-bold px-2 py-0.5 rounded-md" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span>
                             {selected.important && <Star size={13} weight="fill" className="text-accent" />}
@@ -122,7 +135,7 @@ export function NewsModal({ news, unreadIds, onRefresh, onClose, t }) {
                         </div>
                       </>
                     )}
-                  </div>
+                  </div>}
                 </div>
               )}
             </ModalBody>
