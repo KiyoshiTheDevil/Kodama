@@ -49,8 +49,14 @@ export function ModalDialog({ style, children, ...props }) {
     d.dialog.style.transition = "transform 0.22s cubic-bezier(0.22,1,0.36,1)";
     if (d.dy > 100 || fast) {
       d.dialog.style.transform = "translateY(110%)";
-      const close = d.dialog.querySelector(".modal__close-trigger");
-      setTimeout(() => { if (close) close.click(); else { d.dialog.style.transform = ""; } }, 180);
+      // The modal's own close button: HeroUI's, or one a modal draws itself and marks with
+      // data-modal-close (the lyrics browser). A synthetic Escape is not taken by react-aria,
+      // so there is no fallback beyond that: should nothing close it, the sheet slides back.
+      const close = d.dialog.querySelector(".modal__close-trigger, [data-modal-close]");
+      setTimeout(() => {
+        if (close) close.click();
+        setTimeout(() => { if (d.dialog.isConnected) d.dialog.style.transform = ""; }, 400);
+      }, 180);
     } else {
       d.dialog.style.transform = "";
     }

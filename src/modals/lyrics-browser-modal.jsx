@@ -9,8 +9,8 @@ import { ExtensionSlot } from "../extensions/slot.jsx";
 import { cn, Button, Spinner, toast, ModalBackdrop, ModalContainer, DropdownTrigger, DropdownPopover, DropdownItem, ScrollShadowRoot } from "@heroui/react";
 import { Dropdown } from "../ui/menu.jsx";
 import { DropdownMenu, ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
-import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, X, Copy, PencilSimple } from "../icons.jsx";
-import { API, useLang, LangContext } from "../context.jsx";
+import { MicrophoneStand, Flag, Check, CaretUp, CaretDown, CaretLeft, X, Copy, PencilSimple, Eye } from "../icons.jsx";
+import { API, useLang, LangContext, useCompact } from "../context.jsx";
 import { PROVIDER_SYNC } from "../lyrics/providers.js";
 import { fetchLyrics } from "../lyrics/fetch.js";
 import { parseTtml, parseLrc, parseDurationToSeconds } from "../lyrics/parse.js";
@@ -35,6 +35,13 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
   const [results, setResults] = useState(null); // null = loading, [] = none
   const [votes, setVotes] = useState({});       // { [versionId]: { my: -1|0|1, count } }
   const [selectedIdx, setSelectedIdx] = useState(-1); // row currently previewed (right pane)
+  // Compact layout: one pane at a time in the sheet, the list first; a tap on a version opens
+  // its preview, which has a way back. Two panes side by side did not fit at phone width.
+  const compact = useCompact();
+  const [page, setPage] = useState("list");
+  useEffect(() => { if (isOpen) setPage("list"); }, [isOpen]);
+  const showList = !compact || page === "list";
+  const showPreview = !compact || page === "preview";
 
   const doVote = async (r, dir) => {
     if (r.id == null) return;
@@ -187,9 +194,16 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
               so giving the CONTAINER a fixed width while the dialog says "w-full" (100% of
               that container) is circular — it resolved to the full backdrop width instead
               (way too wide). The dialog owns its own explicit size here. */}
-          <ModalDialog className="p-3! gap-3! flex-row! w-[720px]! max-w-[94vw]! h-[560px] max-h-[85vh] overflow-hidden">
+          <ModalDialog className={compact
+            ? "p-3! gap-3! flex-col! h-[86vh] overflow-hidden"
+            : "p-3! gap-3! flex-row! w-[720px]! max-w-[94vw]! h-[560px] max-h-[85vh] overflow-hidden"}>
+            {/* Compact, list page: the close button sits in the preview, which is not shown.
+                This one is for the sheet's swipe-to-close (and screen readers). */}
+            {compact && page === "list" && (
+              <button type="button" onClick={close} data-modal-close className="sr-only">{t("close") || "Close"}</button>
+            )}
             {/* Left pane — source list */}
-            <div className="flex flex-col w-[320px] shrink-0 min-h-0">
+            {showList && <div className={compact ? "flex flex-col flex-1 min-h-0" : "flex flex-col w-[320px] shrink-0 min-h-0"}>
               <div className="flex items-center gap-2 px-4 pt-4 pb-4 shrink-0">
                 <MicrophoneStand size={17} weight="fill" />
                 <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("browseLyrics")}</span>
@@ -220,6 +234,15 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                             {sync ? (
                               <span className="ml-auto px-1.5 py-0.5 rounded-sm shrink-0" style={{ color: sync.color, background: sync.bg, fontSize: "var(--t10)" }}>{sync.label}</span>
                             ) : <span className="ml-auto" />}
+                            {/* Compact: a tap selects (to take it right away below); the preview
+                                is its own button, for when you want to read it first. */}
+                            {compact && (
+                              <button type="button" title={t("showPreview")} aria-label={t("showPreview")}
+                                onClick={(e) => { e.stopPropagation(); setSelectedIdx(i); setPage("preview"); }}
+                                className="flex items-center justify-center size-7 shrink-0 rounded-[var(--r-full)] border-0 bg-transparent cursor-default text-muted hover:text-primary hover:bg-hover">
+                                <Eye size={14} />
+                              </button>
+                            )}
                           </div>
                           {preview ? <div className="text-muted leading-relaxed line-clamp-2 break-words w-full" style={{ fontSize: "var(--t11)" }}>{preview}</div> : null}
                           {isUnison ? (
@@ -260,16 +283,37 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                   context={track?.videoId ? { track: track.videoId } : null}
                   className="w-full justify-center gap-2" icon={<PencilSimple size={14} />} />
               </div>
-            </div>
+              {compact && (
+                <div className="flex items-center gap-2 pt-3 shrink-0">
+                  <Button variant="ghost" size="sm" className="flex-1 gap-1.5" isDisabled={!selected} onPress={handleCopy}>
+                    <Copy size={14} />{t("copyLyrics")}
+                  </Button>
+                  <Button variant="primary" size="sm" className="flex-1 gap-1.5" style={{ "--button-fg": "var(--bg-elevated)" }}
+                    isDisabled={!selected} onPress={handleSelect}>
+                    <Check size={14} weight="bold" />{t("selectLyricsVersion")}
+                  </Button>
+                </div>
+              )}
+            </div>}
 
             {/* Right pane — the preview itself is a distinctly darker inset card (not just the
                 same tone as the dialog frame, so it actually reads as a separate panel); the
                 action buttons sit below it, outside the box, matching its width. */}
-            <div className="flex flex-col flex-1 min-w-0 min-h-0">
+            {showPreview && <div className="flex flex-col flex-1 min-w-0 min-h-0">
               <div className="flex flex-col flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--bg-base)" }}>
                 <div className="flex items-center justify-between px-4 pt-4 pb-2.5 shrink-0">
-                  <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("lyricsPreview")}</span>
-                  <button onClick={close} title={t("close") || "Close"}
+                  {compact ? (
+                    <button type="button" onClick={() => setPage("list")}
+                      className="flex items-center gap-2 border-0 bg-transparent p-0 cursor-default font-bold text-primary min-w-0"
+                      style={{ fontSize: "var(--t14)", fontFamily: "var(--font)" }}>
+                      <CaretLeft size={14} />
+                      <span className="truncate">{selected?.source || t("lyricsPreview")}</span>
+                      <span className="sr-only">{t("back")}</span>
+                    </button>
+                  ) : (
+                    <span className="font-bold" style={{ fontSize: "var(--t14)" }}>{t("lyricsPreview")}</span>
+                  )}
+                  <button onClick={close} title={t("close") || "Close"} data-modal-close
                     className="flex items-center justify-center size-7 rounded-[var(--r-full)] hover:bg-hover text-muted hover:text-primary transition-colors">
                     <X size={13} weight="bold" />
                   </button>
@@ -300,7 +344,7 @@ function LyricsBrowserModal({ track, providers, currentSource, currentSubmitter,
                   <Check size={14} weight="bold" />{t("selectLyricsVersion")}
                 </Button>
               </div>
-            </div>
+            </div>}
           </ModalDialog>
         </ModalContainer>
       </ModalBackdrop>
