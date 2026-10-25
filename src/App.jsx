@@ -60,6 +60,9 @@ import { LibraryView } from "./views/library-view.jsx";
 import { SearchView } from "./views/search-view.jsx";
 import { HomeView } from "./views/home-view.jsx";
 import { SearchBox } from "./ui/search-box.jsx";
+import { CompactTabs } from "./ui/compact-tabs.jsx";
+import { OutputDeviceChip } from "./ui/output-device.jsx";
+import { ActionSheet } from "./ui/action-sheet.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
 import { ArtistView } from "./views/artist-view.jsx";
@@ -570,9 +573,17 @@ class IpcAudio {
 const TITLEBAR_H = 56;
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
 const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
-function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false }) {
+function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false }) {
   const t = useLang();
   const navBtn = `${TITLEBAR_BTN} bg-[var(--fill-subtle)]! data-[disabled=true]:opacity-40`;
+  // Compact: the search is a magnifier; the field opens over the bar and closes again when it
+  // loses focus. Kept mounted (just invisible) so Ctrl+K can still put the cursor in it.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchWrapRef = useRef(null);
+  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef?.current?.focus(), 0); };
+  const closeSearchSoon = () => setTimeout(() => {
+    if (!searchWrapRef.current?.contains(document.activeElement)) setSearchOpen(false);
+  }, 160);
   return (
     <div style={{
       height: TITLEBAR_H, position: "fixed", top: 0, left: 0, right: 0, zIndex: 9998,
@@ -587,16 +598,16 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
       }}>
         {/* As wide as the sidebar beneath it while there is room, so Back starts at the
             content's edge; collapsed, just as wide as it needs. */}
-        <div className="flex items-center gap-2 shrink-0" style={{ minWidth: Math.max(0, sidebarW - 12) }}>
-          <Tooltip text={collapsed ? t("expand") : (t("collapse") || "Collapse")}>
+        <div className="flex items-center gap-2 shrink-0" style={{ minWidth: compact ? 0 : Math.max(0, sidebarW - 12) }}>
+          {!compact && <Tooltip text={collapsed ? t("expand") : (t("collapse") || "Collapse")}>
             <Button variant="ghost" isIconOnly onPress={onToggleCollapse} className={TITLEBAR_BTN} style={{ pointerEvents: "all" }}
               aria-label={collapsed ? t("expand") : (t("collapse") || "Collapse")}>
               {collapsed ? <CaretLineRight size={15} /> : <CaretLineLeft size={15} />}
             </Button>
-          </Tooltip>
+          </Tooltip>}
           <img src="/Kodama%20Logo.png" alt="" width="20" height="20" className="shrink-0" draggable={false} />
           {/* In the settings the bar says where you are: their name beside the logo. */}
-          <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">{inSettings ? t("settings") : "Kodama"}</span>
+          {!tight && <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">{inSettings ? t("settings") : "Kodama"}</span>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0" style={{ pointerEvents: "all" }}>
           <Tooltip text={t("back")}>
@@ -604,6 +615,7 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
               <ChevronLeft size={13} className="rtl:-scale-x-100" />
             </Button>
           </Tooltip>
+          {!compact && <>
           <Tooltip text={t("forward")}>
             <Button variant="ghost" isIconOnly aria-label={t("forward")} isDisabled={!canForward} onPress={onForward} className={navBtn}>
               <ChevronRight size={13} className="rtl:-scale-x-100" />
@@ -614,20 +626,40 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
               <ArrowClockwise size={14} />
             </Button>
           </Tooltip>
+          </>}
         </div>
+        {compact && <div style={{ flex: 1 }} />}
+        {compact && (
+          <Tooltip text={t("search").replace(/[.…]+$/, "")}>
+            <Button variant="ghost" isIconOnly aria-label={t("search")} onPress={openSearch} className={TITLEBAR_BTN} style={{ pointerEvents: "all" }}>
+              <MagnifyingGlass size={15} />
+            </Button>
+          </Tooltip>
+        )}
         {/* The search, as in Discord or VS Code: always in reach, the sidebar collapsed or not,
             and no room taken from the content. Centred in what is left between the buttons and
             shrinking with it down to 160px. Ctrl+K puts the cursor in it from anywhere. */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
-          <div style={{ width: "100%", maxWidth: 480, minWidth: 160, pointerEvents: "all" }}>
-            <SearchBox ref={searchRef} compact value={searchQuery} onSubmit={onSearch}
+        <div ref={searchWrapRef}
+          onFocus={compact ? () => setSearchOpen(true) : undefined}
+          onBlur={compact ? closeSearchSoon : undefined}
+          style={compact
+            ? (searchOpen
+              ? { position: "absolute", top: 0, bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 2, display: "flex", alignItems: "center", background: "var(--bg-base)", paddingInlineEnd: 8 }
+              : { position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0, pointerEvents: "none" })
+            : { flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
+          <div style={{ width: "100%", maxWidth: compact ? undefined : 480, minWidth: compact ? 0 : 160, pointerEvents: "all" }}>
+            <SearchBox ref={searchRef} compact value={searchQuery} onSubmit={(q) => { onSearch(q); if (compact) { setSearchOpen(false); searchRef?.current?.blur?.(); } }}
               localSearch={settingsSearch} placeholder={settingsSearch ? t("searchSettings") : undefined} />
           </div>
         </div>
         <div ref={slotRef} className="shrink-0 flex items-center" style={{ pointerEvents: "all" }} />
-        <div className="shrink-0" style={{ pointerEvents: "all" }}>
-          <WindowControls height={32} width={40} />
-        </div>
+        {/* Compact: no window buttons, for a phone-like look (trial). Alt+F4, the tray or a
+            wider window still close it. */}
+        {!compact && (
+          <div className="shrink-0" style={{ pointerEvents: "all" }}>
+            <WindowControls height={32} width={40} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -661,7 +693,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle, searchQuery = "", titleSlot = null }) {
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle, searchQuery = "", titleSlot = null, compact = false }) {
   const [tooltip, setTooltip] = useState(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [tetoVisible, setTetoVisible] = useState(false);
@@ -1009,7 +1041,8 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
     : (currentProfileData?.displayName || "?")[0].toUpperCase();
   const titleActions = (
     <div className="flex items-center gap-1">
-      <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed placement="bottom end" />
+      {/* Compact: listening together is a tab at the bottom instead. */}
+      {!compact && <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed placement="bottom end" />}
       <div className="relative shrink-0 flex">
         <Button variant="ghost" isIconOnly onPress={onOpenNews}
           className={TITLEBAR_BTN}
@@ -1451,7 +1484,7 @@ const startPaused = { next: false };
 // (issue #19). Shared through the module like startPaused.
 const measuredLength = { videoId: null, secs: 0 };
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist, autoplay = true }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist, autoplay = true, compact = false, audioOutput = "", onAudioOutputChange }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -1568,8 +1601,11 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   }, []);
   // Mid needs ~880px: the title area (at least 220), the transport and the right cluster.
   // Below that the title was squeezed to a few letters, so the bar goes to two rows instead.
-  const barMode = barW >= 1080 ? "wide" : barW >= 880 ? "mid" : "narrow";
+  // The compact app layout always uses the two rows (in the expanded player; collapsed it is
+  // the mini card below).
+  const barMode = compact ? "narrow" : barW >= 1080 ? "wide" : barW >= 880 ? "mid" : "narrow";
   const [volPop, setVolPop] = useState(false); // narrower bars: the volume slider is out (pointer on the speaker)
+  const [moreSheet, setMoreSheet] = useState(false); // compact layout: the ⋯ menu as an action sheet
 
   // LRU cache: videoId -> url (max 50 entries, Map preserves insertion order)
   const URL_CACHE_MAX = 50;
@@ -2334,7 +2370,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                 onBeforeNavigate={() => { if (expanded) onExpandToggle(); }}
               />
             </div>
-            {barMode !== "narrow" && (
+            {(barMode !== "narrow" || compact) && (
               <div style={{ fontSize: "var(--t10)", color: "var(--text-muted)", marginTop: 2 }}>
                 {track ? `${fmt(progress)} / ${fmt(duration)}` : ""}
               </div>
@@ -2477,7 +2513,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               )}
             </DropdownTrigger>
             <DropdownPopover placement="top end"
-              className="data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
+              className={compact ? "as-sheet" : "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"}
             >
               <div className="px-3 pt-2.5 pb-1 text-[length:var(--t12)] font-bold text-muted uppercase tracking-wider">
                 {t("sleepTimer")}
@@ -2529,7 +2565,8 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                   <DotsThreeVertical size={18} />
                 </DropdownTrigger>
                 <DropdownPopover placement="top end"
-                  className="[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"
+                  // Compact: a sheet from the bottom rather than a dropdown, as on a phone.
+                  className={compact ? "as-sheet" : "[--dd-min-w:15rem] data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95 data-[entering]:slide-in-from-bottom-2 data-[entering]:duration-200 data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95 data-[exiting]:duration-150"}
                 >
                   <DropdownMenu aria-label="More">
                     {/* Narrower bars have no room for these buttons: they move in here. */}
@@ -2542,7 +2579,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                             {sleepRemaining !== null && <span className="ml-auto text-[length:var(--t12)] font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>}
                             <DropdownSubmenuIndicator className={sleepRemaining !== null ? undefined : "ml-auto"} />
                           </DropdownItem>
-                          <DropdownPopover className="[--dd-min-w:11rem]">
+                          <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:11rem]"}>
                             <DropdownMenu aria-label={t("sleepTimer")}
                               onAction={(key) => { if (key === "off") setSleepTimerEnd(null); else setSleepTimerEnd(Date.now() + Number(key) * 60 * 1000); }}>
                               {[5, 10, 15, 20, 30, 45, 60].map(min => (
@@ -2560,6 +2597,12 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           <MiniPlayerEnter size={14} />
                           {t("miniPlayerTooltip")}
                         </DropdownItem>
+                        {compact ? (
+                          <DropdownItem textValue={t("fullscreenTooltip")} onAction={() => onToggleFullscreen?.()}>
+                            <ArrowsOut size={14} />
+                            {t("fullscreenTooltip")}
+                          </DropdownItem>
+                        ) : null}
                         {barMode === "narrow" && videoAvailable ? (
                           <DropdownItem textValue={showVideoView ? t("audioViewTooltip") : t("videoViewTooltip")} onAction={() => onSetVideoView?.(!showVideoView)}>
                             {showVideoView ? <HeadphonesSimple size={14} /> : <ClapperboardPlay size={14} />}
@@ -2628,7 +2671,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {/* Inline height, not max-h-80: HeroUI sizes its popover from the
                               available viewport space, and that wins over the utility class —
                               with 44 entries the menu grew to the full window height. */}
-                          <DropdownPopover className="[--dd-min-w:10rem] overflow-y-auto scrollable" style={{ maxHeight: 320 }}>
+                          <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:10rem] overflow-y-auto scrollable"} style={compact ? undefined : { maxHeight: 320 }}>
                             <DropdownMenu aria-label="Language">
                               {TRANSLATION_LANGS.map(({ code, name }) => (
                                 <DropdownItem key={code} textValue={name} onAction={() => setTranslationLang(code)}
@@ -2698,7 +2741,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                           {t("share")}
                           <DropdownSubmenuIndicator className="ml-auto" />
                         </DropdownItem>
-                        <DropdownPopover className="[--dd-min-w:14rem]">
+                        <DropdownPopover className={compact ? "as-sheet" : "[--dd-min-w:14rem]"}>
                           <DropdownMenu aria-label={t("share")}>
                             <DropdownSection>
                               <DropdownItem textValue={t("copyShareLink")}
@@ -2819,6 +2862,186 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     </>
   );
 
+  // Compact layout, player collapsed: a card with the song, Like, Play and Next, and a thin
+  // progress line. Tapping it (anywhere but a button) opens the expanded player, which has the
+  // full two-row controls.
+  if (compact && !expanded && !fullscreen) {
+    // Nothing playing: no empty card, just the tab bar below.
+    if (!track) return <div ref={barRef} />;
+    const pct = duration ? Math.min(100, (progress / duration) * 100) : 0;
+    const open = (e) => { if (!e.target.closest("button")) onExpandToggle(); };
+    return (
+      <div ref={barRef} style={{ padding: "6px 8px 8px" }}>
+        <div role="button" tabIndex={0} aria-label={t("expand")}
+          onClick={open} onKeyDown={(e) => { if (e.key === "Enter") onExpandToggle(); }}
+          style={{
+            position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10,
+            padding: 8, borderRadius: "var(--r-xl)", cursor: "default",
+            background: "color-mix(in srgb, var(--bg-surface) 88%, transparent)",
+          }}>
+          <div style={{ width: 44, height: 44, borderRadius: "var(--r-lg)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
+            {track?.thumbnail && <img src={thumb(track.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "var(--t13)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {loading ? t("loading") : (track?.title || "")}
+            </div>
+            <div style={{ fontSize: "var(--t11)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {track?.artists || ""}
+            </div>
+          </div>
+          {track && (
+            <Button variant="ghost" isIconOnly onPress={toggleLike} aria-label={isLiked ? t("unlike") : t("like")}
+              className={cn("w-[34px] h-[34px] min-w-[34px] rounded-[var(--r-full)]", isLiked ? "text-accent" : "text-muted hover:text-secondary")}>
+              <Heart size={16} weight={isLiked ? "fill" : "regular"} />
+            </Button>
+          )}
+          <PlayPauseButton isPlaying={isPlaying} isDisabled={!track} onPress={track ? togglePlay : undefined} label={t("scPlayPause")} />
+          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={() => goAdjacent("next")} aria-label={t("scNext")}
+            className="w-[34px] h-[34px] min-w-[34px] rounded-[var(--r-full)] text-accent">
+            <SkipForward size={20} />
+          </Button>
+          <div aria-hidden="true" style={{ position: "absolute", left: 12, right: 12, bottom: 2, height: 2, borderRadius: 2, background: "var(--fill-subtle)" }}>
+            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "var(--accent)" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // The ⋯ menu as an action sheet (compact layout): the same actions as the dropdown, as data,
+  // so its submenus (sleep timer, translation language, share) open as pages of the sheet.
+  const moreItems = () => {
+    if (!track) return [];
+    const fetched = fetchedBrowseIds[track.videoId] || {};
+    const albumId = track.albumBrowseId || fetched.albumBrowseId;
+    const artistId = track.artistBrowseId || fetched.artistBrowseId;
+    const downloaded = cachedSongIds?.has(track.videoId);
+    const downloading = downloadingIds?.has(track.videoId);
+    const copy = (text) => navigator.clipboard.writeText(text).then(() => toast.success(t("linkCopied"))).catch(() => {});
+    const leave = () => { if (expanded) onExpandToggle(); };
+    return [
+      { id: "sleep", label: t("sleepTimer"), icon: <Moon size={15} weight={sleepRemaining !== null ? "fill" : "regular"} />,
+        hint: sleepRemaining !== null ? formatSleepRemaining(sleepRemaining) : null,
+        sub: [
+          ...[5, 10, 15, 20, 30, 45, 60].map((min) => ({ id: `s${min}`, label: `${min} ${t("minutes")}`, onPress: () => setSleepTimerEnd(Date.now() + min * 60 * 1000) })),
+          ...(sleepRemaining !== null ? [{ id: "soff", label: t("cancelSleepTimer"), icon: <X size={14} />, danger: true, divider: true, onPress: () => setSleepTimerEnd(null) }] : []),
+        ] },
+      { id: "mini", label: t("miniPlayerTooltip"), icon: <MiniPlayerEnter size={15} />, onPress: () => { openMiniPlayer().catch(() => {}); } },
+      { id: "fs", label: t("fullscreenTooltip"), icon: <ArrowsOut size={15} />, onPress: () => onToggleFullscreen?.() },
+      { id: "add", label: t("addToPlaylist"), icon: <Plus size={15} />, divider: true, onPress: () => onAddToPlaylist?.([track]) },
+      { id: "like", label: isLiked ? t("unlike") : t("like"), icon: <Heart size={15} weight={isLiked ? "fill" : "regular"} />, checked: false, onPress: () => toggleLike() },
+      ...(albumId && onOpenAlbum ? [{ id: "album", label: t("goToAlbum"), icon: <VinylRecord size={15} />, divider: true, onPress: () => { leave(); onOpenAlbum({ browseId: albumId, title: track.album }); } }] : []),
+      ...(artistId && onOpenArtist ? [{ id: "artist", label: t("goToArtist"), icon: <Microphone size={15} />, divider: !(albumId && onOpenAlbum), onPress: () => { leave(); onOpenArtist({ browseId: artistId, artist: track.artists }); } }] : []),
+      { id: "refetch", label: t("refetchLyrics"), icon: <ArrowClockwise size={15} />, divider: true, onPress: () => onRefetchLyrics?.() },
+      { id: "import", label: t("importLyrics"), icon: <UploadSimple size={15} />, onPress: () => onImportLyrics?.() },
+      ...(isCustomLyrics ? [{ id: "rmlyr", label: t("removeCustomLyrics"), icon: <Trash size={15} />, danger: true, onPress: () => onRemoveCustomLyrics?.() }] : []),
+      ...(showLyricsTranslation ? [{ id: "tlang", label: (TRANSLATION_LANGS.find(l => l.code === lyricsTranslationLang)?.name) || lyricsTranslationLang, icon: <Translate size={15} />,
+        sub: TRANSLATION_LANGS.map(({ code, name }) => ({ id: code, label: name, checked: lyricsTranslationLang === code, onPress: () => setTranslationLang(code) })) }] : []),
+      { id: "browse", label: t("browseLyrics"), icon: <Microphone size={15} />, onPress: () => onOpenLyricsBrowser?.() },
+      downloaded ? { id: "dl", label: t("downloaded"), icon: <DownloadSimple size={15} />, divider: true, disabled: true }
+        : downloading ? { id: "dl", label: t("downloading"), icon: <DownloadSimple size={15} />, divider: true, disabled: true }
+        : { id: "dl", label: t("download"), icon: <DownloadSimple size={15} />, divider: true, onPress: () => onDownloadSong?.(track) },
+      { id: "mp3", label: t("saveAsMp3"), icon: <MusicNote size={15} />, onPress: () => onExportSong?.(track, "mp3") },
+      { id: "opus", label: t("saveAsOpus"), icon: <MusicNote size={15} />, onPress: () => onExportSong?.(track, "opus") },
+      { id: "eq", label: t("eqTitle"), icon: <EqualizerIcon size={15} />, divider: true, onPress: () => openEqualizerWindow() },
+      { id: "scrob", label: t("scrobbleEdit"), icon: <PencilSimple size={15} />, onPress: () => onEditScrobble?.(track) },
+      { id: "share", label: t("share"), icon: <ShareNodes size={15} />, divider: true, sub: [
+        { id: "sk", label: t("copyShareLink"), icon: <ShareNodes size={15} />, onPress: () => copy(buildShareLink(track)) },
+        { id: "sy", label: t("copyYtMusicLink"), icon: <Copy size={15} />, onPress: () => copy(`https://music.youtube.com/watch?v=${track.videoId}`) },
+        { id: "st", label: t("copyYoutubeLink"), icon: <Copy size={15} />, onPress: () => copy(`https://youtube.com/watch?v=${track.videoId}`) },
+      ] },
+    ];
+  };
+
+  // Compact layout, player expanded: laid out like a phone player. The view above (cover,
+  // lyrics or video, switched at its top) keeps its place; below it the song with its heart,
+  // a seek bar big enough to grab with the times under it, the transport, and a last row with
+  // the output device (where the sound is going, switchable here) and the queue and ⋯ menu.
+  if (compact && expanded && !fullscreen) {
+    return (
+      <div ref={barRef} style={{ padding: "4px 22px 12px", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{loading ? t("loading") : (track?.title || "")}</span>
+              {track?.isExplicit && <ExplicitBadge />}
+            </div>
+            <div style={{ fontSize: "var(--t13)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <ArtistLinks track={track} onOpenArtist={onOpenArtist} onBeforeNavigate={() => { if (expanded) onExpandToggle(); }} />
+            </div>
+          </div>
+          {track && (
+            <Button variant="ghost" isIconOnly onPress={toggleLike} aria-label={isLiked ? t("unlike") : t("like")}
+              className={cn("w-[40px] h-[40px] min-w-[40px] rounded-[var(--r-full)]", isLiked ? "text-accent" : "text-muted hover:text-secondary")}>
+              <Heart size={20} weight={isLiked ? "fill" : "regular"} />
+            </Button>
+          )}
+        </div>
+        <div dir="ltr" className="seek-band seek-compact" style={{ height: 22, display: "flex", alignItems: "center", marginTop: 10 }}>
+          <SliderRoot
+            aria-label="Seek"
+            value={track ? (seekDrag !== null ? seekDrag : progress) : 0}
+            minValue={0} maxValue={duration || 1} step={0.25}
+            isDisabled={!track}
+            onChange={(v) => setSeekDrag(v)}
+            onChangeEnd={(v) => { const a = audioRef.current; if (a && duration) a.currentTime = v; setSeekDrag(null); }}
+            className={cn("player-seek w-full", seekDrag !== null && "seeking")}
+          >
+            <SliderTrack>
+              {track && buffered !== null && !preparing && (
+                <div className="seek-buffer" aria-hidden="true" style={{ width: `${Math.max(0, Math.min(1, buffered)) * 100}%` }} />
+              )}
+              {track && preparing && <div className="seek-preparing" aria-hidden="true" />}
+              <SliderFill />
+              <SliderThumb className="after:hidden! bg-transparent! shadow-none! w-0! min-w-0!" />
+            </SliderTrack>
+          </SliderRoot>
+        </div>
+        <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--t11)", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", marginTop: 2 }}>
+          <span>{track ? fmt(seekDrag !== null ? seekDrag : progress) : "0:00"}</span>
+          <span>{track ? fmt(duration) : "0:00"}</span>
+        </div>
+        {/* The transport as on a phone: shuffle and repeat small at the ends, previous and
+            next large and plain, play as the one filled round button. Left-to-right always. */}
+        <div dir="ltr" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "8px 0 18px" }}>
+          <Button variant="ghost" isIconOnly aria-label={t("shuffle")} onPress={() => setShuffle(s => !s)}
+            className={cn("w-[40px] h-[40px] min-w-[40px] rounded-[var(--r-full)]", shuffle ? "text-accent" : "text-secondary hover:text-primary")}>
+            <Shuffle size={18} />
+          </Button>
+          <Button variant="ghost" isIconOnly aria-label={t("scPrev")} isDisabled={!track}
+            onPress={() => { const a = audioRef.current; if (a && !loading && a.currentTime >= 4) a.currentTime = 0; else goAdjacent("prev"); }}
+            className="w-[48px] h-[48px] min-w-[48px] rounded-[var(--r-full)] text-primary">
+            <SkipBack size={26} weight="fill" />
+          </Button>
+          <Button isIconOnly aria-label={t("scPlayPause")} isDisabled={!track} onPress={track ? togglePlay : undefined}
+            className="w-[64px] h-[64px] min-w-[64px] rounded-[var(--r-full)] bg-accent text-[var(--accent-foreground)] hover:brightness-110">
+            {isPlaying ? <Pause size={26} weight="fill" /> : <Play size={26} weight="fill" />}
+          </Button>
+          <Button variant="ghost" isIconOnly aria-label={t("scNext")} isDisabled={!track} onPress={() => goAdjacent("next")}
+            className="w-[48px] h-[48px] min-w-[48px] rounded-[var(--r-full)] text-primary">
+            <SkipForward size={26} weight="fill" />
+          </Button>
+          <Button variant="ghost" isIconOnly aria-label={repeat === "one" ? t("repeatOne") : repeat === "all" ? t("repeatAll") : t("repeat")} onPress={cycleRepeat}
+            className={cn("w-[40px] h-[40px] min-w-[40px] rounded-[var(--r-full)]", repeat !== "none" ? "text-accent" : "text-secondary hover:text-primary")}>
+            {repeat === "one" ? <RepeatOnce size={18} /> : <Repeat size={18} />}
+          </Button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, lineHeight: 0 }}>
+          <OutputDeviceChip value={audioOutput} onChange={onAudioOutputChange} asSheet />
+          <div style={{ flex: 1 }} />
+          {queueEl}
+          <Button variant="ghost" isIconOnly aria-label={t("rowMoreActions")} isDisabled={!track}
+            onPress={() => { fetchMoreBrowseIds(); setMoreSheet(true); }}
+            className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
+            <DotsThreeVertical size={18} />
+          </Button>
+        </div>
+        <ActionSheet open={moreSheet} onClose={() => setMoreSheet(false)} items={moreItems()} title={track?.title} />
+      </div>
+    );
+  }
+
   return (
     <div ref={barRef} style={{ background: fullscreen ? "color-mix(in srgb, var(--bg-base) 60%, transparent)" : "transparent", backdropFilter: fullscreen ? "blur(20px)" : "none", flexShrink: 0, borderRadius: 0, position: "relative", zIndex: 50, display: "flex", flexDirection: "column", overflow: "visible" }}>
       {/* Seek slider — HeroUI Slider, sits between the content view and the player controls */}
@@ -2870,6 +3093,15 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             {lyricsEl}
             {moreEl}
           </div>
+          {compact ? (
+            // The compact app layout fits phone widths: the time sits under the artist above,
+            // fullscreen is in the ⋯ menu, volume is left to the system. What stays is the
+            // transport and the way back down to the mini card.
+            <div style={{ height: 48, display: "flex", alignItems: "center", padding: "0 8px 2px 12px", gap: 4 }}>
+              {transportEl}
+              {expandEl}
+            </div>
+          ) : (
           <div style={{ height: 48, display: "flex", alignItems: "center", padding: "0 16px 2px", gap: 8 }}>
             <span style={{ fontSize: "var(--t11)", color: "var(--text-muted)", minWidth: 72, fontVariantNumeric: "tabular-nums" }}>
               {track ? `${fmt(progress)} / ${fmt(duration)}` : ""}
@@ -2881,14 +3113,16 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               {fullscreenEl}
             </div>
           </div>
+          )}
         </>
       ) : (
         <div style={{ height: 88, display: "flex", alignItems: "center", padding: "0 20px 0 16px", gap: barMode === "wide" ? 16 : 10 }}>
           {leftEl}
           {transportEl}
           {/* Right cluster. Wide: fixed width, so the transport in the middle keeps its place
-              when a control appears or hides (budget ~448 at 36px per button; mind the window's
-              minWidth in tauri.conf.json). Mid: as wide as what is in it. */}
+              when a control appears or hides (budget ~448 at 36px per button). Mid: as wide as
+              what is in it. The window may be as narrow as 360px now: below these widths the bar
+              goes to two rows, and below 700 the whole app to its compact layout. */}
           <div style={{ display: "flex", alignItems: "center", gap: 2, justifyContent: "flex-end", lineHeight: 0, flexShrink: 0, ...(barMode === "wide" ? { width: 460 } : {}) }}>
             {volumeEl}
             {barMode === "wide" && sleepEl}
@@ -5425,6 +5659,26 @@ export default function App() {
     const saved = parseFloat(localStorage.getItem("kiyoshi-ui-zoom"));
     return ZOOM_STEPS.includes(saved) ? saved : 1.0;
   });
+  // Compact layout below 700px of window width, counted after zoom (so a high zoom switches
+  // sooner): no sidebar, a tab bar at the bottom, a mini player card above it. Not in
+  // fullscreen, which is a layout of its own.
+  const COMPACT_BELOW = 700;
+  const [appW, setAppW] = useState(() => window.innerWidth / uiZoom); // the window's width after zoom
+  useEffect(() => {
+    const check = () => setAppW(window.innerWidth / uiZoom);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [uiZoom]);
+  const compact = appW < COMPACT_BELOW && !fullscreen;
+  // Below ~300px the title bar would drop the app's name to keep its buttons. With the window
+  // buttons hidden in the compact layout there is room down to the 360px minimum, so this only
+  // matters again if they come back (it was 420 with them).
+  const tight = compact && appW < 300;
+  // The sidebar's width as laid out. Compact: none, except the icon rail while the settings are
+  // open, whose categories live there (until the settings get a compact layout of their own).
+  const sideW = fullscreen ? 0 : compact ? (settingsOpen || settingsClosing ? SIDEBAR_COLLAPSED : 0)
+    : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth);
 
   const [customShortcuts, setCustomShortcuts] = useState(() => {
     try {
@@ -5501,6 +5755,8 @@ export default function App() {
   // used inside the shell it would apply the zoom a second time. See .dropdown__popover in
   // index.css.
   useEffect(() => { document.documentElement.style.setProperty("--ui-zoom", uiZoom); }, [uiZoom]);
+  // For the toasts, which are portalled outside the shell and have to clear the player bar.
+  useEffect(() => { document.documentElement.style.setProperty("--player-bar-h", `${playerBarH}px`); }, [playerBarH]);
 
   // uiZoom wird direkt im App-Container angewendet (kein document.documentElement),
   // damit position:fixed / 100vh-Werte korrekt bleiben.
@@ -6427,21 +6683,21 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
-        {!fullscreen && !IS_MAC && <TitleBar searchQuery={searchQuery} onSearch={handleSearch} searchRef={titleSearchRef}
+        {!fullscreen && !IS_MAC && !(compact && overlayOpen) && <TitleBar searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
-          sidebarW={sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth} slotRef={setTitleSlot}
+          sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
           canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen} onBack={settingsOpen ? closeSettings : goBack} onForward={goForward}
           collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onRefresh={() => setViewRefreshKey(k => k + 1)} />}
         <div style={{
-          width: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
-          minWidth: fullscreen ? 0 : (sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth),
+          width: sideW,
+          minWidth: sideW,
           flexShrink: 0, overflow: "hidden",
           transition: sidebarResizing ? "none" : "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
-          padding: fullscreen ? 0 : `8px 4px ${8 + playerBarH}px 8px`,
+          padding: fullscreen || (compact && sideW === 0) ? 0 : `8px 4px ${8 + playerBarH}px 8px`,
           position: "relative",
         }}>
-          <Sidebar searchQuery={searchQuery} titleSlot={titleSlot} view={view} activeNavId={view === "collection" && collection?.playlistId === "LM" ? "liked" : view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
+          <Sidebar searchQuery={searchQuery} titleSlot={titleSlot} compact={compact} view={view} activeNavId={view === "collection" && collection?.playlistId === "LM" ? "liked" : view} setView={navigateTo} onSearch={handleSearch} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onOpenSettings={() => setSettingsOpen(true)} onOpenAccountTab={() => { setSettingsTab("account"); setSettingsOpen(true); }} onOpenUpdateTab={() => { setSettingsTab("update"); setSettingsOpen(true); }} onCloseOverlay={() => setOverlayOpen(false)} onOpenPlaylist={(pl) => openPlaylist(pl, view)} onOpenAlbum={(item) => openAlbum(item, view)} onOpenArtist={(item) => openArtist(item, view)} onAddRecent={addRecentPlaylist} onContextMenu={openContextMenu} currentProfileData={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)} onOpenProfileSwitcher={() => setShowProfileSwitcher(true)} profiles={profiles}
             onSwitchProfile={handleAccountSwitch}
             onAddProfile={async () => {
               try { await fetch(`${API}/auth/begin-add`, { method: "POST" }); } catch {}
@@ -6492,7 +6748,7 @@ export default function App() {
               onSectionSelect={selectSettingsSection}
               updateInfo={updateInfo}
               onClose={closeSettings}
-              collapsed={sidebarCollapsed}
+              collapsed={sidebarCollapsed || compact}
               closing={settingsClosing}
               top={IS_MAC ? 8 : TITLEBAR_H + 4}
               showHeader={IS_MAC}
@@ -6525,9 +6781,10 @@ export default function App() {
             // Square: the rounded card read as a box inside the window, its corner right under
             // the window buttons. Windows/Linux leave the title bar's band free, where the search
             // and the window buttons sit (fullscreen has neither).
-            margin: queueOpen
+            // Compact: the queue covers the content instead of sitting beside it.
+            margin: queueOpen && !compact
               ? `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px ${queueWidth + 16}px 0 4px`
-              : `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px 0 0 4px`,
+              : `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px 0 0 ${compact ? 0 : 4}px`,
             transition: queueResizing ? "none" : (animations ? "margin 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease" : "none"),
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
@@ -6536,7 +6793,9 @@ export default function App() {
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={IS_MAC ? goBack : undefined} /></AnimatedView>}
-            {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
+            {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist}
+              onOpenLiked={() => openPlaylist({ playlistId: "LM", title: translate(language, "likedSongs"), forcedTitle: translate(language, "likedSongs"), thumbnail: "" }, "library")}
+              onOpenView={(v) => { pushNav(view, collection, artistView); setNavForward([]); setView(v); }} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
             {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={IS_MAC ? goBack : undefined} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
             {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={IS_MAC ? goBack : undefined} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}
@@ -6646,9 +6905,10 @@ export default function App() {
             transition: "opacity 0.35s ease, transform 0.42s cubic-bezier(0.4,0,0.2,1), visibility 0.42s ease",
             pointerEvents: settingsOpen ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
             ...(fullscreen ? { position: "relative", zIndex: 105 } : {}),
-            padding: fullscreen ? 0 : "0 8px 8px 8px",
+            padding: fullscreen || compact ? 0 : "0 8px 8px 8px",
           }}>
-          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay}
+          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay} compact={compact}
+            audioOutput={audioOutput} onAudioOutputChange={setAudioOutput}
             track={currentTrack}
             setTrack={setTrackGuarded}
             queue={queue}
@@ -6708,6 +6968,12 @@ export default function App() {
             onCreatePlaylist={() => setCreatePlaylistOpen(true)}
             onAddToPlaylist={(tracks) => setAddToPlaylistFor({ tracks })}
           />
+          {/* Compact: the destinations as tabs below the player, hidden while it is expanded. */}
+          {compact && !overlayOpen && (
+            <CompactTabs view={["collection", "artist", "history", "downloads"].includes(view) ? "library" : view}
+              profile={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)}
+              onNavigate={(v) => { setOverlayOpen(false); if (v === "search") setView("search"); else navigateTo(v); }} />
+          )}
           </div>
           </div>
           </div>
@@ -6715,20 +6981,54 @@ export default function App() {
           position: "absolute",
           // Below the title bar and above the player bar, whose height is measured: the bar runs
           // the full width now and grows to two rows in narrow windows.
-          top: overlayOpen ? (fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
+          // Compact: the open player takes the whole window, its head where the title bar was.
+          top: overlayOpen ? (fullscreen || compact ? 0 : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
           // Logical, not physical: this reserves the sidebar's space, and the sidebar sits at
           // the inline start -- which is the right-hand side once the layout is flipped. With
           // plain left/right the overlay left an empty band on one side and ran underneath the
           // sidebar on the other. Same for the queue panel, which is docked at the inline end.
-          insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
-          insetInlineEnd: fullscreen ? 0 : (queueOpen ? queueWidth + 16 : 8),
-          bottom: fullscreen ? 0 : playerBarH + 6,
+          insetInlineStart: fullscreen ? 0 : (sideW + (compact ? 0 : 4)),
+          insetInlineEnd: fullscreen || compact ? 0 : (queueOpen ? queueWidth + 16 : 8),
+          bottom: fullscreen ? 0 : playerBarH + (compact ? 0 : 6),
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
-          borderRadius: fullscreen ? 0 : "var(--r-xl)",
+          borderRadius: fullscreen || compact ? 0 : "var(--r-xl)",
           transition: queueResizing ? "top 0.42s cubic-bezier(0.4,0,0.2,1), left 0.3s ease" : (animations ? "top 0.42s cubic-bezier(0.4,0,0.2,1), right 0.3s ease, left 0.3s ease" : "top 0.1s ease"),
           pointerEvents: overlayOpen ? "all" : "none",
         }}>
+          {/* Compact layout: the phone player's head. Down to the mini card, and what fills the
+              view: cover, lyrics, or (when this song has one) the video. */}
+          {compact && overlayOpen && (() => {
+            const mode = showVideoView ? "video" : showLyrics ? "lyrics" : "cover";
+            const pick = (m) => {
+              if (m === "video") { setShowVideoView(true); return; }
+              setShowVideoView(false); setSplitView(false); setShowLyricsManual(m === "lyrics");
+            };
+            const modes = [["cover", translate(language, "coverTab")], ["lyrics", translate(language, "lyrics")],
+              ...(videoSync.ready ? [["video", translate(language, "videoTab")]] : [])];
+            return (
+              // In the title bar's place (which is hidden while the player is open), so it is the
+              // window's drag handle too; its buttons still take their own clicks.
+              <div data-tauri-drag-region style={{ position: "absolute", top: 0, left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8 }}>
+                <Button variant="ghost" isIconOnly aria-label={translate(language, "collapse")} onPress={() => setOverlayOpen(false)}
+                  className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
+                  <CaretDown size={18} />
+                </Button>
+                <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                  <div role="tablist" style={{ display: "flex", padding: 3, borderRadius: "var(--r-full)", background: "rgba(0,0,0,0.25)" }}>
+                    {modes.map(([id, label]) => (
+                      <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => pick(id)}
+                        style={{ border: 0, cursor: "default", padding: "6px 14px", borderRadius: "var(--r-full)", fontSize: "var(--t12)", fontWeight: 600, fontFamily: "var(--font)",
+                          background: mode === id ? "rgba(255,255,255,0.14)" : "transparent", color: mode === id ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ width: 36 }} />
+              </div>
+            );
+          })()}
           {/* Shared static background — stays fixed during crossfade */}
           {currentTrack && !ambientBackground && (<>
             <div style={{ position: "absolute", inset: 0, background: "var(--bg-base)", pointerEvents: "none" }} />
@@ -6772,7 +7072,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
               }}>
-                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} />
+                <LyricsOverlay track={currentTrack} audioRef={audioRef} onClose={() => setOverlayOpen(false)} fontSize={lyricsFontSize} providers={lyricsProviders} refetchKey={lyricsRefetchKey} onAddToast={addToast} language={language} forcedProvider={forcedLyricsProvider} onSourceChange={setCurrentLyricsSource} onProviderFailed={(id) => setFailedLyricsProviders(s => new Set([...s, id]))} onCustomLyricsStatusChange={setIsCustomLyrics} importLyricsRef={importLyricsRef} removeCustomLyricsRef={removeCustomLyricsRef} openLyricsBrowserRef={openLyricsBrowserRef} fullscreen={fullscreen} playerBarVisible={playerVisible} onInstrumentalChange={handleInstrumentalChange} active={lyricsOnScreen} fadeEdges={compact} />
               </div>
               <div ref={splitCoverRef} style={{
                 // insetInlineStart so the pane starts at the same edge the split ratio is
@@ -6784,7 +7084,7 @@ export default function App() {
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
               }}>
-                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer} ambientBackground={ambientBackground} vizConfig={reduceMotion ? { ...vizConfig, coverPulse: false, blobs: false } : vizConfig} />
+                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer && !compact /* at phone width it crowded the cover more than it added */} fill={compact} ambientBackground={ambientBackground} vizConfig={reduceMotion ? { ...vizConfig, coverPulse: false, blobs: false } : vizConfig} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
@@ -6821,11 +7121,14 @@ export default function App() {
           position: "absolute",
           top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
           right: fullscreen ? 0 : 8,
-          width: fullscreen ? 360 : queueWidth, bottom: fullscreen ? 0 : playerBarH + 6, zIndex: fullscreen ? 104 : 101,
+          // Compact: the whole width, as a layer over the content.
+          width: fullscreen ? 360 : compact ? "calc(100% - 16px)" : queueWidth, bottom: fullscreen ? 0 : playerBarH + 6, zIndex: fullscreen ? 104 : 101,
           // Slide via transform (compositor-only) instead of `right` (per-frame layout).
           // Once settled, drop the transform/will-change entirely — an ancestor transform
           // otherwise neutralises backdrop-filter on descendants (e.g. the scroll-to-top pill).
           transform: queueOpen ? (queueSettled ? "none" : "translateX(0)") : "translateX(calc(100% + 16px))",
+          // Hidden once slid out: in a narrow window the slide's end could leave its edge in view.
+          visibility: queueOpen ? "visible" : "hidden",
           willChange: (queueOpen && queueSettled) ? "auto" : "transform",
           // Keep the panel near-opaque while moving; only switch to the costly ambient
           // backdrop-blur once it has settled, so the slide never repaints the blur.
@@ -6837,7 +7140,9 @@ export default function App() {
           border: ambientBackground ? "0.5px solid rgba(255,255,255,0.08)" : "none",
           borderRadius: fullscreen ? 0 : "var(--r-xl)",
           overflow: "hidden",
-          transition: queueResizing ? "none" : (animations ? "transform 0.3s cubic-bezier(0.4,0,0.2,1), background 0.25s ease" : "transform 0.1s ease"),
+          transition: queueResizing ? "none" : (animations
+            ? `transform 0.3s cubic-bezier(0.4,0,0.2,1), background 0.25s ease, visibility 0s linear ${queueOpen ? "0s" : "0.3s"}`
+            : `transform 0.1s ease, visibility 0s linear ${queueOpen ? "0s" : "0.1s"}`),
           display: "flex", flexDirection: "column",
           pointerEvents: queueOpen ? "all" : "none",
         }}>
@@ -6900,7 +7205,7 @@ export default function App() {
           top: fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H),
           // Logical for the same reason as the lyrics overlay above: the reserved sidebar
           // space has to follow the sidebar to the other side when the layout flips.
-          insetInlineStart: fullscreen ? 0 : ((sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth) + 4),
+          insetInlineStart: fullscreen ? 0 : (sideW + (compact ? 0 : 4)),
           insetInlineEnd: fullscreen || !IS_MAC ? 0 : 8,
           bottom: fullscreen || !IS_MAC ? 0 : 8,
           zIndex: 150,

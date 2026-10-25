@@ -1275,7 +1275,9 @@ img.img-failed {
    next to the zoom it depends on. Unlayered, to beat .toast-region--bottom-end's own 1rem. */
 .toast-region {
   zoom: var(--ui-zoom, 1);
-  bottom: 120px;
+  /* The player bar's measured height (App sets it): it grows to two rows in narrow windows and
+     carries the tab bar in the compact layout, so a fixed 120px no longer cleared it. */
+  bottom: calc(var(--player-bar-h, 112px) + 8px);
 }
 
 /* Terms and privacy text inside the app (src/settings/legal.jsx). The markup comes from
@@ -1289,3 +1291,32 @@ img.img-failed {
 .legal-app a { color: var(--accent); cursor: pointer; }
 .legal-app a:hover { text-decoration: underline; }
 .legal-app .updated { color: var(--text-muted); font-size: var(--t11); margin: 0 0 12px; }
+
+/* Menus as a sheet from the bottom (compact layout): at phone width a dropdown hanging off a
+   small button covers the content at odd places and is hard to hit. The popover's inline
+   position is overridden, so the same menus serve both layouts. */
+@keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
+.as-sheet {
+  position: fixed !important;
+  top: auto !important; left: 8px !important; right: 8px !important; bottom: 8px !important;
+  width: auto !important; min-width: 0 !important; max-width: none !important;
+  max-height: 72vh !important; overflow-y: auto !important;
+  border-radius: 24px !important;
+  box-shadow: 0 -10px 48px rgba(0, 0, 0, 0.55) !important;
+  padding-top: 18px !important;
+}
+.as-sheet::before {
+  content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px;
+  margin-left: -18px; border-radius: 4px; background: var(--fill-strong);
+}
+.as-sheet[data-entering] { animation: sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+.as-sheet[data-exiting] { animation: sheetUp 0.18s ease-in reverse; }
+.as-sheet [role="menuitem"] { min-height: 44px; }
+
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* The compact expanded player's seek bar: slim and light, as on a phone, with the knob always
+   shown so it reads as something to grab. */
+.seek-compact .player-seek .slider__track { height: 5px !important; background: rgba(255, 255, 255, 0.18) !important; }
+.seek-compact .player-seek .slider__fill { background: var(--text-primary) !important; }
+.seek-compact .slider__fill::after { opacity: 1 !important; }

@@ -8,6 +8,7 @@ import { CaretDown, Minus, Plus, UploadSimple, PencilSimple } from "../icons.jsx
 import { readLyricsCache, writeLyricsCache, dropLyricsCache } from "./cache.js";
 import { fetchLyrics } from "./fetch.js";
 import { paintLineWords } from "./paint.js";
+import { useWidth } from "../ui/use-width.js";
 import { parseLrc, parseTtml, parseDurationToSeconds } from "./parse.js";
 import { DEFAULT_LYRICS_PROVIDERS } from "./providers.js";
 import { LyricsBrowserModal } from "../modals/lyrics-browser-modal.jsx";
@@ -33,7 +34,7 @@ function nextVocalAfter(lyr, t) {
   return Infinity;
 }
 
-export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true }) {
+export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, providers = DEFAULT_LYRICS_PROVIDERS, refetchKey = 0, onAddToast, language = "de", forcedProvider = null, onSourceChange, onProviderFailed, onCustomLyricsStatusChange, importLyricsRef, removeCustomLyricsRef, openLyricsBrowserRef, fullscreen = false, playerBarVisible = false, onInstrumentalChange, active = true, fadeEdges = false }) {
   // Display preferences come from context (src/preferences.jsx) instead of props — none of
   // them are per-instance, they were just settings threaded down from App(). Rendered outside
   // the provider these fall back to LYRICS_PREFS_DEFAULTS, which is exactly what
@@ -46,6 +47,12 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   // In fullscreen the player bar overlays the bottom of the lyrics view; lift the
   // bottom-anchored chips above it while it's visible so they aren't covered.
   const chipBottomLift = (fullscreen && playerBarVisible) ? 104 : 0;
+  // The view's own width: the fixed 80px side insets and the full font size were made for a
+  // wide window, and at phone width they left a column of four words. Narrower views get
+  // smaller insets and, below 480px, a smaller font.
+  const [ovlRef, ovlW] = useWidth();
+  const sidePad = ovlW < 480 ? 20 : ovlW < 800 ? 40 : 80;
+  const fs = ovlW < 480 ? 0.8 : 1;
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState("");
@@ -811,10 +818,16 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   }, []);
 
   return (
-    <div
+    <div ref={ovlRef}
       onMouseMove={wakeScrollbar} onWheel={wakeScrollbar} onMouseLeave={sleepScrollbar}
       style={{
       position: "absolute", inset: 0, zIndex: 50,
+      // Compact player: the lines fade out at the top (under the Cover/Lyrics switch) and at
+      // the bottom instead of running under them.
+      ...(fadeEdges ? {
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 84px, #000 calc(100% - 40px), transparent 100%)",
+        maskImage: "linear-gradient(to bottom, transparent 0, #000 84px, #000 calc(100% - 40px), transparent 100%)",
+      } : {}),
       display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
 
@@ -952,10 +965,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             // Braccato measures and writes the room it needs above and below the lines itself.
             // In fullscreen the player bar covers the bottom; scroll-padding tells Braccato which
             // part of the view is really visible, so the active line sits in that part.
-            overflowY: "auto", padding: "0 80px", scrollPaddingBottom: chipBottomLift,
+            overflowY: "auto", padding: `0 ${sidePad}px`, scrollPaddingBottom: chipBottomLift,
           } : lyrics ? {
             // With lyrics: scrollable, 40vh top/bottom padding so the active line can sit centred.
-            overflowY: "auto", padding: "40vh 80px 40vh",
+            overflowY: "auto", padding: `40vh ${sidePad}px 40vh`,
             // Fluid: soft top/bottom edge-fade so lines dissolve instead of hard-clipping.
             ...(fluidLyrics ? {
               maskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
@@ -964,7 +977,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
           } : {
             // Loading / no-lyrics: centre the message, no giant padding and no needless scroll.
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            overflow: "hidden", padding: "0 80px",
+            overflow: "hidden", padding: `0 ${sidePad}px`,
           }),
         }}>
         {loading && <div style={{ textAlign: "center", color: "var(--text-muted)" }}>{t("lyricsLoading")}</div>}
@@ -1019,9 +1032,9 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             translations={showTranslation ? translations : null}
             romaji={showRomaji ? romajiLines : null}
             translationLang={translationLang}
-            fontSize={fontSize}
-            translationFontSize={translationFontSize}
-            romajiFontSize={romajiFontSize}
+            fontSize={Math.round(fontSize * fs)}
+            translationFontSize={translationFontSize && Math.round(translationFontSize * fs)}
+            romajiFontSize={romajiFontSize && Math.round(romajiFontSize * fs)}
             letterWave={braccatoLetterWave}
             active={active}
             clock={braccatoClock}
@@ -1084,7 +1097,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
               onMouseEnter={seekable ? e => { e.currentTarget.style.opacity = Math.min(1, opacity + 0.25); } : undefined}
               onMouseLeave={seekable ? e => { e.currentTarget.style.opacity = opacity; } : undefined}
               style={{
-                fontSize: fontSize,
+                fontSize: Math.round(fontSize * fs),
                 fontWeight: 700,
                 lineHeight: 1.5,
                 marginBottom: 24,

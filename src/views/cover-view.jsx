@@ -9,7 +9,7 @@ import { drawSpectrum } from "../visualizer/draw.js";
 // config: the spacing, the title and the artist line. Without it the miniature drew its cover
 // and bars at a third of their size around a full-size title, which is the one part of the
 // preview that then did not match what it is previewing.
-export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, scale = 1 }) {
+export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, scale = 1, fill = false }) {
   // Font sizes come from tokens, so they are scaled in CSS rather than in JS. Left untouched
   // at 1 so the full-size view renders the exact same declaration it always did.
   const scaled = (v) => (scale === 1 ? v : `calc(${v} * ${scale})`);
@@ -31,6 +31,10 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
   // which is a miniature on purpose.
   const rootRef = useRef(null);
   const [roomForInfo, setRoomForInfo] = useState(true);
+  // The view's width: in narrow windows the cover shrinks with it, so the spectrum around it
+  // keeps room on both sides instead of disappearing behind a cover as wide as the view.
+  const [viewW, setViewW] = useState(0);
+  const [viewH, setViewH] = useState(0);
   useEffect(() => {
     const el = rootRef.current;
     if (!el || scale !== 1 || typeof ResizeObserver === "undefined") return;
@@ -39,6 +43,8 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
     const ro = new ResizeObserver(([entry]) => {
       const h = entry.contentRect.height;
       setRoomForInfo(prev => (prev ? h >= HIDE_BELOW : h > SHOW_ABOVE));
+      setViewW(entry.contentRect.width);
+      setViewH(h);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -168,6 +174,14 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
     return () => { cancelAnimationFrame(raf); releaseLevels(); if (coverRef.current) coverRef.current.style.transform = ""; };
   }, [ambientVisualizer, active]);
 
+  // fill (the compact layout, no spectrum): as large as a phone player's, 84% of the width and
+  // at most 72% of the height. Otherwise with the spectrum at most 56% of the width, so it keeps
+  // room around the cover (only below ~465px does that bite on the default 260).
+  const shownCover = scale !== 1 || !viewW ? coverSize
+    : fill ? Math.round(Math.min(viewW * 0.84, (viewH || viewW) * 0.72))
+    : ambientVisualizer ? Math.min(coverSize, Math.round(viewW * 0.56))
+    : coverSize;
+
   return (
     <div ref={rootRef} style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
 
@@ -207,9 +221,9 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         transition: "margin-bottom 0.3s ease" }}>
         {/* Album cover */}
         <div ref={coverRef} style={{
-          width: coverSize, height: coverSize, overflow: "hidden",
+          width: shownCover, height: shownCover, overflow: "hidden",
           borderRadius: vizConfig?.coverShape === "circle" ? "50%" : scaled(compact ? "var(--r-xl)" : "var(--r-2xl)"),
-          boxShadow: "var(--elevation-5)",
+          boxShadow: fill ? "none" : "var(--elevation-5)", // compact: flat, as on a phone
           transform: isPlaying ? "scale(1.03)" : "scale(0.97)",
           transition: ambientVisualizer ? "border-radius 0.3s ease" : "transform 0.6s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s ease",
         }}>

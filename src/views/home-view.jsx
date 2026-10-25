@@ -46,6 +46,18 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   const [moodShowAll, setMoodShowAll] = useState(false);
   const [podcastLoading, setPodcastLoading] = useState(null); // playlistId being fetched
   const [speedDialPage, setSpeedDialPage] = useState(0);
+  // The page's own width: below 760px (small windows, the compact layout) the speed dial goes
+  // under the carousels and the side insets shrink. A callback ref, so it measures on mount.
+  const [homeW, setHomeW] = useState(1200);
+  const homeRo = useRef(null);
+  const homeRef = useCallback((el) => {
+    homeRo.current?.disconnect();
+    if (!el) return;
+    homeRo.current = new ResizeObserver(() => setHomeW(el.clientWidth));
+    homeRo.current.observe(el);
+  }, []);
+  const narrow = homeW < 760;
+  const px = narrow ? 16 : 28;
   const sdTrackRef = useRef(null);   // the speed dial's horizontal track of pages
   const sdDotsRef = useRef(null);    // its page dots, moved by hand while the track slides
   const t = useLang();
@@ -339,7 +351,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   })();
 
   return (
-    <div style={{ padding: "0 0 40px 0" }}>
+    <div ref={homeRef} style={{ padding: "0 0 40px 0" }}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.9}}
         @keyframes homeHeaderIcon{from{opacity:0;transform:translateY(-22px) scale(0.8)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -368,7 +380,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
       `}</style>
 
       {/* ── Header (centered hero) ── */}
-      <div style={{ position: "relative", padding: "120px 28px 72px", overflow: "hidden", marginBottom: 20 }}>
+      <div style={{ position: "relative", padding: narrow ? "48px 16px 36px" : "120px 28px 72px", overflow: "hidden", marginBottom: narrow ? 8 : 20 }}>
         <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 18 }}>
           <GreetingIcon size={64} weight="duotone" style={{ color: "var(--accent)", flexShrink: 0, animation: "homeHeaderIcon 0.6s cubic-bezier(0.22,1,0.36,1) both" }} />
           <h1 style={{ fontSize: "var(--t26, 28px)", fontWeight: 700, margin: 0, lineHeight: 1.25, animation: "homeHeaderText 0.55s cubic-bezier(0.22,1,0.36,1) 0.12s both" }}>
@@ -416,7 +428,8 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         };
 
         return (
-          <div style={{ display: "grid", gridTemplateColumns: hasLeft && hasSpeedDial ? "1fr minmax(0, 460px)" : hasSpeedDial ? "minmax(0, 460px)" : "1fr", gap: 16, paddingLeft: 28, paddingRight: 28, marginBottom: 32, alignItems: "start" }}>
+          // Narrow: one column, the speed dial below the carousels instead of beside them.
+          <div style={{ display: "grid", gridTemplateColumns: narrow ? "minmax(0, 1fr)" : hasLeft && hasSpeedDial ? "1fr minmax(0, 460px)" : hasSpeedDial ? "minmax(0, 460px)" : "1fr", gap: narrow ? 24 : 16, paddingLeft: px, paddingRight: px, marginBottom: 32, alignItems: "start" }}>
 
             {/* Left column — up to 2 plain carousels stacked (Listen again, Daily Discover, …) */}
             {hasLeft && (
@@ -515,10 +528,10 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
       {/* ── Regular sections (carousels) ── */}
       {regularSections.map((section, si) => (
         <div key={si} style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, paddingLeft: 28, paddingRight: 28 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, paddingLeft: px, paddingRight: px }}>
             <span style={{ fontSize: "var(--t16)", fontWeight: 700 }}>{section.title}</span>
           </div>
-          <Carousel insetX={28} style={{ gap: 16, paddingBottom: 8 }}>
+          <Carousel insetX={px} style={{ gap: 16, paddingBottom: 8 }}>
             {section.items.map((item, ii) => <MediaCard key={ii} item={item} section={section} />)}
           </Carousel>
         </div>
@@ -530,7 +543,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         const MOOD_FIRST = 8;   // two rows on a usual window; the rest behind "Show all"
         const shown = moodShowAll ? chips : chips.slice(0, MOOD_FIRST);
         return (
-        <div style={{ paddingLeft: 28, paddingRight: 28, marginTop: 8, marginBottom: 32 }}>
+        <div style={{ paddingLeft: px, paddingRight: px, marginTop: 8, marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
             <span style={{ fontSize: "var(--t16)", fontWeight: 700 }}>{t("moodsGenres")}</span>
             <ToggleButtonGroupRoot aria-label={t("moodsGenres")} selectionMode="single" disallowEmptySelection size="sm"

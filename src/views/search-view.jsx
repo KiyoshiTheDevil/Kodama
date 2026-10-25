@@ -48,7 +48,7 @@ export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, o
   // Backend tags every item with `type`. Filter explicit songs out up front.
   const visible = results.filter(r => r.type !== "song" || !hideExplicit || !r.isExplicit);
   const byType = (ty) => visible.filter(r => r.type === ty);
-  const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 16, padding: "0 16px" };
+  const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(170px, calc(50% - 8px)), 1fr))" /* at least two per row when narrow */, gap: 16, padding: "0 16px" };
 
   const renderSong = (song) => (
     <TrackRow

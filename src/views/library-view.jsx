@@ -6,8 +6,10 @@ import { SEGMENTED_BUTTON, SEGMENTED_GROUP, SEGMENTED_STYLE, segmentedCorners } 
 import { MagnifyingGlass, Microphone, Playlist, Sliders, VinylRecord, WarningCircle } from "../icons.jsx";
 import { GridCard } from "../ui/rows.jsx";
 import { shuffled } from "../shuffle.js";
+import { useWidth } from "../ui/use-width.js";
+import { LibraryShortcuts } from "./library-shortcuts.jsx";
 
-export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, sessionExpired, onReauth }) {
+export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, sessionExpired, onReauth, onOpenLiked, onOpenView }) {
   const [tab, setTab] = useState("playlists");
   const [playlists, setPlaylists] = useState([]);
   const [albums, setAlbums] = useState([]);
@@ -20,6 +22,10 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
   const t = useLang();
+  // Narrow (the compact layout): the tabs go under the title instead of centred beside it,
+  // where they ran over it.
+  const [rootRef, rootW] = useWidth();
+  const narrow = rootW < 560;
 
   useEffect(() => { if (searchOpen) searchRef.current?.focus(); }, [searchOpen]);
   useEffect(() => { setSearchQuery(""); setSearchOpen(false); }, [tab]);
@@ -115,11 +121,20 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
   ];
 
   return (
-    <div style={{ padding: "24px 24px 0" }}>
-      {/* Header row: title left, tabs centered */}
-      <div style={{ position: "relative", display: "flex", alignItems: "center", marginBottom: 12, height: 36 }}>
+    <div ref={rootRef} style={{ padding: narrow ? "16px 16px 0" : "24px 24px 0" }}>
+      {/* Header row: title left, tabs centered (narrow: tabs below the title) */}
+      <div style={narrow
+        ? { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10, marginBottom: 12 }
+        : { position: "relative", display: "flex", alignItems: "center", marginBottom: 12, height: 36 }}>
         <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("library")}</div>
-        <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+        {/* Narrow (the compact layout has no sidebar): its destinations, pins and recents here. */}
+        {narrow && (
+          <div style={{ width: "100%" }}>
+            <LibraryShortcuts onOpenLiked={onOpenLiked} onOpenView={onOpenView} onOpenPlaylist={onOpenPlaylist}
+              onOpenAlbum={onOpenAlbum} onOpenArtist={onOpenArtist} onContextMenu={onContextMenu} />
+          </div>
+        )}
+        <div style={narrow ? {} : { position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
           <SharedElementTransition>
             <TabsRoot selectedKey={tab} onSelectionChange={key => { setTab(key); setSortOrder("default"); }}>
               <TabListContainer>
@@ -225,7 +240,7 @@ export function LibraryView({ onPlay, currentTrack, isPlaying, onOpenPlaylist, o
       {!loading && !error && items.length > 0 && (
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(min(170px, calc(50% - 8px)), 1fr))" /* at least two per row when narrow */,
           gap: 16,
         }}>
           {items.map((item, i) => {

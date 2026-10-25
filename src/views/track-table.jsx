@@ -5,6 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@heroui/react";
 import { thumb, hiResThumb, useLang, useAnimations, useTrackNumbers } from "../context.jsx";
 import { useAccentColor } from "../ui/use-accent-color.js";
+import { useWidth } from "../ui/use-width.js";
 import { Tooltip } from "../ui/tooltip.jsx";
 import { ProgressToast } from "../ui/progress-toast.jsx";
 import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
@@ -155,17 +156,20 @@ function RowIconButton({ title, onClick, className = "", children }) {
   );
 }
 
-export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect, isLiked = false, onToggleLike, menuOpen = false }) {
+// narrow: the phone-width row (compact layout): cover, title with the artist under it, and the
+// heart and menu always shown (there is no hovering on a touch screen). Album, download,
+// duration and selection columns are left out.
+export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpenAlbum, isAlbum, onContextMenu, isCached, isDownloading, onDownload, isPremiumOnly, selected = false, onToggleSelect, isLiked = false, onToggleLike, menuOpen = false, narrow = false }) {
   const anim = useAnimations();
   const t = useLang();
   const showNum = useTrackNumbers();
 
-  const gridCols = trackGridCols(isAlbum, !!onToggleSelect);
+  const gridCols = narrow ? "minmax(0,1fr) auto" : trackGridCols(isAlbum, !!onToggleSelect);
   // The row actions are invisible until the row is hovered, yet they were still built for
   // every row that scrolled past. Now they only exist when they can actually be seen —
   // hovered, menu open, or a liked heart, which is a state worth reading at a glance.
   const [hovered, setHovered] = useState(false);
-  const showActions = hovered || menuOpen;
+  const showActions = hovered || menuOpen || narrow;
 
   const row = (
     <div
@@ -203,6 +207,11 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
             <span className="truncate min-w-0">{track.title}</span>
             {track.isExplicit && <ExplicitBadge />}
           </div>
+          {narrow && (
+            <div className="text-[length:var(--t12)] text-secondary truncate mt-0.5">
+              {typeof track.artists === "string" ? track.artists : (Array.isArray(track.artists) ? track.artists.map(a => a.name || a).join(", ") : "")}
+            </div>
+          )}
         </div>
       </div>
       {/* Row actions, sitting right after the title. The heart stays visible only when the
@@ -234,6 +243,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           </RowIconButton>
         )}
       </div>
+      {!narrow && <>
       {/* Artist */}
       <div className="text-[length:var(--t12)] text-secondary truncate">
         <ArtistLinks track={track} onOpenArtist={onOpenArtist} />
@@ -276,6 +286,7 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           <SelectBox state={selected ? "all" : "none"} />
         </div>
       )}
+      </>}
     </div>
   );
 
@@ -288,6 +299,9 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
 export function PlaylistLayout({ title, description, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel, contextMenuTrackId }) {
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
+  // Narrow (compact layout, small windows): small header actions, no column heads, two-line rows.
+  const [layRef, layW] = useWidth();
+  const narrow = layW < 600;
   const [trackSearch, setTrackSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
   // The header renders its search field twice — once in the poster, once in the collapsed
@@ -731,7 +745,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
+    <div ref={layRef} style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
       <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:.9}}`}</style>
 
       {/* ── Collapsing hero header ──────────────────────────────────────────────
@@ -871,7 +885,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
           </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap", rowGap: 10, maxWidth: "100%" }}>
-            {headerActions(false)}
+            {headerActions(narrow)}
           </div>
       </div>
 
@@ -879,8 +893,8 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
           where it used to push the rows down and pull them back up when it finished. */}
       {loading && !cached && <ProgressToast label={t("fetchingSongs")} percent={progress} />}
 
-      {/* Column headers */}
-      <div style={{
+      {/* Column headers (none in the narrow two-line rows, which have no columns) */}
+      {!narrow && <div style={{
         display: "grid",
         gridTemplateColumns: trackGridCols(isAlbum, !!onToggleSelect),
         gap: 8, padding: "8px 16px", margin: "0 12px",
@@ -909,7 +923,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
             </div>
           );
         })()}
-      </div>
+      </div>}
 
       {/* Track list (virtualized — only on-screen rows are mounted) */}
       <div style={{ padding: "8px 12px 32px" }}>
@@ -945,6 +959,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
                     isLiked={likedIds?.has(tr.videoId)}
                     onToggleLike={onToggleLike}
                     menuOpen={!!contextMenuTrackId && contextMenuTrackId === tr.videoId}
+                    narrow={narrow}
                   />
                 ) : (
                   <SkeletonRow />
