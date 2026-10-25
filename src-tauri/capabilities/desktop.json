@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-capability",
+  "description": "Desktop-only permissions: the updater has no Android build, so its permissions would fail there",
+  "platforms": ["windows", "macOS", "linux"],
+  "windows": ["main", "overlay-editor", "mini-player", "equalizer", "store", "extension"],
+  "permissions": [
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install",
+    "updater:allow-download-and-install"
+  ]
+}

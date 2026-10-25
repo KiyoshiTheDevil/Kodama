@@ -7,8 +7,10 @@ dist/
 # Rust Build-Artefakte
 src-tauri/target/
 
-# Auto-generierte Tauri-Dateien
-src-tauri/gen/
+# Auto-generierte Tauri-Dateien. Das Android-Projekt nicht: es wird von Hand angepasst
+# (Chaquopy, Media-Dienst) und hat eine eigene .gitignore fuer Build-Ordner und lokale Pfade.
+src-tauri/gen/*
+!src-tauri/gen/android/
 
 # Kompilierter Python-Server (wird beim Build erstellt)
 src-tauri/binaries/
