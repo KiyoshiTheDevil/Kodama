@@ -283,8 +283,9 @@ export function BraccatoLyricsView({
 //
 // The shade behind the captions is Kodama's, not the theme's: Braccato reports where the sung lines
 // are (onStageLayout), and the shade shows only while something is on stage, so a bright video
-// stays readable without a dark band sitting there through every instrumental.
-export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, letterWave = true, clock }) {
+// stays readable without a dark band sitting there through every instrumental. shade=false leaves
+// it out, for a host that darkens its whole background instead.
+export function BraccatoStageView({ lines, translations, romaji, translationLang, fontSize = 30, translationFontSize, romajiFontSize, letterWave = true, clock, shade = true }) {
   const mountRef = useRef(null);
   const rendererRef = useRef(null);
   const [core, setCore] = useState(null);
@@ -368,11 +369,11 @@ export function BraccatoStageView({ lines, translations, romaji, translationLang
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      <div style={{
+      {shade && <div style={{
         position: "absolute", left: 0, right: 0, bottom: 0, height: "45%",
         background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)",
         opacity: onStage ? 1 : 0, transition: "opacity 0.4s ease",
-      }} />
+      }} />}
       <div ref={mountRef} className="kodama-braccato-stage"
         style={{ position: "absolute", inset: "0 40px 36px", "--blyrics-font-size": `${fontSize}px`, ...subSizes(translationFontSize, romajiFontSize) }} />
     </div>

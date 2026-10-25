@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Button, ChipRoot, ChipLabel } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, useLang } from "../context.jsx";
@@ -54,6 +55,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   // wide window, and at phone width they left a column of four words. Narrower views get
   // smaller insets and, below 480px, a smaller font.
   const [ovlRef, ovlW] = useWidth();
+  // Compact: the agent tags are drawn into the pane around this view rather than inside it, so the
+  // fade this view masks its foot with leaves them alone and they can sit right above the controls.
+  const [tagHost, setTagHost] = useState(null);
+  const rootRef = useCallback((el) => { ovlRef(el); setTagHost(el?.parentElement || null); }, [ovlRef]);
   const sidePad = ovlW < 480 ? 20 : ovlW < 800 ? 40 : 80;
   const fs = ovlW < 480 ? 0.8 : 1;
   const [lyrics, setLyrics] = useState(null);
@@ -634,6 +639,32 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
 
   const activeAgent = lyrics?.[activeIdx]?.agent;
 
+  // Compact: the agent row scrolls, and the singer of the moment rolls to its middle. Instant
+  // on the first placement (a new song), smooth from then on.
+  const agentRowRef = useRef(null);
+  const agentPlaced = useRef(false);
+  const activeAgentKey = activeAgent?.id || activeAgent?.name || null;
+  const firstAgentKey = lyricsAgents[0] ? (lyricsAgents[0].id || lyricsAgents[0].name) : null;
+  useEffect(() => { agentPlaced.current = false; }, [lyricsAgents]);
+  useEffect(() => {
+    const row = agentRowRef.current;
+    if (!fadeEdges || !row) return;
+    const key = activeAgentKey || (agentPlaced.current ? null : firstAgentKey);
+    const chip = key && [...row.children].find(c => c.dataset.agent === key);
+    if (!chip) return;
+    row.scrollTo({ left: chip.offsetLeft + chip.offsetWidth / 2 - row.clientWidth / 2, behavior: agentPlaced.current ? "smooth" : "auto" });
+    agentPlaced.current = true;
+  }, [activeAgentKey, firstAgentKey, fadeEdges]);
+  // Dragged with the mouse, too: touch and trackpads swipe it natively, a mouse would not.
+  const startAgentDrag = useCallback((e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const row = e.currentTarget, x0 = e.clientX, left0 = row.scrollLeft;
+    const move = (ev) => { row.scrollLeft = left0 - (ev.clientX - x0); };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }, []);
+
   // Centre the active line. Fluid mode drives scrollTop with a critically-damped spring
   // (SmoothDamp) — soft, no overshoot, and velocity-continuous so rapid line changes carry
   // their momentum (organic Apple-Music glide); otherwise the browser's native smooth scroll.
@@ -827,7 +858,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
   }, []);
 
   return (
-    <div ref={ovlRef}
+    <div ref={rootRef}
       onMouseMove={wakeScrollbar} onWheel={wakeScrollbar} onMouseLeave={sleepScrollbar}
       style={{
       position: "absolute", inset: 0, zIndex: 50,
@@ -842,8 +873,11 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     }}>
 
       {/* Fluid: a strong blurred + saturated album cover as the backdrop (Apple-style),
-          replacing the ambient blobs. Darkened so the white lyrics stay high-contrast. */}
-      {fluidLyrics && !ambientBackground && track?.thumbnail && (
+          replacing the ambient blobs. Darkened so the white lyrics stay high-contrast.
+          Compact (fadeEdges): neither this nor the blobs below. This pane ends above the player's
+          controls, while the player's own background runs on under them; a backdrop of its own
+          would end in a visible edge there. */}
+      {fluidLyrics && !ambientBackground && !fadeEdges && track?.thumbnail && (
         <div
           style={{
             position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden",
@@ -860,7 +894,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
       )}
       {/* Ambient colour blobs — wrapped in an isolated layer so their mix-blend-mode
           stays contained and doesn't flatten the backdrop for the chips' backdrop-filter. */}
-      {ambientVisualizer && !fluidLyrics && !ambientBackground && (
+      {ambientVisualizer && !fluidLyrics && !ambientBackground && !fadeEdges && (
         <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", isolation: "isolate" }}>
           <div style={{
             position: "absolute", inset: "-30%", pointerEvents: "none",
@@ -947,18 +981,34 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         />
       )}
 
-      {/* Agent tags — bottom center, only when ≥2 named agents and toggle is on */}
-      {showAgentTags && lyricsAgents.length >= 2 && (
-        <div style={{
-          position: "absolute", bottom: 14 + chipBottomLift, left: "50%", transform: "translateX(-50%)",
-          zIndex: 2, display: "flex", gap: 8, pointerEvents: "none",
+      {/* Agent tags — bottom center, only when ≥2 named agents and toggle is on. Compact
+          (fadeEdges): one row across the pane that can be swiped, which
+          rolls the singer of the moment to the middle, in the pane around this view (see tagHost).
+          The side padding lets the first and last tag reach the middle; the vertical padding
+          keeps the active tag's glow inside the scroller, which clips it otherwise. */}
+      {showAgentTags && lyricsAgents.length >= 2 && (!fadeEdges || tagHost) && ((row) => fadeEdges ? createPortal(row, tagHost) : row)(
+        <div ref={agentRowRef} className={fadeEdges ? "no-scrollbar" : undefined}
+          onWheel={fadeEdges ? (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY; } : undefined}
+          onPointerDown={fadeEdges ? startAgentDrag : undefined}
+          style={{
+          position: "absolute",
+          ...(fadeEdges ? {
+            bottom: -8, left: 0, right: 0, padding: "18px 50%",
+            // The pane may be hidden (a video in front); its children would still take clicks.
+            // No side fade: a mask here (or on any ancestor) leaves the tags' backdrop blur nothing
+            // to blur, and they turn see-through. They run off at the window's edges instead.
+            overflowX: "auto", scrollbarWidth: "none", pointerEvents: active ? "auto" : "none", cursor: "grab",
+          } : { bottom: 14 + chipBottomLift, left: "50%", transform: "translateX(-50%)", pointerEvents: "none" }),
+          // Compact: a sibling of this view (zIndex 50) now, so it has to clear that to sit in
+          // front of the lyrics; below it, the lyrics were drawn over the tags.
+          zIndex: fadeEdges ? 51 : 2, display: "flex", gap: 8,
           transition: "bottom 0.4s ease",
         }}>
           {lyricsAgents.map(agent => {
             const key = agent.id || agent.name;
             const isActive = (activeAgent?.id || activeAgent?.name) === key;
             return (
-              <ChipRoot key={key} size="sm"
+              <ChipRoot key={key} size="sm" data-agent={key}
                 className="border-0! uppercase font-bold whitespace-nowrap px-3.5! py-1.5! transition-all duration-300"
                 style={{
                   background: isActive ? "color-mix(in srgb, var(--accent) 40%, transparent)" : "rgba(255,255,255,0.08)",
@@ -966,6 +1016,7 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
                   backdropFilter: "blur(18px)",
                   WebkitBackdropFilter: "blur(18px)",
                   boxShadow: isActive ? "0 2px 16px color-mix(in srgb, var(--accent) 32%, transparent)" : "none",
+                  flexShrink: 0,
                 }}>
                 <ChipLabel style={{ fontSize: 10, letterSpacing: "0.07em" }}>{agent.name}</ChipLabel>
               </ChipRoot>

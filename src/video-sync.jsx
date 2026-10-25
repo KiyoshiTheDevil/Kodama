@@ -21,6 +21,7 @@ import { useLyricOffset } from "./lyrics/offset.js";
 import { paintLineWords } from "./lyrics/paint.js";
 import { repeatsLine } from "./lyrics/same-text.js";
 import { BraccatoStageView } from "./lyrics/braccato-view.jsx";
+import { useWidth } from "./ui/use-width.js";
 
 // Real-world calibration (2026-07-18): a confirmed correct match ("Nachos") scored 10.5, a
 // second plausible one scored 5.2 — but a confidence of 3.38 turned out to be a false positive
@@ -431,7 +432,7 @@ function KaraokeLine({ line, timeRef, fluid, syllableZoom, mainFontSize, bgFontS
 // Bottom-third caption strip — an alternative to the split-with-lyrics view for users who'd
 // rather keep the video full-size. fluid=true (mirrors the app's own "fluid lyrics" setting)
 // swaps the plain crossfade for a softer blur/glow entrance on each line change.
-function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef, braccato = false, braccatoLetterWave = true }) {
+function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = false, translationLang = "DE", showRomaji = false, syllableZoom = false, onRomanizableChange, onSourceChange, offsetRef, applyRef, braccato = false, braccatoLetterWave = true, narrow = false, shade = true }) {
   const { mainLine, trailingLine, translation, romaji, timeRef, snapRef, lines, source, submitterName, applyLyrics, translationsAll, romajiAll } = useCaptionLine(track, audioRef, true, showTranslation, translationLang, showRomaji, offsetRef);
   // Experiment: Braccato's stage draws the captions. The clock is the one this hook already keeps
   // (offset applied), so both caption paths answer to the same time.
@@ -472,11 +473,12 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
         translations={showTranslation ? translationsAll : null}
         romaji={showRomaji ? romajiAll : null}
         translationLang={translationLang}
-        fontSize={30}
-        translationFontSize={19}
-        romajiFontSize={18}
+        fontSize={narrow ? 20 : 30}
+        translationFontSize={narrow ? 14 : 19}
+        romajiFontSize={narrow ? 13 : 18}
         letterWave={braccatoLetterWave}
-        clock={braccatoClock} />
+        clock={braccatoClock}
+        shade={shade} />
     );
   }
 
@@ -484,8 +486,8 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 
   return (
     <div style={{
-      position: "absolute", left: 0, right: 0, bottom: 0, padding: "64px 40px 40px",
-      background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)",
+      position: "absolute", left: 0, right: 0, bottom: 0, padding: narrow ? "40px 16px 20px" : "64px 40px 40px",
+      background: shade ? "linear-gradient(to top, rgba(0,0,0,0.72), transparent)" : "none",
       display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none",
       opacity: mainLine ? 1 : 0, transition: "opacity 0.4s ease",
     }}>
@@ -501,7 +503,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
         >
           {/* No zoom pulse for the trailing line — it's just finishing its wipe quietly, not
               the line grabbing attention right now (same convention as the main lyrics view). */}
-          <KaraokeLine line={trailingLine} timeRef={timeRef} fluid={fluid} syllableZoom={false} mainFontSize={22} bgFontSize={15} />
+          <KaraokeLine line={trailingLine} timeRef={timeRef} fluid={fluid} syllableZoom={false} mainFontSize={narrow ? 15 : 22} bgFontSize={narrow ? 11 : 15} />
         </div>
       )}
       <div
@@ -513,13 +515,13 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
           animation: fluid ? "videoCaptionFluidIn 0.55s cubic-bezier(0.22,1,0.36,1)" : "videoCaptionFadeIn 0.2s ease",
         }}
       >
-        <KaraokeLine line={shownMain} timeRef={timeRef} fluid={fluid} syllableZoom={syllableZoom} mainFontSize={30} bgFontSize={20} />
+        <KaraokeLine line={shownMain} timeRef={timeRef} fluid={fluid} syllableZoom={syllableZoom} mainFontSize={narrow ? 20 : 30} bgFontSize={narrow ? 14 : 20} />
       </div>
       {shownRomaji && (
         <div
           key={`${animKey}-ro`}
           style={{
-            color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 18, textAlign: "center", lineHeight: 1.35,
+            color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: narrow ? 13 : 18, textAlign: "center", lineHeight: 1.35,
             maxWidth: 900, overflowWrap: "anywhere",
             textShadow: "0 2px 10px rgba(0,0,0,0.6)",
             animation: fluid ? "videoCaptionFluidIn 0.55s cubic-bezier(0.22,1,0.36,1) 0.04s backwards" : "videoCaptionFadeIn 0.2s ease",
@@ -534,7 +536,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
           // punctuation and embedded Latin words land on the wrong side of the line.
           dir={isRtlLang(translationLang) ? "rtl" : "ltr"}
           style={{
-            color: "rgba(255,255,255,0.72)", fontWeight: 500, fontSize: 19, textAlign: "center", lineHeight: 1.35,
+            color: "rgba(255,255,255,0.72)", fontWeight: 500, fontSize: narrow ? 14 : 19, textAlign: "center", lineHeight: 1.35,
             maxWidth: 900, overflowWrap: "anywhere",
             textShadow: "0 2px 10px rgba(0,0,0,0.6)",
             animation: fluid ? "videoCaptionFluidIn 0.55s cubic-bezier(0.22,1,0.36,1) 0.05s backwards" : "videoCaptionFadeIn 0.2s ease",
@@ -553,7 +555,7 @@ function CaptionOverlay({ track, audioRef, fluid = false, showTranslation = fals
 // of the player chrome and would just clutter the picture. Only ever mounted once a synced video
 // is actually ready (gated by the audio/video switch in the player bar), so it doesn't need its
 // own loading/unavailable state.
-export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, braccatoCaptions = false, braccatoLetterWave = true, language = "en" }) {
+export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = false, compact = false, track, showCaptions = false, fluidCaptions = false, captionsTranslation = false, captionsTranslationLang = "DE", captionsRomaji = false, captionsSyllableZoom = false, braccatoCaptions = false, braccatoLetterWave = true, language = "en" }) {
   // The caption toggles live here too: this view renders lyrics through its own path, so
   // without them the settings the lyrics view offers would be unreachable while a video
   // is on screen. Revealed on cursor activity — a permanent bar over a video is intrusive.
@@ -572,9 +574,15 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
   const [capSource, setCapSource] = useState({ name: "", submitter: null });
   const [browserOpen, setBrowserOpen] = useState(false);
   const applyRef = useRef(null);
+  // Captions sized for the pane, not the window: a split or a phone-width window leaves them far
+  // less room than the 30px line was made for.
+  const [paneRef, paneW] = useWidth();
+  const narrow = paneW > 0 && paneW < 560;
   return (
-    <div onMouseMove={wakeTools} onMouseLeave={() => setToolsVisible(false)}
-      style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#000", borderRadius: fullscreen ? 0 : "var(--r-2xl)" }}>
+    // Compact: no black card. The frame keeps its own shape and the player's background shows
+    // around it, as in a phone player.
+    <div ref={paneRef} onMouseMove={wakeTools} onMouseLeave={() => setToolsVisible(false)}
+      style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: compact ? "transparent" : "#000", borderRadius: fullscreen || compact ? 0 : "var(--r-2xl)" }}>
       {videoSync.ready && (
         // offsetSeconds is 0 here, not videoSync.offsetSeconds — App.jsx's audio-switching effect
         // already applies that offset ONCE, as the seek target when swapping the Rust audio source
@@ -602,7 +610,7 @@ export function VideoSyncView({ videoSync, audioRef, isPlaying, fullscreen = fal
           </Button>
         </div>
       )}
-      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef} braccato={braccatoCaptions} braccatoLetterWave={braccatoLetterWave}
+      {showCaptions && <CaptionOverlay track={track} audioRef={audioRef} fluid={fluidCaptions} showTranslation={captionsTranslation} translationLang={captionsTranslationLang} showRomaji={captionsRomaji} syllableZoom={captionsSyllableZoom} onRomanizableChange={setRomanizable} offsetRef={offsetRef} applyRef={applyRef} braccato={braccatoCaptions} braccatoLetterWave={braccatoLetterWave} narrow={narrow} shade={!compact}
         onSourceChange={(name, submitter) => setCapSource({ name, submitter })} />}
       {showCaptions && (
         <div style={{

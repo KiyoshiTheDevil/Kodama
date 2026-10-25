@@ -6865,7 +6865,8 @@ export default function App() {
             // Outside fullscreen the bar runs the full width of the window, under the sidebar
             // as well, which ends above it. Fixed rather than moved in the tree: the sidebar and
             // the content column keep their place and leave its measured height free below.
-            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100 }),
+            // Compact: above the open player, whose background runs on behind the controls.
+            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: compact ? 101 : 100 }),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             opacity: settingsOpen ? 0 : 1,
             transform: (fullscreen && !playerVisible) ? "translateY(120%)" : "translateY(0)",
@@ -6957,7 +6958,9 @@ export default function App() {
           // sidebar on the other. Same for the queue panel, which is docked at the inline end.
           insetInlineStart: fullscreen ? 0 : (sideW + (compact ? 0 : 4)),
           insetInlineEnd: fullscreen || compact ? 0 : (queueOpen ? queueWidth + 16 : 8),
-          bottom: fullscreen ? 0 : playerBarH + (compact ? 0 : 6),
+          // Compact: down to the window's edge, so the controls sit on the same background as the
+          // view above them instead of the app's own; the panes stop above the controls (paneBottom).
+          bottom: fullscreen || compact ? 0 : playerBarH + 6,
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
           borderRadius: fullscreen || compact ? 0 : "var(--r-xl)",
@@ -7005,17 +7008,23 @@ export default function App() {
               </div>
             );
           })()}
-          {/* Shared static background — stays fixed during crossfade */}
-          {currentTrack && !ambientBackground && (<>
+          {/* Shared static background — stays fixed during crossfade. In the compact layout the
+              open player runs on behind its controls, so this runs on under them too. With the
+              ambient background on, the app-wide backdrop does that job, except behind a video,
+              where it would leave the frame on bare black. */}
+          {currentTrack && (!ambientBackground || (compact && showVideoView)) && (<>
             <div style={{ position: "absolute", inset: 0, background: "var(--bg-base)", pointerEvents: "none" }} />
             <div style={{
               position: "absolute", inset: 0, pointerEvents: "none",
-              backgroundImage: currentTrack.thumbnail ? `url(${hiResThumb(currentTrack.thumbnail, 800)})` : "none",
+              backgroundImage: currentTrack.thumbnail ? `url(${thumb(hiResThumb(currentTrack.thumbnail, 800))})` : "none",
               backgroundSize: "cover", backgroundPosition: "center",
               filter: "blur(24px) brightness(0.5)",
               transform: "scale(1.08)",
             }} />
-            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+            {/* Compact video with captions: the captions sit on this background rather than on the
+                frame, so it darkens as a whole instead of a shade band behind the text. */}
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", transition: "background 0.4s ease",
+              background: `rgba(0,0,0,${compact && showVideoView && showLyrics && videoLyricsStyle === "captions" ? 0.72 : 0.55})` }} />
           </>)}
           {currentTrack && (() => {
             // Split: cover/visualizer OR video left, lyrics right. Both sides of whichever split
@@ -7028,6 +7037,11 @@ export default function App() {
             const videoSplitActive = videoLyricsOn && videoLyricsStyle === "split";
             const videoCaptionsActive = videoLyricsOn && videoLyricsStyle === "captions";
             const anySplitActive = coverSplitActive || videoSplitActive;
+            // Compact: side by side leaves each half too narrow, so the video sits at the top in
+            // the full width, below the head (64px), and the lyrics run underneath it.
+            const stackVideo = compact && videoSplitActive;
+            const paneBottom = compact && !fullscreen ? playerBarH : 0;
+            const videoH = Math.round(appW * 9 / 16);
             const coverPct = `${(splitRatio * 100).toFixed(2)}%`;
             const lyricsPct = `${((1 - splitRatio) * 100).toFixed(2)}%`;
             // No width animation while dragging (snappy), otherwise the smooth mode transition.
@@ -7042,8 +7056,8 @@ export default function App() {
             const coverOnScreen = overlayOpen && !showVideoView && (coverSplitActive || !showLyrics);
             return (<>
               <div ref={splitLyricsRef} style={{
-                position: "absolute", top: 0, bottom: 0, right: 0,
-                width: anySplitActive ? lyricsPct : "100%",
+                position: "absolute", top: stackVideo ? videoH : 0, bottom: paneBottom, right: 0,
+                width: anySplitActive && !stackVideo ? lyricsPct : "100%",
                 opacity: showVideoView ? (videoSplitActive ? 1 : 0) : (coverSplitActive ? 1 : (showLyrics ? 1 : 0)),
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
@@ -7054,7 +7068,7 @@ export default function App() {
                 // insetInlineStart so the pane starts at the same edge the split ratio is
                 // measured from. No divider line: the two panes share one ambient background and
                 // the line only cut through it. The drag handle below still shows its bar on hover.
-                position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
+                position: "absolute", top: 0, bottom: paneBottom, insetInlineStart: 0,
                 width: coverSplitActive ? coverPct : "100%",
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
@@ -7065,16 +7079,17 @@ export default function App() {
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
               <div ref={splitVideoRef} style={{
-                position: "absolute", top: 0, bottom: 0, insetInlineStart: 0,
-                width: videoSplitActive ? coverPct : "100%",
+                position: "absolute", insetInlineStart: 0,
+                ...(compact ? { top: 64, ...(stackVideo ? { height: videoH } : { bottom: paneBottom }) } : { top: 0, bottom: 0 }),
+                width: videoSplitActive && !stackVideo ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} compact={compact} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} />}
               </div>
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
-              {anySplitActive && (
+              {anySplitActive && !stackVideo && (
                 <div ref={splitHandleRef}
                   onMouseDown={startSplitResize}
                   style={{ position: "absolute", top: 0, bottom: 0, insetInlineStart: coverPct, width: 12, marginInlineStart: -6, cursor: "ew-resize", zIndex: 6 }}

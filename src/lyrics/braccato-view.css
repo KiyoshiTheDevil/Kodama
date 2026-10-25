@@ -44,3 +44,19 @@ braccato-lyrics .blyrics-container {
      which read as too high in Kodama's pane; Kodama's own view centres at 0.5. */
   --blyrics-target-scroll-pos-ratio: 0.45;
 }
+
+/* Braccato keeps a word group on one line (nowrap), which is right for words separated by spaces,
+   but Japanese and Chinese lines have none: the whole line is one group and runs past the right
+   edge in a narrow pane. The group is an inline-block no wider than the line, so with normal
+   wrapping it still moves to the next line as a whole first and only breaks inside when it is
+   longer than the whole line. */
+braccato-lyrics .blyrics-word-group,
+.kodama-braccato-stage .blyrics-word-group {
+  white-space: normal;
+}
+
+/* Compact: the pane is short and its foot holds the singer tags and the fade, so the active line
+   sits higher up. */
+html[data-compact] braccato-lyrics .blyrics-container {
+  --blyrics-target-scroll-pos-ratio: 0.33;
+}
