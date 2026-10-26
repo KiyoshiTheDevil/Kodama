@@ -1436,5 +1436,9 @@
   "setSum_debug": "Diagnostics",
   "appIconDescAndroid": "The icon on your home screen and in the app drawer.",
   "appIconPending": "Changes once you leave Kodama with nothing playing: switching closes the app.",
-  "appIconApplyNow": "Apply now"
+  "appIconApplyNow": "Apply now",
+  "discography": "Discography",
+  "discographyCount": "%c items",
+  "sortNewestFirst": "Newest first",
+  "sortOldestFirst": "Oldest first"
 }

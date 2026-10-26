@@ -1436,5 +1436,9 @@
   "setSum_debug": "Diagnose",
   "appIconDescAndroid": "Das Icon auf dem Startbildschirm und in der App-Übersicht.",
   "appIconPending": "Wird übernommen, sobald du Kodama verlässt und nichts läuft: Der Wechsel schließt die App.",
-  "appIconApplyNow": "Jetzt übernehmen"
+  "appIconApplyNow": "Jetzt übernehmen",
+  "discography": "Diskografie",
+  "discographyCount": "%c Einträge",
+  "sortNewestFirst": "Neueste zuerst",
+  "sortOldestFirst": "Älteste zuerst"
 }

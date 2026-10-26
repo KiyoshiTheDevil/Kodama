@@ -69,7 +69,7 @@ import { CompactTabs } from "./ui/compact-tabs.jsx";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
-import { ArtistView } from "./views/artist-view.jsx";
+import { ArtistView, DiscographyView } from "./views/artist-view.jsx";
 import { CoverView, rememberMiniCover } from "./views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "./visualizer/defaults.js";
 import { SelActionBtn } from "./views/track-table.jsx";
@@ -6511,6 +6511,15 @@ export default function App() {
       addRecentPlaylist({ browseId: item.browseId, title: item.title, thumbnail: item.thumbnail || "", type: "artist" });
     }
   }, [view]);
+  // An artist's albums, singles, videos or playlists, all of them (DiscographyView). A step in
+  // the history like any other, so Back returns to the artist; it travels in artistView, which
+  // the history keeps.
+  const openDiscography = useCallback((d) => {
+    setNavHistory(h => [...h, navStateRef.current]);
+    setNavForward([]);
+    setArtistView({ browseId: d.browseId, discography: d });
+    setView("discography");
+  }, []);
 
   // ── Navigation history ──────────────────────────────────────────────────────
   // Snapshot the current view state onto the history stack before navigating away.
@@ -6518,7 +6527,7 @@ export default function App() {
     setNavHistory(h => [...h, {
       view: currentView,
       collection: currentView === "collection" ? currentCollection : undefined,
-      artistView: currentView === "artist" ? currentArtistView : undefined,
+      artistView: currentView === "artist" || currentView === "discography" ? currentArtistView : undefined,
     }]);
   }, []);
 
@@ -7037,7 +7046,10 @@ export default function App() {
               onOpenLiked={() => openPlaylist({ playlistId: "LM", title: translate(language, "likedSongs"), forcedTitle: translate(language, "likedSongs"), thumbnail: "" }, "library")}
               onOpenView={(v) => { pushNav(view, collection, artistView); setNavForward([]); setView(v); }} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
             {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={IS_MAC ? goBack : undefined} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
-            {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={IS_MAC ? goBack : undefined} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} /></AnimatedView>}
+            {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={IS_MAC ? goBack : undefined} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} onOpenDiscography={openDiscography} /></AnimatedView>}
+            {view === "discography" && artistView?.discography && <AnimatedView key={`discography-${artistView.browseId}`}><DiscographyView name={artistView.discography.name} shelves={artistView.discography.shelves} initialKind={artistView.discography.kind}
+              // Kept in artistView, which the history holds: back from an album, the chip picked before.
+              onKindChange={(kind) => setArtistView(av => (av?.discography ? { ...av, discography: { ...av.discography, kind } } : av))} onPlay={handlePlay} onOpenAlbum={(item) => openAlbum(item, "discography")} onOpenPlaylist={(item) => openPlaylist(item, "discography")} onContextMenu={openContextMenu} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}
             {isOffline && view !== "downloads" && (
               <div style={{
@@ -7218,7 +7230,7 @@ export default function App() {
           />
           {/* Compact: the destinations as tabs below the player, hidden while it is expanded. */}
           {compact && !overlayOpen && (
-            <CompactTabs view={["collection", "artist", "history", "downloads"].includes(view) ? "library" : view}
+            <CompactTabs view={["collection", "artist", "discography", "history", "downloads"].includes(view) ? "library" : view}
               onNavigate={(v) => { setOverlayOpen(false); if (v === "search") setView("search"); else navigateTo(v); }} />
           )}
           </div>

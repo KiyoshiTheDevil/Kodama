@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button, CardRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, Skeleton } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { API, thumb, hiResThumb, useLang, useCompact } from "../context.jsx";
@@ -9,11 +9,12 @@ import { useAccentColor } from "../ui/use-accent-color.js";
 import { ModalDialog, ModalRoot } from "../ui/zoomed-heroui.jsx";
 import { shuffled } from "../shuffle.js";
 
-function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square", size = 148, onOpen, onPlay, onContextMenu }) {
+function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square", size = 148, fluid = false, onOpen, onPlay, onContextMenu }) {
   const isVideo = shape === "video";
   const isCircle = shape === "circle";
-  const w = isVideo ? 200 : size;
-  const h = isVideo ? 113 : size;
+  // fluid: as wide as its grid column (DiscographyView), the shape kept by aspect-ratio.
+  const w = fluid ? "100%" : isVideo ? 200 : size;
+  const h = fluid ? "auto" : isVideo ? 113 : size;
   const Fallback = fallbackIcon || (isCircle ? Microphone : MusicNote);
   return (
     <CardRoot
@@ -24,10 +25,10 @@ function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square",
       style={{ flexShrink: 0, width: w, cursor: "default" }}
     >
       <div style={{ position: "relative", marginBottom: 8, borderRadius: isCircle ? "var(--r-full)" : "var(--r-lg)", overflow: "hidden", boxShadow: "var(--elevation-2)" }}>
-        <div style={{ width: w, height: h, background: "var(--bg-elevated)" }}>
+        <div style={{ width: w, height: h, aspectRatio: fluid ? (isVideo ? "16 / 9" : "1 / 1") : undefined, background: "var(--bg-elevated)" }}>
           {thumbnail
             ? <img className="home-card-img" src={thumb(thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.25s" }} />
-            : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)", display: "flex", alignItems: "center", justifyContent: "center" }}><Fallback size={Math.round(w * 0.3)} style={{ opacity: 0.3 }} /></div>}
+            : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)", display: "flex", alignItems: "center", justifyContent: "center" }}><Fallback size={fluid ? 40 : Math.round(w * 0.3)} style={{ opacity: 0.3 }} /></div>}
         </div>
         {onPlay && !isCircle && (
           <div className="home-card-play" style={{ position: "absolute", bottom: 8, right: 8, opacity: 0, transform: "translateY(8px)", transition: "opacity 0.2s, transform 0.2s", pointerEvents: "none" }}>
@@ -139,19 +140,11 @@ function ArtistDescription({ text, name, url, inline = false }) {
   );
 }
 
-export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAlbum, onOpenPlaylist, onOpenArtist, onBack, onContextMenu, onTogglePin, isPinned, hideExplicit, onStartRadio }) {
+export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAlbum, onOpenPlaylist, onOpenArtist, onBack, onContextMenu, onTogglePin, isPinned, hideExplicit, onStartRadio, onOpenDiscography }) {
   const compact = useCompact();
   const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [allAlbums, setAllAlbums] = useState(null);       // null = not yet loaded
-  const [allAlbumsLoading, setAllAlbumsLoading] = useState(false);
-  const [allSingles, setAllSingles] = useState(null);
-  const [allSinglesLoading, setAllSinglesLoading] = useState(false);
-  const [allVideos, setAllVideos] = useState(null);
-  const [allVideosLoading, setAllVideosLoading] = useState(false);
-  const [allPlaylists, setAllPlaylists] = useState(null);
-  const [allPlaylistsLoading, setAllPlaylistsLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(null);     // null = unknown (not loaded yet)
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState(null);
@@ -162,9 +155,6 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // An expanded shelf belongs to the page it was expanded on. Without this, opening a
-    // second artist while one of them is unfolded shows that one's albums under the new name.
-    setAllAlbums(null); setAllSingles(null); setAllVideos(null); setAllPlaylists(null);
     fetch(`${API}/artist/${browseId}`)
       .then(r => r.json())
       .then(d => {
@@ -352,180 +342,70 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
           );
         })()}
 
-        {/* Albums */}
-        {artist.albums?.length > 0 && (() => {
-          const displayAlbums = allAlbums ?? artist.albums;
-          const canShowAll = !allAlbums && artist.albumsBrowseId && artist.albumsParams;
-          return (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("albums")}</div>
-                {canShowAll && (
-                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allAlbumsLoading}
-                    onPress={() => {
-                      setAllAlbumsLoading(true);
-                      fetch(`${API}/artist_albums?channelId=${encodeURIComponent(artist.albumsBrowseId)}&params=${encodeURIComponent(artist.albumsParams)}`)
-                        .then(r => r.json())
-                        .then(d => { if (!d.error) setAllAlbums(d.albums); })
-                        .catch(() => {})
-                        .finally(() => setAllAlbumsLoading(false));
-                    }}>
-                    {allAlbumsLoading ? "…" : t("showAll")}
-                  </Button>
-                )}
-              </div>
-              {allAlbums ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-                  {displayAlbums.map((a, i) => (
-                    <MediaTile key={i} thumbnail={a.thumbnail} title={a.title}
-                      subtitle={a.year ? `${a.year}${a.type ? ` · ${a.type}` : ""}` : null}
-                      onOpen={() => onOpenAlbum({ browseId: a.browseId, title: a.title, thumbnail: a.thumbnail })}
-                      onPlay={() => playAlbumDirect(a.browseId)}
-                      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: a.browseId, title: a.title, thumbnail: a.thumbnail, type: "album" }); }} />
-                  ))}
-                </div>
-              ) : (
-                <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
-                  {displayAlbums.map((a, i) => (
-                    <MediaTile key={i} thumbnail={a.thumbnail} title={a.title} subtitle={a.year || null}
-                      onOpen={() => onOpenAlbum({ browseId: a.browseId, title: a.title, thumbnail: a.thumbnail })}
-                      onPlay={() => playAlbumDirect(a.browseId)}
-                      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: a.browseId, title: a.title, thumbnail: a.thumbnail, type: "album" }); }} />
-                  ))}
-                </div>
+        {/* Albums, singles, videos, playlists: a carousel each. "Show all" opens the artist's
+            discography (DiscographyView), a page of its own with all of them, where it used to
+            unfold the shelf in place and push the rest of the page far down. A video or
+            playlist shelf that YouTube Music gives as a playlist opens that playlist instead. */}
+        {(() => {
+          const shelves = discographyShelves(artist);
+          const openAll = (kind) => onOpenDiscography?.({ browseId, name: artist.name, kind, shelves });
+          const heading = (label, kind, playlistFallback) => (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{label}</div>
+              {(shelves[kind] || playlistFallback) && (
+                <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0"
+                  onPress={() => (shelves[kind] ? openAll(kind) : playlistFallback())}>
+                  {t("showAll")}
+                </Button>
               )}
             </div>
           );
-        })()}
-
-        {/* Singles & EPs */}
-        {artist.singles?.length > 0 && (() => {
-          const displaySingles = allSingles ?? artist.singles;
-          const canShowAll = !allSingles && artist.singlesBrowseId && artist.singlesParams;
-          return (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("singles")}</div>
-                {canShowAll && (
-                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allSinglesLoading}
-                    onPress={() => {
-                      setAllSinglesLoading(true);
-                      fetch(`${API}/artist_albums?channelId=${encodeURIComponent(artist.singlesBrowseId)}&params=${encodeURIComponent(artist.singlesParams)}`)
-                        .then(r => r.json())
-                        .then(d => { if (!d.error) setAllSingles(d.albums); })
-                        .catch(() => {})
-                        .finally(() => setAllSinglesLoading(false));
-                    }}>
-                    {allSinglesLoading ? "…" : t("showAll")}
-                  </Button>
-                )}
-              </div>
-              {allSingles ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-                  {displaySingles.map((s, i) => (
-                    <MediaTile key={i} thumbnail={s.thumbnail} title={s.title}
-                      subtitle={s.year ? `${s.year}${s.type ? ` · ${s.type}` : ""}` : null}
-                      onOpen={() => onOpenAlbum({ browseId: s.browseId, title: s.title, thumbnail: s.thumbnail })}
-                      onPlay={() => playAlbumDirect(s.browseId)}
-                      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: s.browseId, title: s.title, thumbnail: s.thumbnail, type: "album" }); }} />
-                  ))}
-                </div>
-              ) : (
-                <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
-                  {displaySingles.map((s, i) => (
-                    <MediaTile key={i} thumbnail={s.thumbnail} title={s.title}
-                      subtitle={s.year ? `${s.year} · ${t("single")}` : null}
-                      onOpen={() => onOpenAlbum({ browseId: s.browseId, title: s.title, thumbnail: s.thumbnail })}
-                      onPlay={() => playAlbumDirect(s.browseId)}
-                      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: s.browseId, title: s.title, thumbnail: s.thumbnail, type: "album" }); }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* Videos */}
-        {artist.videos?.length > 0 && (() => {
-          const displayVideos = allVideos ?? artist.videos;
-          // Two shapes of "more", see _shelf_more in the backend: a channel unfolds here, an
-          // artist's video playlist opens in the playlist view the way Top songs does.
-          const canExpand = !allVideos && artist.videosBrowseId && artist.videosParams;
-          const canShowAll = canExpand || !!artist.videosPlaylistId;
-          // Playing one queues the shelf as it currently stands - the ten on the carousel
-          // before "Show all", everything the channel has after it.
+          const carousel = (tiles) => <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>{tiles}</div>;
           const asTrack = (x) => ({ videoId: x.videoId, title: x.title, artists: x.artists, thumbnail: x.thumbnail, duration: "" });
-          const queue = displayVideos.map(asTrack);
-          const tiles = displayVideos.map((v, i) => (
-            <MediaTile key={i} shape="video" thumbnail={v.thumbnail} title={v.title} subtitle={v.views || null}
-              onOpen={() => onPlay(asTrack(v), queue)} onPlay={() => onPlay(asTrack(v), queue)} />
-          ));
-          return (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("videos")}</div>
-                {canShowAll && (
-                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allVideosLoading}
-                    onPress={() => {
-                      if (!canExpand) {
-                        onOpenPlaylist({ playlistId: artist.videosPlaylistId, title: `${artist.name} – ${t("videos")}`, forcedTitle: `${artist.name} – ${t("videos")}`, thumbnail: artist.thumbnail });
-                        return;
-                      }
-                      setAllVideosLoading(true);
-                      fetch(`${API}/artist_videos?channelId=${encodeURIComponent(artist.videosBrowseId)}&params=${encodeURIComponent(artist.videosParams)}`)
-                        .then(r => r.json())
-                        .then(d => { if (!d.error) setAllVideos(d.videos); })
-                        .catch(() => {})
-                        .finally(() => setAllVideosLoading(false));
-                    }}>
-                    {allVideosLoading ? "…" : t("showAll")}
-                  </Button>
-                )}
+          return (<>
+            {artist.albums?.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                {heading(t("albums"), "albums")}
+                {carousel(artist.albums.map((a, i) => (
+                  <MediaTile key={i} thumbnail={a.thumbnail} title={a.title} subtitle={a.year || null}
+                    onOpen={() => onOpenAlbum({ browseId: a.browseId, title: a.title, thumbnail: a.thumbnail })}
+                    onPlay={() => playAlbumDirect(a.browseId)}
+                    onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: a.browseId, title: a.title, thumbnail: a.thumbnail, type: "album" }); }} />
+                )))}
               </div>
-              {allVideos
-                ? <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>{tiles}</div>
-                : <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>{tiles}</div>}
-            </div>
-          );
-        })()}
-
-        {/* Playlists */}
-        {artist.playlists?.length > 0 && (() => {
-          const displayPlaylists = allPlaylists ?? artist.playlists;
-          const canExpand = !allPlaylists && artist.playlistsBrowseId && artist.playlistsParams;
-          const canShowAll = canExpand || !!artist.playlistsPlaylistId;
-          const tiles = displayPlaylists.map((p, i) => (
-            <MediaTile key={i} thumbnail={p.thumbnail} title={p.title} subtitle={p.count ? `${p.count} ${t("songs")}` : null}
-              onOpen={() => onOpenPlaylist({ playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail })}
-              onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail, type: "playlist" }); }} />
-          ));
-          return (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--t16)", fontWeight: 600 }}>{t("playlists")}</div>
-                {canShowAll && (
-                  <Button size="sm" variant="ghost" className="text-secondary font-medium h-7 px-3 min-w-0" isDisabled={allPlaylistsLoading}
-                    onPress={() => {
-                      if (!canExpand) {
-                        onOpenPlaylist({ playlistId: artist.playlistsPlaylistId, title: `${artist.name} – ${t("playlists")}`, forcedTitle: `${artist.name} – ${t("playlists")}`, thumbnail: artist.thumbnail });
-                        return;
-                      }
-                      setAllPlaylistsLoading(true);
-                      fetch(`${API}/artist_playlists?channelId=${encodeURIComponent(artist.playlistsBrowseId)}&params=${encodeURIComponent(artist.playlistsParams)}`)
-                        .then(r => r.json())
-                        .then(d => { if (!d.error) setAllPlaylists(d.playlists); })
-                        .catch(() => {})
-                        .finally(() => setAllPlaylistsLoading(false));
-                    }}>
-                    {allPlaylistsLoading ? "…" : t("showAll")}
-                  </Button>
-                )}
+            )}
+            {artist.singles?.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                {heading(t("singles"), "singles")}
+                {carousel(artist.singles.map((s, i) => (
+                  <MediaTile key={i} thumbnail={s.thumbnail} title={s.title}
+                    subtitle={s.year ? `${s.year}${s.type ? ` · ${s.type}` : ""}` : null}
+                    onOpen={() => onOpenAlbum({ browseId: s.browseId, title: s.title, thumbnail: s.thumbnail })}
+                    onPlay={() => playAlbumDirect(s.browseId)}
+                    onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: s.browseId, title: s.title, thumbnail: s.thumbnail, type: "album" }); }} />
+                )))}
               </div>
-              {allPlaylists
-                ? <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>{tiles}</div>
-                : <div className="carousel" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>{tiles}</div>}
-            </div>
-          );
+            )}
+            {artist.videos?.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                {heading(t("videos"), "videos", artist.videosPlaylistId && (() => onOpenPlaylist({ playlistId: artist.videosPlaylistId, title: `${artist.name} – ${t("videos")}`, forcedTitle: `${artist.name} – ${t("videos")}`, thumbnail: artist.thumbnail })))}
+                {carousel(artist.videos.map((v, i) => (
+                  <MediaTile key={i} shape="video" thumbnail={v.thumbnail} title={v.title} subtitle={v.views || null}
+                    onOpen={() => onPlay(asTrack(v), artist.videos.map(asTrack))} onPlay={() => onPlay(asTrack(v), artist.videos.map(asTrack))} />
+                )))}
+              </div>
+            )}
+            {artist.playlists?.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                {heading(t("playlists"), "playlists", artist.playlistsPlaylistId && (() => onOpenPlaylist({ playlistId: artist.playlistsPlaylistId, title: `${artist.name} – ${t("playlists")}`, forcedTitle: `${artist.name} – ${t("playlists")}`, thumbnail: artist.thumbnail })))}
+                {carousel(artist.playlists.map((p, i) => (
+                  <MediaTile key={i} thumbnail={p.thumbnail} title={p.title} subtitle={p.count ? `${p.count} ${t("songs")}` : null}
+                    onOpen={() => onOpenPlaylist({ playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail })}
+                    onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { playlistId: p.playlistId, title: p.title, thumbnail: p.thumbnail, type: "playlist" }); }} />
+                )))}
+              </div>
+            )}
+          </>);
         })()}
 
         {/* Related Artists */}
@@ -549,3 +429,103 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
 // ─── Profile Manager ────────────────────────────────────────────────────────
 
 // Extracted outside LoginScreen to avoid remount on every parent render
+
+
+// What "Show all" can open for an artist: each shelf that unfolds (a channel id and params for
+// /artist_albums, _videos, _playlists), with the items already on the page to show at once.
+function discographyShelves(artist) {
+  const shelf = (id, params, preview) => (id && params ? { channelId: id, params, preview: preview || [] } : null);
+  return {
+    albums: shelf(artist.albumsBrowseId, artist.albumsParams, artist.albums),
+    singles: shelf(artist.singlesBrowseId, artist.singlesParams, artist.singles),
+    videos: shelf(artist.videosBrowseId, artist.videosParams, artist.videos),
+    playlists: shelf(artist.playlistsBrowseId, artist.playlistsParams, artist.playlists),
+  };
+}
+
+const DISCO_SOURCES = {
+  albums: { path: "artist_albums", key: "albums", label: "albums" },
+  singles: { path: "artist_albums", key: "albums", label: "singles" },
+  videos: { path: "artist_videos", key: "videos", label: "videos" },
+  playlists: { path: "artist_playlists", key: "playlists", label: "playlists" },
+};
+
+/**
+ * An artist's albums, singles, videos or playlists, all of them, as a grid: "Show all" on the
+ * artist page opens it. Chips switch between the kinds the artist has; albums and singles can
+ * be turned oldest first. A view of its own (App.jsx, "discography"), so Back returns to the
+ * artist.
+ */
+export function DiscographyView({ name, shelves, initialKind, onKindChange, onPlay, onOpenAlbum, onOpenPlaylist, onContextMenu }) {
+  const t = useLang();
+  const kinds = Object.keys(DISCO_SOURCES).filter((k) => shelves?.[k]);
+  const [kind, setKind] = useState(kinds.includes(initialKind) ? initialKind : kinds[0]);
+  const [loaded, setLoaded] = useState({});   // kind -> full list
+  const [oldestFirst, setOldestFirst] = useState(false);
+  const shelf = shelves?.[kind];
+  const src = DISCO_SOURCES[kind];
+  // From the top, on opening and on each chip: the page scroll is shared, and the artist page
+  // left it far down, past this page's title and chips.
+  const rootRef = useRef(null);
+  useEffect(() => { rootRef.current?.closest(".scrollable")?.scrollTo({ top: 0 }); }, [kind]);
+
+  useEffect(() => {
+    if (!shelf || loaded[kind]) return;
+    let alive = true;
+    fetch(`${API}/${src.path}?channelId=${encodeURIComponent(shelf.channelId)}&params=${encodeURIComponent(shelf.params)}`)
+      .then((r) => r.json())
+      .then((d) => { if (alive && !d.error && Array.isArray(d[src.key])) setLoaded((l) => ({ ...l, [kind]: d[src.key] })); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const raw = loaded[kind] || shelf?.preview || [];
+  const byYear = kind === "albums" || kind === "singles";
+  // YouTube Music lists them newest first; oldest first is that order turned, by year where
+  // there is one (stable for the same year).
+  const items = byYear && oldestFirst
+    ? raw.map((x, i) => [x, i]).sort((a, b) => ((+a[0].year || 0) - (+b[0].year || 0)) || (b[1] - a[1])).map(([x]) => x)
+    : raw;
+  const playAlbumDirect = (browseId) => {
+    fetch(`${API}/album/${browseId}`).then((r) => r.json())
+      .then((d) => { if (d.tracks?.length) onPlay(d.tracks[0], d.tracks); }).catch(() => {});
+  };
+  const asTrack = (x) => ({ videoId: x.videoId, title: x.title, artists: x.artists, thumbnail: x.thumbnail, duration: "" });
+  const chip = (on) => `shrink-0 h-8 px-3.5 rounded-[var(--r-full)] text-[length:var(--t13)] font-medium whitespace-nowrap border-0 cursor-default ${on ? "bg-[var(--text-primary)] text-[var(--bg-base)]" : "bg-[var(--fill-subtle)] text-primary"}`;
+
+  return (
+    <div ref={rootRef} style={{ padding: "8px 16px 32px" }}>
+      <h1 style={{ fontSize: "var(--t20)", fontWeight: 700, margin: "4px 0 12px" }}>{name} · {t("discography")}</h1>
+      <div className="sd-track" style={{ display: "flex", gap: 8, overflowX: "auto", margin: "0 -16px", padding: "0 16px" }}>
+        {kinds.map((k) => (
+          <button key={k} type="button" className={chip(k === kind)} onClick={() => { setKind(k); onKindChange?.(k); }}>{t(DISCO_SOURCES[k].label)}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 0 12px", fontSize: "var(--t12)", color: "var(--text-muted)" }}>
+        <span>{loaded[kind] ? t("discographyCount", { c: items.length }) : "…"}</span>
+        {byYear && (
+          <button type="button" onClick={() => setOldestFirst((v) => !v)}
+            className="p-0 border-0 bg-transparent cursor-default text-[length:var(--t12)] text-secondary font-medium">
+            {oldestFirst ? t("sortOldestFirst") : t("sortNewestFirst")} ⇅
+          </button>
+        )}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${kind === "videos" ? 220 : 150}px, 1fr))`, gap: 16 }}>
+        {items.map((x, i) => kind === "videos" ? (
+          <MediaTile key={i} fluid shape="video" thumbnail={x.thumbnail} title={x.title} subtitle={x.views || null}
+            onOpen={() => onPlay(asTrack(x), items.map(asTrack))} onPlay={() => onPlay(asTrack(x), items.map(asTrack))} />
+        ) : kind === "playlists" ? (
+          <MediaTile key={i} fluid thumbnail={x.thumbnail} title={x.title} subtitle={x.count ? `${x.count} ${t("songs")}` : null}
+            onOpen={() => onOpenPlaylist({ playlistId: x.playlistId, title: x.title, thumbnail: x.thumbnail })}
+            onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { playlistId: x.playlistId, title: x.title, thumbnail: x.thumbnail, type: "playlist" }); }} />
+        ) : (
+          <MediaTile key={i} fluid thumbnail={x.thumbnail} title={x.title}
+            subtitle={x.year ? `${x.year}${x.type ? ` · ${x.type}` : ""}` : null}
+            onOpen={() => onOpenAlbum({ browseId: x.browseId, title: x.title, thumbnail: x.thumbnail })}
+            onPlay={() => playAlbumDirect(x.browseId)}
+            onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, { browseId: x.browseId, title: x.title, thumbnail: x.thumbnail, type: "album" }); }} />
+        ))}
+      </div>
+    </div>
+  );
+}
