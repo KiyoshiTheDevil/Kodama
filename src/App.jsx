@@ -36,6 +36,7 @@ import { addFromLink } from "./store/link-install.js";
 import { useTogetherSync } from "./together/use-together-sync.js";
 import { join as joinTogether, resumeLastRoom, isRoomListener, getTogether, requestAdd, suggest as suggestToRoom, onRoomAdd, onRoomRemove, onRoomNotice, useTogetherValue, inviteLink, canAddSongs } from "./together/together.js";
 import { TogetherSidebar } from "./together/TogetherSidebar.jsx";
+import { TogetherView } from "./together/TogetherView.jsx";
 import { storeIsOpen } from "./store/gate.js";
 import { PlayPauseButton } from "./ui/play-button.jsx";
 import { WindowControls } from "./ui/window-chrome.jsx";
@@ -2881,27 +2882,37 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     </>
   );
 
-  // Compact layout, player collapsed: a card with the song, Like, Play and Next, and a thin
-  // progress line. Tapping it (anywhere but a button) opens the expanded player, which has the
-  // full two-row controls.
+  // Compact layout, player collapsed: a card with the song, Like, Play and Next, in the same
+  // glass as the tab capsule below it. The song's progress fills the card itself with a faint
+  // accent instead of a line. Tapping it (anywhere but a button) opens the expanded player,
+  // which has the full two-row controls.
   if (compact && !expanded && !fullscreen) {
     // Nothing playing: no empty card, just the tab bar below.
     if (!track) return <div ref={barRef} />;
     const pct = duration ? Math.min(100, (progress / duration) * 100) : 0;
     const open = (e) => { if (!e.target.closest("button")) onExpandToggle(); };
     return (
-      <div ref={barRef} style={{ padding: "6px 8px 8px" }}>
+      <div ref={barRef} style={{ padding: "6px 10px 8px" }}>
         <div role="button" tabIndex={0} aria-label={t("expand")}
           onClick={open} onKeyDown={(e) => { if (e.key === "Enter") onExpandToggle(); }}
           style={{
             position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10,
-            padding: 8, borderRadius: "var(--r-xl)", cursor: "default",
-            background: "color-mix(in srgb, var(--bg-surface) 88%, transparent)",
+            padding: 8, borderRadius: 20, cursor: "default",
+            background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)",
+            backdropFilter: "blur(22px) saturate(1.5)", WebkitBackdropFilter: "blur(22px) saturate(1.5)",
+            border: "1px solid var(--border)",
+            // Its own stacking context, so the fill below (z -1) sits over the card's background
+            // and under everything else in it.
+            isolation: "isolate",
           }}>
-          <div style={{ width: 44, height: 44, borderRadius: "var(--r-lg)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
+          <div aria-hidden="true" style={{
+            position: "absolute", top: 0, bottom: 0, insetInlineStart: 0, width: `${pct}%`, pointerEvents: "none", zIndex: -1,
+            background: "color-mix(in srgb, var(--accent) 16%, transparent)", transition: "width 0.3s linear",
+          }} />
+          <div style={{ position: "relative", width: 44, height: 44, borderRadius: "var(--r-lg)", overflow: "hidden", flexShrink: 0, background: "var(--bg-elevated)" }}>
             {track?.thumbnail && <img src={thumb(track.thumbnail)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "var(--t13)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {loading ? t("loading") : (track?.title || "")}
             </div>
@@ -2915,14 +2926,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
               <Heart size={16} weight={isLiked ? "fill" : "regular"} />
             </Button>
           )}
-          <PlayPauseButton isPlaying={isPlaying} isDisabled={!track} onPress={track ? togglePlay : undefined} label={t("scPlayPause")} />
-          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={withHaptic(() => goAdjacent("next"))} aria-label={t("scNext")}
-            className="w-[34px] h-[34px] min-w-[34px] rounded-[var(--r-full)] text-accent">
-            <SkipForward size={20} />
+          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={track ? withHaptic(togglePlay) : undefined} aria-label={t("scPlayPause")}
+            className="w-[38px] h-[38px] min-w-[38px] rounded-[var(--r-full)] text-primary">
+            {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
           </Button>
-          <div aria-hidden="true" style={{ position: "absolute", left: 12, right: 12, bottom: 2, height: 2, borderRadius: 2, background: "var(--fill-subtle)" }}>
-            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "var(--accent)" }} />
-          </div>
+          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={withHaptic(() => goAdjacent("next"))} aria-label={t("scNext")}
+            className="w-[34px] h-[34px] min-w-[34px] rounded-[var(--r-full)] text-primary">
+            <SkipForward size={18} weight="fill" />
+          </Button>
         </div>
       </div>
     );
@@ -5688,6 +5699,9 @@ export default function App() {
   // A phone turned sideways is wide but short: on a touch screen, under 500px of height is
   // compact too (a tablet across, ~800px high, keeps the full layout).
   const compact = (appW < COMPACT_BELOW || (IS_TOUCH && appH < 500)) && !fullscreen;
+  // Together is a view of its own only in the compact layout (its tab); the wide layout keeps
+  // it in the sidebar, so a window grown past the compact width goes home from there.
+  useEffect(() => { if (!compact && !fullscreen && view === "together") setView("home"); }, [compact, fullscreen, view]);
   // Android: a phone stays upright, except with the player open on the video, where it may
   // turn (MediaBridge.setOrientation). Turned sideways there, the video goes to the existing
   // fullscreen layout, without the status and gesture bar; upright again, back out of it.
@@ -6760,7 +6774,8 @@ export default function App() {
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
-          canBack={canGoBack || settingsOpen} canForward={canGoForward && !settingsOpen}
+          // Compact: the tabs' own pages are roots, Back only shows on what was opened from them.
+          canBack={(canGoBack && !(compact && ["home", "search", "library", "together"].includes(view))) || settingsOpen} canForward={canGoForward && !settingsOpen}
           onBack={settingsOpen ? (compact && settingsPage === "detail" ? () => setSettingsPage("list") : closeSettings) : goBack} onForward={goForward}
           collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} onRefresh={() => setViewRefreshKey(k => k + 1)} />}
         <div style={{
@@ -6846,7 +6861,9 @@ export default function App() {
         </div>
         <div
           {...(IS_MAC ? { "data-tauri-drag-region": true } : {})}
-          style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", paddingBottom: fullscreen ? 0 : playerBarH }}>
+          // Compact: the content runs on under the floating mini player and tab capsule, whose
+          // glass shows it through; the scroll area keeps their height free at its end instead.
+          style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", paddingBottom: fullscreen || compact ? 0 : playerBarH }}>
           {/* macOS: the gap above the content card (this column's exposed top margin) is a
               drag region, so the window can be moved from the top of the main area too — the
               card and everything inside it stay clickable (they're children, not the region). */}
@@ -6863,9 +6880,10 @@ export default function App() {
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
-          <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%" }}>
+          <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
+            {view === "together" && <AnimatedView key="together"><TogetherView name={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName} avatar={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.avatar} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={IS_MAC ? goBack : undefined} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist}
               onOpenLiked={() => openPlaylist({ playlistId: "LM", title: translate(language, "likedSongs"), forcedTitle: translate(language, "likedSongs"), thumbnail: "" }, "library")}
@@ -6977,7 +6995,9 @@ export default function App() {
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             // A phone's sideways video has controls of its own (MobileVideoChrome).
             opacity: settingsOpen || videoAcross ? 0 : 1,
-            transform: (fullscreen && (!playerVisible || videoAcross)) ? "translateY(120%)" : "translateY(0)",
+            // "none" outside fullscreen, not translateY(0): a transform here switches off the
+            // backdrop blur of the compact mini player and tab capsule inside it.
+            transform: fullscreen ? ((!playerVisible || videoAcross) ? "translateY(120%)" : "translateY(0)") : "none",
             visibility: (settingsOpen || videoAcross || (fullscreen && !playerVisible)) ? "hidden" : "visible",
             transition: "opacity 0.35s ease, transform 0.42s cubic-bezier(0.4,0,0.2,1), visibility 0.42s ease",
             pointerEvents: settingsOpen || videoAcross ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
@@ -7048,7 +7068,6 @@ export default function App() {
           {/* Compact: the destinations as tabs below the player, hidden while it is expanded. */}
           {compact && !overlayOpen && (
             <CompactTabs view={["collection", "artist", "history", "downloads"].includes(view) ? "library" : view}
-              profile={demoMode ? DEMO_PROFILE : profiles.find(p => p.active)}
               onNavigate={(v) => { setOverlayOpen(false); if (v === "search") setView("search"); else navigateTo(v); }} />
           )}
           </div>

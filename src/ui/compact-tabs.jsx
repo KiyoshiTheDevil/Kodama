@@ -3,33 +3,50 @@
 // the library's own lists live in the library; listening together is the fourth tab.
 import { Button } from "@heroui/react";
 import { useLang } from "../context.jsx";
-import { House, MagnifyingGlass, Books } from "../icons.jsx";
-import { TogetherTab } from "../together/TogetherSidebar.jsx";
+import { House, MagnifyingGlass, Books, Users } from "../icons.jsx";
+import { MemberAvatar } from "../together/TogetherSidebar.jsx";
+import { useTogether } from "../together/together.js";
 import { haptic } from "../haptics.js";
 
-const TAB = "flex-1 h-full min-w-0 flex flex-col items-center justify-center gap-1 rounded-none bg-transparent! "
-  + "text-[length:var(--t11)] font-medium px-0";
+// A capsule floating above the screen's edge, in the mini player's glass. Only the current
+// tab carries its name, in an accent pill that grows into its place; the others are icons.
+const TAB = "h-[44px] min-w-0 flex flex-row items-center justify-center gap-1.5 rounded-[var(--r-full)] "
+  + "text-[length:var(--t13)] font-semibold px-0 transition-[flex-grow,background-color,color] duration-300";
 
-export function CompactTabs({ view, onNavigate, profile }) {
+export function CompactTabs({ view, onNavigate }) {
   const t = useLang();
+  const r = useTogether();
+  // Listening together is a tab like the others (src/together/TogetherView.jsx); in a room it
+  // shows the host's face instead of the icon.
+  const inRoom = r.status !== "idle" && r.status !== "closed";
+  const face = inRoom && (r.members.find((m) => m.host) || r.members[0]);
   const tabs = [
-    { id: "home",    label: t("home"),    icon: <House size={17} /> },
-    { id: "search",  label: t("search").replace(/[.…]+$/, ""), icon: <MagnifyingGlass size={17} /> },
-    { id: "library", label: t("library"), icon: <Books size={17} /> },
+    { id: "home",    label: t("home"),    icon: <House size={18} /> },
+    { id: "search",  label: t("search").replace(/[.…]+$/, ""), icon: <MagnifyingGlass size={18} /> },
+    { id: "library", label: t("library"), icon: <Books size={18} /> },
+    { id: "together", label: t("togetherTabShort"), icon: face ? <MemberAvatar member={face} size={20} ring="var(--accent)" /> : <Users size={18} /> },
   ];
-  const tone = (on) => (on ? "text-accent" : "text-muted hover:text-primary");
+  const tone = (on) => (on
+    ? "bg-accent! text-[var(--accent-foreground)]!"
+    : "bg-transparent! text-muted hover:text-primary");
   return (
-    <nav aria-label="Navigation" className="flex items-stretch" style={{ height: 56, borderTop: "1px solid var(--border)" }}>
-      {tabs.map((tab) => (
-        <Button key={tab.id} variant="ghost" onPress={() => { if (view !== tab.id) haptic("tick"); onNavigate(tab.id); }}
-          aria-current={view === tab.id ? "page" : undefined}
-          className={`${TAB} ${tone(view === tab.id)}`}>
-          {tab.icon}
-          <span className="truncate max-w-full">{tab.label}</span>
-        </Button>
-      ))}
-      <TogetherTab name={profile?.displayName} avatar={profile?.avatar} label={t("togetherTabShort")}
-        className={`${TAB} ${tone(false)}`} />
+    <nav aria-label="Navigation" style={{
+      display: "flex", alignItems: "center", gap: 4, height: 54, padding: 4, margin: "2px 16px 10px",
+      borderRadius: "var(--r-full)", border: "1px solid var(--border)",
+      background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)",
+      backdropFilter: "blur(22px) saturate(1.5)", WebkitBackdropFilter: "blur(22px) saturate(1.5)",
+    }}>
+      {tabs.map((tab) => {
+        const on = view === tab.id;
+        return (
+          <Button key={tab.id} variant="ghost" onPress={() => { if (!on) haptic("tick"); onNavigate(tab.id); }}
+            aria-current={on ? "page" : undefined} aria-label={tab.label}
+            className={`${TAB} ${tone(on)}`} style={{ flexGrow: on ? 1.8 : 1, flexBasis: 0 }}>
+            {tab.icon}
+            {on && <span className="truncate">{tab.label}</span>}
+          </Button>
+        );
+      })}
     </nav>
   );
 }

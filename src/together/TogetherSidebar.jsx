@@ -60,7 +60,7 @@ const TINT = {
 const LAST_ERROR = { unreachable: "togetherUnreachable", kicked: "togetherKicked", full: "togetherFull", denied: "togetherDenied" };
 
 // Start a room, or join one by code or link: the popover outside a room.
-function JoinPopoverBody({ name, onDone }) {
+export function JoinPopoverBody({ name, onDone, page = false }) {
   const t = useLang();
   const r = useTogether();
   const [code, setCode] = useState("");
@@ -74,7 +74,10 @@ function JoinPopoverBody({ name, onDone }) {
   };
   const doJoin = () => { if (parsed) { setErr(null); join(parsed, name); setCode(""); onDone(); } };
   return (
-    <div className="w-[280px] p-3.5 flex flex-col gap-3 rounded-[var(--r-xl)] bg-[var(--bg-elevated)] shadow-[var(--elev-3,0_8px_24px_rgba(0,0,0,.35))] text-[length:var(--t12)]">
+    // page: the phone's Together tab shows it as a page of its own, not as a popover.
+    <div className={page
+      ? "w-full p-4 flex flex-col gap-3 rounded-[var(--r-xl)] bg-[var(--bg-elevated)] text-[length:var(--t13)]"
+      : "w-[280px] p-3.5 flex flex-col gap-3 rounded-[var(--r-xl)] bg-[var(--bg-elevated)] shadow-[var(--elev-3,0_8px_24px_rgba(0,0,0,.35))] text-[length:var(--t12)]"}>
       <div>
         <div className="font-semibold text-[length:var(--t13)]">{t("togetherTitle")}</div>
         <div className="text-secondary mt-0.5">{t("togetherDesc")}</div>
@@ -303,33 +306,3 @@ export function TogetherSidebar({ name, avatar, collapsed, placement, roomOnly =
   );
 }
 
-// The compact layout's "Together" tab. Outside a room it opens the join popover above itself;
-// in a room, the room's card (members, invite, leave, close) in a popover, since the compact
-// layout has no sidebar foot to keep it in.
-export function TogetherTab({ name, avatar, className, label }) {
-  const t = useLang();
-  const zoom = useZoom();
-  const r = useTogether();
-  useEffect(() => { setIdentity(name, avatar); }, [name, avatar]);
-  const [open, setOpen] = useState(false);
-  const inRoom = r.status !== "idle" && r.status !== "closed";
-  const myName = (name || "").trim() || "Kodama";
-  const face = inRoom && (r.members.find((m) => m.host) || r.members[0]);
-  const trigger = (
-    <Button variant="ghost" aria-label={t("togetherTitle")} className={className}>
-      {face ? <MemberAvatar member={face} size={18} ring="var(--accent)" /> : <Users size={17} />}
-      <span>{label}</span>
-    </Button>
-  );
-  if (!inRoom) return <JoinPopover name={myName} placement="top">{trigger}</JoinPopover>;
-  return (
-    <PopoverRoot isOpen={open} onOpenChange={setOpen}>
-      {trigger}
-      <PopoverContent placement="top" offset={10} className="p-0">
-        <PopoverDialog aria-label={t("togetherTitle")} className="outline-none p-1 w-[280px]" style={{ zoom }}>
-          <TogetherSidebar name={name} avatar={avatar} />
-        </PopoverDialog>
-      </PopoverContent>
-    </PopoverRoot>
-  );
-}
