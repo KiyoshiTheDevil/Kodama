@@ -580,17 +580,18 @@ class IpcAudio {
 const TITLEBAR_H = 56;
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
 const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
-function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false }) {
+function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false, logoNamed = false }) {
   const t = useLang();
   const navBtn = `${TITLEBAR_BTN} bg-[var(--fill-subtle)]! data-[disabled=true]:opacity-40`;
   // Compact: the search is a magnifier; the field opens over the bar and closes again when it
   // loses focus. Kept mounted (just invisible) so Ctrl+K can still put the cursor in it.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchWrapRef = useRef(null);
-  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef?.current?.focus(), 0); };
   const closeSearchSoon = () => setTimeout(() => {
     if (!searchWrapRef.current?.contains(document.activeElement)) setSearchOpen(false);
   }, 160);
+  // Compact: the logo sits in the middle, with its name at first (logoNamed, App's).
+  const named = logoNamed || inSettings;
   return (
     <div style={{
       // Below a phone's status bar (0 elsewhere): fixed, so the shell's own inset does not move it.
@@ -613,16 +614,17 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
               {collapsed ? <CaretLineRight size={15} /> : <CaretLineLeft size={15} />}
             </Button>
           </Tooltip>}
-          <img src="/Kodama%20Logo.png" alt="" width="20" height="20" className="shrink-0" draggable={false} />
+          {!compact && <img src="/Kodama%20Logo.png" alt="" width="20" height="20" className="shrink-0" draggable={false} />}
           {/* In the settings the bar says where you are: their name beside the logo. */}
-          {!tight && <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">{inSettings ? t("settings") : "Kodama"}</span>}
+          {!compact && !tight && <span className="text-[length:var(--t15)] font-medium whitespace-nowrap">{inSettings ? t("settings") : "Kodama"}</span>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0" style={{ pointerEvents: "all" }}>
-          <Tooltip text={t("back")}>
+          {/* Compact: Back only where there is somewhere to go back to. */}
+          {(!compact || canBack) && <Tooltip text={t("back")}>
             <Button variant="ghost" isIconOnly aria-label={t("back")} isDisabled={!canBack} onPress={onBack} className={navBtn}>
               <ChevronLeft size={13} className="rtl:-scale-x-100" />
             </Button>
-          </Tooltip>
+          </Tooltip>}
           {!compact && <>
           <Tooltip text={t("forward")}>
             <Button variant="ghost" isIconOnly aria-label={t("forward")} isDisabled={!canForward} onPress={onForward} className={navBtn}>
@@ -636,13 +638,18 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
           </Tooltip>
           </>}
         </div>
+        {/* Compact: no magnifier, the Search tab below is the way in (Ctrl+K still opens the
+            field). The middle is the logo's. */}
         {compact && <div style={{ flex: 1 }} />}
         {compact && (
-          <Tooltip text={t("search").replace(/[.…]+$/, "")}>
-            <Button variant="ghost" isIconOnly aria-label={t("search")} onPress={openSearch} className={TITLEBAR_BTN} style={{ pointerEvents: "all" }}>
-              <MagnifyingGlass size={15} />
-            </Button>
-          </Tooltip>
+          <div aria-hidden="true" style={{ position: "absolute", left: "50%", top: 0, bottom: 0, transform: "translateX(-50%)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+            <img src="/Kodama%20Logo.png" alt="" width="22" height="22" className="shrink-0" draggable={false} />
+            <span className="text-[length:var(--t15)] font-medium whitespace-nowrap" style={{
+              display: "inline-block", overflow: "hidden", verticalAlign: "middle",
+              maxWidth: named ? 120 : 0, marginInlineStart: named ? 8 : 0, opacity: named ? 1 : 0,
+              transition: "max-width 0.6s cubic-bezier(0.4,0,0.2,1), margin 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease",
+            }}>{inSettings ? t("settings") : "Kodama"}</span>
+          </div>
         )}
         {/* The search, as in Discord or VS Code: always in reach, the sidebar collapsed or not,
             and no room taken from the content. Centred in what is left between the buttons and
@@ -3709,6 +3716,14 @@ function AmbientBackdrop({ thumbnail }) {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  // The compact title bar's logo shows its name once the app is on screen, then folds to the
+  // mark. Kept here, once per start: the bar itself unmounts while the player is open.
+  const [logoNamed, setLogoNamed] = useState(true);
+  useEffect(() => {
+    if (showSplash) return;
+    const id = setTimeout(() => setLogoNamed(false), 2600);
+    return () => clearTimeout(id);
+  }, [showSplash]);
   const [splashFading, setSplashFading] = useState(false);
   // Skip FFmpeg screen if we already confirmed it available in a previous run.
   const [ffmpegSetupDone, setFfmpegSetupDone] = useState(
@@ -6741,7 +6756,7 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
-        {!fullscreen && !IS_MAC && !(compact && (overlayOpen || queueOpen)) && <TitleBar searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
+        {!fullscreen && !IS_MAC && !(compact && (overlayOpen || queueOpen)) && <TitleBar logoNamed={logoNamed} searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}

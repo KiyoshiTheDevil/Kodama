@@ -379,8 +379,47 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         .sd-row:hover .sd-play{opacity:1!important}
       `}</style>
 
+      {/* ── Narrow (phones, compact windows): one line of greeting, then the moods as chips. A
+          chip shows its playlists right below; the large hero took half a phone's screen. ── */}
+      {narrow && (() => {
+        const groupKey = Object.keys(moodGroups).find(k => /mood/i.test(k)) || Object.keys(moodGroups)[0];
+        const chips = (moodGroups[groupKey] || []).slice(0, 10);
+        const chipCls = (on) => `shrink-0 h-8 px-3.5 rounded-[var(--r-full)] text-[length:var(--t13)] font-medium whitespace-nowrap ${on ? "bg-[var(--text-primary)] text-[var(--bg-base)]" : "bg-[var(--fill-subtle)] text-primary"}`;
+        return (
+          <div style={{ padding: "10px 16px 0", marginBottom: 18 }}>
+            <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--t18)", fontWeight: 700, margin: 0, lineHeight: 1.3, animation: "homeHeaderText 0.45s cubic-bezier(0.22,1,0.36,1) both" }}>
+              <GreetingIcon size={20} weight="duotone" style={{ color: "var(--accent)", flexShrink: 0 }} />
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {greeting}
+                {displayName && <>{", "}<span style={{ color: "var(--accent)" }}>{displayName}</span></>}
+              </span>
+            </h1>
+            {chips.length > 0 && (
+              <div className="sd-track" style={{ display: "flex", gap: 8, overflowX: "auto", margin: "14px -16px 0", padding: "0 16px" }}>
+                <button type="button" className={chipCls(!activeMoodChip)} onClick={() => { setActiveMoodChip(null); setMoodPlaylists([]); }}>{t("filterAll")}</button>
+                {chips.map((chip, i) => (
+                  <button key={chip.params || i} type="button" className={chipCls(activeMoodChip?.params === chip.params)}
+                    onClick={() => { if (activeMoodChip?.params !== chip.params) { setActiveMoodTab(groupKey); handleMoodChipClick(chip); } }}>
+                    {chip.title}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeMoodChip && (
+              <div style={{ marginTop: 16 }}>
+                {moodLoading
+                  ? <div style={{ display: "flex", gap: 14 }}>{[1, 2, 3].map(i => <Skeleton key={i} className="w-[148px] h-[148px] rounded-[var(--r-lg)] shrink-0" />)}</div>
+                  : <Carousel style={{ gap: 14, paddingBottom: 4 }}>
+                      {moodPlaylists.map((item, i) => <MediaCard key={i} item={item} section={{ items: moodPlaylists }} size={148} />)}
+                    </Carousel>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── Header (centered hero) ── */}
-      <div style={{ position: "relative", padding: narrow ? "48px 16px 36px" : "120px 28px 72px", overflow: "hidden", marginBottom: narrow ? 8 : 20 }}>
+      {!narrow && <div style={{ position: "relative", padding: "120px 28px 72px", overflow: "hidden", marginBottom: 20 }}>
         <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 18 }}>
           <GreetingIcon size={64} weight="duotone" style={{ color: "var(--accent)", flexShrink: 0, animation: "homeHeaderIcon 0.6s cubic-bezier(0.22,1,0.36,1) both" }} />
           <h1 style={{ fontSize: "var(--t26, 28px)", fontWeight: 700, margin: 0, lineHeight: 1.25, animation: "homeHeaderText 0.55s cubic-bezier(0.22,1,0.36,1) 0.12s both" }}>
@@ -388,7 +427,7 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
             {displayName && <>{", "}<span style={{ color: "var(--accent)" }}>{displayName}</span></>}
           </h1>
         </div>
-      </div>
+      </div>}
 
       {/* ── Top row: left stack (carousels) + Speed Dial (right) ── */}
       {(leftSections.length > 0 || speedDialItems.length > 0) && (() => {
