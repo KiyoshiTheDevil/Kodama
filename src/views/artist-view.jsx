@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button, CardRoot, ModalBackdrop, ModalContainer, ModalHeader, ModalIcon, ModalHeading, ModalBody, ModalFooter, ModalCloseTrigger, Skeleton } from "@heroui/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { API, thumb, hiResThumb, useLang } from "../context.jsx";
+import { API, thumb, hiResThumb, useLang, useCompact } from "../context.jsx";
 import { ArrowLeft, ArrowSquareOut, Info, Microphone, MusicNote, Play, PushPin, Radio, Shuffle, UserCheck, UserPlus } from "../icons.jsx";
 import { TrackRow } from "../ui/rows.jsx";
 import { Tooltip } from "../ui/tooltip.jsx";
@@ -42,7 +42,7 @@ function MediaTile({ thumbnail, title, subtitle, fallbackIcon, shape = "square",
     </CardRoot>
   );
 }
-function ArtistDescription({ text, name, url }) {
+function ArtistDescription({ text, name, url, inline = false }) {
   const [popupOpen, setPopupOpen] = useState(false);
   const t = useLang();
   // Split off the trailing "From Wikipedia (...)" footer (YTMusic truncates the URL,
@@ -74,7 +74,22 @@ function ArtistDescription({ text, name, url }) {
 
   return (
     <>
-      {/* Compact snippet — glassy card, upper-right of the hero */}
+      {/* Compact layout: three lines under the header, "More" opens the whole text. Beside the
+          name and the buttons there is no room on a phone; as a card in the hero it lay on top
+          of them. */}
+      {inline ? (
+        <div style={{ padding: "0 16px", marginTop: 4 }}>
+          <p style={{
+            margin: 0, fontSize: "var(--t13)", lineHeight: 1.5, color: "var(--text-secondary)",
+            display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+          }}>{body}</p>
+          <button type="button" onClick={() => setPopupOpen(true)}
+            className="mt-1 p-0 border-0 bg-transparent cursor-default text-[length:var(--t13)] font-semibold text-primary">
+            {t("showMore")}
+          </button>
+        </div>
+      ) : (
+      /* Desktop snippet — glassy card, upper-right of the hero */
       <div style={{
         position: "absolute", top: 96, right: 24,
         width: "clamp(220px, 42%, 460px)", zIndex: 4,
@@ -94,6 +109,7 @@ function ArtistDescription({ text, name, url }) {
             onPress={() => setPopupOpen(true)}>{t("showMore")}</Button>
         )}
       </div>
+      )}
 
       {/* Full-text popup — HeroUI Modal */}
       <ModalRoot isOpen={popupOpen} onOpenChange={(open) => { if (!open) setPopupOpen(false); }}>
@@ -124,6 +140,7 @@ function ArtistDescription({ text, name, url }) {
 }
 
 export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAlbum, onOpenPlaylist, onOpenArtist, onBack, onContextMenu, onTogglePin, isPinned, hideExplicit, onStartRadio }) {
+  const compact = useCompact();
   const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -202,7 +219,7 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
     <div style={{ paddingBottom: 32 }}>
 
       {/* ── Hero banner ── */}
-      <div style={{ position: "relative", minHeight: 320, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "relative", minHeight: compact ? 280 : 320, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
         {artist.thumbnail
           ? <img src={thumb(hiResThumb(artist.thumbnail, 800))} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, rgba(${artistAccent},0.6), rgba(${artistAccent},0.2))` }} />}
@@ -218,10 +235,10 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
         )}
 
         {/* Content */}
-        <div style={{ position: "relative", zIndex: 2, padding: "0 24px 22px" }}>
+        <div style={{ position: "relative", zIndex: 2, padding: compact ? "0 16px 14px" : "0 24px 22px" }}>
           <div style={{ fontSize: "var(--t12)", fontWeight: 600, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{t("artist")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-            <h1 style={{ fontSize: 46, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1.05, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{artist.name}</h1>
+            <h1 style={{ fontSize: compact ? 34 : 46, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1.05, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{artist.name}</h1>
             {onTogglePin && (
               <Tooltip text={t(isPinned ? "removeFromSidebar" : "pinToSidebar")}>
                 <Button isIconOnly size="sm" className="size-8 rounded-[var(--r-full)] shrink-0 backdrop-blur-md"
@@ -237,7 +254,37 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
               {[artist.subscribers && `${artist.subscribers} ${t("subscribers")}`, artist.monthlyListeners && `${artist.monthlyListeners} ${t("monthlyListeners")}`].filter(Boolean).join("  ·  ")}
             </div>
           )}
-          {/* Action row */}
+          {/* Action row. Compact: one row, shuffle and radio as round icon buttons and the
+              subscription at the end; with their labels the radio went to a line of its own. */}
+          {compact ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {topTracks.length > 0 && (
+              <>
+                {/* "primary" is HeroUI 3's filled button; "solid"/"accent" are no longer variants and drew it as plain text. */}
+                <Button variant="primary" className="rounded-[var(--r-full)] gap-1.5 px-4 font-semibold" onPress={() => onPlay(topTracks[0], topTracks)}>
+                  <Play size={15} weight="fill" /> {t("playAll")}
+                </Button>
+                <Button isIconOnly variant="secondary" aria-label={t("shuffle")} className="size-10 rounded-[var(--r-full)] backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
+                  onPress={() => { const sh = shuffled(topTracks); onPlay(sh[0], sh); }}>
+                  <Shuffle size={16} />
+                </Button>
+              </>
+            )}
+            {artist.radioId && (
+              <Button isIconOnly variant="secondary" aria-label="Radio" isDisabled={radioLoading} className="size-10 rounded-[var(--r-full)] backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
+                onPress={doRadio}>
+                <Radio size={16} />
+              </Button>
+            )}
+            <div style={{ flex: 1 }} />
+            {subscribed !== null && (
+              <Button variant={subscribed ? "secondary" : "primary"} isDisabled={subLoading}
+                className="rounded-[var(--r-full)] gap-1.5 font-semibold" onPress={doSubscribe}>
+                {subscribed ? <><UserCheck size={13} /> {t("subscribed")}</> : <><UserPlus size={13} /> {t("subscribe")}</>}
+              </Button>
+            )}
+          </div>
+          ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {topTracks.length > 0 && (
               <>
@@ -264,11 +311,13 @@ export function ArtistView({ browseId, onPlay, currentTrack, isPlaying, onOpenAl
               </Button>
             )}
           </div>
+          )}
           {subError && <div style={{ marginTop: 8, fontSize: "var(--t11)", color: "var(--status-danger)", maxWidth: 280, lineHeight: 1.35 }}>{subError}</div>}
         </div>
-        {/* Artist description — bottom right of hero */}
-        {artist.description && <ArtistDescription text={artist.description} name={artist.name} url={artist.descriptionUrl} />}
+        {/* Artist description — upper right of the hero; compact: below it (further down) */}
+        {artist.description && !compact && <ArtistDescription text={artist.description} name={artist.name} url={artist.descriptionUrl} />}
       </div>
+      {artist.description && compact && <ArtistDescription inline text={artist.description} name={artist.name} url={artist.descriptionUrl} />}
 
       {/* The gap under the header belongs here, once, rather than on whichever section
           happens to come first. Top songs used to carry it as its own marginTop, so a page
