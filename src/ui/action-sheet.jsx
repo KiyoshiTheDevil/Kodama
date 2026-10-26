@@ -91,7 +91,9 @@ export function ActionSheet({ open, onClose, items, title }) {
       <div ref={panelRef} role="menu" aria-label={page?.title || title} onClick={(e) => e.stopPropagation()}
         style={{
           // Clear of a phone's gesture bar (0 elsewhere); inside the zoom, hence the -z value.
+          // At most 520px, centred: a phone turned sideways stretched it across the whole screen.
           position: "absolute", left: 8, right: 8, bottom: "calc(8px + var(--safe-bottom-z))", maxHeight: "74%", display: "flex", flexDirection: "column",
+          maxWidth: 520, marginInline: "auto",
           background: "var(--overlay)", borderRadius: 24, boxShadow: "0 -10px 48px rgba(0,0,0,0.55)", overflow: "hidden",
           animation: leaving ? "sheetUp 0.18s ease-in reverse forwards" : "sheetUp 0.26s cubic-bezier(0.22,1,0.36,1)",
         }}>

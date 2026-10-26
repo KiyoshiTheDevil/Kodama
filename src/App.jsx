@@ -12,6 +12,7 @@ import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
 import { ClosedCaptioning } from "./icons.jsx";
 import { SegmentedTabs } from "./ui/segmented.jsx";
+import { MobileVideoChrome } from "./ui/mobile-video-chrome.jsx";
 import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ChevronLeft, ChevronRight, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, CompactContext, FontScaleContext, TrackNumberContext } from "./context.jsx";
@@ -152,6 +153,8 @@ function cmpVersion(a, b) {
 // macOS uses a native titled window (traffic lights + native drag), so the custom
 // titlebar/drag-region is Windows-only. (Borderless windows swallow clicks on macOS.)
 const IS_MAC = /Mac OS X|Macintosh/.test(navigator.userAgent || "");
+const IS_TOUCH = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+const IS_ANDROID = /Android/.test(navigator.userAgent || "");
 
 // ─── Update Checker (GitHub Releases) ───────────────────────────────────────
 const APP_TAG = "v1.0.0";
@@ -5660,13 +5663,38 @@ export default function App() {
   // fullscreen, which is a layout of its own.
   const COMPACT_BELOW = 700;
   const [appW, setAppW] = useState(() => window.innerWidth / uiZoom); // the window's width after zoom
+  const [appH, setAppH] = useState(() => window.innerHeight / uiZoom);
   useEffect(() => {
-    const check = () => setAppW(window.innerWidth / uiZoom);
+    const check = () => { setAppW(window.innerWidth / uiZoom); setAppH(window.innerHeight / uiZoom); };
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, [uiZoom]);
-  const compact = appW < COMPACT_BELOW && !fullscreen;
+  // A phone turned sideways is wide but short: on a touch screen, under 500px of height is
+  // compact too (a tablet across, ~800px high, keeps the full layout).
+  const compact = (appW < COMPACT_BELOW || (IS_TOUCH && appH < 500)) && !fullscreen;
+  // Android: a phone stays upright, except with the player open on the video, where it may
+  // turn (MediaBridge.setOrientation). Turned sideways there, the video goes to the existing
+  // fullscreen layout, without the status and gesture bar; upright again, back out of it.
+  const videoInPlayer = overlayOpen && showVideoView;
+  // Only on Android: on the desktop a window is nearly always wider than high.
+  const videoAcross = IS_ANDROID && videoInPlayer && appW > appH;
+  // Whether MobileVideoChrome's controls are up: the captions move above its position bar.
+  const [videoChromeUp, setVideoChromeUp] = useState(true);
+  useEffect(() => {
+    const android = window.KodamaAndroid;
+    if (!android?.setOrientation) return;
+    android.setOrientation(videoInPlayer);
+  }, [videoInPlayer]);
+  useEffect(() => {
+    const android = window.KodamaAndroid;
+    if (!android?.setImmersive) return;
+    android.setImmersive(videoAcross);
+    if (videoAcross !== fullscreenRef.current) {
+      fullscreenRef.current = videoAcross;
+      setFullscreen(videoAcross);
+    }
+  }, [videoAcross]);
   // For CSS (sheets, modals): <html data-compact> while the compact layout is on.
   useEffect(() => {
     if (compact) document.documentElement.setAttribute("data-compact", "");
@@ -6932,11 +6960,12 @@ export default function App() {
             // Above a phone's gesture bar (0 elsewhere).
             ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: "var(--safe-bottom-z)", zIndex: compact ? 101 : 100 }),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
-            opacity: settingsOpen ? 0 : 1,
-            transform: (fullscreen && !playerVisible) ? "translateY(120%)" : "translateY(0)",
-            visibility: (settingsOpen || (fullscreen && !playerVisible)) ? "hidden" : "visible",
+            // A phone's sideways video has controls of its own (MobileVideoChrome).
+            opacity: settingsOpen || videoAcross ? 0 : 1,
+            transform: (fullscreen && (!playerVisible || videoAcross)) ? "translateY(120%)" : "translateY(0)",
+            visibility: (settingsOpen || videoAcross || (fullscreen && !playerVisible)) ? "hidden" : "visible",
             transition: "opacity 0.35s ease, transform 0.42s cubic-bezier(0.4,0,0.2,1), visibility 0.42s ease",
-            pointerEvents: settingsOpen ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
+            pointerEvents: settingsOpen || videoAcross ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
             ...(fullscreen ? { position: "relative", zIndex: 105 } : {}),
             padding: fullscreen || compact ? 0 : "0 8px 8px 8px",
           }}>
@@ -7106,8 +7135,11 @@ export default function App() {
             // showLyrics the Lyrics button already toggles (no separate on/off setting).
             const coverSplitActive = fullscreen && splitView && !showVideoView;
             const videoLyricsOn = showVideoView && showLyrics;
-            const videoSplitActive = videoLyricsOn && videoLyricsStyle === "split";
-            const videoCaptionsActive = videoLyricsOn && videoLyricsStyle === "captions";
+            // A phone turned sideways shows the lyrics as captions on the video: split in half,
+            // each side was too narrow for the little height there is.
+            const videoStyle = videoAcross ? "captions" : videoLyricsStyle;
+            const videoSplitActive = videoLyricsOn && videoStyle === "split";
+            const videoCaptionsActive = videoLyricsOn && videoStyle === "captions";
             const anySplitActive = coverSplitActive || videoSplitActive;
             // Compact: side by side leaves each half too narrow, so the video sits at the top in
             // the full width, below the head (64px), and the lyrics run underneath it.
@@ -7161,8 +7193,16 @@ export default function App() {
                 transition: compact ? `${paneTransition}, height 0.4s cubic-bezier(0.4,0,0.2,1)` : paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
-                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} compact={compact} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} />}
+                {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} compact={compact} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} captionsLift={videoAcross && videoChromeUp ? 44 : 0} touchControls={videoAcross} />}
               </div>
+              {videoAcross && (
+                <MobileVideoChrome track={currentTrack} isPlaying={isPlaying} audioRef={audioRef}
+                  showLyrics={showLyrics} onToggleLyrics={() => setShowLyricsManual(l => !l)}
+                  onLyricsOptions={() => lyricsOptionsRef.current?.()} onCollapse={() => setOverlayOpen(false)}
+                  onVisibleChange={setVideoChromeUp}
+                  labels={{ collapse: translate(language, "collapse"), lyrics: translate(language, "lyrics"), lyricsOptions: translate(language, "lyricsOptions"),
+                    prev: translate(language, "scPrev"), next: translate(language, "scNext"), playPause: translate(language, "scPlayPause") }} />
+              )}
               {/* Drag handle between the two panes (mirrors the sidebar/queue handles) */}
               {anySplitActive && !stackVideo && (
                 <div ref={splitHandleRef}

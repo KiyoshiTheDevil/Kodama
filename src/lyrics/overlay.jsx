@@ -861,7 +861,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
     <div ref={rootRef}
       onMouseMove={wakeScrollbar} onWheel={wakeScrollbar} onMouseLeave={sleepScrollbar}
       style={{
-      position: "absolute", inset: 0, zIndex: 50,
+      // The four sides apart, not `inset`: React clears `top` when the compact player's own top
+      // below goes away (a phone turned to the fullscreen video), and that wiped the top out of
+      // the shorthand too. The pane then sat below the screen with no height at all.
+      position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 50,
       // Compact player: the lyrics start below the Cover/Lyrics switch (its 64px head) rather
       // than running behind it, and fade in and out at both edges of what is left.
       ...(fadeEdges ? {

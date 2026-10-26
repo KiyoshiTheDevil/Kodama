@@ -1,5 +1,7 @@
 package dev.kodama.music
 
+import android.content.Context
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -24,6 +26,7 @@ class MainActivity : TauriActivity() {
       navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
     )
     super.onCreate(savedInstanceState)
+    holdUpright()
     keepClearOfSystemBars()
     startBackend()
   }
@@ -74,7 +77,16 @@ class MainActivity : TauriActivity() {
     }.start()
   }
 
+  // Kodama's phone layout is made for portrait; turned sideways a phone got the desktop
+  // layout squeezed to 393px of height. Upright, then, apart from a video in the player
+  // (MediaBridge.setOrientation). Tablets have room either way and keep turning.
+  private fun holdUpright() {
+    if (isPhone(this)) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+  }
+
   companion object {
     @Volatile private var backendStarted = false
+
+    fun isPhone(context: Context) = context.resources.configuration.smallestScreenWidthDp < 600
   }
 }

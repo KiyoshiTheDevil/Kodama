@@ -94,7 +94,13 @@ const GlyphClose = () => <svg {...GLYPH}><path d="M1 1l8 8M9 1l-8 8" /></svg>;
  * is still the header's own grammar — outer ends pilled, touching ends notched, exactly like
  * the import/export and undo/redo groups — which is what the hover reveals.
  */
-export function WindowControls({ height = HDR_H, width = 40 }) {
+export function WindowControls(props) {
+  // Android has no window to minimise, maximise or close.
+  if (window.KodamaAndroid) return null;
+  return <DesktopWindowControls {...props} />;
+}
+
+function DesktopWindowControls({ height = HDR_H, width = 40 }) {
   const [max, setMax] = useState(false);
   const [hovered, setHovered] = useState(null);
   useEffect(() => {

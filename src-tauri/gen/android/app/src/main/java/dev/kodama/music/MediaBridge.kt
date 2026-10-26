@@ -1,6 +1,8 @@
 package dev.kodama.music
 
+import android.app.Activity
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.content.Intent
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -15,6 +17,9 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -36,6 +41,7 @@ object MediaBridge {
   private const val TAG = "KodamaMedia"
   private val main = Handler(Looper.getMainLooper())
   private var webView = WeakReference<WebView?>(null)
+  private var activity = WeakReference<Activity?>(null)
   private lateinit var appContext: Context
   private var serviceStarted = false
 
@@ -45,6 +51,7 @@ object MediaBridge {
   fun attach(view: WebView) {
     appContext = view.context.applicationContext
     webView = WeakReference(view)
+    activity = WeakReference(view.context as? Activity)
     view.addJavascriptInterface(JsApi(), "KodamaAndroid")
     AudioOutputs.start(appContext)
   }
@@ -132,6 +139,32 @@ object MediaBridge {
         else -> HapticFeedbackConstants.VIRTUAL_KEY
       }
       main.post { webView.get()?.performHapticFeedback(c) }
+    }
+
+    /**
+     * Phones stay upright (MainActivity.holdUpright), except while the player shows a video:
+     * then the phone may turn, as far as its own rotation lock allows. Tablets always turn.
+     */
+    @JavascriptInterface
+    fun setOrientation(free: Boolean) {
+      main.post {
+        val a = activity.get() ?: return@post
+        if (!MainActivity.isPhone(a)) return@post
+        a.requestedOrientation =
+          if (free) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+      }
+    }
+
+    /** A video across the whole screen: status and gesture bar hidden, a swipe brings them back. */
+    @JavascriptInterface
+    fun setImmersive(on: Boolean) {
+      main.post {
+        val a = activity.get() ?: return@post
+        val controller = WindowCompat.getInsetsController(a.window, a.window.decorView)
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (on) controller.hide(WindowInsetsCompat.Type.systemBars())
+        else controller.show(WindowInsetsCompat.Type.systemBars())
+      }
     }
 
     /** The system's own output picker, the one an app may open (it cannot switch by itself). */
