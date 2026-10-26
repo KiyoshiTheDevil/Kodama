@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain HTTP only to Kodama's own backend inside the app (android_main.py, 127.0.0.1:9847).
+     A release build forbids cleartext otherwise, which broke the YouTube Music sign-in's hand-over
+     (LoginActivity posts the cookies to /auth/cookie-login). Everything else stays HTTPS-only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

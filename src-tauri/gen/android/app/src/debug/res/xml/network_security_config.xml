@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds: plain HTTP anywhere, as before, so `tauri android dev` still reaches the Vite
+     server on the computer. Release builds use main/res/xml/network_security_config.xml. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
