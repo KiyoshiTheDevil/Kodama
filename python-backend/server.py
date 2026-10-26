@@ -772,6 +772,10 @@ def _load_playlist_disk(playlist_id, ttl=PLAYLIST_CACHE_TTL):
         tracks = data.get("tracks", [])
         if tracks and "isExplicit" not in tracks[0]:
             return None
+        # An empty track list is not worth keeping: Android logins with a phone user agent
+        # stored albums and playlists without songs.
+        if not tracks:
+            return None
         return data
     except Exception:
         return None
@@ -807,6 +811,10 @@ def _load_album_disk(browse_id):
         # Invalidate old caches that don't have isExplicit yet
         tracks = data.get("tracks", [])
         if tracks and "isExplicit" not in tracks[0]:
+            return None
+        # An empty track list is not worth keeping: Android logins with a phone user agent
+        # stored albums and playlists without songs.
+        if not tracks:
             return None
         # ...and those written before an album's music videos were swapped for its songs: they
         # would keep serving the video ids (and their audio) for the rest of ALBUM_CACHE_TTL.
@@ -894,11 +902,22 @@ _SHORT_LIVED_COOKIES = {
     'VISITOR_PRIVACY_METADATA', '__Secure-ROLLOUT_TOKEN',
 }
 
+_DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
+
+def _is_mobile_ua(ua):
+    return "Android" in ua or "Mobile" in ua
+
 def clean_headers_for_storage(headers):
     """Minimal cleanup: only remove headers that don't belong in API requests."""
     h = dict(headers)
     # content-encoding doesn't belong in outgoing request headers
     h.pop("content-encoding", None)
+    # The Android login WebView sends a phone user agent. With it YouTube Music answers in
+    # its mobile layout, where song rows carry no videoId: albums, playlists and search come
+    # back without songs. The cookies work with any user agent, so store a desktop one.
+    if _is_mobile_ua(h.get("user-agent", "")):
+        h["user-agent"] = _DESKTOP_UA
     # Ensure authorization header exists (ytmusicapi needs it to detect browser auth type)
     if "authorization" not in h:
         import hashlib
@@ -938,8 +957,9 @@ def make_ytmusic(name):
         raw = json.load(f)
     if _is_oauth_profile(raw):
         raise Exception("OAuth-Profile werden nicht mehr unterstützt (YT-Music-Inkompatibilität).")
-    # Browser auth: ensure the authorization header exists (older bug stripped it)
-    if "authorization" not in raw:
+    # Browser auth: ensure the authorization header exists (older bug stripped it), and
+    # replace a phone user agent from an earlier Android login.
+    if "authorization" not in raw or _is_mobile_ua(raw.get("user-agent", "")):
         cleaned = clean_headers_for_storage(raw)
         with open(path, "w") as f:
             json.dump(cleaned, f, indent=2)
