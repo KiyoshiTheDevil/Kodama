@@ -66,6 +66,7 @@ import { SearchView } from "./views/search-view.jsx";
 import { HomeView } from "./views/home-view.jsx";
 import { SearchBox } from "./ui/search-box.jsx";
 import { CompactTabs } from "./ui/compact-tabs.jsx";
+import PullRefresh from "./ui/pull-refresh.jsx";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
@@ -4966,7 +4967,7 @@ export default function App() {
         // takes the same values the desktop's OS media controls do.
         const android = window.KodamaAndroid;
         if (!currentTrack) {
-          if (android) { android.mediaClear(); return; }
+          if (android) { android.mediaClear(); android.discordClear?.(); return; }
           invoke("clear_discord_rpc").catch(() => {});
           invoke("media_clear").catch(() => {});
           return;
@@ -4995,22 +4996,24 @@ export default function App() {
           elapsed: a?.currentTime || 0,
           paused: !isPlaying,
         };
-        if (android) { android.mediaUpdate(JSON.stringify(mediaState)); return; } // no Discord there
-        invoke("media_update", mediaState).catch(() => {});
+        if (android) android.mediaUpdate(JSON.stringify(mediaState));
+        else invoke("media_update", mediaState).catch(() => {});
 
-        // Discord Rich Presence — opt-in via setting.
+        // Discord Rich Presence — opt-in via setting. Android has no Discord app to talk to;
+        // the presence goes through the signed-in account there (DiscordPresence.kt).
+        const clearRpc = () => android ? android.discordClear?.() : invoke("clear_discord_rpc").catch(() => {});
         if (!discordRpc) {
-          invoke("clear_discord_rpc").catch(() => {});
+          clearRpc();
           return;
         }
         // Requested in issue #27: with the app left running in the background, a paused
         // presence sits in the profile all day claiming something is happening. Optional,
         // because the paused state is genuinely wanted by anyone who steps away mid-track.
         if (discordClearOnPause && !isPlaying) {
-          invoke("clear_discord_rpc").catch(() => {});
+          clearRpc();
           return;
         }
-        invoke("update_discord_rpc", {
+        const rpc = {
           title: currentTrack.title || "",
           artist: artistStr,
           album: currentTrack.album || "",
@@ -5024,7 +5027,9 @@ export default function App() {
           partySize: togetherParty ? togetherParty[0] : null,
           partyMax: togetherParty ? togetherParty[1] : null,
           partyId: togetherParty ? `kodama-together-${togetherParty[2]}` : null,
-        }).catch(() => {});
+        };
+        if (android) android.discordUpdate?.(JSON.stringify(rpc));
+        else invoke("update_discord_rpc", rpc).catch(() => {});
       } catch {}
     };
 
@@ -5686,10 +5691,39 @@ export default function App() {
     window.dispatchEvent(new Event("kiyoshi-recent-updated"));
   }, []);
 
+  // Where the content stood when a page was left. A history entry carries its scroll offset, so
+  // Back lands where the page was left; a new page starts at the top. The page usually renders
+  // its content a few frames later (a fetch, even from the cache), so the offset waits until the
+  // content is tall enough, and gives up once the user scrolls or after three seconds.
+  const mainScrollRef = useRef(null);
+  const scrollWaitRef = useRef(0);
+  const snapNav = () => ({ ...navStateRef.current, scroll: mainScrollRef.current?.scrollTop || 0 });
+  const scrollToNav = useCallback((target = 0) => {
+    cancelAnimationFrame(scrollWaitRef.current);
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const until = performance.now() + 3000;
+    let touched = false;
+    const stop = () => { touched = true; };
+    const opts = { passive: true, once: true };
+    el.addEventListener("wheel", stop, opts);
+    el.addEventListener("touchstart", stop, opts);
+    const done = () => { el.removeEventListener("wheel", stop); el.removeEventListener("touchstart", stop); };
+    const step = () => {
+      if (touched) return done();
+      if (el.scrollHeight - el.clientHeight >= target - 2 || performance.now() > until) {
+        el.scrollTop = target;
+        return done();
+      }
+      scrollWaitRef.current = requestAnimationFrame(step);
+    };
+    scrollWaitRef.current = requestAnimationFrame(step);
+  }, []);
+
   const openPlaylist = useCallback((item, fromView, refresh = false) => {
     // forcedTitle: when the caller provides a custom title (e.g. "Dusqk – Top Songs"),
     // we keep it and don't let the stream header overwrite it.
-    if (!refresh) { setNavHistory(h => [...h, navStateRef.current]); setNavForward([]); }
+    if (!refresh) { const here = snapNav(); setNavHistory(h => [...h, here]); setNavForward([]); scrollToNav(0); }
     const forcedTitle = item.forcedTitle || null;
     setCollection({ title: forcedTitle || item.title, thumbnail: item.thumbnail, tracks: [], total: null, loading: true, progress: 0, cached: false, fromView: fromView || "library", forcedTitle, playlistId: item.playlistId });
     setView("collection");
@@ -5724,7 +5758,7 @@ export default function App() {
   // With the view it was opened from, as the sidebar's onOpenPlaylist passes it: Back returns there.
   openPlaylistRef.current = (pl) => openPlaylist(pl, view);
   const openAlbum = useCallback(async (item, fromView, refresh = false) => {
-    if (!refresh) { setNavHistory(h => [...h, navStateRef.current]); setNavForward([]); }
+    if (!refresh) { const here = snapNav(); setNavHistory(h => [...h, here]); setNavForward([]); scrollToNav(0); }
     setCollection({ title: item.title, thumbnail: item.thumbnail, tracks: [], total: null, loading: false, progress: 0, cached: false, fromView: fromView || "library", isAlbum: true, browseId: item.browseId });
     setView("collection");
     addRecentPlaylist({ browseId: item.browseId, title: item.title, thumbnail: item.thumbnail, type: "album" });
@@ -6503,8 +6537,10 @@ export default function App() {
   navStateRef.current = { view, collection, artistView };
 
   const openArtist = useCallback((item, fromView) => {
-    setNavHistory(h => [...h, navStateRef.current]);
+    const here = snapNav();
+    setNavHistory(h => [...h, here]);
     setNavForward([]);
+    scrollToNav(0);
     setArtistView({ browseId: item.browseId, fromView: fromView || view });
     setView("artist");
     if (item.browseId && item.title) {
@@ -6515,8 +6551,10 @@ export default function App() {
   // the history like any other, so Back returns to the artist; it travels in artistView, which
   // the history keeps.
   const openDiscography = useCallback((d) => {
-    setNavHistory(h => [...h, navStateRef.current]);
+    const here = snapNav();
+    setNavHistory(h => [...h, here]);
     setNavForward([]);
+    scrollToNav(0);
     setArtistView({ browseId: d.browseId, discography: d });
     setView("discography");
   }, []);
@@ -6528,41 +6566,48 @@ export default function App() {
       view: currentView,
       collection: currentView === "collection" ? currentCollection : undefined,
       artistView: currentView === "artist" || currentView === "discography" ? currentArtistView : undefined,
+      scroll: mainScrollRef.current?.scrollTop || 0,
     }]);
-  }, []);
+    scrollToNav(0);
+  }, [scrollToNav]);
 
   // Navigate to a top-level section (sidebar links) — always clears history.
   const navigateTo = useCallback((v) => {
     setNavHistory([]);
     setNavForward([]);
     setView(v);
-  }, []);
+    scrollToNav(0);
+  }, [scrollToNav]);
 
   // Go back one step in history; falls back to home if the stack is empty.
   const goBack = useCallback(() => {
+    const here = snapNav();
     setNavHistory(h => {
-      if (h.length === 0) { if (navStateRef.current.view !== "home") setNavForward(f => [...f, navStateRef.current]); setView("home"); return h; }
+      if (h.length === 0) { if (here.view !== "home") { setNavForward(f => [...f, here]); scrollToNav(0); } setView("home"); return h; }
       const prev = h[h.length - 1];
-      setNavForward(f => [...f, navStateRef.current]);
+      setNavForward(f => [...f, here]);
       setView(prev.view);
+      scrollToNav(prev.scroll);
       // Always restore collection (null for non-collection views so loading guards don't crash)
       setCollection(prev.collection ?? null);
       setArtistView(prev.artistView ?? null);
       return h.slice(0, -1);
     });
-  }, []);
+  }, [scrollToNav]);
   // The way back again, step by step: what Back left behind, in order.
   const goForward = useCallback(() => {
+    const here = snapNav();
     setNavForward(f => {
       if (f.length === 0) return f;
       const next = f[f.length - 1];
-      setNavHistory(h => [...h, navStateRef.current]);
+      setNavHistory(h => [...h, here]);
       setView(next.view);
+      scrollToNav(next.scroll);
       setCollection(next.collection ?? null);
       setArtistView(next.artistView ?? null);
       return f.slice(0, -1);
     });
-  }, []);
+  }, [scrollToNav]);
   const canGoBack = navHistory.length > 0 || view !== "home";
   const canGoForward = navForward.length > 0;
   // The mouse's side buttons and Alt+Left/Right, as in a browser.
@@ -7024,6 +7069,9 @@ export default function App() {
           {/* macOS: the gap above the content card (this column's exposed top margin) is a
               drag region, so the window can be moved from the top of the main area too — the
               card and everything inside it stay clickable (they're children, not the region). */}
+          <PullRefresh scrollRef={mainScrollRef} rootKey={appKey} top={TITLEBAR_H}
+            enabled={compact && !fullscreen && !overlayOpen && !settingsOpen}
+            onRefresh={() => setViewRefreshKey(k => k + 1)} />
           <div style={{
             flex: 1, minHeight: 0, overflow: "hidden",
             // Square: the rounded card read as a box inside the window, its corner right under
@@ -7037,7 +7085,7 @@ export default function App() {
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
-          <ScrollShadowRoot key={appKey} size={28} className="scrollable overflow-y-auto" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
+          <ScrollShadowRoot key={appKey} ref={mainScrollRef} size={28} className="scrollable overflow-y-auto" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "together" && <AnimatedView key="together"><TogetherView name={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName} avatar={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.avatar} /></AnimatedView>}
@@ -7633,7 +7681,7 @@ export default function App() {
             closeTray={closeTray}
             onCloseTrayChange={v => { setCloseTray(v); import("@tauri-apps/api/core").then(({ invoke }) => invoke("set_close_to_tray", { enabled: v }).catch(() => {})); }}
             discordRpc={discordRpc}
-            onDiscordRpcChange={(v) => { setDiscordRpc(v); if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
+            onDiscordRpcChange={(v) => { setDiscordRpc(v); if (!v && window.KodamaAndroid) window.KodamaAndroid.discordClear?.(); else if (!v) import("@tauri-apps/api/core").then(({ invoke }) => invoke("clear_discord_rpc").catch(() => {})); }}
             discordClearOnPause={discordClearOnPause}
             onDiscordClearOnPauseChange={setDiscordClearOnPause}
             discordStatusDisplay={discordStatusDisplay}

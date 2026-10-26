@@ -803,6 +803,18 @@ button:not([class]) {
    a permanent identity transform, which (a) neutralises backdrop-filter on all descendants and
    (b) keeps the subtree on its own layer, softening text. Omitting it lets the animation still
    interpolate to the element's base value and then drop the transform entirely. */
+/* Pull down to reload (src/ui/pull-refresh.jsx). */
+.pull-refresh {
+  position: absolute; left: 50%; z-index: 30; pointer-events: none;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated, var(--surface)); color: var(--text-secondary);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+}
+.pull-refresh[data-armed="1"] { color: var(--accent); }
+.pull-refresh-spin { animation: pull-refresh-spin 0.7s linear infinite; }
+@keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
+
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateX(-18px); }
   to   { opacity: 1; }
