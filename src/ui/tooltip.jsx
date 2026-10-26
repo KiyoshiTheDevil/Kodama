@@ -22,7 +22,10 @@ export function Tooltip({ text, children }) {
 
   return (
     <span style={{ display: "contents" }}
-      onMouseEnter={e => {
+      onPointerEnter={e => {
+        // Hover only. A tap on a touch screen also "enters" the button, but nothing ever
+        // leaves it again, so the tooltip stayed up after every tap on a phone.
+        if (e.pointerType !== "mouse") return;
         clearTimeout(hideTimer.current);
         setLeaving(false);
         const el = e.currentTarget.firstElementChild || e.target;
@@ -35,7 +38,7 @@ export function Tooltip({ text, children }) {
         clearTimeout(showTimer.current);
         showTimer.current = setTimeout(() => setVisible(true), 350);
       }}
-      onMouseLeave={hide}
+      onPointerLeave={hide}
     >
       {children}
       {visible && createPortal(

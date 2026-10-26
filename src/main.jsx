@@ -32,6 +32,10 @@ if (!import.meta.env.DEV) {
   window.addEventListener("contextmenu", (e) => e.preventDefault());
 }
 
+// On a phone a long press opens Kodama's context menu, and the web view also selected the
+// word under the finger (src/index.css turns that off under this mark).
+if (/Android/.test(navigator.userAgent)) document.documentElement.dataset.android = "";
+
 console.log("[boot] main.jsx executing at +" + (Date.now() - (window.__bootStart || Date.now())) + "ms");
 
 const params = new URLSearchParams(window.location.search);

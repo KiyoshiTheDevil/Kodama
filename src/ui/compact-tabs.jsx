@@ -5,6 +5,7 @@ import { Button } from "@heroui/react";
 import { useLang } from "../context.jsx";
 import { House, MagnifyingGlass, Books } from "../icons.jsx";
 import { TogetherTab } from "../together/TogetherSidebar.jsx";
+import { haptic } from "../haptics.js";
 
 const TAB = "flex-1 h-full min-w-0 flex flex-col items-center justify-center gap-1 rounded-none bg-transparent! "
   + "text-[length:var(--t11)] font-medium px-0";
@@ -20,7 +21,7 @@ export function CompactTabs({ view, onNavigate, profile }) {
   return (
     <nav aria-label="Navigation" className="flex items-stretch" style={{ height: 56, borderTop: "1px solid var(--border)" }}>
       {tabs.map((tab) => (
-        <Button key={tab.id} variant="ghost" onPress={() => onNavigate(tab.id)}
+        <Button key={tab.id} variant="ghost" onPress={() => { if (view !== tab.id) haptic("tick"); onNavigate(tab.id); }}
           aria-current={view === tab.id ? "page" : undefined}
           className={`${TAB} ${tone(view === tab.id)}`}>
           {tab.icon}

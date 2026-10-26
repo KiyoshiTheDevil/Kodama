@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.media3.common.MediaItem
@@ -109,6 +110,28 @@ object MediaBridge {
     @JavascriptInterface
     fun closeLogin() {
       main.post { LoginActivity.close() }
+    }
+
+    /**
+     * A short buzz through the system's own haptics, so it follows the phone's touch-feedback
+     * setting. The kinds are the page's names (src/haptics.js); newer constants fall back to
+     * older ones that feel alike.
+     */
+    @JavascriptInterface
+    fun haptic(kind: String) {
+      val api = Build.VERSION.SDK_INT
+      val c = when (kind) {
+        "tick" -> if (api >= 34) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK
+        "confirm" -> if (api >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY
+        "toggle-on" -> if (api >= 34) HapticFeedbackConstants.TOGGLE_ON else HapticFeedbackConstants.CLOCK_TICK
+        "toggle-off" -> if (api >= 34) HapticFeedbackConstants.TOGGLE_OFF else HapticFeedbackConstants.CLOCK_TICK
+        "long-press" -> HapticFeedbackConstants.LONG_PRESS
+        "drag-start" -> if (api >= 34) HapticFeedbackConstants.DRAG_START else HapticFeedbackConstants.LONG_PRESS
+        "gesture-end" -> if (api >= 30) HapticFeedbackConstants.GESTURE_END else HapticFeedbackConstants.CLOCK_TICK
+        "reject" -> if (api >= 30) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS
+        else -> HapticFeedbackConstants.VIRTUAL_KEY
+      }
+      main.post { webView.get()?.performHapticFeedback(c) }
     }
 
     /** The system's own output picker, the one an app may open (it cannot switch by itself). */

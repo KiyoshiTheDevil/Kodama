@@ -1336,3 +1336,14 @@ html[data-compact] .modal__dialog {
   /* Clear of a phone's gesture bar, while the sheet itself runs down to the edge. */
   padding-bottom: var(--safe-bottom) !important;
 }
+
+/* Android: a long press is Kodama's context menu, not a text selection (src/main.jsx). */
+html[data-android] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html[data-android] :is(input, textarea, [contenteditable="true"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}

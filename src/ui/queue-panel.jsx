@@ -8,6 +8,7 @@ import { API, thumb, useLang, useAnimations, useZoom, useCompact } from "../cont
 import { ArrowClockwise, CaretLineUp, DotsThreeVertical, GripLines, Heart, Sliders, Trash, X } from "../icons.jsx";
 import { ExplicitBadge } from "./rows.jsx";
 import { Tooltip } from "./tooltip.jsx";
+import { haptic } from "../haptics.js";
 import { Toggle } from "./settings-controls.jsx";
 import { CommentsTab } from "./comments-tab.jsx";
 import { ContextMenu, CtxItem } from "./context-menu.jsx";
@@ -354,6 +355,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       if (!isDragging.current) {
         if (Math.abs(me.clientY - startY) <= 4) return;
         isDragging.current = true;
+        haptic("drag-start");
         setDragIdx(globalIdx);
       }
       const hit = insertionAt(me.clientY);
@@ -369,6 +371,7 @@ export function QueuePanel({ queue: ownQueue, setQueue, currentTrack, setTrack, 
       window.removeEventListener("pointerup", onUp);
       const target = dropIdxRef.current;
       const didDrag = isDragging.current;
+      if (didDrag) haptic("gesture-end");
       if (didDrag && target != null) {
         setQueue(q => {
           const next = [...q];

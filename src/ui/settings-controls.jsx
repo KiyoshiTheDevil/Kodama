@@ -3,6 +3,7 @@
 import React, { Children, cloneElement, isValidElement, useId } from "react";
 import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb } from "@heroui/react";
 import { groupCorners } from "./corners.js";
+import { haptic } from "../haptics.js";
 
 export function Slider({
   min, max, step = 1, value, onChange, onChangeCommit, width = 120,
@@ -37,7 +38,7 @@ export function Toggle({ value, onChange, "aria-label": ariaLabel, "aria-labelle
   return (
     <SwitchRoot
       isSelected={!!value}
-      onChange={onChange}
+      onChange={(on) => { haptic(on ? "toggle-on" : "toggle-off"); onChange?.(on); }}
       aria-label={ariaLabelledBy ? undefined : (ariaLabel || "Toggle")}
       aria-labelledby={ariaLabelledBy}
     >

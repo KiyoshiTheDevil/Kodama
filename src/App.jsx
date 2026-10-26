@@ -78,6 +78,8 @@ import { setNowPlaying, registerPlayerAction, registerAudio } from "./now-playin
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 import { shuffled } from "./shuffle.js";
 import { STATS_URL } from "./stats-endpoint.js";
+import { setAppBack } from "./android-back.js";
+import { haptic, withHaptic } from "./haptics.js";
 import BackgroundExtensions from "./extensions/background.jsx";
 
 
@@ -2408,6 +2410,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             <Button
               variant="ghost" isIconOnly isDisabled={!track}
               onPress={() => {
+                haptic();
                 if (anim) { setPrevBouncing(true); setTimeout(() => setPrevBouncing(false), 400); }
                 const audio = audioRef.current;
                 // Only "restart current track" when the current track is actually loaded and
@@ -2437,7 +2440,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
           <Tooltip text={t("scNext")}>
             <Button
               variant="ghost" isIconOnly isDisabled={!track}
-              onPress={() => { if (anim) { setNextBouncing(true); setTimeout(() => setNextBouncing(false), 400); } goAdjacent("next"); }}
+              onPress={() => { haptic(); if (anim) { setNextBouncing(true); setTimeout(() => setNextBouncing(false), 400); } goAdjacent("next"); }}
               className="rounded-xl text-accent shrink-0"
               style={{ contain: "layout style" }}
             >
@@ -2901,7 +2904,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             </Button>
           )}
           <PlayPauseButton isPlaying={isPlaying} isDisabled={!track} onPress={track ? togglePlay : undefined} label={t("scPlayPause")} />
-          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={() => goAdjacent("next")} aria-label={t("scNext")}
+          <Button variant="ghost" isIconOnly isDisabled={!track} onPress={withHaptic(() => goAdjacent("next"))} aria-label={t("scNext")}
             className="w-[34px] h-[34px] min-w-[34px] rounded-[var(--r-full)] text-accent">
             <SkipForward size={20} />
           </Button>
@@ -2976,15 +2979,15 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             <Shuffle size={18} />
           </Button>
           <Button variant="ghost" isIconOnly aria-label={t("scPrev")} isDisabled={!track}
-            onPress={() => { const a = audioRef.current; if (a && !loading && a.currentTime >= 4) a.currentTime = 0; else goAdjacent("prev"); }}
+            onPress={() => { haptic(); const a = audioRef.current; if (a && !loading && a.currentTime >= 4) a.currentTime = 0; else goAdjacent("prev"); }}
             className="w-[48px] h-[48px] min-w-[48px] rounded-[var(--r-full)] text-primary">
             <SkipBack size={26} weight="fill" />
           </Button>
-          <Button isIconOnly aria-label={t("scPlayPause")} isDisabled={!track} onPress={track ? togglePlay : undefined}
+          <Button isIconOnly aria-label={t("scPlayPause")} isDisabled={!track} onPress={track ? withHaptic(togglePlay) : undefined}
             className="w-[64px] h-[64px] min-w-[64px] rounded-[var(--r-full)] bg-accent text-[var(--accent-foreground)] hover:brightness-110">
             {isPlaying ? <Pause size={26} weight="fill" /> : <Play size={26} weight="fill" />}
           </Button>
-          <Button variant="ghost" isIconOnly aria-label={t("scNext")} isDisabled={!track} onPress={() => goAdjacent("next")}
+          <Button variant="ghost" isIconOnly aria-label={t("scNext")} isDisabled={!track} onPress={withHaptic(() => goAdjacent("next"))}
             className="w-[48px] h-[48px] min-w-[48px] rounded-[var(--r-full)] text-primary">
             <SkipForward size={26} weight="fill" />
           </Button>
@@ -6166,6 +6169,7 @@ export default function App() {
   const handleToggleLike = useCallback(async (track) => {
     if (!track?.videoId) return;
     const wasLiked = likedIds.has(track.videoId);
+    haptic(wasLiked ? "toggle-off" : "toggle-on");
     const newRating = wasLiked ? "INDIFFERENT" : "LIKE";
     setLikedIds(prev => {
       const s = new Set(prev);
@@ -6433,6 +6437,33 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("mouseup", onMouse); window.removeEventListener("keydown", onKey); };
   }, [goBack, goForward]);
+  // Android's Back gesture, once open menus and dialogs had their turn (src/android-back.js):
+  // one layer per press, then the previous view. False on the home view lets the app go to
+  // the background.
+  const androidBackRef = useRef(null);
+  androidBackRef.current = () => {
+    if (diagOpen) { setDiagOpen(false); return true; }
+    if (feedbackOpen) { setFeedbackOpen(false); return true; }
+    if (newsOpen) { setNewsOpen(false); return true; }
+    if (trackContextMenu) { setTrackContextMenu(null); return true; }
+    if (globalContextMenu) { setGlobalContextMenu(null); return true; }
+    if (queueOpen) { setQueueOpen(false); return true; }
+    if (overlayOpen) { setOverlayOpen(false); return true; }
+    if (settingsOpen) {
+      if (compact && settingsPage === "detail") setSettingsPage("list");
+      else closeSettings();
+      return true;
+    }
+    if (canGoBack) { goBack(); return true; }
+    return false;
+  };
+  // A context menu on a phone opens on a long press; the buzz says it took.
+  const menuOpen = !!(trackContextMenu || globalContextMenu);
+  useEffect(() => { if (menuOpen) haptic("long-press"); }, [menuOpen]);
+  useEffect(() => {
+    setAppBack(() => androidBackRef.current());
+    return () => setAppBack(null);
+  }, []);
 
   // ── Clear track selection when view changes ─────────────────────────────────
   useEffect(() => { clearSelection(); }, [view]);
@@ -6531,7 +6562,7 @@ export default function App() {
             .catch(() => {})
             .finally(() => { setFullscreen(next); if (next) setOverlayOpen(true); });
         }
-      } else if (e.code === "Escape") {
+      } else if (e.code === "Escape" && !e.kodamaBack) {
         setOverlayOpen(false);
         setQueueOpen(false);
       } else if (e.code === "F8") {

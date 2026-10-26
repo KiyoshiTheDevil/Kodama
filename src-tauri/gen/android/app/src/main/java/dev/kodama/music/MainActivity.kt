@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
@@ -12,6 +13,10 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 
 class MainActivity : TauriActivity() {
+  // Wry would send Back to the web view's history, which Kodama does not use (it switches
+  // views inside one page), so every Back left the app. The page decides instead, below.
+  override val handleBackNavigation = false
+
   override fun onCreate(savedInstanceState: Bundle?) {
     // Light icons on the bars: Kodama is dark.
     enableEdgeToEdge(
@@ -26,6 +31,18 @@ class MainActivity : TauriActivity() {
   // The page's line to Android: media controls and the audio output (MediaBridge.kt).
   override fun onWebViewCreate(webView: WebView) {
     MediaBridge.attach(webView)
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() = askPageToGoBack(webView)
+    })
+  }
+
+  // The page closes its topmost menu, sheet or panel, or goes back a view
+  // (window.__kodamaBack in src/android-back.js). With nothing left to close, the app goes to
+  // the background like a music player does, instead of finishing: the music keeps playing.
+  private fun askPageToGoBack(webView: WebView) {
+    webView.evaluateJavascript("window.__kodamaBack ? window.__kodamaBack() : false") { result ->
+      if (result != "true") moveTaskToBack(true)
+    }
   }
 
   // Android draws the app under the status bar and the gesture bar (edge to edge, enforced for

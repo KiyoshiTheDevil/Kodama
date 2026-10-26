@@ -17,6 +17,7 @@
 import { useEffect, useId, useState } from "react";
 import { Button } from "@heroui/react";
 import { Pause, Play } from "../icons.jsx";
+import { withHaptic } from "../haptics.js";
 
 const W = 64;
 const H = 40;
@@ -58,7 +59,7 @@ export function PlayPauseButton({ isPlaying, isDisabled, onPress, label }) {
     <Button
       variant="primary"
       isDisabled={isDisabled}
-      onPress={onPress}
+      onPress={withHaptic(onPress)}
       aria-label={label}
       className="play-pill w-16 h-10 rounded-[var(--r-full)] shrink-0"
       style={{ contain: "layout style" }}
