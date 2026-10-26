@@ -5993,6 +5993,53 @@ def _video_sync_compute_offset(song_wav, video_wav):
     return offset_seconds, confidence
 
 
+def _android_video_sync_offset(song_id, video_id):
+    """Android: the same offset and confidence as _video_sync_compute_offset, without FFmpeg and
+    numpy. The app decodes both audio tracks itself and hands over their 50 ms RMS envelopes
+    (StreamExtractor.audioEnvelope); the correlation is plain Python, which a few thousand values
+    and a ±VIDEO_SYNC_MAX_LAG_SECONDS search range allow."""
+    import concurrent.futures
+    from java import jclass
+    extractor = jclass("dev.kodama.music.StreamExtractor")
+    win = 0.05
+
+    def envelope(vid):
+        env = extractor.audioEnvelope(vid, float(VIDEO_SYNC_CLIP_SECONDS), win)
+        if env is None:
+            raise RuntimeError(f"no audio envelope for {vid}")
+        env = [float(x) for x in env]
+        if not env:
+            raise RuntimeError(f"empty audio envelope for {vid}")
+        mean = sum(env) / len(env)
+        env = [x - mean for x in env]
+        std = (sum(x * x for x in env) / len(env)) ** 0.5
+        return [x / std for x in env] if std > 1e-9 else env
+
+    t0 = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f_song, f_video = pool.submit(envelope, song_id), pool.submit(envelope, video_id)
+        song_env, video_env = f_song.result(), f_video.result()
+    t1 = time.time()
+
+    # corr(lag) = sum video[i] * song[i - lag], what fftconvolve(video, song[::-1]) gives on the
+    # desktop: a positive lag means the video starts later than the song.
+    max_lag = int(VIDEO_SYNC_MAX_LAG_SECONDS / win)
+    lags = range(max(-max_lag, -len(song_env) + 1), min(max_lag, len(video_env) - 1) + 1)
+    corr = []
+    for lag in lags:
+        lo, hi = max(0, lag), min(len(video_env), len(song_env) + lag)
+        corr.append(sum(video_env[i] * song_env[i - lag] for i in range(lo, hi)))
+
+    peak_idx = max(range(len(corr)), key=corr.__getitem__)
+    peak_val = corr[peak_idx]
+    offset_seconds = float(lags[peak_idx] * win)
+    noise = corr[:max(0, peak_idx - 3)] + corr[peak_idx + 4:]
+    noise_floor = sum(abs(x) for x in noise) / len(noise) if noise else 1.0
+    confidence = float(abs(peak_val) / noise_floor) if noise_floor > 1e-9 else 0.0
+    print(f"[video-sync] {song_id}: envelopes {t1 - t0:.1f}s, correlation {time.time() - t1:.1f}s", flush=True)
+    return offset_seconds, confidence
+
+
 def _compute_video_sync_offset(video_id):
     """Resolve the counterpart video and compute the song↔video sync offset. Cached on disk."""
     import shutil, tempfile
@@ -6021,6 +6068,14 @@ def _compute_video_sync_offset(video_id):
                           "offsetSeconds": 0, "confidence": 999, "selfVideo": True}
             else:
                 result = {"available": False}
+        elif _ANDROID:
+            offset_seconds, confidence = _android_video_sync_offset(video_id, counterpart_id)
+            result = {
+                "available": True,
+                "counterpartVideoId": counterpart_id,
+                "offsetSeconds": offset_seconds,
+                "confidence": confidence,
+            }
         else:
             ffmpeg_dir = _find_ffmpeg()
             if ffmpeg_dir is False:
@@ -6132,6 +6187,15 @@ def video_sync_stream(video_id):
     (_stream_attempts) but with a video-capable, quality-aware format selector.
     ?maxHeight=<int> caps the resolution (omitted = best available)."""
     max_height = request.args.get("maxHeight", type=int)
+    if _ANDROID:
+        # The app's own extractor first, as for the audio (_android_stream_url).
+        try:
+            from java import jclass
+            url = jclass("dev.kodama.music.StreamExtractor").videoUrl(video_id, max_height or 0)
+            if url:
+                return jsonify({"url": str(url)})
+        except Exception as e:
+            print(f"[newpipe] video {video_id}: {e}", flush=True)
     video_fmt = _video_fmt_for_quality(max_height)
     last_err = None
 
