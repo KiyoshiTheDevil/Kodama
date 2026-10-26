@@ -6598,6 +6598,9 @@ export default function App() {
   }, []);
   const startPlayerDrag = useCallback((e) => {
     if (e.pointerType !== "touch") return;
+    // Only from the player itself. A sheet it opened is portalled to <body>, but React still
+    // bubbles its events up here, so pulling the sheet down pulled the player along.
+    if (!e.currentTarget.contains(e.target)) return;
     // Not from what scrolls or slides by itself.
     if (e.target.closest?.('.lyrics-scroll, braccato-lyrics, [role="slider"], input, textarea, [data-no-player-drag]')) return;
     const x0 = e.clientX, y0 = e.clientY, t0 = performance.now();
@@ -7094,6 +7097,8 @@ export default function App() {
             )}
           <div
             ref={playerBarRef}
+            // The open player's controls sit in this bar, on the player's dark background.
+            {...(compact && overlayOpen ? { "data-force-dark": "", className: "dark" } : {})}
             onPointerDown={compact && overlayOpen ? startPlayerDrag : undefined}
             onMouseEnter={() => { overPlayerRef.current = true; }}
             onMouseLeave={() => { overPlayerRef.current = false; armHideRef.current?.(); }}
@@ -7185,7 +7190,9 @@ export default function App() {
           </div>
           </div>
           </div>
-        <div ref={overlayPaneRef} data-player-pane="" onPointerDown={compact && overlayOpen ? startPlayerDrag : undefined} style={{
+        {/* Compact: dark in every theme, the cover's blur under black behind it
+            (data-force-dark in index.css, `dark` for HeroUI's own tokens). */}
+        <div ref={overlayPaneRef} data-player-pane="" {...(compact ? { "data-force-dark": "", className: "dark" } : {})} onPointerDown={compact && overlayOpen ? startPlayerDrag : undefined} style={{
           position: "absolute",
           // Below the title bar and above the player bar, whose height is measured: the bar runs
           // the full width now and grows to two rows in narrow windows.

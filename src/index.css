@@ -245,39 +245,17 @@
 
 :root {
   /* â”€â”€ Surfaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --bg-base:     #0d0d0d;    /* App background */
-  --bg-surface:  #141414;    /* Sidebar / panels  (= surface-0) */
-  --bg-elevated: #1c1c1c;    /* Raised content    (= surface-1) */
-  --bg-hover:    #222222;    /* Hover fallback     (= surface-2) */
 
   /* Fluent elevation aliases (use these going forward) */
-  --surface-1:   #1c1c1c;   /* Setting cards */
-  --surface-2:   #313131;   /* Buttons / controls default */
-  --surface-3:   #3c3c3c;   /* Buttons / controls hovered */
 
   /* â”€â”€ Acrylic material â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --acrylic: rgba(13, 13, 13, 0.84);
 
   /* â”€â”€ Stroke / Borders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --stroke:      rgba(255,255,255,0.082);
-  --stroke-dim:  rgba(255,255,255,0.050);
-  --stroke-med:  rgba(255,255,255,0.145);
-  --border:      var(--stroke);   /* legacy alias */
 
   /* â”€â”€ Fill states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --fill-subtle: rgba(255,255,255,0.055);
-  --fill-mod:    rgba(255,255,255,0.093);
-  --fill-strong: rgba(255,255,255,0.14);
 
   /* â”€â”€ Text opacity hierarchy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --t1: rgba(255,255,255,0.886);  /* Primary   ~89% */
-  --t2: rgba(255,255,255,0.544);  /* Secondary ~54% */
-  --t3: rgba(255,255,255,0.373);  /* Tertiary  ~37% */
-  --t4: rgba(255,255,255,0.200);  /* Disabled  ~20% */
   /* Legacy aliases */
-  --text-primary:   var(--t1);
-  --text-secondary: var(--t2);
-  --text-muted:     var(--t3);
 
   /* â”€â”€ Accent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   --accent:     #e040fb;
@@ -311,44 +289,73 @@
      "error" (#f44336 / #ff7070 / #e05252), two greens and two ambers, so the colour
      shifted depending on which screen you were on. The -soft / -line variants are
      derived, so changing the base recolours the tint and border with it. */
-  --status-danger:        #ff7070;
   --status-danger-soft:   color-mix(in srgb, var(--status-danger) 12%, transparent);
   --status-danger-line:   color-mix(in srgb, var(--status-danger) 30%, transparent);
-  --status-success:       #6bdf96;
   --status-success-soft:  color-mix(in srgb, var(--status-success) 12%, transparent);
   --status-success-line:  color-mix(in srgb, var(--status-success) 30%, transparent);
-  --status-warning:       #f0b429;
   --status-warning-soft:  color-mix(in srgb, var(--status-warning) 12%, transparent);
   --status-warning-line:  color-mix(in srgb, var(--status-warning) 30%, transparent);
   /* The fourth role: neutral information, as opposed to something being wrong. Only the debug
      log used it and it carried its own blue, which is why it was missing here. */
-  --status-info:          #64b5f6;
   --status-info-soft:     color-mix(in srgb, var(--status-info) 12%, transparent);
   --status-info-line:     color-mix(in srgb, var(--status-info) 30%, transparent);
 
   /* Elevation ----------------------------------------------------------------
      No shadow tokens existed at all; every shadow was written out by hand. Keep the
      blur inside a view's content padding, or it bleeds to the scroll container edge. */
-  --elevation-1: 0 2px 8px rgba(0,0,0,0.22);    /* badges, slider thumbs */
-  --elevation-2: 0 4px 14px rgba(0,0,0,0.28);   /* cards, small buttons, tooltips */
-  --elevation-3: 0 10px 24px rgba(0,0,0,0.42);  /* dropdowns, popovers, context menus */
-  --elevation-4: 0 18px 48px rgba(0,0,0,0.5);   /* modals, floating windows */
-  --elevation-5: 0 28px 70px rgba(0,0,0,0.58);  /* the big cover art — largest floating object */
 
   /* Cover-art fallback, repeated in ~19 places before it was a token. */
   --placeholder-gradient: linear-gradient(135deg, #2a1535, #1a0a25);
 
-  --slider-track: #333333;
   /* Scrollbar thumb, in three weights: resting, resting inside a container that dims its own
      bar until hovered, and hovered. Were five literals spread over the rules below plus a set
      of per-theme copies, and the dim one had no light copy at all - so a light theme drew a
      near-black thumb on a white page. One place per theme now. */
   /* NOT --scrollbar-thumb: HeroUI ships one of its own under that exact name and would have
      been silently overwritten by ours, the same collision --status-* exists to avoid. */
+  --font: 'Onest', 'MiSans Latin', system-ui, sans-serif;
+}
+
+/* The colours a theme sets, as the dark default. Also on [data-force-dark]: the phone player
+   stays dark in every theme (its background is the blurred cover under black), so it takes
+   these back for its own subtree. The accent and the rest above stay the page's. */
+:root,
+[data-force-dark] {
+  --bg-base:     #0d0d0d;    /* App background */
+  --bg-surface:  #141414;    /* Sidebar / panels  (= surface-0) */
+  --bg-elevated: #1c1c1c;    /* Raised content    (= surface-1) */
+  --bg-hover:    #222222;    /* Hover fallback     (= surface-2) */
+  --surface-1:   #1c1c1c;   /* Setting cards */
+  --surface-2:   #313131;   /* Buttons / controls default */
+  --surface-3:   #3c3c3c;   /* Buttons / controls hovered */
+  --acrylic: rgba(13, 13, 13, 0.84);
+  --stroke:      rgba(255,255,255,0.082);
+  --stroke-dim:  rgba(255,255,255,0.050);
+  --stroke-med:  rgba(255,255,255,0.145);
+  --border:      var(--stroke);   /* legacy alias */
+  --fill-subtle: rgba(255,255,255,0.055);
+  --fill-mod:    rgba(255,255,255,0.093);
+  --fill-strong: rgba(255,255,255,0.14);
+  --t1: rgba(255,255,255,0.886);  /* Primary   ~89% */
+  --t2: rgba(255,255,255,0.544);  /* Secondary ~54% */
+  --t3: rgba(255,255,255,0.373);  /* Tertiary  ~37% */
+  --t4: rgba(255,255,255,0.200);  /* Disabled  ~20% */
+  --text-primary:   var(--t1);
+  --text-secondary: var(--t2);
+  --text-muted:     var(--t3);
+  --status-danger:        #ff7070;
+  --status-success:       #6bdf96;
+  --status-warning:       #f0b429;
+  --status-info:          #64b5f6;
+  --elevation-1: 0 2px 8px rgba(0,0,0,0.22);    /* badges, slider thumbs */
+  --elevation-2: 0 4px 14px rgba(0,0,0,0.28);   /* cards, small buttons, tooltips */
+  --elevation-3: 0 10px 24px rgba(0,0,0,0.42);  /* dropdowns, popovers, context menus */
+  --elevation-4: 0 18px 48px rgba(0,0,0,0.5);   /* modals, floating windows */
+  --elevation-5: 0 28px 70px rgba(0,0,0,0.58);  /* the big cover art — largest floating object */
+  --slider-track: #333333;
   --scroll-thumb:       #333333;
   --scroll-thumb-dim:   #2a2a2a;
   --scroll-thumb-hover: #666666;
-  --font: 'Onest', 'MiSans Latin', system-ui, sans-serif;
 }
 
 /* â”€â”€â”€ OLED Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -1388,4 +1395,15 @@ html[data-compact] {
 html[data-android] ::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
+}
+
+/* The logo is a white mark; on a light theme it turns dark instead of vanishing. */
+html[data-mode="light"] img[src="/Kodama%20Logo.png"] {
+  filter: invert(1);
+}
+
+/* Text without a colour of its own inherits one already worked out at <body>, the light theme's
+   dark grey; the dark player sets its own (the song's title was black on the dark blur). */
+[data-force-dark] {
+  color: var(--text-primary);
 }
