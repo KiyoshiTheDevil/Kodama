@@ -175,6 +175,42 @@ function AccentColorPicker({ value, onChange }) {
   );
 }
 
+// Android: Discord's Rich Presence goes through the user's own Discord account, signed in here
+// (DiscordLoginActivity.kt), since there is no Discord app on the phone to talk to. The sign-in's
+// outcome comes back on window.__kodamaDiscord.
+function readDiscordAccount() {
+  try { const a = window.KodamaAndroid?.discordAccount?.(); return a ? JSON.parse(a) : null; } catch { return null; }
+}
+
+function DiscordAccountRow({ onChange }) {
+  const t = useLang();
+  const [account, setAccount] = useState(readDiscordAccount);
+  const [working, setWorking] = useState(false);
+  useEffect(() => {
+    window.__kodamaDiscord = ({ type, value }) => {
+      setWorking(false);
+      if (type === "complete") { setAccount({ name: value }); toast.success(t("discordSignedIn")); }
+      else if (type === "failed") toast.danger(t("discordSignInFailed"));
+      else if (type === "expired") { setAccount(null); toast.danger(t("discordExpired")); }
+    };
+    return () => { delete window.__kodamaDiscord; };
+  }, [t]);
+  useEffect(() => { onChange?.(!!account); }, [account, onChange]);
+
+  const signIn = () => { setWorking(true); window.KodamaAndroid?.discordLogin?.(); };
+  const signOut = () => { window.KodamaAndroid?.discordLogout?.(); setAccount(null); };
+
+  return (
+    <SettingRow label={t("discordAccount")}
+      description={account ? t("discordAccountSignedInDesc", { name: account.name }) : t("discordAccountDesc")}
+      icon={<BrandDiscord />}>
+      {account
+        ? <Button variant="danger-soft" size="sm" onPress={signOut}>{t("discordSignOut")}</Button>
+        : <Button variant="primary" size="sm" isDisabled={working} onPress={signIn}>{working ? <Spinner size="sm" /> : t("discordSignIn")}</Button>}
+    </SettingRow>
+  );
+}
+
 // Last.fm connect/disconnect row. Uses the desktop auth flow: connect → open browser
 // → user authorizes → "I've authorized" exchanges the token for a session key.
 
@@ -349,6 +385,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   tab, setTab }) {
   // Android: whether a picked launcher icon is still waiting to go in (AppIcons.kt).
   const [androidIconPending, setAndroidIconPending] = useState(() => !!window.KodamaAndroid?.pendingAppIcon?.());
+  // Android: the presence settings only mean something once a Discord account is signed in.
+  const [discordSignedIn, setDiscordSignedIn] = useState(() => !!readDiscordAccount());
   const readAndroidIconPending = () => setAndroidIconPending(!!window.KodamaAndroid?.pendingAppIcon?.());
   const anim = useAnimations();
   const t = useLang();
@@ -1405,6 +1443,8 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
               <>
                 <SectionAnchor id="conn-discord" />
                 <SectionLabel>Discord</SectionLabel>
+                {IS_ANDROID && <DiscordAccountRow onChange={setDiscordSignedIn} />}
+                {(!IS_ANDROID || discordSignedIn) && <>
                 <SettingRow label={t("discordRpc")} description={t("discordRpcDesc")} icon={<ShareNodes />}>
                   <Toggle value={discordRpc} onChange={onDiscordRpcChange} />
                 </SettingRow>
@@ -1429,6 +1469,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                     </ToggleButtonGroupRoot>
                   </SettingRow>
                 )}
+                </>}
 
                 <SectionAnchor id="conn-lastfm" />
                 <SectionLabel>Last.fm</SectionLabel>
@@ -1440,6 +1481,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   <Toggle value={ytmusicHistorySync} onChange={onYtmusicHistorySyncChange} />
                 </SettingRow>
 
+                {!IS_ANDROID && <>
                 <SectionAnchor id="conn-remote" />
                 <SectionLabel>{t("remoteControl")}</SectionLabel>
                 <SettingRow label={<span style={{ display: "flex", alignItems: "center", gap: 6 }}>{t("remoteControl")}<span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", background: "var(--accent)", color: "#fff", padding: "2px 5px", borderRadius: "var(--r-sm)", lineHeight: 1.4 }}>Beta</span></span>} description={t("remoteControlDesc")} icon={<DeviceMobile />}>
@@ -1448,6 +1490,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                 {remoteEnabled && (
                   <RemoteControlPanel devices={remoteDevices} onDevice={onRemoteDevice} onPair={onPairDevice} trustedIds={remoteTrustedIds} onRemember={onRememberDevice} />
                 )}
+                </>}
               </>
             )}
 

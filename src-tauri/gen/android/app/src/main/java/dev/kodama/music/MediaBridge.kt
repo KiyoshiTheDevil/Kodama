@@ -55,6 +55,7 @@ object MediaBridge {
     webView = WeakReference(view)
     activity = WeakReference(view.context as? Activity)
     view.addJavascriptInterface(JsApi(), "KodamaAndroid")
+    DiscordPresence.init(appContext)
     AudioOutputs.start(appContext)
   }
 
@@ -122,6 +123,24 @@ object MediaBridge {
     fun closeLogin() {
       main.post { LoginActivity.close() }
     }
+
+    /** Discord's Rich Presence (DiscordPresence.kt); the sign-in's outcome comes back on window.__kodamaDiscord. */
+    @JavascriptInterface
+    fun discordLogin() {
+      main.post { DiscordLoginActivity.start(appContext) }
+    }
+
+    @JavascriptInterface
+    fun discordLogout() = DiscordPresence.signOut()
+
+    @JavascriptInterface
+    fun discordAccount(): String = DiscordPresence.account()
+
+    @JavascriptInterface
+    fun discordUpdate(json: String) = DiscordPresence.update(json)
+
+    @JavascriptInterface
+    fun discordClear() = DiscordPresence.clear()
 
     /**
      * A short buzz through the system's own haptics, so it follows the phone's touch-feedback

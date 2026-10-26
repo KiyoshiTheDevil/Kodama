@@ -82,7 +82,8 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "conn-discord", label: "Discord" },
       { id: "conn-lastfm",  label: "Last.fm" },
       { id: "conn-ytmusic", label: "YouTube Music" },
-      { id: "conn-remote",  label: t("remoteControl") },
+      // The remote steers a computer from a phone: nothing for it to do on the phone itself.
+      ...(IS_ANDROID ? [] : [{ id: "conn-remote",  label: t("remoteControl") }]),
     ] },
     { id: "lyrics",        label: t("lyrics"),        iconEl: <ChatText size={18} />, sections: [
       { id: "lyrics-visual",    label: t("lyrVisual") },

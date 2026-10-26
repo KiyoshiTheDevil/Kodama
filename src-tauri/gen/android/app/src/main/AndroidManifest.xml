@@ -191,6 +191,12 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode"
             android:exported="false" />
 
+        <!-- Signing in to Discord for the Rich Presence (DiscordLoginActivity.kt). -->
+        <activity
+            android:name=".DiscordLoginActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:exported="false" />
+
         <!-- The media session behind the notification and the lock-screen controls. -->
         <service
             android:name=".PlaybackService"

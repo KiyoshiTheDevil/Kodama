@@ -79,7 +79,9 @@ rust {
 
 // Kodama's backend, run inside the app: the same server.py as on the desktop, started by
 // android_main.py from MainActivity. Only those two files are taken from python-backend, which
-// also holds caches, build output and the desktop's ffmpeg.
+// also holds caches, build output and the desktop's ffmpeg, plus the two git-ignored configs the
+// server reads next to itself: the Last.fm key and the bug report's webhook. Without them Last.fm
+// and the bug report are switched off, as on a desktop build without them.
 //
 // Packages: what the server needs to load and to browse. Left out for now: the desktop's PO-token
 // path (yt-dlp-ejs, bgutil), which needs Node, and numpy/scipy/Pillow, which only the video sync
@@ -103,7 +105,7 @@ chaquopy {
     sourceSets {
         getByName("main") {
             srcDir("../../../../python-backend")
-            include("server.py", "android_main.py")
+            include("server.py", "android_main.py", "lastfm_config.json", "feedback_config.json")
         }
     }
 }
