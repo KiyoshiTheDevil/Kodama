@@ -2956,7 +2956,6 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
             padding: 8, borderRadius: 20, cursor: "default",
             background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)",
             backdropFilter: "blur(22px) saturate(1.5)", WebkitBackdropFilter: "blur(22px) saturate(1.5)",
-            border: "1px solid var(--border)",
             // Its own stacking context, so the fill below (z -1) sits over the card's background
             // and under everything else in it.
             isolation: "isolate",

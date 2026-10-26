@@ -32,7 +32,7 @@ export function CompactTabs({ view, onNavigate }) {
   return (
     <nav aria-label="Navigation" style={{
       display: "flex", alignItems: "center", gap: 4, height: 54, padding: 4, margin: "2px 16px 10px",
-      borderRadius: "var(--r-full)", border: "1px solid var(--border)",
+      borderRadius: "var(--r-full)",
       background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)",
       backdropFilter: "blur(22px) saturate(1.5)", WebkitBackdropFilter: "blur(22px) saturate(1.5)",
     }}>
