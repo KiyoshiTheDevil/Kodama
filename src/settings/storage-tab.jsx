@@ -4,6 +4,7 @@ import { API } from "../context.jsx";
 import { Check, DownloadSimple, HardDrives, ImageSquare, Microphone, MusicNote, Queue, VinylRecord } from "../icons.jsx";
 import { Slider, Toggle, SettingRow, SettingsSectionLabel } from "../ui/settings-controls.jsx";
 import { fmtBytes } from "../format.js";
+import { IS_ANDROID } from "../platform.js";
 
 
 const MAX_CACHE_STEPS = [100, 250, 500, 1000, 2000, 5000, 0]; // 0 = unlimited
@@ -11,12 +12,13 @@ const MAX_CACHE_STEPS = [100, 250, 500, 1000, 2000, 5000, 0]; // 0 = unlimited
 export function StorageTab({ t }) {
   return (
     <div>
-      <div id="set-sec-storage-downloads" data-settings-section="storage-downloads" style={{ scrollMarginTop: 8 }}>
+      {/* Android: the app keeps its files itself, there is no folder to choose. */}
+      {!IS_ANDROID && <div id="set-sec-storage-downloads" data-settings-section="storage-downloads" style={{ scrollMarginTop: 8 }}>
         <SettingsSectionLabel>{t("storageDownloads")}</SettingsSectionLabel>
         <DownloadsTab t={t} />
-      </div>
+      </div>}
       <div id="set-sec-storage-cache" data-settings-section="storage-cache" style={{ scrollMarginTop: 8 }}>
-        <SettingsSectionLabel style={{ marginTop: 28 }}>{t("storageCache")}</SettingsSectionLabel>
+        <SettingsSectionLabel style={{ marginTop: IS_ANDROID ? undefined : 28 }}>{t("storageCache")}</SettingsSectionLabel>
         <CacheTab t={t} />
       </div>
     </div>

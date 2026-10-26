@@ -1,18 +1,19 @@
-import { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { cloneElement, useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, Button, ListBox, ListBoxItem, ScrollShadowRoot } from "@heroui/react";
-import { API, useLang, useAnimations } from "../context.jsx";
+import { API, thumb, useLang, useAnimations } from "../context.jsx";
 import { translate } from "../i18n.js";
 import { ArrowLeft, ChevronRight, ArrowsClockwise, Bug, ChatText, Flask, HardDrives, Info, Keyboard, Link, Lock, PaintBrushBroad, PersonArmsSpread, Play, PuzzlePiece, ScreencastSimple, Translate, UserCircle, WaveformLines } from "../icons.jsx";
 import { APP_VERSION } from "../version.js";
 import { subscribeSettingsSection, getSettingsSection } from "./section-store.js";
 import { SidebarTooltip } from "../ui/tooltip.jsx";
 import { useExtensionsWithSettings } from "./extensions-tab.jsx";
+import { IS_ANDROID } from "../platform.js";
 
 // top: where it starts. Below the Windows/Linux title bar, which also carries Back; there the
 // header with its own back button is left out.
 // asList: the compact layout's first page of the settings, full width, rows to tap with an
 // arrow, no sub-sections (they are the category's own page); onPick runs after a tab is chosen.
-export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing, top = 8, showHeader = true, asList = false, onPick }) {
+export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInfo, onClose, collapsed, closing, top = 8, showHeader = true, asList = false, onPick, account }) {
   const activeSection = useSyncExternalStore(subscribeSettingsSection, getSettingsSection);
   const t = useLang();
   // This is the list the settings sidebar actually draws. panel.jsx keeps a second one for the
@@ -88,7 +89,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "lyrics-effects",   label: t("lyrEffects") },
       { id: "lyrics-providers", label: t("lyricsProviders") },
       { id: "lyrics-unison",    label: t("unisonIdentity") },
-      { id: "lyrics-composer",  label: t("composer") },
+      ...(IS_ANDROID ? [] : [{ id: "lyrics-composer",  label: t("composer") }]),
     ] },
     { id: "wiedergabe",    label: t("playback"),      iconEl: <Play size={18} />, sections: [
       { id: "pb-general", label: t("general") },
@@ -103,16 +104,18 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
       { id: "viz-colour",   label: t("vizSecColour") },
     ] },
     { id: "storage",       label: t("storage"),       iconEl: <HardDrives size={18} />, sections: [
-      { id: "storage-downloads", label: t("storageDownloads") },
+      // Android: no folder to pick for downloads (StorageTab hides the section).
+      ...(IS_ANDROID ? [] : [{ id: "storage-downloads", label: t("storageDownloads") }]),
       { id: "storage-cache",     label: t("storageCache") },
     ] },
     { id: "sicherheit",    label: t("security"),      iconEl: <Lock size={18} /> },
-    { id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} /> },
+    // Android has no OBS to feed, no keyboard to bind and no updater of the desktop's kind.
+    ...(IS_ANDROID ? [] : [{ id: "overlay",       label: t("overlay"),       iconEl: <ScreencastSimple size={18} /> }]),
     ...(extensionSettings.length ? [{ id: "extensions", label: t("extensionsTab"), iconEl: <PuzzlePiece size={18} /> }] : []),
-    { id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> },
+    ...(IS_ANDROID ? [] : [{ id: "shortcuts",     label: t("shortcuts"),     iconEl: <Keyboard size={18} /> }]),
     { id: "experimental",  label: t("experimental"),  iconEl: <Flask size={18} /> },
     { id: "language",      label: t("language"),      iconEl: <Translate size={18} /> },
-    { id: "update",        label: t("update"),        iconEl: <ArrowsClockwise size={18} /> },
+    ...(IS_ANDROID ? [] : [{ id: "update",        label: t("update"),        iconEl: <ArrowsClockwise size={18} /> }]),
     { id: "about",         label: t("about"),         iconEl: <Info size={18} /> },
     ...(debugUnlocked ? [{ id: "debug", label: t("debug"), iconEl: <Bug size={18} /> }] : []),
   ];
@@ -165,6 +168,10 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
         hideScrollBar
         className={collapsed ? "px-1" : "px-2"}
         style={{ flex: 1, minHeight: 0, overflowX: "hidden", paddingBottom: 8 }}>
+        {asList ? (
+          <SettingsHome items={navItems} account={account} t={t} updateInfo={updateInfo}
+            onPick={(id) => { setTab(id); onPick?.(id); }} />
+        ) : (
         <ListBox
           aria-label={t("appSettings")}
           selectionMode="none"
@@ -225,6 +232,7 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
             return [parent, ...children];
           })}
         </ListBox>
+        )}
       </ScrollShadowRoot>
 
       {/* Footer — version info + debug tap + quit */}
@@ -260,6 +268,72 @@ export function SettingsSidebarContent({ tab, setTab, onSectionSelect, updateInf
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Compact (phones, narrow windows): the settings' first page ──
+// The account as a card at the head, then the categories in groups, as a phone's own settings
+// do it: a coloured tile per category and a line of what is inside. The colours stay on this
+// page; the categories' own pages keep the accent.
+const CATEGORY_TINT = {
+  darstellung: "#7c5cff", accessibility: "#1d9e75", language: "#2a9cb8",
+  wiedergabe: "#e5484d", lyrics: "#d4537e", visualizer: "#ba7517",
+  connections: "#378add", storage: "#6b6a66", sicherheit: "#3b8f4f",
+  extensions: "#8f5cd8", overlay: "#c2410c", shortcuts: "#6b6a66",
+  experimental: "#d85a30", update: "#378add", about: "#6b6a66", debug: "#6b6a66",
+};
+const CATEGORY_GROUPS = [
+  ["darstellung", "accessibility", "language"],
+  ["wiedergabe", "lyrics", "visualizer"],
+  ["connections", "storage", "sicherheit", "extensions"],
+];
+
+function SettingsHome({ items, account, t, updateInfo, onPick }) {
+  const byId = Object.fromEntries(items.map((it) => [it.id, it]));
+  const grouped = new Set(["account", ...CATEGORY_GROUPS.flat()]);
+  const groups = [
+    ...CATEGORY_GROUPS.map((ids) => ids.map((id) => byId[id]).filter(Boolean)),
+    items.filter((it) => !grouped.has(it.id)),
+  ].filter((g) => g.length);
+  const row = (it) => {
+    const sum = t(`setSum_${it.id}`);
+    return (
+      <button key={it.id} type="button" onClick={() => onPick(it.id)}
+        className="w-full flex items-center gap-3 px-3.5 py-3 text-start border-0 bg-transparent cursor-default active:bg-[var(--fill-subtle)]">
+        <span aria-hidden="true" className="shrink-0 w-8 h-8 rounded-[10px] flex items-center justify-center text-white"
+          style={{ background: CATEGORY_TINT[it.id] || "var(--accent)" }}>
+          {cloneElement(it.iconEl, { size: 16 })}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[length:var(--t14)] font-medium text-primary truncate">{it.label}</span>
+          {sum && sum !== `setSum_${it.id}` && <span className="block text-[length:var(--t12)] text-muted truncate">{sum}</span>}
+        </span>
+        {it.id === "update" && updateInfo && <span className="shrink-0 w-[7px] h-[7px] rounded-[var(--r-full)] bg-accent" />}
+        <ChevronRight size={12} className="shrink-0 text-muted rtl:-scale-x-100" />
+      </button>
+    );
+  };
+  const surface = "rounded-[var(--r-xl)] bg-[var(--bg-surface)] overflow-hidden";
+  const card = `${surface} divide-y divide-[var(--border)]`;
+  return (
+    <div className="flex flex-col gap-3 pt-1 px-1">
+      {byId.account && (
+        <button type="button" onClick={() => onPick("account")}
+          className={`${surface} flex items-center gap-3 p-3.5 text-start border-0 cursor-default active:bg-[var(--fill-subtle)]`}>
+          <span className="shrink-0 w-12 h-12 rounded-[var(--r-full)] overflow-hidden bg-[var(--bg-elevated)] flex items-center justify-center text-[length:var(--t16)] font-semibold">
+            {account?.avatar
+              ? <img src={thumb(account.avatar)} alt="" className="w-full h-full object-cover" />
+              : (account?.name || "?")[0].toUpperCase()}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[length:var(--t15)] font-semibold text-primary truncate">{account?.name || byId.account.label}</span>
+            <span className="block text-[length:var(--t12)] text-muted truncate">{account?.sub || t("setSum_account")}</span>
+          </span>
+          <ChevronRight size={12} className="shrink-0 text-muted rtl:-scale-x-100" />
+        </button>
+      )}
+      {groups.map((g, i) => <div key={i} className={card}>{g.map(row)}</div>)}
     </div>
   );
 }

@@ -1363,3 +1363,11 @@ html[data-android] :is(input, textarea, [contenteditable="true"]) {
   70% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.1); }
 }
+
+/* Compact settings: a slider row puts its slider under the text at full width
+   (ui/settings-controls.jsx, SettingRow), whatever fixed width the row gave it. */
+html[data-compact] .setting-row--stacked .setting-row-control > *,
+html[data-compact] .setting-row--stacked [data-kodama-slider] {
+  width: 100% !important;
+  max-width: 100%;
+}

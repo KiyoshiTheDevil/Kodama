@@ -1,7 +1,10 @@
 // Small shared settings/UI primitives extracted from App.jsx. Thin wrappers around HeroUI so
 // the many existing call sites ({value,onChange} etc.) stay unchanged.
-import React, { Children, cloneElement, isValidElement, useId } from "react";
-import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb } from "@heroui/react";
+import React, { Children, cloneElement, isValidElement, useId, useState } from "react";
+import { SliderRoot, SliderTrack, SliderFill, SliderThumb, SwitchRoot, SwitchControl, SwitchThumb, ToggleButtonGroupRoot } from "@heroui/react";
+import { useCompact } from "../context.jsx";
+import { CaretUpDown } from "../icons.jsx";
+import { ActionSheet } from "./action-sheet.jsx";
 import { groupCorners } from "./corners.js";
 import { haptic } from "../haptics.js";
 
@@ -24,6 +27,7 @@ export function Slider({
       onChangeEnd={onChangeCommit}
       className="shrink-0"
       style={{ width }}
+      data-kodama-slider=""
     >
       <SliderTrack>
         <SliderFill />
@@ -49,6 +53,39 @@ export function Toggle({ value, onChange, "aria-label": ariaLabel, "aria-labelle
   );
 }
 
+// Whether a row's control holds a slider anywhere inside (some wrap it with a value or a scale).
+function holdsSlider(node) {
+  if (!isValidElement(node)) return false;
+  if (node.type === Slider) return true;
+  return Children.toArray(node.props.children).some(holdsSlider);
+}
+
+// Compact: a segmented choice becomes its current value, and a tap lists the choices in a
+// sheet. Read off the group the row was given (its ToggleButtons' ids and labels, its
+// selectedKeys and onSelectionChange), so no call site has to say anything twice.
+function ChoiceAsSheet({ group, label }) {
+  const [open, setOpen] = useState(false);
+  const { selectedKeys, onSelectionChange, isDisabled } = group.props;
+  const selected = [...(selectedKeys || [])][0];
+  const options = Children.toArray(group.props.children).filter(isValidElement)
+    .map((b) => ({ id: b.props.id, label: b.props.children, disabled: b.props.isDisabled }));
+  const current = options.find((o) => String(o.id) === String(selected));
+  return (
+    <>
+      <button type="button" disabled={isDisabled} onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 max-w-[150px] h-[30px] px-3 rounded-[var(--r-full)] bg-[var(--fill-subtle)] text-[length:var(--t12)] font-medium text-secondary border-0 cursor-default">
+        <span className="truncate">{current?.label}</span>
+        <CaretUpDown size={12} />
+      </button>
+      <ActionSheet open={open} onClose={() => setOpen(false)} title={label}
+        items={options.map((o) => ({
+          id: String(o.id), label: o.label, disabled: o.disabled, checked: String(o.id) === String(selected),
+          onPress: () => onSelectionChange?.(new Set([o.id])),
+        }))} />
+    </>
+  );
+}
+
 export function SettingRow({ label, description, icon, children, vertical = false }) {
   // The row's visible label also names the control in it. Without this a screen reader reads
   // "switch" or "slider" and stops, on some seventy rows; naming each one by hand would mean
@@ -65,12 +102,20 @@ export function SettingRow({ label, description, icon, children, vertical = fals
     ? cloneElement(only, { "aria-labelledby": labelId })
     : children;
 
+  // Compact (phones, narrow windows): a wide control beside the text squeezed it to a word a
+  // line, and some ran past the edge. Switches stay beside it; a choice becomes its value with
+  // a sheet (ChoiceAsSheet); a slider goes below the text at full width.
+  const compact = useCompact();
+  const choice = compact && only && isValidElement(only) && only.type === ToggleButtonGroupRoot;
+  const stacked = vertical || (compact && !choice && Children.toArray(children).some(holdsSlider));
+  const control = choice ? <ChoiceAsSheet group={only} label={label} /> : named;
+
   // A plain div rather than CardRoot: the surface, the radius and the spacing all belong to
   // the `.setting-row` rules in index.css, which fuse adjacent rows into one group. Keeping
   // the card here would mean fighting its own radius from a second stylesheet.
   return (
     <div className={`setting-row gap-4 px-[18px] py-4 ${
-      vertical ? "flex flex-col items-stretch" : "flex flex-row items-center justify-between"
+      stacked ? "setting-row--stacked flex flex-col items-stretch gap-3!" : "flex flex-row items-center justify-between"
     }`}>
       <div className="flex items-center gap-3 min-w-0">
         {icon && (
@@ -83,7 +128,7 @@ export function SettingRow({ label, description, icon, children, vertical = fals
           {description && <div className="text-[length:var(--t11)] text-muted mt-0.5 leading-snug">{description}</div>}
         </div>
       </div>
-      <div className={vertical ? "" : "shrink-0"}>{named}</div>
+      <div className={stacked ? "setting-row-control" : "shrink-0"}>{control}</div>
     </div>
   );
 }

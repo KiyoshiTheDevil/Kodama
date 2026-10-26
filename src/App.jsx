@@ -7519,6 +7519,10 @@ export default function App() {
               showHeader={false}
               asList
               onPick={() => setSettingsPage("detail")}
+              account={(() => {
+                const p = demoMode ? DEMO_PROFILE : profiles.find(x => x.active);
+                return p && { name: p.displayName || p.name, avatar: p.avatar, sub: p.type === "local" ? translate(language, "localAccount") : p.handle };
+              })()}
             />
           ) : <SettingsPanel
             onClose={closeSettings}

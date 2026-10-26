@@ -1419,5 +1419,19 @@
   "togetherGroupHost": "Host",
   "togetherGroupCohosts": "Co-hosts",
   "togetherGroupMembers": "Members",
-  "togetherGroupListeners": "Listeners"
+  "togetherGroupListeners": "Listeners",
+  "setSum_account": "Profile, accounts, statistics",
+  "setSum_darstellung": "Theme, app icon, colours",
+  "setSum_accessibility": "Contrast, motion, font",
+  "setSum_language": "Language of the app",
+  "setSum_wiedergabe": "Output, crossfade, video",
+  "setSum_lyrics": "Size, engine, providers",
+  "setSum_visualizer": "Shape, bars, colour",
+  "setSum_connections": "Discord, Last.fm, remote",
+  "setSum_storage": "Cache and downloads",
+  "setSum_sicherheit": "PIN lock for the settings",
+  "setSum_extensions": "Settings of your extensions",
+  "setSum_experimental": "Features still being tried",
+  "setSum_about": "Version, licences, links",
+  "setSum_debug": "Diagnostics"
 }

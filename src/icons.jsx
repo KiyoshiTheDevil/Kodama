@@ -105,6 +105,7 @@ export const CaretLineRight     = fa("angles-right");
 export const CaretUp            = fa("caret-up");
 export const CaretDown          = fa("caret-down");
 export const CaretLineUp        = fa("angles-up");
+export const CaretUpDown        = fa("sort", true);
 
 // ── Player UI ────────────────────────────────────────────────────────────────
 export const Queue              = fa("list");

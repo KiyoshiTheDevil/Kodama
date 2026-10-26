@@ -1419,5 +1419,19 @@
   "togetherGroupHost": "Host",
   "togetherGroupCohosts": "Co-Hosts",
   "togetherGroupMembers": "Mitglieder",
-  "togetherGroupListeners": "Zuhörer"
+  "togetherGroupListeners": "Zuhörer",
+  "setSum_account": "Profil, Konten, Statistik",
+  "setSum_darstellung": "Theme, App-Icon, Farben",
+  "setSum_accessibility": "Kontrast, Bewegung, Schrift",
+  "setSum_language": "Sprache der App",
+  "setSum_wiedergabe": "Ausgabe, Crossfade, Video",
+  "setSum_lyrics": "Größe, Engine, Quellen",
+  "setSum_visualizer": "Form, Balken, Farbe",
+  "setSum_connections": "Discord, Last.fm, Fernbedienung",
+  "setSum_storage": "Cache und Downloads",
+  "setSum_sicherheit": "PIN-Sperre für die Einstellungen",
+  "setSum_extensions": "Einstellungen deiner Erweiterungen",
+  "setSum_experimental": "Funktionen in Erprobung",
+  "setSum_about": "Version, Lizenzen, Links",
+  "setSum_debug": "Diagnose"
 }

@@ -38,6 +38,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ScrobbleOverrides } from "../lastfm/ScrobbleOverrides.jsx";
 import { loadPrimaryArtistOnly, savePrimaryArtistOnly } from "../lastfm/scrobble-rules.js";
 import { openEqualizerWindow } from "../equalizer/window.js";
+import { IS_ANDROID } from "../platform.js";
 
 async function openOverlayEditor() {
   const existing = await WebviewWindow.getByLabel("overlay-editor");
@@ -1526,9 +1527,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                   <UnisonIdentitySection />
                 </div>
 
-                <div id="set-sec-lyrics-composer" data-settings-section="lyrics-composer" style={{ scrollMarginTop: 8 }}>
+                {!IS_ANDROID && <div id="set-sec-lyrics-composer" data-settings-section="lyrics-composer" style={{ scrollMarginTop: 8 }}>
                   <ComposerSettingsSection />
-                </div>
+                </div>}
               </>
             )}
 
@@ -1578,9 +1579,10 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
                 <div id="set-sec-acc-behaviour" data-settings-section="acc-behaviour" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>{t("behaviour")}</SectionLabel>
-                <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
+                {/* Android: no tray, the system decides what a closed app does. */}
+                {!IS_ANDROID && <SettingRow label={t("closeTray")} description={t("closeTrayDesc")} icon={<X />}>
                   <Toggle value={closeTray} onChange={onCloseTrayChange} />
-                </SettingRow>
+                </SettingRow>}
                 <SettingRow label={t("announceTracks")} description={t("announceTracksDesc")} icon={<Bullhorn />}>
                   <Toggle value={announceTracks} onChange={onToggleAnnounceTracks} />
                 </SettingRow>
