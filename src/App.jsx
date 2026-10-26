@@ -10,6 +10,8 @@ import { LANGUAGES, translate } from "./i18n.js";
 import { normalizeOverlayDoc } from "./overlay/schema.js";
 import { startAudioLevels } from "./audioLevels.js";
 import { I18nProvider } from "@react-aria/i18n";
+import { ClosedCaptioning } from "./icons.jsx";
+import { SegmentedTabs } from "./ui/segmented.jsx";
 import { IconContext, Minus, X, Play, Pause, House, Books, Heart, CaretLineLeft, CaretLineRight, MagnifyingGlass, Gear, Microphone, VinylRecord, MusicNote, Playlist, Shuffle, SkipBack, SkipForward, Repeat, RepeatOnce, SpeakerX, SpeakerLow, SpeakerHigh, Queue, ChatText, CaretUp, CaretDown, ArrowsIn, ArrowsOut, ArrowLeft, ChevronLeft, ChevronRight, ArrowClockwise, Check, DotsThreeVertical, PushPin, ClockCounterClockwise, CheckCircle, Plus, DownloadSimple, Trash, PencilSimple, ArrowCircleUp, Copy, Moon, Translate, UploadSimple, WifiX, Bug, Radio, ShareNodes, ScreencastSimple, ClapperboardPlay, HeadphonesSimple, UserCircle, Users, SignOut, Power, Bell, Megaphone, MiniPlayerEnter, WaveformLines, EqualizerIcon, WarningCircle, Storefront } from "./icons.jsx";
 
 import { API, thumb, hiResThumb, fetchCollectionTracks, LangContext, useLang, AnimationContext, useAnimations, ZoomContext, useZoom, CompactContext, FontScaleContext, TrackNumberContext } from "./context.jsx";
@@ -7044,30 +7046,36 @@ export default function App() {
               // In the title bar's place (which is hidden while the player is open), so it is the
               // window's drag handle too; its buttons still take their own clicks.
               <div data-tauri-drag-region style={{ position: "absolute", top: "var(--safe-top-z)", left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8 }}>
-                <Button variant="ghost" isIconOnly aria-label={translate(language, "collapse")} onPress={() => setOverlayOpen(false)}
-                  className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
-                  <CaretDown size={18} />
-                </Button>
+                <div style={{ width: 76 }}>
+                  <Button variant="ghost" isIconOnly aria-label={translate(language, "collapse")} onPress={() => setOverlayOpen(false)}
+                    className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
+                    <CaretDown size={18} />
+                  </Button>
+                </div>
                 <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-                  <div role="tablist" style={{ display: "flex", padding: 3, borderRadius: "var(--r-full)", background: "rgba(0,0,0,0.25)" }}>
-                    {modes.map(([id, label]) => (
-                      <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => pick(id)}
-                        style={{ border: 0, cursor: "default", padding: "6px 14px", borderRadius: "var(--r-full)", fontSize: "var(--t12)", fontWeight: 600, fontFamily: "var(--font)",
-                          background: mode === id ? "rgba(255,255,255,0.14)" : "transparent", color: mode === id ? "#fff" : "rgba(255,255,255,0.65)" }}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedTabs items={modes} value={mode} onChange={pick} />
                 </div>
                 {/* The lyrics' options (offset, translation, romaji, source) as a sheet: the
-                    chip row that holds them on the desktop only shows on hover. */}
-                {mode === "lyrics" ? (
-                  <Button variant="ghost" isIconOnly aria-label={translate(language, "lyricsOptions")} onPress={() => lyricsOptionsRef.current?.()}
-                    className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary font-bold"
-                    style={{ fontSize: "var(--t14)", fontFamily: "var(--font)" }}>
-                    Aa
-                  </Button>
-                ) : <div style={{ width: 36 }} />}
+                    chip row that holds them on the desktop only shows on hover. With the video,
+                    next to the switch for the lyrics themselves. Both sides keep the same width,
+                    so the Cover/Lyrics/Video switch stays in the middle. */}
+                <div style={{ width: 76, display: "flex", justifyContent: "flex-end", gap: 4 }}>
+                  {mode === "video" && (
+                    // The lyrics with the video (below it, or as captions on it), or the video alone.
+                    <Button variant="ghost" isIconOnly aria-label={translate(language, "lyrics")} aria-pressed={showLyrics}
+                      onPress={() => setShowLyricsManual(l => !l)}
+                      className={cn("w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)]", showLyrics ? "text-primary" : "text-muted hover:text-secondary")}>
+                      <ClosedCaptioning size={18} weight={showLyrics ? "fill" : "regular"} />
+                    </Button>
+                  )}
+                  {(mode === "lyrics" || (mode === "video" && showLyrics)) && (
+                    <Button variant="ghost" isIconOnly aria-label={translate(language, "lyricsOptions")} onPress={() => lyricsOptionsRef.current?.()}
+                      className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary font-bold"
+                      style={{ fontSize: "var(--t14)", fontFamily: "var(--font)" }}>
+                      Aa
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -7087,7 +7095,8 @@ export default function App() {
             {/* Compact video with captions: the captions sit on this background rather than on the
                 frame, so it darkens as a whole instead of a shade band behind the text. */}
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", transition: "background 0.4s ease",
-              background: `rgba(0,0,0,${compact && showVideoView && showLyrics && videoLyricsStyle === "captions" ? 0.72 : 0.55})` }} />
+              // A video wants a darker room than a cover does.
+              background: `rgba(0,0,0,${compact && showVideoView ? 0.82 : 0.55})` }} />
           </>)}
           {currentTrack && (() => {
             // Split: cover/visualizer OR video left, lyrics right. Both sides of whichever split
@@ -7144,10 +7153,12 @@ export default function App() {
                   when the video-split setting is on. Replaces the cover pane while active. */}
               <div ref={splitVideoRef} style={{
                 position: "absolute", insetInlineStart: 0,
-                ...(compact ? { top: "calc(64px + var(--safe-top-z))", ...(stackVideo ? { height: videoH } : { bottom: paneBottom }) } : { top: 0, bottom: 0 }),
+                // Compact: by height alone, so switching the lyrics on and off glides the video
+                // between the top (lyrics below it) and the middle of the free space.
+                ...(compact ? { top: "calc(64px + var(--safe-top-z))", height: stackVideo ? videoH : `calc(100% - 64px - var(--safe-top-z) - ${paneBottom || "0px"})` } : { top: 0, bottom: 0 }),
                 width: videoSplitActive && !stackVideo ? coverPct : "100%",
                 opacity: showVideoView ? 1 : 0,
-                transition: paneTransition,
+                transition: compact ? `${paneTransition}, height 0.4s cubic-bezier(0.4,0,0.2,1)` : paneTransition,
                 pointerEvents: showVideoView ? "all" : "none",
               }}>
                 {showVideoView && <VideoSyncView videoSync={videoSync} audioRef={audioRef} isPlaying={isPlaying} fullscreen={fullscreen} compact={compact} track={currentTrack} showCaptions={videoCaptionsActive} fluidCaptions={fluidLyrics && !reduceMotion} captionsTranslation={showLyricsTranslation} captionsTranslationLang={lyricsTranslationLang} captionsRomaji={showRomaji} captionsSyllableZoom={syllableZoom} braccatoCaptions={braccatoLyrics} braccatoLetterWave={braccatoLetterWave && !reduceMotion} language={language} />}

@@ -74,6 +74,7 @@ export const Play               = fa("play");
 export const Pause              = fa("pause");
 export const SkipBack           = fa("backward-step");
 export const SkipForward        = fa("forward-step");
+export const ClosedCaptioning   = fa("closed-captioning");
 export const Shuffle            = fa("shuffle");
 export const Repeat             = fa("repeat");
 export const RepeatOnce         = fa("repeat-1");

@@ -870,6 +870,8 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
         maskImage: "linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%)",
       } : {}),
       display: "flex", flexDirection: "column", overflow: "hidden",
+      // A size container, so the lyrics' padding below can follow this pane's height (cqh).
+      containerType: "size",
     }}>
 
       {/* Fluid: a strong blurred + saturated album cover as the backdrop (Apple-style),
@@ -1056,7 +1058,10 @@ export function LyricsOverlay({ track, audioRef, onClose, fontSize = 32, provide
             overflowY: "auto", padding: `0 ${sidePad}px`, scrollPaddingBottom: chipBottomLift,
           } : lyrics ? {
             // With lyrics: scrollable, 40vh top/bottom padding so the active line can sit centred.
-            overflowY: "auto", padding: `40vh ${sidePad}px 40vh`,
+            // At most half this pane's own height: below a phone's video the pane is a third of
+            // the window, and 40vh of padding made the list taller than the pane, so every line
+            // sat below its visible part.
+            overflowY: "auto", padding: `min(40vh, 50cqh) ${sidePad}px`,
             // Fluid: soft top/bottom edge-fade so lines dissolve instead of hard-clipping.
             ...(fluidLyrics ? {
               maskImage: "linear-gradient(to bottom, transparent 0, #000 110px, #000 calc(100% - 110px), transparent 100%)",
