@@ -4,12 +4,22 @@ import { ExplicitBadge } from "../ui/rows.jsx";
 import { audioLevels, acquireAudioLevels } from "../audioLevels.js";
 import { VIZ_DEFAULTS } from "../visualizer/defaults.js";
 import { drawSpectrum } from "../visualizer/draw.js";
+import { Heart } from "../icons.jsx";
+import { haptic } from "../haptics.js";
+
+// The mini player's cover where it was when it opened the player (App.jsx's Player), so the
+// big cover can fly out of it. Taken only within a moment of being left.
+let miniCoverFrom = null;
+export function rememberMiniCover(el) {
+  const r = el?.getBoundingClientRect();
+  miniCoverFrom = r && r.width ? { rect: r, at: performance.now() } : null;
+}
 
 // `scale` shrinks everything the settings preview cannot express through coverSize and the
 // config: the spacing, the title and the artist line. Without it the miniature drew its cover
 // and bars at a third of their size around a full-size title, which is the one part of the
 // preview that then did not match what it is previewing.
-export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, scale = 1, fill = false }) {
+export function CoverView({ track, isPlaying, onClose, active = true, ambientVisualizer = true, ambientBackground = false, vizConfig, coverSize = 260, compact = false, scale = 1, fill = false, onSwipe, onDoubleTap, liked = false }) {
   // Font sizes come from tokens, so they are scaled in CSS rather than in JS. Left untouched
   // at 1 so the full-size view renders the exact same declaration it always did.
   const scaled = (v) => (scale === 1 ? v : `calc(${v} * ${scale})`);
@@ -22,6 +32,96 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
   const zoom = useZoom();
   const zoomRef = useRef(zoom); zoomRef.current = zoom;
   const scaleRef = useRef(scale); scaleRef.current = scale;
+
+  // fill (the phone player): opened from the mini player, the cover flies from the mini
+  // card's into its own place, alongside the player sliding up.
+  useEffect(() => {
+    if (!fill || !active) return;
+    const from = miniCoverFrom;
+    miniCoverFrom = null;
+    const el = coverRef.current;
+    if (!from || performance.now() - from.at > 1000 || !el || !hq) return;
+    // Where the cover will be once the player is up: its place in the player plus where the
+    // player stops. Measured now, the player is still below the screen.
+    const pane = el.closest("[data-player-pane]");
+    if (!pane || !pane.offsetParent) return;
+    const r = el.getBoundingClientRect(), p = pane.getBoundingClientRect();
+    const finalTop = pane.offsetParent.getBoundingClientRect().top + pane.offsetTop + (r.top - p.top);
+    const ghost = document.createElement("img");
+    ghost.src = thumb(hq);
+    Object.assign(ghost.style, {
+      position: "fixed", left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`,
+      objectFit: "cover", borderRadius: "10px", zIndex: 10050, pointerEvents: "none",
+    });
+    document.body.appendChild(ghost);
+    el.style.opacity = "0";
+    const anim = ghost.animate([
+      { left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`, borderRadius: "10px" },
+      { left: `${r.left}px`, top: `${finalTop}px`, width: `${r.width}px`, height: `${r.height}px`, borderRadius: "16px" },
+    ], { duration: 420, easing: "cubic-bezier(0.4,0,0.2,1)", fill: "forwards" });
+    const done = () => { el.style.opacity = ""; ghost.remove(); };
+    anim.onfinish = done;
+    anim.oncancel = done;
+    return () => { anim.cancel(); };
+  }, [active, fill]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // fill: sideways on the cover swipes to the next or previous song, a double tap likes it.
+  const [heart, setHeart] = useState(0);
+  const lastTap = useRef(0);
+  const coverGesture = (e) => {
+    if (!fill || e.pointerType !== "touch") return;
+    const el = coverRef.current;
+    const x0 = e.clientX, y0 = e.clientY, t0 = performance.now();
+    let mode = null;
+    const move = (me) => {
+      const dx = me.clientX - x0, dy = me.clientY - y0;
+      if (mode === null) {
+        if (Math.hypot(dx, dy) < 10) return;
+        mode = Math.abs(dx) > Math.abs(dy) ? "swipe" : "other";
+      }
+      if (mode === "swipe" && el) { el.style.transition = "none"; el.style.translate = `${dx}px 0`; }
+    };
+    const up = (ue) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      const dx = ue.clientX - x0, dt = Math.max(1, performance.now() - t0);
+      if (mode === null && ue.type === "pointerup") {
+        // A tap: the second one close after the first is a like.
+        if (performance.now() - lastTap.current < 320) {
+          lastTap.current = 0;
+          if (!liked) onDoubleTap?.(); else haptic("tap");
+          setHeart((n) => n + 1);
+        } else lastTap.current = performance.now();
+        return;
+      }
+      if (mode !== "swipe" || !el) return;
+      const ease = "translate 0.24s cubic-bezier(0.4,0,0.2,1), opacity 0.24s ease, transform 0.6s cubic-bezier(0.34,1.4,0.64,1), border-radius 0.3s ease";
+      if (Math.abs(dx) > 90 || Math.abs(dx) / dt > 0.5) {
+        const dir = dx < 0 ? 1 : -1;
+        haptic("tick");
+        el.style.transition = ease;
+        el.style.translate = `${-dir * 120}% 0`;
+        el.style.opacity = "0";
+        setTimeout(() => {
+          onSwipe?.(dir > 0 ? "next" : "prev");
+          el.style.transition = "none";
+          el.style.translate = `${dir * 120}% 0`;
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            el.style.transition = ease;
+            el.style.translate = "";
+            el.style.opacity = "";
+          }));
+        }, 240);
+      } else {
+        el.style.transition = ease;
+        el.style.translate = "";
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
 
   // Title and artist step aside when the view is too short for them. At the window's smallest
   // height the cover, the spectrum and a two-line title were pressed into each other, and the
@@ -220,17 +320,26 @@ export function CoverView({ track, isPlaying, onClose, active = true, ambientVis
         marginBottom: (ambientVisualizer && vizConfig?.shape === "linear" && (vizConfig?.linearPos || "bottom") === "bottom") ? (compact ? 56 : 96) * scale : 0,
         transition: "margin-bottom 0.3s ease" }}>
         {/* Album cover */}
-        <div ref={coverRef} style={{
+        <div ref={coverRef} onPointerDown={fill ? coverGesture : undefined} style={{
+          position: "relative",
           width: shownCover, height: shownCover, overflow: "hidden",
           borderRadius: vizConfig?.coverShape === "circle" ? "50%" : scaled(compact ? "var(--r-xl)" : "var(--r-2xl)"),
           boxShadow: fill ? "none" : "var(--elevation-5)", // compact: flat, as on a phone
-          transform: isPlaying ? "scale(1.03)" : "scale(0.97)",
-          transition: ambientVisualizer ? "border-radius 0.3s ease" : "transform 0.6s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s ease",
+          // fill: paused, the cover steps back clearly, with a little spring when it returns.
+          transform: fill ? (isPlaying ? "none" : "scale(0.84)") : isPlaying ? "scale(1.03)" : "scale(0.97)",
+          transition: ambientVisualizer ? "border-radius 0.3s ease"
+            : fill ? "transform 0.6s cubic-bezier(0.34,1.4,0.64,1), border-radius 0.3s ease"
+            : "transform 0.6s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s ease",
         }}>
           {hq
             ? <img src={thumb(hq)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             : <div style={{ width: "100%", height: "100%", background: "var(--placeholder-gradient)" }} />
           }
+          {heart > 0 && (
+            <div key={heart} aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <Heart size={Math.round(shownCover * 0.3)} weight="fill" style={{ color: "#fff", filter: "drop-shadow(0 4px 18px rgba(0,0,0,0.45))", animation: "coverHeart 0.75s cubic-bezier(0.22,1,0.36,1) forwards" }} />
+            </div>
+          )}
         </div>
 
         {/* Track info */}

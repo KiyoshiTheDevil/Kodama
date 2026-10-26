@@ -1347,3 +1347,19 @@ html[data-android] :is(input, textarea, [contenteditable="true"]) {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* The compact player while a finger drags it (App.jsx, dragPlayer): no transitions, so it stays
+   under the finger, and visible even while React still has it closed. */
+[data-player-drag] {
+  transition: none !important;
+  visibility: visible !important;
+}
+
+/* A double tap on the phone player's cover likes the song (views/cover-view.jsx). */
+@keyframes coverHeart {
+  0% { opacity: 0; transform: scale(0.4); }
+  25% { opacity: 1; transform: scale(1.15); }
+  45% { transform: scale(0.95); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.1); }
+}

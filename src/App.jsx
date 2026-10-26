@@ -70,7 +70,7 @@ import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
 import { ArtistView } from "./views/artist-view.jsx";
-import { CoverView } from "./views/cover-view.jsx";
+import { CoverView, rememberMiniCover } from "./views/cover-view.jsx";
 import { VIZ_DEFAULTS } from "./visualizer/defaults.js";
 import { SelActionBtn } from "./views/track-table.jsx";
 import { CollectionView } from "./views/collection-view.jsx";
@@ -78,7 +78,7 @@ import { DownloadsView } from "./views/downloads-view.jsx";
 import { HistoryView } from "./views/history-view.jsx";
 import { AddToPlaylistModal } from "./modals/add-to-playlist-modal.jsx";
 import { particleBurst, dissolve } from "./effects/particle-burst.js";
-import { setNowPlaying, registerPlayerAction, registerAudio } from "./now-playing.js";
+import { setNowPlaying, registerPlayerAction, registerAudio, sendPlayerCommand } from "./now-playing.js";
 import { emitNowPlaying, openMiniPlayer, EV_HELLO, EV_SHOW_MAIN } from "./miniplayer/bridge.js";
 import { shuffled } from "./shuffle.js";
 import { STATS_URL } from "./stats-endpoint.js";
@@ -579,6 +579,8 @@ class IpcAudio {
 // sidebar's account actions (rendered into `slotRef` by the sidebar itself), the window buttons.
 // Every round button in it is 32px, the window buttons 32px high, so the row reads as one.
 const TITLEBAR_H = 56;
+// The compact player sliding open or shut, by hand or by itself.
+const PLAYER_SLIDE = "0.42s cubic-bezier(0.4,0,0.2,1)";
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
 const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
 function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false, logoNamed = false }) {
@@ -1500,7 +1502,7 @@ const startPaused = { next: false };
 // (issue #19). Shared through the module like startPaused.
 const measuredLength = { videoId: null, secs: 0 };
 
-function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist, autoplay = true, compact = false, audioOutput = "", onAudioOutputChange }) {
+function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPlaying, onEditScrobble, expanded, onExpandToggle, showLyrics, onToggleLyrics, videoAvailable = false, showVideoView = false, onSetVideoView, videoSync, queueOpen, onToggleQueue, fullscreen, onToggleFullscreen, onOpenAlbum, onOpenArtist, onExportSong, onDownloadSong, cachedSongIds, downloadingIds, onRefetchLyrics, isCustomLyrics = false, onImportLyrics, onRemoveCustomLyrics, onOpenLyricsBrowser, onPremiumDetected, onCreatePlaylist, onAddToPlaylist, autoplay = true, compact = false, audioOutput = "", onAudioOutputChange, onOpenDrag }) {
   // The lyrics translation toggle + target language live in the ⋮ menu; they are global
   // preferences, so they come from context rather than being threaded through App().
   const {
@@ -2890,13 +2892,67 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     // Nothing playing: no empty card, just the tab bar below.
     if (!track) return <div ref={barRef} />;
     const pct = duration ? Math.min(100, (progress / duration) * 100) : 0;
-    const open = (e) => { if (!e.target.closest("button")) onExpandToggle(); };
+    const open = (e) => { if (!e.target.closest("button")) { rememberMiniCover(e.currentTarget.querySelector("img")); onExpandToggle(); } };
+    // A finger on the card: up drags the player open (onOpenDrag, App's dragPlayer), sideways
+    // swipes to the next or previous song, the card leaving to that side and the new one
+    // coming in from the other.
+    const gesture = (e) => {
+      if (e.pointerType !== "touch") return;
+      const card = e.currentTarget;
+      const x0 = e.clientX, y0 = e.clientY, t0 = performance.now();
+      let mode = null;
+      const move = (me) => {
+        const dx = me.clientX - x0, dy = me.clientY - y0;
+        if (mode === null) {
+          if (Math.hypot(dx, dy) < 10) return;
+          mode = Math.abs(dx) > Math.abs(dy) ? "skip" : dy < 0 ? "open" : "other";
+        }
+        if (mode === "open") onOpenDrag?.("move", -dy);
+        else if (mode === "skip") { card.style.transition = "none"; card.style.translate = `${dx}px 0`; card.style.opacity = String(1 - Math.min(0.6, Math.abs(dx) / 300)); }
+      };
+      const up = (ue) => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        if (!mode || mode === "other") return;
+        const dx = ue.clientX - x0, dy = ue.clientY - y0, dt = Math.max(1, performance.now() - t0);
+        const swallow = (ce) => { ce.stopPropagation(); ce.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 50);
+        if (mode === "open") { onOpenDrag?.("end", -dy, -dy / dt); return; }
+        const ease = "translate 0.2s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease";
+        if (Math.abs(dx) > 80 || Math.abs(dx) / dt > 0.5) {
+          const dir = dx < 0 ? 1 : -1; // left: next, right: previous
+          haptic("tick");
+          card.style.transition = ease;
+          card.style.translate = `${-dir * 110}%`;
+          card.style.opacity = "0";
+          setTimeout(() => {
+            goAdjacent(dir > 0 ? "next" : "prev");
+            card.style.transition = "none";
+            card.style.translate = `${dir * 40}% 0`;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              card.style.transition = ease;
+              card.style.translate = "";
+              card.style.opacity = "";
+            }));
+          }, 200);
+        } else {
+          card.style.transition = ease;
+          card.style.translate = "";
+          card.style.opacity = "";
+        }
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
+    };
     return (
       <div ref={barRef} style={{ padding: "6px 10px 8px" }}>
-        <div role="button" tabIndex={0} aria-label={t("expand")}
-          onClick={open} onKeyDown={(e) => { if (e.key === "Enter") onExpandToggle(); }}
+        <div role="button" tabIndex={0} aria-label={t("expand")} data-mini-player=""
+          onClick={open} onKeyDown={(e) => { if (e.key === "Enter") onExpandToggle(); }} onPointerDown={gesture}
           style={{
-            position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10,
+            position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10, touchAction: "none",
             padding: 8, borderRadius: 20, cursor: "default",
             background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)",
             backdropFilter: "blur(22px) saturate(1.5)", WebkitBackdropFilter: "blur(22px) saturate(1.5)",
@@ -4592,7 +4648,9 @@ export default function App() {
   const [queue, setQueue] = useState([]);
   const queueRef = useRef([]);
   useEffect(() => { queueRef.current = queue; }, [queue]);
+  const overlayOpenRef = useRef(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  overlayOpenRef.current = overlayOpen;
   const [lyricsRefetchKey, setLyricsRefetchKey] = useState(0);
   const [forcedLyricsProvider, setForcedLyricsProvider] = useState(null);
   const [currentLyricsSource, setCurrentLyricsSource] = useState("");
@@ -5457,7 +5515,9 @@ export default function App() {
   // A callback ref, so the measuring starts whenever the bar mounts (after login, too).
   const [playerBarH, setPlayerBarH] = useState(104);
   const playerBarRo = useRef(null);
+  const playerBarElRef = useRef(null);
   const playerBarRef = useCallback((el) => {
+    playerBarElRef.current = el;
     playerBarRo.current?.disconnect();
     if (!el) return;
     playerBarRo.current = new ResizeObserver(() => setPlayerBarH(Math.round(el.offsetHeight)));
@@ -6516,6 +6576,58 @@ export default function App() {
     if (canGoBack) { goBack(); return true; }
     return false;
   };
+  // ── Compact player under a finger. Dragged down while open, it follows and closes past a
+  // quarter of the way or on a flick; the mini player dragged up brings it up the same way
+  // (Player's onOpenDrag). The finger moves the CSS `translate`, which adds to the `transform`
+  // React keeps, so the two never fight over one property; [data-player-drag] holds the
+  // transitions off meanwhile (index.css). Let go, both glide to where React's state says.
+  const overlayPaneRef = useRef(null);
+  const dragPlayer = useCallback((phase, dy = 0, v = 0) => {
+    const pane = overlayPaneRef.current, bar = playerBarElRef.current;
+    if (!pane) return;
+    const opening = !overlayOpenRef.current;
+    const moved = [pane, ...(opening || !bar ? [] : [bar])];
+    if (phase === "move") {
+      const y = opening ? -Math.max(0, dy) : Math.max(0, dy);
+      for (const el of moved) { el.setAttribute("data-player-drag", ""); el.style.translate = `0 ${y}px`; }
+      return;
+    }
+    const h = pane.offsetHeight || window.innerHeight;
+    const commit = Math.abs(dy) > h * 0.25 || v > 0.5;
+    for (const el of moved) { el.removeAttribute("data-player-drag"); el.style.translate = ""; }
+    if (commit) { haptic("gesture-end"); setOverlayOpen(opening); }
+  }, []);
+  const startPlayerDrag = useCallback((e) => {
+    if (e.pointerType !== "touch") return;
+    // Not from what scrolls or slides by itself.
+    if (e.target.closest?.('.lyrics-scroll, braccato-lyrics, [role="slider"], input, textarea, [data-no-player-drag]')) return;
+    const x0 = e.clientX, y0 = e.clientY, t0 = performance.now();
+    let mode = null; // null until the finger has picked a direction: "drag" or "other"
+    const move = (me) => {
+      const dx = me.clientX - x0, dy = me.clientY - y0;
+      if (mode === null) {
+        if (Math.hypot(dx, dy) < 10) return;
+        mode = dy > 0 && Math.abs(dy) > Math.abs(dx) ? "drag" : "other";
+      }
+      if (mode === "drag") dragPlayer("move", dy);
+    };
+    const up = (ue) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (mode !== "drag") return;
+      const dy = ue.clientY - y0;
+      dragPlayer("end", dy, dy / Math.max(1, performance.now() - t0));
+      // A drag that began on a button is not also a press of it.
+      const swallow = (ce) => { ce.stopPropagation(); ce.preventDefault(); };
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 50);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }, [dragPlayer]);
+
   // A context menu on a phone opens on a long press; the buzz says it took.
   const menuOpen = !!(trackContextMenu || globalContextMenu);
   useEffect(() => { if (menuOpen) haptic("long-press"); }, [menuOpen]);
@@ -6983,6 +7095,7 @@ export default function App() {
             )}
           <div
             ref={playerBarRef}
+            onPointerDown={compact && overlayOpen ? startPlayerDrag : undefined}
             onMouseEnter={() => { overPlayerRef.current = true; }}
             onMouseLeave={() => { overPlayerRef.current = false; armHideRef.current?.(); }}
             style={{
@@ -6999,12 +7112,12 @@ export default function App() {
             // backdrop blur of the compact mini player and tab capsule inside it.
             transform: fullscreen ? ((!playerVisible || videoAcross) ? "translateY(120%)" : "translateY(0)") : "none",
             visibility: (settingsOpen || videoAcross || (fullscreen && !playerVisible)) ? "hidden" : "visible",
-            transition: "opacity 0.35s ease, transform 0.42s cubic-bezier(0.4,0,0.2,1), visibility 0.42s ease",
+            transition: `opacity 0.35s ease, transform ${PLAYER_SLIDE}, translate ${PLAYER_SLIDE}, visibility 0.42s ease`,
             pointerEvents: settingsOpen || videoAcross ? "none" : (!fullscreen || playerVisible ? "auto" : "none"),
             ...(fullscreen ? { position: "relative", zIndex: 105 } : {}),
             padding: fullscreen || compact ? 0 : "0 8px 8px 8px",
           }}>
-          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay} compact={compact}
+          <Player onEditScrobble={(tr) => setScrobbleEdit(tr)} autoplay={autoplay} compact={compact} onOpenDrag={dragPlayer}
             audioOutput={audioOutput} onAudioOutputChange={setAudioOutput}
             track={currentTrack}
             setTrack={setTrackGuarded}
@@ -7073,13 +7186,15 @@ export default function App() {
           </div>
           </div>
           </div>
-        <div style={{
+        <div ref={overlayPaneRef} data-player-pane="" onPointerDown={compact && overlayOpen ? startPlayerDrag : undefined} style={{
           position: "absolute",
           // Below the title bar and above the player bar, whose height is measured: the bar runs
           // the full width now and grows to two rows in narrow windows.
           // Compact: the open player takes the whole window, its head where the title bar was.
           // On a phone it runs on behind the status bar (past the shell's top), its head below it.
-          top: overlayOpen ? (fullscreen ? 0 : compact ? "calc(-1 * var(--safe-top-z))" : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
+          // It keeps that size closed too and slides by transform, which a finger can drag
+          // (dragPlayer); everywhere else it moves by top.
+          top: compact && !fullscreen ? "calc(-1 * var(--safe-top-z))" : overlayOpen ? (fullscreen ? 0 : (IS_MAC ? 8 : TITLEBAR_H)) : "100%",
           // Logical, not physical: this reserves the sidebar's space, and the sidebar sits at
           // the inline start -- which is the right-hand side once the layout is flipped. With
           // plain left/right the overlay left an empty band on one side and ran underneath the
@@ -7088,11 +7203,20 @@ export default function App() {
           insetInlineEnd: fullscreen || compact ? 0 : (queueOpen ? queueWidth + 16 : 8),
           // Compact: down to the window's edge, so the controls sit on the same background as the
           // view above them instead of the app's own; the panes stop above the controls (paneBottom).
-          bottom: fullscreen ? 0 : compact ? (overlayOpen ? "calc(-1 * var(--safe-bottom-z))" : 0) : playerBarH + 6,
+          bottom: fullscreen ? 0 : compact ? "calc(-1 * var(--safe-bottom-z))" : playerBarH + 6,
           zIndex: fullscreen ? 102 : 100,
           overflow: "hidden",
           borderRadius: fullscreen || compact ? 0 : "var(--r-xl)",
-          transition: queueResizing ? "top 0.42s cubic-bezier(0.4,0,0.2,1), left 0.3s ease" : (animations ? "top 0.42s cubic-bezier(0.4,0,0.2,1), right 0.3s ease, left 0.3s ease" : "top 0.1s ease"),
+          ...(compact && !fullscreen ? {
+            // "none" when open, not translateY(0): a transform switches off backdrop blur inside.
+            transform: overlayOpen ? "none" : "translateY(100%)",
+            visibility: overlayOpen ? "visible" : "hidden",
+            transition: animations
+              ? `transform ${PLAYER_SLIDE}, translate ${PLAYER_SLIDE}, visibility 0s linear ${overlayOpen ? "0s" : "0.42s"}`
+              : `visibility 0s linear ${overlayOpen ? "0s" : "0.1s"}`,
+          } : {
+            transition: queueResizing ? "top 0.42s cubic-bezier(0.4,0,0.2,1), left 0.3s ease" : (animations ? "top 0.42s cubic-bezier(0.4,0,0.2,1), right 0.3s ease, left 0.3s ease" : "top 0.1s ease"),
+          }),
           pointerEvents: overlayOpen ? "all" : "none",
         }}>
           {/* Compact layout: the phone player's head. Down to the mini card, and what fills the
@@ -7108,7 +7232,7 @@ export default function App() {
             return (
               // In the title bar's place (which is hidden while the player is open), so it is the
               // window's drag handle too; its buttons still take their own clicks.
-              <div data-tauri-drag-region style={{ position: "absolute", top: "var(--safe-top-z)", left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8 }}>
+              <div data-tauri-drag-region style={{ position: "absolute", top: "var(--safe-top-z)", left: 0, right: 0, height: TITLEBAR_H + 8, zIndex: 60, display: "flex", alignItems: "center", padding: "8px 10px 0", gap: 8, touchAction: "none" }}>
                 <div style={{ width: 76 }}>
                   <Button variant="ghost" isIconOnly aria-label={translate(language, "collapse")} onPress={() => setOverlayOpen(false)}
                     className="w-[36px] h-[36px] min-w-[36px] rounded-[var(--r-full)] text-secondary hover:text-primary">
@@ -7209,11 +7333,14 @@ export default function App() {
                 // the line only cut through it. The drag handle below still shows its bar on hover.
                 position: "absolute", top: compact ? "var(--safe-top-z)" : 0, bottom: paneBottom, insetInlineStart: 0,
                 width: coverSplitActive ? coverPct : "100%",
+                // Compact: a finger on the cover drags the player or swipes the song, never pans.
+                touchAction: compact ? "none" : undefined,
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
                 transition: paneTransition,
                 pointerEvents: showVideoView ? "none" : ((coverSplitActive || !showLyrics) ? "all" : "none"),
               }}>
-                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)} ambientVisualizer={ambientVisualizer && !compact /* at phone width it crowded the cover more than it added */} fill={compact} ambientBackground={ambientBackground} vizConfig={reduceMotion ? { ...vizConfig, coverPulse: false, blobs: false } : vizConfig} />
+                <CoverView active={coverOnScreen} track={currentTrack} isPlaying={isPlaying} onClose={() => setOverlayOpen(false)}
+                  onSwipe={(dir) => sendPlayerCommand(dir)} onDoubleTap={() => handleToggleLike(currentTrack)} liked={likedIds.has(currentTrack?.videoId)} ambientVisualizer={ambientVisualizer && !compact /* at phone width it crowded the cover more than it added */} fill={compact} ambientBackground={ambientBackground} vizConfig={reduceMotion ? { ...vizConfig, coverPulse: false, blobs: false } : vizConfig} />
               </div>
               {/* Video pane — full-bleed normally, or shares the screen with lyrics (left half)
                   when the video-split setting is on. Replaces the cover pane while active. */}
