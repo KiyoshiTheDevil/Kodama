@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react";
 import { createPortal } from "react-dom";
 import { cn, Button, ListBox, ListBoxItem, Disclosure, DisclosureHeading, DisclosureTrigger, DisclosureContent, DisclosureBody, DisclosureIndicator, DropdownTrigger, DropdownPopover, DropdownItem, DropdownSection, DropdownSubmenuTrigger, DropdownSubmenuIndicator, SliderRoot, SliderTrack, SliderFill, SliderThumb, toast, ToastProvider, Spinner, ProgressBar, ProgressBarTrack, ProgressBarFill, SearchFieldRoot, SearchFieldGroup, SearchFieldSearchIcon, SearchFieldInput, SearchFieldClearButton, TextFieldRoot, InputRoot, SwitchRoot, SwitchControl, SwitchThumb, CardRoot, ScrollShadowRoot, Tab } from "@heroui/react";
 import { Dropdown } from "./ui/menu.jsx";
@@ -4654,6 +4654,13 @@ export default function App() {
   const overlayOpenRef = useRef(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   overlayOpenRef.current = overlayOpen;
+  // True once the open player has finished sliding in (PLAYER_SLIDE), false the moment it closes.
+  const [playerSettled, setPlayerSettled] = useState(false);
+  useEffect(() => {
+    if (!overlayOpen) { setPlayerSettled(false); return; }
+    const id = setTimeout(() => setPlayerSettled(true), 450);
+    return () => clearTimeout(id);
+  }, [overlayOpen]);
   const [lyricsRefetchKey, setLyricsRefetchKey] = useState(0);
   const [forcedLyricsProvider, setForcedLyricsProvider] = useState(null);
   const [currentLyricsSource, setCurrentLyricsSource] = useState("");
@@ -6566,32 +6573,28 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("mouseup", onMouse); window.removeEventListener("keydown", onKey); };
   }, [goBack, goForward]);
-  // Android's Back gesture, once open menus and dialogs had their turn (src/android-back.js):
-  // one layer per press, then the previous view. False on the home view lets the app go to
-  // the background.
-  const androidBackRef = useRef(null);
-  androidBackRef.current = () => {
-    if (diagOpen) { setDiagOpen(false); return true; }
-    if (feedbackOpen) { setFeedbackOpen(false); return true; }
-    if (newsOpen) { setNewsOpen(false); return true; }
-    if (trackContextMenu) { setTrackContextMenu(null); return true; }
-    if (globalContextMenu) { setGlobalContextMenu(null); return true; }
-    if (queueOpen) { setQueueOpen(false); return true; }
-    if (overlayOpen) { setOverlayOpen(false); return true; }
-    if (settingsOpen) {
-      if (compact && settingsPage === "detail") setSettingsPage("list");
-      else closeSettings();
-      return true;
-    }
-    if (canGoBack) { goBack(); return true; }
-    return false;
-  };
   // ── Compact player under a finger. Dragged down while open, it follows and closes past a
   // quarter of the way or on a flick; the mini player dragged up brings it up the same way
   // (Player's onOpenDrag). The finger moves the CSS `translate`, which adds to the `transform`
   // React keeps, so the two never fight over one property; [data-player-drag] holds the
   // transitions off meanwhile (index.css). Let go, both glide to where React's state says.
   const overlayPaneRef = useRef(null);
+  // Opening or closing the compact player. Measured on a phone, the state change cost the main
+  // thread ~150 ms in one piece (React's render of the app, the style of ~3,700 elements, the
+  // lyrics' first tick), right on the slide's first frames, so it stuttered. The slide is
+  // started on the element at once, and React works the change in as a transition, in slices.
+  const compactRef = useRef(compact); compactRef.current = compact;
+  const slidePlayer = useCallback((open) => {
+    const pane = overlayPaneRef.current;
+    if (pane && compactRef.current && !fullscreenRef.current) {
+      // React writes these same values once it has caught up (they differ from its last ones,
+      // so it does write them). Nothing to undo afterwards: clearing them again once wiped the
+      // values React had already written, and the closed player came back.
+      pane.style.visibility = "visible";
+      pane.style.transform = open ? "none" : "translateY(100%)";
+    }
+    startTransition(() => setOverlayOpen(open));
+  }, []);
   const dragPlayer = useCallback((phase, dy = 0, v = 0) => {
     const pane = overlayPaneRef.current, bar = playerBarElRef.current;
     if (!pane) return;
@@ -6605,8 +6608,8 @@ export default function App() {
     const h = pane.offsetHeight || window.innerHeight;
     const commit = Math.abs(dy) > h * 0.25 || v > 0.5;
     for (const el of moved) { el.removeAttribute("data-player-drag"); el.style.translate = ""; }
-    if (commit) { haptic("gesture-end"); setOverlayOpen(opening); }
-  }, []);
+    if (commit) { haptic("gesture-end"); slidePlayer(opening); }
+  }, [slidePlayer]);
   const startPlayerDrag = useCallback((e) => {
     if (e.pointerType !== "touch") return;
     // Only from the player itself. A sheet it opened is portalled to <body>, but React still
@@ -6641,6 +6644,26 @@ export default function App() {
     window.addEventListener("pointercancel", up);
   }, [dragPlayer]);
 
+  // Android's Back gesture, once open menus and dialogs had their turn (src/android-back.js):
+  // one layer per press, then the previous view. False on the home view lets the app go to
+  // the background.
+  const androidBackRef = useRef(null);
+  androidBackRef.current = () => {
+    if (diagOpen) { setDiagOpen(false); return true; }
+    if (feedbackOpen) { setFeedbackOpen(false); return true; }
+    if (newsOpen) { setNewsOpen(false); return true; }
+    if (trackContextMenu) { setTrackContextMenu(null); return true; }
+    if (globalContextMenu) { setGlobalContextMenu(null); return true; }
+    if (queueOpen) { setQueueOpen(false); return true; }
+    if (overlayOpen) { slidePlayer(false); return true; }
+    if (settingsOpen) {
+      if (compact && settingsPage === "detail") setSettingsPage("list");
+      else closeSettings();
+      return true;
+    }
+    if (canGoBack) { goBack(); return true; }
+    return false;
+  };
   // A context menu on a phone opens on a long press; the buzz says it took.
   const menuOpen = !!(trackContextMenu || globalContextMenu);
   useEffect(() => { if (menuOpen) haptic("long-press"); }, [menuOpen]);
@@ -7142,7 +7165,7 @@ export default function App() {
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
             expanded={overlayOpen}
-            onExpandToggle={() => setOverlayOpen(e => !e)}
+            onExpandToggle={() => (compact ? slidePlayer(!overlayOpenRef.current) : setOverlayOpen(e => !e))}
             showLyrics={showLyrics}
             onToggleLyrics={() => {
               if (!overlayOpen) {
@@ -7330,7 +7353,9 @@ export default function App() {
             // Whether the lyrics are actually on screen. The pane stays mounted when the
             // overlay is closed — it is only slid out of view — so without this its rAF
             // loop keeps running for a listener who cannot see it.
-            const lyricsOnScreen = overlayOpen && (showVideoView ? videoSplitActive : (coverSplitActive || showLyrics));
+            // Compact: not before the player has slid all the way up. Braccato's first tick cost
+            // ~44 ms, and it landed on the slide's first frames.
+            const lyricsOnScreen = overlayOpen && (!compact || playerSettled) && (showVideoView ? videoSplitActive : (coverSplitActive || showLyrics));
             // Same for the cover pane: it holds the spectrum visualizer, which asks Rust to run
             // an FFT and stream 30 payloads a second. Mounted is not the same as visible.
             const coverOnScreen = overlayOpen && !showVideoView && (coverSplitActive || !showLyrics);
