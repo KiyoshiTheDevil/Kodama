@@ -1366,8 +1366,26 @@ html[data-android] :is(input, textarea, [contenteditable="true"]) {
 
 /* Compact settings: a slider row puts its slider under the text at full width
    (ui/settings-controls.jsx, SettingRow), whatever fixed width the row gave it. */
-html[data-compact] .setting-row--stacked .setting-row-control > *,
-html[data-compact] .setting-row--stacked [data-kodama-slider] {
+html[data-compact] .setting-row--stacked .setting-row-control > * {
   width: 100% !important;
   max-width: 100%;
+}
+/* Wrapped together with its value ("0s") or a scale, the slider takes what is left. */
+html[data-compact] .setting-row--stacked .setting-row-control > * [data-kodama-slider] {
+  width: auto !important;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Compact settings pages: the same 12px from the edge as their category list
+   (settings/sidebar-nav.jsx), not the desktop's 32. */
+html[data-compact] {
+  --settings-gutter: 12px;
+}
+
+/* Android: no standing scrollbars, as nowhere else on a phone. They also took 8px from the
+   right edge only, so a page's sides were 12px and 20px. */
+html[data-android] ::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
 }

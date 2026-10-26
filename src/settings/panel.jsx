@@ -893,7 +893,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
         {/* Right Content */}
         <div style={{ flex: 1, background: "var(--bg-base)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "24px max(32px, calc((100% - 760px) / 2)) 0", flexShrink: 0 }}>
+          <div style={{ padding: "24px max(var(--settings-gutter, 32px), calc((100% - 760px) / 2)) 0", flexShrink: 0 }}>
             <div style={{ fontSize: "var(--t20)", fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
               {navItems.find(i => i.id === tab)?.label}
               {navItems.find(i => i.id === tab)?.badge && (
@@ -908,7 +908,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
             <div style={{ height: 1, background: "var(--border)", marginTop: 20 }} />
           </div>
 
-          <div ref={contentScrollRef} key={tab} className="scrollable" style={{ flex: 1, overflowY: "auto", padding: "8px max(32px, calc((100% - 760px) / 2)) 32px", animation: anim ? "fadeSlideIn 0.22s cubic-bezier(0.4,0,0.2,1)" : "none" }}>
+          <div ref={contentScrollRef} key={tab} className="scrollable" style={{ flex: 1, overflowY: "auto", padding: "8px max(var(--settings-gutter, 32px), calc((100% - 760px) / 2)) 32px", animation: anim ? "fadeSlideIn 0.22s cubic-bezier(0.4,0,0.2,1)" : "none" }}>
 
             {tab === "account" && (
               <AccountSettingsTab
