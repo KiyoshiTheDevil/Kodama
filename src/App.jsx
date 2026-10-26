@@ -156,6 +156,10 @@ function cmpVersion(a, b) {
 const IS_MAC = /Mac OS X|Macintosh/.test(navigator.userAgent || "");
 const IS_TOUCH = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 const IS_ANDROID = /Android/.test(navigator.userAgent || "");
+// Android: the launcher entry of that icon (AppIcons.kt), named as the icon generator names
+// it: "Kodama App Icon - 3D Pink.png" -> "3d_pink". Switching there closes the app, so a pick
+// is noted and goes in once Kodama is left; "now" does it at once.
+const androidIconSlug = (file) => file.replace(/^Kodama App Icon - /, "").replace(/\.png$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 // ─── Update Checker (GitHub Releases) ───────────────────────────────────────
 const APP_TAG = "v1.0.0";
@@ -5978,7 +5982,11 @@ export default function App() {
   // App-icon personalization. Applies live to taskbar/window/tray (+ macOS Dock & bundle)
   // via the Rust `set_app_icon` command. The static pinned-shortcut icon stays as installed.
   const [appIcon, setAppIcon] = usePersistedState("kodama-app-icon", APP_ICON_DEFAULT);
-  const applyAppIcon = useCallback(async (file) => {
+  const applyAppIcon = useCallback(async (file, now = false) => {
+    if (window.KodamaAndroid?.setAppIcon) {
+      window.KodamaAndroid.setAppIcon(androidIconSlug(file), now);
+      return;
+    }
     try { const { invoke } = await import("@tauri-apps/api/core"); await invoke("set_app_icon", { file }); }
     catch (e) { console.error("[AppIcon] set failed:", e); }
   }, []);
@@ -5986,8 +5994,11 @@ export default function App() {
     setAppIcon(file);
     applyAppIcon(file);
   }, [applyAppIcon, setAppIcon]);
+  const handleAppIconApplyNow = useCallback((file) => applyAppIcon(file, true), [applyAppIcon]);
   // Re-apply the user's chosen icon on each launch (only if they customized it).
   useEffect(() => {
+    // Not on Android, where the system keeps the enabled launcher entry itself.
+    if (window.KodamaAndroid) return;
     const stored = localStorage.getItem("kodama-app-icon");
     if (stored && stored !== APP_ICON_DEFAULT) applyAppIcon(stored);
   }, [applyAppIcon]);
@@ -7568,6 +7579,7 @@ export default function App() {
             onAutoplayChange={setAutoplay}
             appIcon={appIcon}
             onAppIconChange={handleAppIconChange}
+            onAppIconApplyNow={handleAppIconApplyNow}
             remoteEnabled={remoteEnabled}
             remoteDevices={remoteDevices}
             remoteTrustedIds={remoteTrustedIds}

@@ -338,7 +338,7 @@ function AudioOutputRow({ t, value, onChange }) {
   );
 }
 
-export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentCustom, onAccentReset, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange,
+export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange, accentCustom, onAccentReset, accentDynamic, onAccentDynamicChange, accentSat, onAccentSatChange, accentLight, onAccentLightChange, appIcon = APP_ICON_DEFAULT, onAppIconChange, onAppIconApplyNow,
   remoteEnabled = false, remoteDevices = [], remoteTrustedIds = new Set(), onToggleRemote, onRemoteDevice, onRememberDevice, onPairDevice,
   autoDownloadUpdates, onAutoDownloadUpdatesChange, updateSize,
   audioOutput, onAudioOutputChange,
@@ -347,6 +347,9 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
   customShortcuts, shortcutLabels, recordingShortcut, setRecordingShortcut, getShortcutLabel, resetShortcut, resetAllShortcuts,
   accounts, activeAccount, onAccountSwitch, onAccountAdd, onAccountReauth, onAccountRemove, onAccountRename, onAccountLogout, onAccountAvatarChange,
   tab, setTab }) {
+  // Android: whether a picked launcher icon is still waiting to go in (AppIcons.kt).
+  const [androidIconPending, setAndroidIconPending] = useState(() => !!window.KodamaAndroid?.pendingAppIcon?.());
+  const readAndroidIconPending = () => setAndroidIconPending(!!window.KodamaAndroid?.pendingAppIcon?.());
   const anim = useAnimations();
   const t = useLang();
   // Scroll-spy for the Discord-style sub-nav: watch the [data-settings-section] blocks in the
@@ -1201,7 +1204,15 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
 
                 <div id="set-sec-ap-icon" data-settings-section="ap-icon" style={{ scrollMarginTop: 8 }}>
                 <SectionLabel>{t("appIcon")}</SectionLabel>
-                <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 10px", paddingLeft: 2 }}>{t("appIconDesc")}</div>
+                <div style={{ fontSize: "var(--t11)", color: "var(--text-muted)", margin: "-2px 0 10px", paddingLeft: 2 }}>{t(IS_ANDROID ? "appIconDescAndroid" : "appIconDesc")}</div>
+                {/* Android: a pick waits until Kodama is left (switching closes the app); this
+                    says so, and offers to do it now. */}
+                {IS_ANDROID && androidIconPending && (
+                  <div className="flex items-center gap-3 mb-3 px-3.5 py-2.5 rounded-[var(--r-xl)] bg-[var(--accent-dim)]">
+                    <span className="flex-1 text-[length:var(--t12)] text-secondary">{t("appIconPending")}</span>
+                    <Button size="sm" variant="secondary" onPress={() => onAppIconApplyNow?.(appIcon)}>{t("appIconApplyNow")}</Button>
+                  </div>
+                )}
                 {APP_ICON_GROUPS.map(group => (
                   <div key={group.id} style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: "var(--t11)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7 }}>{t(group.labelKey)}</div>
@@ -1209,7 +1220,7 @@ export function SettingsPanel({ onClose, onSectionChange, accent, onAccentChange
                       {group.icons.map(ic => {
                         const selected = appIcon === ic.file;
                         return (
-                          <button key={ic.file} onClick={() => onAppIconChange?.(ic.file)} title={ic.label}
+                          <button key={ic.file} onClick={() => { onAppIconChange?.(ic.file); setTimeout(readAndroidIconPending, 50); }} title={ic.label}
                             className={cn(
                               "relative p-0 rounded-[var(--r-xl)] overflow-hidden cursor-default border-2 aspect-square bg-transparent",
                               anim && "transition-transform hover:scale-[1.05]",

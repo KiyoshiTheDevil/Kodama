@@ -10,6 +10,7 @@
 
     <application
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/Theme.kodama"
         android:usesCleartextTraffic="${usesCleartextTraffic}">
@@ -19,16 +20,170 @@
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <!-- AndroidTV support -->
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
+            <!-- The launcher entry is one of the aliases below, not this activity. -->
             <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
             
             <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>
+
+        <!-- The app's launcher entry, once per icon (settings: Appearance > App icon). Exactly one
+             is enabled; MediaBridge.setAppIcon switches. Icons: scripts/android-app-icons.py. -->
+        <activity-alias
+            android:name=".IconStandardPink"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_standard_pink"
+            android:roundIcon="@mipmap/ic_launcher_standard_pink_round"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconStandardWhite"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_standard_white"
+            android:roundIcon="@mipmap/ic_launcher_standard_white_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icon3dPink"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_3d_pink"
+            android:roundIcon="@mipmap/ic_launcher_3d_pink_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconPride"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_pride"
+            android:roundIcon="@mipmap/ic_launcher_pride_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconProgress"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_progress"
+            android:roundIcon="@mipmap/ic_launcher_progress_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconTrans"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_trans"
+            android:roundIcon="@mipmap/ic_launcher_trans_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNonbinary"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_nonbinary"
+            android:roundIcon="@mipmap/ic_launcher_nonbinary_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconAsexual"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_asexual"
+            android:roundIcon="@mipmap/ic_launcher_asexual_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconBisexual"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_bisexual"
+            android:roundIcon="@mipmap/ic_launcher_bisexual_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconLesbian"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_lesbian"
+            android:roundIcon="@mipmap/ic_launcher_lesbian_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconPansexual"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_pansexual"
+            android:roundIcon="@mipmap/ic_launcher_pansexual_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconPolyamory"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_polyamory"
+            android:roundIcon="@mipmap/ic_launcher_polyamory_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Signing in to YouTube Music (LoginActivity.kt). -->
         <activity

@@ -84,8 +84,21 @@ class MainActivity : TauriActivity() {
     if (isPhone(this)) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
   }
 
+  // Out of sight: a noted launcher icon can go in now without anyone seeing the app close.
+  override fun onStop() {
+    super.onStop()
+    inBackground = true
+    AppIcons.applyIfIdle(applicationContext)
+  }
+
+  override fun onStart() {
+    super.onStart()
+    inBackground = false
+  }
+
   companion object {
     @Volatile private var backendStarted = false
+    @Volatile var inBackground = false
 
     fun isPhone(context: Context) = context.resources.configuration.smallestScreenWidthDp < 600
   }

@@ -1433,5 +1433,8 @@
   "setSum_extensions": "Einstellungen deiner Erweiterungen",
   "setSum_experimental": "Funktionen in Erprobung",
   "setSum_about": "Version, Lizenzen, Links",
-  "setSum_debug": "Diagnose"
+  "setSum_debug": "Diagnose",
+  "appIconDescAndroid": "Das Icon auf dem Startbildschirm und in der App-Übersicht.",
+  "appIconPending": "Wird übernommen, sobald du Kodama verlässt und nichts läuft: Der Wechsel schließt die App.",
+  "appIconApplyNow": "Jetzt übernehmen"
 }

@@ -1433,5 +1433,8 @@
   "setSum_extensions": "Settings of your extensions",
   "setSum_experimental": "Features still being tried",
   "setSum_about": "Version, licences, links",
-  "setSum_debug": "Diagnostics"
+  "setSum_debug": "Diagnostics",
+  "appIconDescAndroid": "The icon on your home screen and in the app drawer.",
+  "appIconPending": "Changes once you leave Kodama with nothing playing: switching closes the app.",
+  "appIconApplyNow": "Apply now"
 }

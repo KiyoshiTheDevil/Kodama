@@ -47,6 +47,8 @@ object MediaBridge {
 
   val player: WebPlayer by lazy { WebPlayer(Looper.getMainLooper()) }
 
+  fun isPlaying() = player.isPlayingNow()
+
   /** Called from MainActivity once the web view exists. */
   fun attach(view: WebView) {
     appContext = view.context.applicationContext
@@ -96,6 +98,8 @@ object MediaBridge {
       main.post {
         player.update(snap)
         ensureService()
+        // Paused in the background: the moment a noted icon can go in (AppIcons).
+        if (!snap.playing) AppIcons.applyIfIdle(appContext)
       }
     }
 
@@ -167,6 +171,19 @@ object MediaBridge {
       }
     }
 
+    /**
+     * The launcher icon, by the name scripts/android-app-icons.py gives it ("3d_pink"). Noted
+     * for later unless [now], which closes the app (AppIcons).
+     */
+    @JavascriptInterface
+    fun setAppIcon(slug: String, now: Boolean) {
+      main.post { if (now) AppIcons.select(appContext, slug) else AppIcons.request(appContext, slug) }
+    }
+
+    /** The icon noted and not yet put in, or "" when there is none. */
+    @JavascriptInterface
+    fun pendingAppIcon(): String = AppIcons.pending(appContext) ?: ""
+
     /** The system's own output picker, the one an app may open (it cannot switch by itself). */
     @JavascriptInterface
     fun openOutputPicker() {
@@ -195,6 +212,8 @@ class WebPlayer(looper: Looper) : SimpleBasePlayer(looper) {
   )
 
   private var snap: Snapshot? = null
+
+  fun isPlayingNow() = snap?.playing == true
 
   fun update(next: Snapshot?) {
     snap = next
