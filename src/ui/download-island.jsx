@@ -4,7 +4,8 @@
 // The desktop keeps its card in the corner (App.jsx); on a phone that card sat over the list.
 import { thumb, useLang } from "../context.jsx";
 import { ActionSheet } from "./action-sheet.jsx";
-import { CheckCircle, WifiX, X } from "../icons.jsx";
+import { Spinner } from "@heroui/react";
+import { CheckCircle, Clock, WarningCircle, WifiX, X } from "../icons.jsx";
 
 // How far along a batch is: finished songs plus the part of the ones loading now, so the bar
 // moves during a long song instead of jumping once it is done.
@@ -75,22 +76,52 @@ function Bar({ fraction }) {
   );
 }
 
-function BatchCard({ batch, queue, onCancel }) {
+const ROW_H = 40;
+
+// One song of a batch: done, failed (with why), loading (how far), or waiting. In the batch's
+// own order, so a row never moves; only its icon and number change.
+function SongRow({ title, state, progress }) {
+  const t = useLang();
+  const icon = state === "done" ? <CheckCircle size={15} style={{ color: "var(--status-success)" }} />
+    : state === "premium" || state === "error" ? <WarningCircle size={15} style={{ color: "var(--status-danger)" }} />
+    : state === "loading" ? <Spinner size="sm" />
+    : <Clock size={15} style={{ color: "var(--text-muted)" }} />;
+  const note = state === "premium" ? t("downloadsPremium") : state === "error" ? t("downloadsError")
+    : state === "loading" ? `${Math.floor((progress || 0) * 100)} %` : "";
+  return (
+    <div style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 12, padding: "0 20px", opacity: state === "waiting" ? 0.55 : 1 }}>
+      <span style={{ width: 16, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{icon}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: "var(--t13)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+      {note && <span style={{ fontSize: "var(--t12)", color: state === "loading" ? "var(--text-muted)" : "var(--status-danger)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{note}</span>}
+    </div>
+  );
+}
+
+function Batch({ batch, queue, onCancel, first }) {
   const t = useLang();
   const total = batch.videoIds.length;
   const finished = batch.completedCount + batch.errorCount >= total;
   const fraction = batchFraction(batch, queue);
   const remaining = Math.max(0, total - batch.completedCount - batch.errorCount);
-  const now = queue.filter((q) => q.status === "downloading" && batch.videoIds.includes(q.videoId));
+  const live = new Map(queue.filter((q) => q.status === "downloading").map((q) => [q.videoId, q.progress]));
+  const results = batch.results || {};
+  // A fixed height for the list: up to six rows, scrolling beyond. It no longer grows and
+  // shrinks with the number of songs loading at the moment.
+  const listH = Math.min(total, 6) * ROW_H;
+  const stats = [
+    t("downloadsDone", { n: batch.completedCount }),
+    batch.errorCount > 0 ? t("downloadsFailed", { n: batch.errorCount }) : null,
+    remaining > 0 ? t("downloadsLeft", { n: remaining }) : null,
+  ].filter(Boolean).join(" · ");
   return (
-    <div style={{ padding: "10px 10px 12px", margin: "0 4px 8px", borderRadius: 16, background: "var(--bg-hover-overlay)", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ borderTop: first ? 0 : "1px solid var(--border)", paddingTop: first ? 0 : 12, marginTop: first ? 0 : 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px" }}>
         {batch.thumbnail
-          ? <img src={thumb(batch.thumbnail)} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-          : <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--fill-strong)", flexShrink: 0 }} />}
+          ? <img src={thumb(batch.thumbnail)} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+          : <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--fill-strong)", flexShrink: 0 }} />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "var(--t14)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{batch.title || t("downloadQueue")}</div>
-          {batch.artists && <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{batch.artists}</div>}
+          <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{stats}</div>
         </div>
         {finished
           ? <CheckCircle size={18} style={{ color: "var(--status-success)", flexShrink: 0 }} />
@@ -101,41 +132,19 @@ function BatchCard({ batch, queue, onCancel }) {
             </button>
           )}
       </div>
-      <Bar fraction={fraction} />
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--t12)", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-        <span>{t("downloadsCount", { d: batch.completedCount + batch.errorCount, n: total })}</span>
-        <span>{Math.floor(fraction * 100)} %</span>
+      <div style={{ padding: "12px 20px 6px" }}><Bar fraction={fraction} /></div>
+      <div className="scrollable" style={{ height: listH, overflowY: "auto" }}>
+        {batch.videoIds.map((id) => {
+          const state = results[id] || (live.has(id) ? "loading" : "waiting");
+          return <SongRow key={id} title={batch.titles?.[id] || id} state={state} progress={live.get(id)} />;
+        })}
       </div>
-      <div style={{ display: "flex", gap: 14, fontSize: "var(--t12)", fontVariantNumeric: "tabular-nums", flexWrap: "wrap" }}>
-        <span style={{ color: "var(--status-success)" }}>{t("downloadsDone", { n: batch.completedCount })}</span>
-        {batch.errorCount > 0 && <span style={{ color: "var(--status-danger)" }}>{t("downloadsFailed", { n: batch.errorCount })}</span>}
-        {remaining > 0 && <span style={{ color: "var(--text-muted)" }}>{t("downloadsLeft", { n: remaining })}</span>}
-      </div>
-      {now.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
-          <div style={{ fontSize: "var(--t11)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t("downloadsNow")}</div>
-          {now.map((q) => (
-            <div key={q.videoId} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {q.thumbnail
-                ? <img src={thumb(q.thumbnail)} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                : <div style={{ width: 30, height: 30, borderRadius: 6, background: "var(--fill-strong)", flexShrink: 0 }} />}
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ display: "flex", gap: 8, fontSize: "var(--t12)" }}>
-                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
-                  <span style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{Math.floor((q.progress || 0) * 100)} %</span>
-                </div>
-                <Bar fraction={Math.max(0, Math.min(1, q.progress || 0))} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 export function DownloadSheet({ open, onClose, batches, queue, onCancel }) {
   const t = useLang();
-  const items = batches.map((b) => ({ id: b.id, custom: <BatchCard batch={b} queue={queue} onCancel={onCancel} /> }));
+  const items = batches.map((b, i) => ({ id: b.id, custom: <Batch batch={b} queue={queue} onCancel={onCancel} first={i === 0} />, flush: true }));
   return <ActionSheet open={open} onClose={onClose} title={t("downloadQueue")} items={items} />;
 }

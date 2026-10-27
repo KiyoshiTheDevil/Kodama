@@ -5382,7 +5382,12 @@ export default function App() {
           setDownloadBatches(prev => prev.map(b => {
             const added = doneIds.filter(id => b.videoIds.includes(id)).length;
             const addedErr = errorIds.filter(id => b.videoIds.includes(id)).length;
-            return (added || addedErr) ? { ...b, completedCount: b.completedCount + added, errorCount: b.errorCount + addedErr } : b;
+            if (!added && !addedErr) return b;
+            // How each song ended, for the sheet's list (a failure with its reason).
+            const results = { ...b.results };
+            for (const id of doneIds) if (b.videoIds.includes(id)) results[id] = "done";
+            for (const id of errorIds) if (b.videoIds.includes(id)) results[id] = premiumIds.includes(id) ? "premium" : "error";
+            return { ...b, completedCount: b.completedCount + added, errorCount: b.errorCount + addedErr, results };
           }));
         }
       } catch {}
@@ -5437,6 +5442,9 @@ export default function App() {
       thumbnail: meta.thumbnail || "",
       artists: meta.artists || "",
       videoIds: eligible.map(t => t.videoId),
+      // Names for the sheet's list, which shows every song of the batch.
+      titles: Object.fromEntries(eligible.map(t => [t.videoId, t.title || ""])),
+      results: {},
       completedCount: 0,
       errorCount: 0,
     }]);

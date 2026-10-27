@@ -155,6 +155,7 @@ export const Check              = fa("check");
 export const CheckCircle        = fa("circle-check");
 export const Plus               = fa("plus");
 export const DownloadSimple     = fa("download");
+export const ArrowCircleDown    = fa("circle-down");
 export const UploadSimple       = fa("upload");
 // File-shaped variants: used where the action moves a document in or out, rather than being a
 // generic up/download. Reads more precisely in the overlay editor's header.

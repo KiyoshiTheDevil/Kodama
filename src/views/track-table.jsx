@@ -12,7 +12,7 @@ import { ExplicitBadge, ArtistLinks, SkeletonRow } from "../ui/rows.jsx";
 import { parseDurationToSeconds } from "../lyrics/parse.js";
 import { logDiag } from "../bug-diagnostics.js";
 import { publishDiag, clearDiag } from "../diagnostics/live.js";
-import { ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClockwise, Crown, DotsThreeVertical, DownloadSimple, Heart, MagnifyingGlass, Minus, Pause, Play, Shuffle, Sort, SortDown, SortUp, Trash } from "../icons.jsx";
+import { ArrowCircleDown, ArrowClockwise, ArrowLeft, Check, CheckCircle, Clock, ClockCounterClockwise, Crown, DotsThreeVertical, DownloadSimple, Heart, MagnifyingGlass, Minus, Pause, Play, Shuffle, Sort, SortDown, SortUp, Trash } from "../icons.jsx";
 import { shuffled } from "../shuffle.js";
 
 // Collapsing-header geometry. CARD_H is the height the pinned card reserves in the flow;
@@ -209,6 +209,12 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
           </div>
           {narrow && (
             <div className="text-[length:var(--t12)] text-secondary truncate mt-0.5">
+              {/* Downloaded (or loading): the phone has no room for the desktop's column, so a
+                  small arrow before the artist says it, as Spotify does. */}
+              {(isCached || isDownloading) && (
+                <ArrowCircleDown size={12} weight="fill"
+                  className={`inline-block align-[-1px] me-1 text-accent${isDownloading && !isCached ? " animate-pulse" : ""}`} />
+              )}
               {typeof track.artists === "string" ? track.artists : (Array.isArray(track.artists) ? track.artists.map(a => a.name || a).join(", ") : "")}
             </div>
           )}

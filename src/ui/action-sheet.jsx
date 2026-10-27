@@ -6,10 +6,10 @@
 // pill out into the sheet again (morph(), below).
 //
 // items: [{ id, label, icon, onPress, sub: items, danger, disabled, checked, hint, divider,
-//          keepOpen, custom }]
+//          keepOpen, custom, flush }]
 // `divider: true` starts a new group above the item. Pressing an item without `sub` runs it
 // and closes the sheet, unless `keepOpen` (a toggle you may want to flip and see). `custom` is
-// a node drawn as the row instead of a button (a stepper, say).
+// a node drawn as the row instead of a button (a stepper, say); `flush` lets it run edge to edge.
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLang, useZoom, useAnimations } from "../context.jsx";
@@ -168,7 +168,7 @@ export function ActionSheet({ open, onClose, items, title }) {
   }
 
   // A pressed row stays lit until the sheet has gone: a tap is shorter than the slide down.
-  const row = (it) => it.custom ? <div key={it.id} style={{ padding: "4px 12px" }}>{it.custom}</div> : (
+  const row = (it) => it.custom ? <div key={it.id} style={{ padding: it.flush ? "4px 0" : "4px 12px" }}>{it.custom}</div> : (
     <button key={it.id} type="button" disabled={it.disabled}
       onPointerDown={() => setPressed(it.id)}
       onPointerLeave={() => { if (!leaving) setPressed((p) => (p === it.id ? null : p)); }}

@@ -370,6 +370,8 @@
   "downloadsFailed": "%n fehlgeschlagen",
   "downloadsLeft": "%n ausstehend",
   "downloadsNow": "Gerade",
+  "downloadsPremium": "Nur Premium",
+  "downloadsError": "Fehler",
   "downloadQueue": "Download-Warteschlange",
   "sleepTimer": "Schlaftimer",
   "cancelSleepTimer": "Timer abbrechen",
