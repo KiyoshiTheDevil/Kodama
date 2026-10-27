@@ -296,6 +296,42 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
 }
 
 // ─── Shared playlist/collection layout ────────────────────────────────────
+// The playlist's own description, clamped to two lines so a long one cannot push the track list
+// off the screen; "Show more" opens it in place and "Show less" folds it again, offered only when
+// something is actually cut off. overflow-wrap: a long link has no place to break otherwise, and
+// the clamp then cut the second line through the middle of its letters.
+function CollectionDescription({ text }) {
+  const t = useLang();
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => { if (!open) setCut(el.scrollHeight > el.clientHeight + 1); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text, open]);
+  return (
+    <div style={{ maxWidth: 620, marginTop: 2, marginBottom: 10, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div ref={ref} style={{
+        fontSize: "var(--t13)", lineHeight: 1.5, color: "rgba(255,255,255,0.68)", textShadow: "0 1px 6px rgba(0,0,0,0.5)",
+        overflowWrap: "anywhere", whiteSpace: "pre-line",
+        ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }),
+      }}>{text}</div>
+      {(cut || open) && (
+        <button type="button" onClick={() => setOpen(o => !o)}
+          className="mt-1 p-0 border-0 bg-transparent cursor-default text-[length:var(--t12)] font-semibold"
+          style={{ color: "rgba(255,255,255,0.85)" }}>
+          {t(open ? "showLess" : "showMore")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PlaylistLayout({ title, description, thumbnail, tracks, total, loading, progress, cached, onPlay, currentTrack, isPlaying, onBack, isLiked, onOpenArtist, onOpenAlbum, isAlbum, albumArtists, albumArtistBrowseId, year, onRefresh, onTrackContextMenu, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, onDownloadAll, onRemoveAll, hideExplicit, onToggleLike, likedIds, selectedTracks, onToggleSelect, onSelectAll, extraActions, typeLabel, contextMenuTrackId }) {
   const accentColor = useAccentColor(thumbnail);
   const t = useLang();
@@ -832,15 +868,7 @@ export function PlaylistLayout({ title, description, thumbnail, tracks, total, l
             </div>
           </div>
 
-          {/* The playlist's own description, clamped to two lines so a long one cannot push
-              the track list off the screen. */}
-          {description && (
-            <div style={{
-              maxWidth: 620, marginTop: 2, marginBottom: 10, fontSize: "var(--t13)", lineHeight: 1.5,
-              color: "rgba(255,255,255,0.68)", textShadow: "0 1px 6px rgba(0,0,0,0.5)",
-              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-            }} title={description}>{description}</div>
-          )}
+          {description && <CollectionDescription text={description} />}
 
           {/* Metadata — albums additionally carry the artist chip and the year */}
           <div style={{ fontSize: "var(--t13)", color: "rgba(255,255,255,0.65)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", rowGap: 6 }}>
