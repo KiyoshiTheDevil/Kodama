@@ -2,13 +2,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { SharedElementTransition } from "react-aria-components";
 import { TabsRoot, TabListContainer, TabList, Tab, TabIndicator } from "@heroui/react";
-import { API, useLang } from "../context.jsx";
+import { API, useCompact, useLang } from "../context.jsx";
 import { PlaylistLayout } from "./track-table.jsx";
 import { GridCard } from "../ui/rows.jsx";
 import { Microphone, MusicNote, VinylRecord } from "../icons.jsx";
 
 export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, downloadingIds, premiumSongIds, onDownloadSong, contextMenuTrackId, onTrackContextMenu, hideExplicit, onOpenAlbum, onOpenArtist, onToggleLike, likedIds }) {
   const t = useLang();
+  const compact = useCompact();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("songs");
@@ -87,13 +88,15 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
     );
   }
 
-  // Header in normal flow — sits above PlaylistLayout via zIndex:5 (safe, below any overlay)
-  const HEADER_H = 60; // 24px top padding + 36px row height
+  // Header in normal flow — sits above PlaylistLayout via zIndex:5 (safe, below any overlay).
+  // Compact: no small title beside the tabs, there is no room for both (they overlapped) and the
+  // big one sits right below; the tabs are simply centred.
+  const HEADER_H = compact ? 48 : 60; // top padding + 36px row height
   const tabBar = (
-    <div style={{ position: "relative", zIndex: 5, flexShrink: 0, padding: "24px 24px 0" }}>
-      <div style={{ position: "relative", display: "flex", alignItems: "center", height: 36 }}>
-      <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("downloads")}</div>
-      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+    <div style={{ position: "relative", zIndex: 5, flexShrink: 0, padding: compact ? "12px 16px 0" : "24px 24px 0" }}>
+      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, height: 36 }}>
+      {!compact && <div style={{ fontSize: "var(--t22)", fontWeight: 600 }}>{t("downloads")}</div>}
+      <div style={compact ? undefined : { position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
         <SharedElementTransition>
           <TabsRoot selectedKey={tab} onSelectionChange={setTab}>
             <TabListContainer>
@@ -150,18 +153,18 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {tabBar}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 32px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: compact ? "16px 16px 32px" : "16px 24px 32px" }}>
         {loading ? (
           <div style={{ color: "var(--text-muted)", fontSize: "var(--t13)" }}>{t("loading")}…</div>
         ) : items.length === 0 ? (
           <div style={{ color: "var(--text-muted)", fontSize: "var(--t13)" }}>{t("noResults")}</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: compact ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fill, minmax(170px, 1fr))", gap: compact ? 12 : 16 }}>
             {tab === "albums" && albums.map((album, i) => (
               <GridCard key={i}
                 thumbnail={album.thumbnail}
                 title={album.title}
-                subtitle={`${album.artists || ""} · ${album.songs.length} ${t("songs")}`}
+                subtitle={`${album.artists || ""} · ${album.songs.length} ${t(album.songs.length === 1 ? "songOne" : "songs")}`}
                 onClick={() => setSelectedGroup({ title: album.title, thumbnail: album.thumbnail, songs: album.songs })}
               />
             ))}
@@ -169,7 +172,7 @@ export function DownloadsView({ onPlay, currentTrack, isPlaying, cachedSongIds, 
               <GridCard key={i}
                 thumbnail={artist.thumbnail}
                 title={artist.artist}
-                subtitle={`${artist.songs.length} ${t("songs")}`}
+                subtitle={`${artist.songs.length} ${t(artist.songs.length === 1 ? "songOne" : "songs")}`}
                 onClick={() => setSelectedGroup({ title: artist.artist, thumbnail: artist.thumbnail, songs: artist.songs })}
               />
             ))}
