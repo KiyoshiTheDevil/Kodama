@@ -753,6 +753,7 @@
   "goOnline": "Go Online",
   "offlineBanner": "Offline Mode — only downloaded songs are available",
   "offlinePartOf": "%n of %m",
+  "offlineSearchHint": "Offline: searching your downloads.",
   "offlinePill": "Offline",
   "offlineToDownloads": "Offline, go to downloads",
   "offlineTitle": "You're offline",

@@ -1335,6 +1335,8 @@ img.img-failed {
    let a list be dragged sideways; shelves that should swipe have scrollers of their own. */
 html[data-compact], html[data-compact] body { overscroll-behavior-x: none; }
 html[data-compact] .main-scroll { overflow-x: hidden; }
+/* Offline: songs that are not downloaded cannot play, so their rows say so and do nothing. */
+html[data-offline] [data-track-id]:not([data-cached]) { opacity: 0.38; pointer-events: none; }
 @keyframes sheetDown { from { transform: none; } to { transform: translateY(105%); } }
 @keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
 

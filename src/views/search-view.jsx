@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { API, thumb, useLang } from "../context.jsx";
 import { GridCard, TrackRow } from "../ui/rows.jsx";
 import { SearchBox } from "../ui/search-box.jsx";
+import { isOffline } from "../offline.js";
 
 export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, onOpenArtist, onOpenAlbum, onOpenPlaylist, onContextMenu, onTrackContextMenu, hideExplicit }) {
   const [filter, setFilter] = useState("all");
@@ -15,11 +16,25 @@ export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, o
   useEffect(() => { if (!query) inputRef.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const field = <SearchBox ref={inputRef} large value={query} onSubmit={onSearch} className="max-w-[560px]" />;
 
+  const offline = isOffline();
   useEffect(() => {
     if (!query) return;
     setLoading(true);
     setError(null);
     setResults([]);
+    // Offline the search looks through the downloads: title, artist or album containing the
+    // query, as songs.
+    if (offline) {
+      const q = query.toLowerCase();
+      fetch(`${API}/song/cached/list`)
+        .then(r => r.json())
+        .then(d => setResults((d.songs || [])
+          .filter(s => [s.title, s.artists, s.album].some(f => String(f || "").toLowerCase().includes(q)))
+          .map(s => ({ ...s, type: "song" }))))
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false));
+      return;
+    }
     fetch(`${API}/search?q=${encodeURIComponent(query)}&filter=${filter}`)
       .then(r => r.json())
       .then(d => {
@@ -28,7 +43,7 @@ export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, o
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [query, filter]);
+  }, [query, filter, offline]);
 
   const tabs = [
     { id: "all",       label: t("filterAll") },
@@ -117,11 +132,12 @@ export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, o
       {/* Header */}
       <div style={{ padding: "0 16px", marginBottom: 16 }}>
         <div style={{ marginBottom: 16 }}>{field}</div>
+        {offline && <div style={{ margin: "-6px 0 14px", fontSize: "var(--t12)", color: "var(--status-warning)" }}>{t("offlineSearchHint")}</div>}
         <div style={{ fontSize: "var(--t18)", fontWeight: 500, marginBottom: 12 }}>
           {t("searchResultsFor")} „{query}"
         </div>
-        {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {/* Filter tabs. Not offline: the downloads only hold songs. */}
+        {!offline && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {tabs.map(tab_ => (
             <button key={tab_.id} onClick={() => setFilter(tab_.id)} style={{
               background: filter === tab_.id ? "var(--accent)" : "var(--bg-elevated)",
@@ -131,7 +147,7 @@ export function SearchView({ query, onSearch, onPlay, currentTrack, isPlaying, o
               transition: "all 0.15s",
             }}>{tab_.label}</button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {loading && <div style={{ padding: "0 16px", color: "var(--text-secondary)" }}>{t("loadingDots")}</div>}

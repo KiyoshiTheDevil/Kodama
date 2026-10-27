@@ -799,11 +799,11 @@ def _album_disk_path(browse_id):
     safe = browse_id.replace("/", "_").replace("\\", "_")
     return os.path.join(ALBUM_CACHE_DIR, f"{safe}.json")
 
-def _load_album_disk(browse_id):
+def _load_album_disk(browse_id, ttl=None):
     path = _album_disk_path(browse_id)
     if not os.path.exists(path):
         return None
-    if time.time() - os.path.getmtime(path) > ALBUM_CACHE_TTL:
+    if time.time() - os.path.getmtime(path) > (ALBUM_CACHE_TTL if ttl is None else ttl):
         return None
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -3928,6 +3928,14 @@ def stream_playlist(playlist_id):
             import traceback
             traceback.print_exc()
             print(f"[playlist] {playlist_id} failed: {e}", flush=True)
+            # Offline (or YouTube Music not answering): a playlist opened before, however old,
+            # beats an error. Its downloaded songs still play.
+            # (serve_cached is defined further up in the try; a failure before it gets no fallback.)
+            serve = locals().get("serve_cached")
+            stale = _load_playlist_disk(playlist_id, ttl=float("inf")) if serve else None
+            if stale:
+                yield from serve(stale)
+                return
             yield send({"type": "error", "message": str(e)})
 
     return Response(
@@ -4149,6 +4157,11 @@ def get_album(browse_id):
             _save_album_disk(browse_id, result)
         return jsonify(result)
     except Exception as e:
+        # Offline (or YouTube Music not answering): an album opened before, however old, beats
+        # an error. Its downloaded songs still play.
+        stale = _load_album_disk(browse_id, ttl=float("inf"))
+        if stale:
+            return jsonify({**stale, "cached": True, "stale": True})
         return jsonify({"error": str(e)}), 500
 
 def _extract_artist_desc_url(browse_id):

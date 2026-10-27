@@ -174,6 +174,8 @@ export function TableRow({ track, index, isPlaying, onPlay, onOpenArtist, onOpen
   const row = (
     <div
       data-track-id={track.videoId}
+      // Offline, a song that is not downloaded is greyed out and inert (index.css, [data-offline]).
+      data-cached={isCached ? "" : undefined}
       onClick={isPremiumOnly ? undefined : () => onPlay(track)}
       onContextMenu={(!isPremiumOnly && onContextMenu) ? (e) => { e.preventDefault(); onContextMenu(e, track); } : undefined}
       onMouseEnter={() => setHovered(true)}

@@ -68,6 +68,7 @@ import { SearchBox } from "./ui/search-box.jsx";
 import { CompactTabs } from "./ui/compact-tabs.jsx";
 import PullRefresh from "./ui/pull-refresh.jsx";
 import { rememberOfflinePlaylist } from "./offline-collections.js";
+import { isOffline } from "./offline.js";
 import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill } from "./ui/download-island.jsx";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
@@ -1688,12 +1689,30 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return () => audio.removeEventListener("volumechange", onVolumeChange);
   }, []);
 
+  const cachedRef = useRef(cachedSongIds);
+  cachedRef.current = cachedSongIds;
   const getAdjacentTrack = useCallback((dir) => {
     const q = queueRef.current;
     const t = trackRef.current;
     if (!q.length || !t) return null;
     const idx = q.findIndex(x => x.videoId === t.videoId);
     if (idx === -1) return null;
+    // Offline, only downloaded songs can play: the queue steps over the others, in either
+    // direction, instead of stopping at the first it cannot fetch.
+    if (isOffline()) {
+      const here = (x) => cachedRef.current?.has(x.videoId);
+      if (dir === "next" && shuffleRef.current) {
+        const pool = q.filter(x => here(x) && x.videoId !== t.videoId);
+        return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      }
+      for (let i = 1; i < q.length; i++) {
+        const j = dir === "next" ? idx + i : idx - i;
+        if (dir === "next" && j >= q.length && repeatRef.current !== "all") return null;
+        const x = q[(j + q.length) % q.length];
+        if (here(x)) return x;
+      }
+      return null;
+    }
     if (dir === "next") {
       if (shuffleRef.current) return q[Math.floor(Math.random() * q.length)];
       // Back to the start only when repeating the whole queue. It used to wrap whatever the
@@ -1781,6 +1800,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       const cr = await fetch(`${API}/song/cached/${videoId}`, { method: "HEAD" });
       if (cr.ok) return IS_ANDROID ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
     } catch {}
+    if (isOffline()) return null;
     const cached = urlCacheGet(videoId);
     if (cached) return cached;
     const useRust = audioRef.current && audioRef.current._fallback === false;
@@ -1951,6 +1971,9 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     fetchUrl(track.videoId).then(url => {
       if (cancelled) return;
       if (url) { setStreamUrl(url); }
+      // Offline and not downloaded (a playlist started from its first song, say): on to the
+      // next one that is here, instead of standing still.
+      else if (isOffline()) { goAdjacent("next"); }
       else { console.error("Stream fehlgeschlagen"); }
       setLoading(false);
     });
@@ -6461,6 +6484,10 @@ export default function App() {
       window.removeEventListener("kodama-net-suspect", probe);
     };
   }, [fetchProfiles]);
+  useEffect(() => {
+    if (isActuallyOffline) document.documentElement.dataset.offline = "1";
+    else delete document.documentElement.dataset.offline;
+  }, [isActuallyOffline]);
   // The old manual offline mode is gone; whoever had switched it on kept its banner for good.
   useEffect(() => { try { localStorage.removeItem("kiyoshi-offline"); } catch { /* storage off */ } }, []);
 
@@ -7138,7 +7165,7 @@ export default function App() {
           }}>
           <ScrollShadowRoot key={appKey} ref={mainScrollRef} size={28} className="scrollable overflow-y-auto main-scroll" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
             {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} offline={isActuallyOffline} onOpenDownloads={() => navigateTo("downloads")} /></AnimatedView>}
-            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
+            {view === "search" && <AnimatedView key={`search-${viewRefreshKey}-${isActuallyOffline ? "off" : "on"}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "together" && <AnimatedView key="together"><TogetherView name={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName} avatar={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.avatar} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={IS_MAC ? goBack : undefined} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist}

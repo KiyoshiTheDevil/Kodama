@@ -753,6 +753,7 @@
   "goOnline": "Online gehen",
   "offlineBanner": "Offline-Modus — nur heruntergeladene Songs verfügbar",
   "offlinePartOf": "%n von %m",
+  "offlineSearchHint": "Offline: gesucht wird in deinen Downloads.",
   "offlinePill": "Offline",
   "offlineToDownloads": "Offline, zu den Downloads",
   "offlineTitle": "Du bist offline",
