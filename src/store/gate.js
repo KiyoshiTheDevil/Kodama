@@ -9,6 +9,7 @@
 // can turn on by accident and then report a half-built shop as broken. Kodama's own version is the
 // one fact that cannot be got wrong here.
 import { APP_VERSION } from "../version.js";
+import { IS_ANDROID } from "../platform.js";
 import { compareVersions } from "./catalogue.js";
 
 /** The release that opens the store. compareVersions already ranks alpha below beta below none. */
@@ -20,6 +21,9 @@ export const STORE_OPENS_AT = "1.0.0-alpha.40";
  * be tested in the alpha that carries it.
  */
 export function storeIsOpen() {
+  // Not on a phone: what the store offers (themes for the desktop window, extensions, overlay
+  // widgets, visualizer presets) is made for the computer, and its window cannot open there.
+  if (IS_ANDROID) return false;
   if (import.meta.env.DEV) return true;
   try {
     if (localStorage.getItem("kiyoshi-debug-unlocked") === "true") return true;

@@ -1305,6 +1305,7 @@
   "ovlOffset": "Versatz",
   "ovlFxInnerShadow": "Innerer Schatten",
   "ovlFxBackgroundBlur": "Hintergrund weichzeichnen",
+  "eqAdjust": "Anpassen",
   "eqTitle": "Equalizer",
   "eqPresets": "Presets",
   "eqMyPresets": "Meine Presets",

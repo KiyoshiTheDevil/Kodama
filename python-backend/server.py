@@ -3580,6 +3580,45 @@ def audio_stream(video_id):
     return Response(gen(), status=upstream.status_code, headers=resp_headers, content_type=ctype)
 
 
+@app.route("/audio-chunked/<video_id>")
+def audio_chunked(video_id):
+    """The whole song as one plain stream, fetched upstream in 1 MB ranges. Android's equaliser
+    (src/equalizer/web-eq.js) feeds it to Media Source: googlevideo throttles a single
+    open-ended request to about playback speed and below, while ranged requests come at full
+    speed, which is how yt-dlp and NewPipe fetch too."""
+    import requests as req
+    from flask import Response, stream_with_context
+    from urllib.parse import urlparse, parse_qs
+    url = _resolve_audio_url(video_id)
+    if url == "premium_only":
+        return jsonify({"premium_only": True}), 403
+    if not url:
+        return jsonify({"error": "no_url"}), 502
+    try:
+        total = int(parse_qs(urlparse(url).query).get("clen", ["0"])[0])
+    except Exception:
+        total = 0
+    mime = (parse_qs(urlparse(url).query).get("mime", ["audio/webm"])[0]) or "audio/webm"
+    CHUNK = 1 << 20
+
+    def gen():
+        start = 0
+        while total == 0 or start < total:
+            end = start + CHUNK - 1 if total == 0 else min(start + CHUNK, total) - 1
+            r = req.get(url, headers={"User-Agent": "Mozilla/5.0", "Range": f"bytes={start}-{end}"}, timeout=30)
+            if r.status_code not in (200, 206) or not r.content:
+                break
+            yield r.content
+            start += len(r.content)
+            if r.status_code == 200:  # the server sent it all at once
+                break
+
+    headers = {"Cache-Control": "no-store"}
+    if total:
+        headers["Content-Length"] = str(total)
+    return Response(stream_with_context(gen()), mimetype=mime, headers=headers)
+
+
 @app.route("/audio-stream/<video_id>/warm")
 def audio_stream_warm(video_id):
     """Resolve + cache the stream URL ahead of time (no byte transfer) so the next play of

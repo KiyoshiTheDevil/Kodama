@@ -1305,6 +1305,7 @@
   "ovlOffset": "Offset",
   "ovlFxInnerShadow": "Inner shadow",
   "ovlFxBackgroundBlur": "Background blur",
+  "eqAdjust": "Adjust",
   "eqTitle": "Equalizer",
   "eqPresets": "Presets",
   "eqMyPresets": "My Presets",
