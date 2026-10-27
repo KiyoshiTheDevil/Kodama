@@ -9,9 +9,11 @@
 // placement is ours, since .toast expects to be laid out by the toast region and this one is
 // not in it. Unlike a real toast it is not dismissed on a timer, because it is not an
 // announcement - it is the state of something still happening, and it goes when that is done.
+import { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@heroui/react";
-import { useZoom } from "../context.jsx";
+import { useCompact, useZoom } from "../context.jsx";
+import { setIslandItem } from "./island-store.js";
 
 /**
  * @param label   what is happening
@@ -19,7 +21,17 @@ import { useZoom } from "../context.jsx";
  */
 export function ProgressToast({ label, percent }) {
   const zoom = useZoom();
+  const compact = useCompact();
+  const id = useId();
   const pct = typeof percent === "number" ? Math.max(0, Math.min(100, percent)) : null;
+  // On a phone the job goes into the title bar's pill (App.jsx, island-store.js) instead: down
+  // here it sat on the mini player, where the thumb is.
+  useEffect(() => {
+    if (!compact) return;
+    setIslandItem(id, { label, percent: pct });
+  }, [compact, id, label, pct]);
+  useEffect(() => () => setIslandItem(id, null), [id]);
+  if (compact) return null;
   return createPortal(
     // Portalled to <body>, which is outside the shell carrying the UI zoom - so the placement
     // sits on this wrapper, unzoomed and in real pixels, and the zoom goes on the toast inside

@@ -1309,6 +1309,20 @@ img.img-failed {
      carries the tab bar in the compact layout, so a fixed 120px no longer cleared it. */
   bottom: calc(var(--player-bar-h, 112px) + 8px);
 }
+/* Compact: under the title bar, as a slim pill like the title bar's own (download, offline). */
+html[data-compact] .toast-region {
+  top: calc(var(--safe-top-z) + 60px);
+  bottom: auto;
+  min-width: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+html[data-compact] .toast-region .toast {
+  border-radius: 22px;
+  padding: 8px 14px;
+  min-height: 0;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
+}
 
 /* Terms and privacy text inside the app (src/settings/legal.jsx). The markup comes from
    docs/*.html, whose own stylesheet does not load here, so it is styled with the app's tokens. */

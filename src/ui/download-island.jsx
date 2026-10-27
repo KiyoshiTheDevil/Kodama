@@ -50,6 +50,24 @@ export function DownloadIsland({ done, total, fraction, finished, onOpen }) {
   );
 }
 
+// A job in the background (island-store.js): its ring and what it is, how far.
+export function ProgressPill({ label, percent }) {
+  return (
+    <div role="status" aria-live="polite"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 8, height: 32, maxWidth: 230,
+        padding: "0 12px 0 6px", borderRadius: 999,
+        background: "var(--bg-elevated)", color: "var(--text-primary)",
+        fontFamily: "var(--font)", fontSize: "var(--t13)", fontWeight: 600, fontVariantNumeric: "tabular-nums",
+        animation: "pillRiseIn 0.26s cubic-bezier(0.22,1,0.36,1)",
+      }}>
+      <Ring fraction={typeof percent === "number" ? percent / 100 : 0.25} />
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {typeof percent === "number" && <span style={{ color: "var(--accent)", flexShrink: 0 }}>{percent} %</span>}
+    </div>
+  );
+}
+
 // Offline: the same place, saying so, and leading to what still plays.
 export function OfflinePill({ onOpen }) {
   const t = useLang();

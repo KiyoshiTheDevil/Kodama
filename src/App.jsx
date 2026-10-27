@@ -71,7 +71,8 @@ import { rememberOfflinePlaylist } from "./offline-collections.js";
 import { isOffline } from "./offline.js";
 import { mediaSourceUrl, needsWebEq, wireWebEq } from "./equalizer/web-eq.js";
 import PhoneEqualizer from "./equalizer/PhoneEqualizer.jsx";
-import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill } from "./ui/download-island.jsx";
+import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill, ProgressPill } from "./ui/download-island.jsx";
+import { useIslandItems } from "./ui/island-store.js";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
@@ -4041,6 +4042,8 @@ export default function App() {
   const [pendingDownloadQueue, setPendingDownloadQueue] = useState([]); // tracks waiting for a free slot
   const [downloadQueueMin, setDownloadQueueMin] = useState(false); // download queue card minimized
   const [downloadSheetOpen, setDownloadSheetOpen] = useState(false); // compact: the downloads in detail
+  // Jobs that want the title bar's pill on a phone (a playlist loading, say): the newest shows.
+  const islandItems = useIslandItems();
   // Android: the equaliser as a page of the app (equalizer/window.js sends the event).
   const [phoneEqOpen, setPhoneEqOpen] = useState(false);
   useEffect(() => {
@@ -7071,7 +7074,9 @@ export default function App() {
 
       {/* Toast Notifications */}
       {/* Offsets live in index.css beside the zoom that has to divide them back out. */}
-      <ToastProvider placement="bottom end" className="z-[100000]!" />
+      {/* A phone has its thumb, the mini player and the tabs at the bottom: messages come in at
+          the top there, under the title bar (index.css). */}
+      <ToastProvider placement={compact ? "top" : "bottom end"} className="z-[100000]!" />
 
 
       {flashbang && (
@@ -7089,7 +7094,7 @@ export default function App() {
             const done = downloadBatches.reduce((s, b) => s + b.completedCount + b.errorCount, 0);
             const fraction = downloadBatches.reduce((s, b) => s + batchFraction(b, downloadQueue) * b.videoIds.length, 0) / (total || 1);
             return <DownloadIsland done={done} total={total} fraction={fraction} finished={done >= total} onOpen={() => setDownloadSheetOpen(true)} />;
-          })() : null} searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
+          })() : compact && islandItems.length ? <ProgressPill {...islandItems[islandItems.length - 1]} /> : null} searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
