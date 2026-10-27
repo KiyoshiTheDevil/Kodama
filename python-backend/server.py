@@ -5347,6 +5347,17 @@ def serve_cached_song(video_id):
     return send_file(path, mimetype=mime)
 
 
+@app.route("/net/probe")
+def net_probe():
+    """Whether YouTube Music answers at all. The system only knows whether there is a network;
+    Wi-Fi without internet or a VPN that stopped passing traffic look online to it."""
+    try:
+        requests.head("https://music.youtube.com/", timeout=4, allow_redirects=False)
+        return jsonify({"online": True})
+    except Exception:
+        return jsonify({"online": False})
+
+
 @app.route("/song/cached/list")
 def list_cached_songs():
     songs = []

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, CardRoot, ScrollShadowRoot, Skeleton, Spinner, ToggleButtonGroupRoot, ToggleButton } from "@heroui/react";
 import { API, thumb, thumbHi, useLang } from "../context.jsx";
-import { ArrowsClockwise, CaretLeft, CaretRight, CloudSun, Headphones, Moon, MoonStars, MusicNote, Play, PodcastIcon, Sun, SunHorizon } from "../icons.jsx";
+import { ArrowsClockwise, CaretLeft, CaretRight, CloudSun, DownloadSimple, Headphones, Moon, MoonStars, MusicNote, Play, PodcastIcon, Sun, SunHorizon, WifiX } from "../icons.jsx";
 import { ExplicitBadge } from "../ui/rows.jsx";
+import { loadOfflinePlaylists } from "../offline-collections.js";
 
 // Moods & genres come without colours (ytmusicapi drops them), so each gets one from its name:
 // the same category always has the same colour, and neighbours rarely match.
@@ -35,7 +36,103 @@ function Carousel({ children, style, insetX = 0 }) {
 
 // Reusable media tile matching the Home-page card behavior (hover image-scale,
 // play overlay, CardRoot). shape: "square" | "circle" | "video".
-export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit, showSpeedDial = true }) {
+// Offline, the home view says so and offers what still plays, laid out as it is online: the
+// playlists saved for the road and the albums the downloads belong to as shelves, then the songs.
+// A card plays its downloaded songs; a playlist only partly here says how much of it is.
+function OfflineCard({ title, subtitle, thumbnail, onPress }) {
+  return (
+    <button type="button" onClick={onPress} className="sheet-row"
+      style={{ flex: "0 0 132px", width: 132, display: "flex", flexDirection: "column", gap: 6, padding: 6, border: 0, borderRadius: "var(--r-lg)", cursor: "default", textAlign: "start", fontFamily: "var(--font)" }}>
+      {thumbnail
+        ? <img src={thumb(thumbnail)} alt="" style={{ width: 120, height: 120, borderRadius: "var(--r-lg)", objectFit: "cover" }} />
+        : <div style={{ width: 120, height: 120, borderRadius: "var(--r-lg)", background: "var(--bg-elevated)" }} />}
+      <div style={{ minWidth: 0, width: 120 }}>
+        <div style={{ fontSize: "var(--t13)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+        <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subtitle}</div>
+      </div>
+    </button>
+  );
+}
+
+function OfflineShelf({ title, children }) {
+  return (
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ fontSize: "var(--t15)", fontWeight: 700, color: "var(--text-primary)", padding: "0 16px" }}>{title}</div>
+      <div className="scrollable" style={{ display: "flex", gap: 4, overflowX: "auto", padding: "0 10px", scrollbarWidth: "none" }}>{children}</div>
+    </div>
+  );
+}
+
+function OfflineHome({ onPlay, onOpenDownloads }) {
+  const t = useLang();
+  const [songs, setSongs] = useState(null);
+  useEffect(() => {
+    fetch(`${API}/song/cached/list`).then(r => r.json()).then(d => setSongs(d.songs || [])).catch(() => setSongs([]));
+  }, []);
+  const byId = new Map((songs || []).map(s => [s.videoId, s]));
+  const playlists = loadOfflinePlaylists()
+    .map(p => ({ ...p, here: p.videoIds.map(id => byId.get(id)).filter(Boolean) }))
+    .filter(p => p.here.length);
+  const albums = [];
+  const albumMap = new Map();
+  for (const song of songs || []) {
+    if (!song.album) continue;
+    const key = song.albumBrowseId || song.album;
+    if (!albumMap.has(key)) { const al = { key, title: song.album, artists: song.artists, thumbnail: song.thumbnail, songs: [] }; albumMap.set(key, al); albums.push(al); }
+    albumMap.get(key).songs.push(song);
+  }
+  const playList = (list) => list.length && onPlay(list[0], list);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "28px 0 24px" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "0 16px", textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "var(--r-full)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-elevated)", color: "var(--status-warning)" }}>
+          <WifiX size={22} />
+        </div>
+        <div style={{ fontSize: "var(--t16)", fontWeight: 700, color: "var(--text-primary)" }}>{t("offlineTitle")}</div>
+        <div style={{ fontSize: "var(--t13)", color: "var(--text-muted)", maxWidth: 380 }}>{songs && !songs.length ? t("offlineNoDownloads") : t("offlineHint")}</div>
+        {songs?.length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <Button variant="primary" size="sm" className="gap-1.5" onPress={() => playList(songs)}><Play size={13} />{t("playAll")}</Button>
+            <Button variant="secondary" size="sm" className="gap-1.5" onPress={onOpenDownloads}><DownloadSimple size={13} />{t("allDownloads")}</Button>
+          </div>
+        )}
+      </div>
+      {playlists.length > 0 && (
+        <OfflineShelf title={t("filterPlaylists")}>
+          {playlists.map(p => (
+            <OfflineCard key={p.id} title={p.title} thumbnail={p.thumbnail || p.here[0].thumbnail} onPress={() => playList(p.here)}
+              subtitle={p.here.length < p.videoIds.length ? t("offlinePartOf", { n: p.here.length, m: p.videoIds.length }) : `${p.here.length} ${t("songs")}`} />
+          ))}
+        </OfflineShelf>
+      )}
+      {albums.length > 0 && (
+        <OfflineShelf title={t("filterAlbums")}>
+          {albums.map(al => <OfflineCard key={al.key} title={al.title} subtitle={al.artists} thumbnail={al.thumbnail} onPress={() => playList(al.songs)} />)}
+        </OfflineShelf>
+      )}
+      {songs?.length > 0 && (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontSize: "var(--t15)", fontWeight: 700, color: "var(--text-primary)", padding: "0 16px 4px" }}>{t("songs")}</div>
+          {songs.slice(0, 8).map((song, i) => (
+            <button key={song.videoId} type="button" onClick={() => onPlay(song, songs.slice(i).concat(songs.slice(0, i)))}
+              className="sheet-row"
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 16px", border: 0, cursor: "default", textAlign: "start", fontFamily: "var(--font)" }}>
+              {song.thumbnail
+                ? <img src={thumb(song.thumbnail)} alt="" style={{ width: 44, height: 44, borderRadius: "var(--r-md)", objectFit: "cover", flexShrink: 0 }} />
+                : <div style={{ width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--bg-elevated)", flexShrink: 0 }} />}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: "var(--t14)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</div>
+                <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artists}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOpenAlbum, onOpenArtist, onContextMenu, onTrackContextMenu, hideExplicit, showSpeedDial = true, offline = false, onOpenDownloads }) {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moodGroups, setMoodGroups] = useState({});   // { "For you": [...], "Moods & moments": [...], "Genres": [...] }
@@ -80,10 +177,13 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
         return;
       }
       setSections(secs); setLoading(false);
+      // Nothing after all the tries: maybe the connection, which the app then checks.
+      if (!secs.length) window.dispatchEvent(new Event("kodama-net-suspect"));
     } catch {
       if (homeCancelledRef.current) return;
       if (attempt < 6) { setTimeout(() => loadHome(attempt + 1), 600); return; }
       setLoading(false);
+      window.dispatchEvent(new Event("kodama-net-suspect"));
     }
   }, []);
 
@@ -307,6 +407,9 @@ export function HomeView({ displayName, onPlay, onPlaySong, onOpenPlaylist, onOp
   };
 
   // ── Loading skeleton (HeroUI Skeleton) ────────────────────────────────────
+  // Offline, not a wall of skeletons or a "try again in a moment" that cannot come true.
+  if (offline && !allSections.length) return <OfflineHome onPlay={onPlay} onOpenDownloads={onOpenDownloads} />;
+
   if (loading) return (
     <div style={{ padding: 28 }}>
       {[1,2,3].map(i => (

@@ -63,12 +63,17 @@ function itemFrom(el, menuOnAction, divider) {
   const key = p.id ?? el.key;
   const cls = String(p.className || "");
   return {
-    id: String(key ?? textOf(p.children)),
+    // The fixed name before the rendered text: a row can carry a live value (the sleep timer's
+    // time left), and an id that changes every second loses the sub-list opened from it.
+    id: String(key ?? p.textValue ?? textOf(p.children)),
     label: p.textValue || textOf(p.children).trim(),
     icon: iconOf(p.children),
     danger: cls.includes("status-danger"),
     checked: hasCheck(p.children),
     disabled: !!p.isDisabled,
+    // What the dropdown shows beside the label (the sleep timer's time left), which the sheet
+    // would otherwise lose with the rest of the item's markup.
+    hint: p["data-hint"] || null,
     divider,
     onPress: () => { p.onAction?.(); menuOnAction?.(key); },
   };

@@ -67,6 +67,8 @@ import { HomeView } from "./views/home-view.jsx";
 import { SearchBox } from "./ui/search-box.jsx";
 import { CompactTabs } from "./ui/compact-tabs.jsx";
 import PullRefresh from "./ui/pull-refresh.jsx";
+import { rememberOfflinePlaylist } from "./offline-collections.js";
+import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill } from "./ui/download-island.jsx";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
 import { searchSettings, flashSetting } from "./settings/search.js";
 import { backendReady } from "./backend-ready.js";
@@ -588,7 +590,7 @@ const TITLEBAR_H = 56;
 const PLAYER_SLIDE = "0.42s cubic-bezier(0.4,0,0.2,1)";
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
 const TITLEBAR_BTN = "w-[32px] h-[32px] min-w-[32px] rounded-[var(--r-full)] text-secondary hover:text-primary";
-function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false, logoNamed = false }) {
+function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, canBack, canForward, onBack, onForward, collapsed, onToggleCollapse, onRefresh, settingsSearch = null, inSettings = false, compact = false, tight = false, logoNamed = false, island = null }) {
   const t = useLang();
   const navBtn = `${TITLEBAR_BTN} bg-[var(--fill-subtle)]! data-[disabled=true]:opacity-40`;
   // Compact: the search is a magnifier; the field opens over the bar and closes again when it
@@ -650,13 +652,16 @@ function TitleBar({ searchQuery, onSearch, searchRef, sidebarW = 0, slotRef, can
             field). The middle is the logo's. */}
         {compact && <div style={{ flex: 1 }} />}
         {compact && (
-          <div aria-hidden="true" style={{ position: "absolute", left: "50%", top: 0, bottom: 0, transform: "translateX(-50%)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+          <div aria-hidden={island ? undefined : "true"} style={{ position: "absolute", left: "50%", top: 0, bottom: 0, transform: "translateX(-50%)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+            {/* Downloads running: the logo makes way for their pill (src/ui/download-island.jsx). */}
+            {island || <>
             <img src="/Kodama%20Logo.png" alt="" width="22" height="22" className="shrink-0" draggable={false} />
             <span className="text-[length:var(--t15)] font-medium whitespace-nowrap" style={{
               display: "inline-block", overflow: "hidden", verticalAlign: "middle",
               maxWidth: named ? 120 : 0, marginInlineStart: named ? 8 : 0, opacity: named ? 1 : 0,
               transition: "max-width 0.6s cubic-bezier(0.4,0,0.2,1), margin 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease",
             }}>{inSettings ? t("settings") : "Kodama"}</span>
+            </>}
           </div>
         )}
         {/* The search, as in Discord or VS Code: always in reach, the sidebar collapsed or not,
@@ -716,7 +721,7 @@ const QUEUE_DEFAULT = 360;      // default queue panel width
 const QUEUE_MIN = 320;          // min when dragging
 const QUEUE_MAX = 620;          // max when dragging
 
-function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, offlineMode, isActuallyOffline, onToggleOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle, searchQuery = "", titleSlot = null, compact = false }) {
+function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleCollapse, onOpenSettings, onOpenAccountTab, onOpenUpdateTab, updateDownloading, updateDownloadProgress, updateDownloaded, onInstallUpdate, updateSize, onOpenOverlaySettings, onCloseOverlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, onAddRecent, onContextMenu, currentProfileData, onOpenProfileSwitcher, profiles, onSwitchProfile, onAddProfile, onDeleteProfile, onReauthProfile, onLogout, onCreatePlaylist, updateInfo, isActuallyOffline, onRefreshView, obsEnabled, onOpenNews, onOpenFeedback, newsUnread = 0, settingsOpen, hideUserHandle, searchQuery = "", titleSlot = null, compact = false }) {
   const [tooltip, setTooltip] = useState(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [tetoVisible, setTetoVisible] = useState(false);
@@ -1258,7 +1263,7 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
       {/* User info + settings — collapsed */}
       {collapsed && (
         <div className="mt-auto">
-          {(IS_MAC || updateInfo || offlineMode || isActuallyOffline) && <hr className="my-1 mx-4 border-t border-border" />}
+          {(IS_MAC || updateInfo || isActuallyOffline) && <hr className="my-1 mx-4 border-t border-border" />}
           <div className="flex flex-col items-center gap-1 py-2">
             {IS_MAC && <TogetherSidebar name={currentProfileData?.displayName} avatar={currentProfileData?.avatar} collapsed />}
             {IS_MAC && <Dropdown>
@@ -1294,16 +1299,15 @@ function Sidebar({ view, activeNavId, setView, onSearch, collapsed, onToggleColl
                   : <ArrowCircleUp size={16} />}
               </div>
             )}
-            {(offlineMode || isActuallyOffline) && (
+            {isActuallyOffline && (
               <div
-                className="w-9 h-9 rounded-sm flex items-center justify-center transition-all duration-150"
-                style={{
-                  color: isActuallyOffline ? "var(--status-warning)" : "var(--text-muted)",
-                  opacity: isActuallyOffline ? 1 : 0.45,
-                }}
+                className="w-9 h-9 rounded-sm flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-hover"
+                style={{ color: "var(--status-warning)" }}
+                role="button" aria-label={t("offlineToDownloads")}
+                onClick={() => { setTooltip(null); setView("downloads"); }}
                 onMouseEnter={e => {
                   const r = e.currentTarget.getBoundingClientRect();
-                  setTooltip({ text: isActuallyOffline ? t("offlineBanner") : t("offlineComingSoon"), x: r.right + 10, y: r.top + r.height / 2 });
+                  setTooltip({ text: t("offlineToDownloads"), x: r.right + 10, y: r.top + r.height / 2 });
                 }}
                 onMouseLeave={() => setTooltip(null)}
               >
@@ -1752,6 +1756,21 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     if (c.size > URL_CACHE_MAX) c.delete(c.keys().next().value); // evict oldest
   };
 
+  // Android: the web view refuses <audio> from the backend on 127.0.0.1 ("Media load rejected by
+  // URL safety check"), though it lets the same address serve images and data. A download is
+  // therefore fetched whole and handed over as a blob: URL, ~50 ms for a song. A few are kept
+  // (the current track, the one preloaded next); the oldest is let go.
+  const blobUrls = useRef(new Map());
+  const cachedBlobUrl = async (videoId) => {
+    const m = blobUrls.current;
+    if (m.has(videoId)) return m.get(videoId);
+    const blob = await fetch(`${API}/song/cached/${videoId}`).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); });
+    const url = URL.createObjectURL(blob);
+    m.set(videoId, url);
+    if (m.size > 3) { const [old, oldUrl] = m.entries().next().value; m.delete(old); URL.revokeObjectURL(oldUrl); }
+    return url;
+  };
+
   const fetchUrl = useCallback(async (videoId) => {
     // Prefer a downloaded song (served via backend, works for both Rust & HTML5). Asked every
     // time and never remembered in urlCache: a download can be deleted while the app runs, and a
@@ -1760,7 +1779,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     // urlCache, too, so a song downloaded after it was streamed plays from disk.
     try {
       const cr = await fetch(`${API}/song/cached/${videoId}`, { method: "HEAD" });
-      if (cr.ok) return `${API}/song/cached/${videoId}`;
+      if (cr.ok) return IS_ANDROID ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
     } catch {}
     const cached = urlCacheGet(videoId);
     if (cached) return cached;
@@ -2600,7 +2619,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
                     {barMode !== "wide" ? (
                       <DropdownSection>
                         <DropdownSubmenuTrigger>
-                          <DropdownItem textValue={t("sleepTimer")} className={sleepRemaining !== null ? "text-accent" : undefined}>
+                          <DropdownItem textValue={t("sleepTimer")} className={sleepRemaining !== null ? "text-accent" : undefined} data-hint={sleepRemaining !== null ? formatSleepRemaining(sleepRemaining) : undefined}>
                             <Moon size={14} weight={sleepRemaining !== null ? "fill" : "regular"} />
                             {t("sleepTimer")}
                             {sleepRemaining !== null && <span className="ml-auto text-[length:var(--t12)] font-semibold text-accent">{formatSleepRemaining(sleepRemaining)}</span>}
@@ -3952,7 +3971,6 @@ export default function App() {
   const [likedIds, setLikedIds] = useState(new Set());
   const [downloadingIds, setDownloadingIds] = useState(new Set());
   const [premiumSongIds, setPremiumSongIds] = useState(new Set());
-  const [offlineMode, setOfflineMode] = usePersistedState("kiyoshi-offline", false);
   // Output device by name; empty means "follow the system". Told to the audio core on every
   // change AND on mount, so a saved choice survives a restart.
   const [audioOutput, setAudioOutput] = usePersistedState("kiyoshi-audio-output", "");
@@ -3961,12 +3979,15 @@ export default function App() {
       .then(({ invoke }) => invoke("audio_set_output", { name: audioOutput || "" }))
       .catch(() => {});
   }, [audioOutput]);
+  // Offline is a state the app notices, not a mode to switch on: the system says whether there is
+  // a network at all, and /net/probe whether YouTube Music answers through it.
   const [isActuallyOffline, setIsActuallyOffline] = useState(() => !navigator.onLine);
   const [debugFloat, setDebugFloat] = useState(false);
   const [downloadQueue, setDownloadQueue] = useState([]); // [{videoId, title, artists, thumbnail, status, progress}]
   const [downloadBatches, setDownloadBatches] = useState([]); // [{id, title, thumbnail, artists, videoIds[], completedCount, errorCount}]
   const [pendingDownloadQueue, setPendingDownloadQueue] = useState([]); // tracks waiting for a free slot
   const [downloadQueueMin, setDownloadQueueMin] = useState(false); // download queue card minimized
+  const [downloadSheetOpen, setDownloadSheetOpen] = useState(false); // compact: the downloads in detail
   const [updateInfo, setUpdateInfo] = useState(null);     // { version, changelog, releasedAt, _update }
   // Off by default: an update is well over a hundred megabytes, which is not something to
   // fetch on someone's connection without being asked.
@@ -5405,6 +5426,8 @@ export default function App() {
   }, [downloadingIds, cachedSongIds]);
 
   const handleDownloadAll = useCallback((tracks, meta = {}) => {
+    // A playlist is noted for the home view offline, also when everything in it is already here.
+    if (meta.playlistId) rememberOfflinePlaylist({ id: meta.playlistId, title: meta.title, thumbnail: meta.thumbnail, videoIds: tracks.map(t => t.videoId) });
     const eligible = tracks.filter(t => !cachedSongIds.has(t.videoId) && !downloadingIds.has(t.videoId));
     if (!eligible.length) return;
     const batchId = Date.now().toString();
@@ -6395,19 +6418,43 @@ export default function App() {
     // rebuild the callback on every chunk that streams into an open collection.
   }, [likedIds, view, collection?.playlistId, animations]);
 
-  // Detect real network connectivity changes
+  // Detect real network connectivity changes. The system's online event only says a network is
+  // there; the backend's probe says whether YouTube Music answers. Probed at start, when the
+  // system reports a change, when a view could not load ("kodama-net-suspect"), and every 20 s
+  // while offline, so coming back is noticed without a network event.
   useEffect(() => {
-    const onOnline  = () => {
-      setIsActuallyOffline(false);
-      // Refresh profiles + force all views to re-fetch after coming back online
-      fetchProfiles();
-      setAppKey(k => k + 1);
+    let alive = true;
+    let wasOffline = !navigator.onLine;
+    const settle = (offline) => {
+      if (!alive) return;
+      setIsActuallyOffline(offline);
+      if (wasOffline && !offline) {
+        // Refresh profiles + force all views to re-fetch after coming back online
+        fetchProfiles();
+        setAppKey(k => k + 1);
+      }
+      wasOffline = offline;
     };
-    const onOffline = () => setIsActuallyOffline(true);
-    window.addEventListener("online",  onOnline);
+    const probe = () => {
+      if (!navigator.onLine) { settle(true); return; }
+      fetch(`${API}/net/probe`).then(r => r.json()).then(d => settle(!d.online)).catch(() => {});
+    };
+    const onOffline = () => settle(true);
+    probe();
+    const timer = setInterval(() => { if (wasOffline) probe(); }, 20000);
+    window.addEventListener("online", probe);
     window.addEventListener("offline", onOffline);
-    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+    window.addEventListener("kodama-net-suspect", probe);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener("online", probe);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("kodama-net-suspect", probe);
+    };
   }, [fetchProfiles]);
+  // The old manual offline mode is gone; whoever had switched it on kept its banner for good.
+  useEffect(() => { try { localStorage.removeItem("kiyoshi-offline"); } catch { /* storage off */ } }, []);
 
   // Debug float window toggle
   useEffect(() => {
@@ -6416,15 +6463,6 @@ export default function App() {
     return () => window.removeEventListener("kiyoshi-debug-float", handler);
   }, []);
 
-  const isOffline = offlineMode || isActuallyOffline;
-
-  const handleToggleOffline = useCallback(() => {
-    setOfflineMode(prev => {
-      const next = !prev;
-      if (next) setView("downloads");
-      return next;
-    });
-  }, [setOfflineMode]);
 
   useEffect(() => {
     let bgIntervalId = null;
@@ -6972,7 +7010,14 @@ export default function App() {
             backdrop for the WHOLE app (z-index:-1 → paints over bg-base but under all content,
             so it shows through the transparent sidebar/canvas while cards keep their own bg). */}
         <AmbientBackdrop thumbnail={ambientBackground ? currentTrack?.thumbnail : null} />
-        {!fullscreen && !IS_MAC && !(compact && (overlayOpen || queueOpen)) && <TitleBar logoNamed={logoNamed} searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
+        {!fullscreen && !IS_MAC && !(compact && (overlayOpen || queueOpen)) && <TitleBar logoNamed={logoNamed}
+          island={compact && isActuallyOffline ? <OfflinePill onOpen={() => navigateTo("downloads")} />
+            : compact && downloadBatches.length > 0 ? (() => {
+            const total = downloadBatches.reduce((s, b) => s + b.videoIds.length, 0);
+            const done = downloadBatches.reduce((s, b) => s + b.completedCount + b.errorCount, 0);
+            const fraction = downloadBatches.reduce((s, b) => s + batchFraction(b, downloadQueue) * b.videoIds.length, 0) / (total || 1);
+            return <DownloadIsland done={done} total={total} fraction={fraction} finished={done >= total} onOpen={() => setDownloadSheetOpen(true)} />;
+          })() : null} searchQuery={searchQuery} onSearch={(q) => { setOverlayOpen(false); handleSearch(q); }} searchRef={titleSearchRef}
           settingsSearch={settingsOpen && !settingsClosing ? settingsLocalSearch : null}
           inSettings={settingsOpen && !settingsClosing}
           sidebarW={sideW} slotRef={setTitleSlot} compact={compact} tight={tight}
@@ -7020,9 +7065,7 @@ export default function App() {
             updateDownloaded={updateDownloaded}
             onInstallUpdate={installUpdate}
             updateSize={updateSize}
-            offlineMode={offlineMode}
             isActuallyOffline={isActuallyOffline}
-            onToggleOffline={handleToggleOffline}
             onRefreshView={() => setViewRefreshKey(k => k + 1)}
             obsEnabled={obsEnabled}
             onOpenOverlaySettings={() => { setSettingsTab("overlay"); setSettingsOpen(true); }}
@@ -7085,31 +7128,20 @@ export default function App() {
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
           }}>
-          <ScrollShadowRoot key={appKey} ref={mainScrollRef} size={28} className="scrollable overflow-y-auto" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
-            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} /></AnimatedView>}
+          <ScrollShadowRoot key={appKey} ref={mainScrollRef} size={28} className="scrollable overflow-y-auto main-scroll" style={{ height: "100%", paddingBottom: compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0 }}>
+            {view === "home" && <AnimatedView key={`home-${viewRefreshKey}`}><HomeView displayName={demoMode ? DEMO_NAME : profiles.find(p => p.active)?.displayName} onPlay={handlePlay} onPlaySong={playWithRelated} onOpenPlaylist={(item) => openPlaylist(item, "home")} onOpenAlbum={(item) => openAlbum(item, "home")} onOpenArtist={(item) => openArtist(item, "home")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} showSpeedDial={showSpeedDial} offline={isActuallyOffline} onOpenDownloads={() => navigateTo("downloads")} /></AnimatedView>}
             {view === "search" && <AnimatedView key={`search-${viewRefreshKey}`}><SearchView query={searchQuery} onSearch={handleSearch} onPlay={playWithRelated} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "search")} onOpenPlaylist={(item) => openPlaylist(item, "search")} onContextMenu={openContextMenu} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} /></AnimatedView>}
             {view === "together" && <AnimatedView key="together"><TogetherView name={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.displayName} avatar={(demoMode ? DEMO_PROFILE : profiles.find(p => p.active))?.avatar} /></AnimatedView>}
             {view === "history" && <AnimatedView key={`history-${viewRefreshKey}`}><HistoryView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "history")} onTrackContextMenu={(e, track, extra) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, ...extra })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} onDownloadSong={handleDownloadSong} hideExplicit={hideExplicit} onBack={IS_MAC ? goBack : undefined} /></AnimatedView>}
             {view === "library" && <AnimatedView key={`library-${viewRefreshKey}`}><LibraryView onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenPlaylist={openPlaylist}
               onOpenLiked={() => openPlaylist({ playlistId: "LM", title: translate(language, "likedSongs"), forcedTitle: translate(language, "likedSongs"), thumbnail: "" }, "library")}
               onOpenView={(v) => { pushNav(view, collection, artistView); setNavForward([]); setView(v); }} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onContextMenu={openContextMenu} sessionExpired={sessionExpired} onReauth={() => { setReauthName(currentProfile); setAddingProfile(true); setShowLogin(true); }} /></AnimatedView>}
-            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={IS_MAC ? goBack : undefined} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "" })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
+            {view === "collection" && collection && <AnimatedView key={`collection-${viewRefreshKey}`}><CollectionView contextMenuTrackId={trackContextMenu?.track?.videoId || null} title={collection.title} description={collection.description} thumbnail={collection.thumbnail} tracks={collection.tracks} total={collection.total} loading={collection.loading} progress={collection.progress || 0} cached={collection.cached} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onBack={IS_MAC ? goBack : undefined} onOpenArtist={openArtist} onOpenAlbum={(item) => openAlbum(item, "collection")} isLiked={collection.playlistId === "LM"} isAlbum={collection.isAlbum} albumArtists={collection.albumArtists} albumArtistBrowseId={collection.albumArtistBrowseId} year={collection.year} onRefresh={() => { if (collection.isAlbum) openAlbum({ browseId: collection.browseId, title: collection.title, thumbnail: collection.thumbnail }, collection.fromView, true); else openPlaylist({ playlistId: collection.playlistId, title: collection.title, thumbnail: collection.thumbnail, forcedTitle: collection.forcedTitle }, collection.fromView, true); }} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track, playlistId: (collection.isAlbum || collection.playlistId === "LM") ? null : collection.playlistId })} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onDownloadAll={(tracks) => handleDownloadAll(tracks, { title: collection.title, thumbnail: collection.thumbnail, artists: collection.albumArtists || "", playlistId: collection.isAlbum ? null : collection.playlistId })} onRemoveAll={handleRemoveAllDownloads} hideExplicit={hideExplicit} onToggleLike={handleToggleLike} likedIds={likedIds} selectedTracks={selectedTracks} onToggleSelect={toggleTrackSelection} onSelectAll={selectAllTracks} /></AnimatedView>}
             {view === "artist" && artistView && <AnimatedView key={`artist-${viewRefreshKey}`}><ArtistView browseId={artistView.browseId} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} onOpenAlbum={(item) => openAlbum(item, "artist")} onOpenPlaylist={(item) => openPlaylist(item, "artist")} onOpenArtist={(item) => openArtist(item, "artist")} onBack={IS_MAC ? goBack : undefined} onContextMenu={openContextMenu} onTogglePin={togglePin} isPinned={pinnedIds.includes(artistView.browseId)} hideExplicit={hideExplicit} onStartRadio={handlePlay} onOpenDiscography={openDiscography} /></AnimatedView>}
             {view === "discography" && artistView?.discography && <AnimatedView key={`discography-${artistView.browseId}`}><DiscographyView name={artistView.discography.name} shelves={artistView.discography.shelves} initialKind={artistView.discography.kind}
               // Kept in artistView, which the history holds: back from an album, the chip picked before.
               onKindChange={(kind) => setArtistView(av => (av?.discography ? { ...av, discography: { ...av.discography, kind } } : av))} onPlay={handlePlay} onOpenAlbum={(item) => openAlbum(item, "discography")} onOpenPlaylist={(item) => openPlaylist(item, "discography")} onContextMenu={openContextMenu} /></AnimatedView>}
             {view === "downloads" && <AnimatedView key={`downloads-${viewRefreshKey}`}><DownloadsView contextMenuTrackId={trackContextMenu?.track?.videoId || null} onPlay={handlePlay} currentTrack={currentTrack} isPlaying={isPlaying} cachedSongIds={cachedSongIds} downloadingIds={downloadingIds} premiumSongIds={premiumSongIds} onDownloadSong={handleDownloadSong} onTrackContextMenu={(e, track) => setTrackContextMenu({ x: e.clientX, y: e.clientY, track })} hideExplicit={hideExplicit} onOpenAlbum={(item) => openAlbum(item, "downloads")} onOpenArtist={openArtist} onToggleLike={handleToggleLike} likedIds={likedIds} /></AnimatedView>}
-            {isOffline && view !== "downloads" && (
-              <div style={{
-                position: "sticky", bottom: 0, left: 0, right: 0,
-                background: "var(--status-warning-soft)", borderTop: "1px solid var(--status-warning-line)",
-                color: "var(--status-warning)", display: "flex", alignItems: "center", gap: 8,
-                padding: "6px 16px", fontSize: 13, zIndex: 10,
-              }}>
-                <WifiX size={15} weight="bold" />
-                {translate(language, "offlineBanner")}
-              </div>
-            )}
             {/* Spacer so content scrolls clear of the floating player bar */}
             <div style={{ height: 97, flexShrink: 0, pointerEvents: "none" }} aria-hidden="true" />
           </ScrollShadowRoot>
@@ -7871,8 +7903,13 @@ export default function App() {
           />
         )}
 
+        {/* Compact: the title bar's pill opens the downloads as a sheet; the card below is the
+            desktop's, which sat over the list on a phone. */}
+        {compact && <DownloadSheet open={downloadSheetOpen && downloadBatches.length > 0} onClose={() => setDownloadSheetOpen(false)}
+          batches={downloadBatches} queue={downloadQueue} onCancel={handleCancelBatch} />}
+
         {/* Download Queue — HeroUI toast-styled card with Spinner + ProgressBar */}
-        {downloadBatches.length > 0 && (() => {
+        {!compact && downloadBatches.length > 0 && (() => {
           const overallDone = downloadBatches.reduce((s, b) => s + b.completedCount + b.errorCount, 0);
           const overallTotal = downloadBatches.reduce((s, b) => s + b.videoIds.length, 0);
           const allFinished = overallDone >= overallTotal;

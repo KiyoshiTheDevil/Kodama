@@ -1323,6 +1323,19 @@ img.img-failed {
 .legal-app .updated { color: var(--text-muted); font-size: var(--t11); margin: 0 0 12px; }
 
 /* Used by ActionSheet (src/ui/action-sheet.jsx), the compact layout's menus. */
+/* ActionSheet rows (src/ui/action-sheet.jsx): a touch screen has no hover, so a press lights the
+   row and it stays lit until the sheet has gone. */
+.sheet-row { background: transparent; transition: background-color 0.12s ease, transform 0.12s ease; }
+.sheet-row:active, .sheet-row[data-pressed] { background: var(--bg-hover-overlay); }
+.sheet-crumb { background: var(--overlay); }
+.sheet-crumb:active { transform: scale(0.96); }
+@media (hover: hover) { .sheet-row:hover { background: var(--bg-hover-overlay); } }
+@keyframes sheetPageIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+/* Compact: the content scrolls up and down only. A row or header a little wider than the screen
+   let a list be dragged sideways; shelves that should swipe have scrollers of their own. */
+html[data-compact], html[data-compact] body { overscroll-behavior-x: none; }
+html[data-compact] .main-scroll { overflow-x: hidden; }
+@keyframes sheetDown { from { transform: none; } to { transform: translateY(105%); } }
 @keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
 
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -1344,7 +1357,8 @@ html[data-compact] .modal__container {
   justify-content: flex-end !important; align-items: stretch !important;
 }
 html[data-compact] .modal__container[data-entering="true"] { animation: sheetUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important; }
-html[data-compact] .modal__container[data-exiting="true"] { animation: sheetUp 0.18s ease-in reverse forwards !important; }
+/* sheetDown, not sheetUp in reverse: the same name is not restarted, it jumps to its end. */
+html[data-compact] .modal__container[data-exiting="true"] { animation: sheetDown 0.18s ease-in forwards !important; }
 html[data-compact] .modal__dialog {
   /* margin: HeroUI centres the dialog with an auto vertical margin, which left a gap under the
      docked sheet. */
