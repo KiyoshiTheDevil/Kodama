@@ -466,6 +466,9 @@ class IpcAudio {
 
   _createFallbackAudio() {
     const a = new Audio();
+    // In a browser the songs come from the backend, which the equaliser's filters may only
+    // read when the element asks for them with CORS (the backend allows Kodama's origins).
+    if (IS_BROWSER) a.crossOrigin = "anonymous";
     // Wire native events → our listener system
     for (const evt of ["timeupdate", "ended", "loadedmetadata", "canplay", "error", "volumechange"]) {
       a.addEventListener(evt, () => this._fire(evt));
@@ -1803,14 +1806,17 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     // urlCache, too, so a song downloaded after it was streamed plays from disk.
     try {
       const cr = await fetch(`${API}/song/cached/${videoId}`, { method: "HEAD" });
-      // A blob on the phone, whose web view refuses localhost media, and wherever the filters
-      // listen: from another origin they would hear silence.
-      if (cr.ok) return IS_ANDROID || (WEB_AUDIO && needsWebEq()) ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
+      // A blob on the phone, whose web view refuses localhost media.
+      if (cr.ok) return IS_ANDROID ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
     } catch {}
     if (isOffline()) return null;
-    // Phone or browser with the equaliser in play: through the backend into Media Source, which
-    // the filters may read (web-eq.js). Never remembered: a Media Source plays once.
-    if (WEB_AUDIO && needsWebEq()) return mediaSourceUrl(`${API}/audio-chunked/${videoId}`).url;
+    // Browser: through the backend's range proxy, as the desktop's Rust core. Its resolved
+    // URL is remembered and warmed for the next songs (preloadAdjacent), so only a song nobody
+    // saw coming waits for yt-dlp; asking /stream each time did that for every song.
+    if (IS_BROWSER) return `${API}/audio-stream/${videoId}`;
+    // Phone with the equaliser in play: through the backend into Media Source, which the
+    // filters may read (web-eq.js). Never remembered: a Media Source plays once.
+    if (IS_ANDROID && needsWebEq()) return mediaSourceUrl(`${API}/audio-chunked/${videoId}`).url;
     const cached = urlCacheGet(videoId);
     if (cached) return cached;
     const useRust = audioRef.current && audioRef.current._fallback === false;
@@ -1947,7 +1953,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       : [q[(idx + 1) % q.length], q[(idx + 2) % q.length], q[(idx - 1 + q.length) % q.length]];
     for (const tk of targets) {
       if (!tk || tk.videoId === t.videoId) continue;
-      if (playbackProgressiveRef.current) {
+      if (playbackProgressiveRef.current || IS_BROWSER) {
         // Progressive: prewarm the URL resolution (the ~2-4s yt-dlp extraction) so the next
         // play is extraction-free. No bytes are downloaded — playback streams on demand.
         try { await fetch(`${API}/audio-stream/${tk.videoId}/warm`); } catch {}
@@ -2000,6 +2006,8 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       const a = audioRef.current, el = a?._fallback;
       const tk = trackRef.current;
       if (!a || !el || !tk) return;
+      // A browser's song already comes through the backend, readable: the filters just listen in.
+      if (IS_BROWSER) { wireWebEq(el); return; }
       const pos = a.currentTime || 0;
       const wasPlaying = !el.paused;
       fetchUrl(tk.videoId).then(url => {
