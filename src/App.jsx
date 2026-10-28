@@ -597,6 +597,9 @@ class IpcAudio {
 const TITLEBAR_H = 56;
 // Steam Deck: the compact layout's tabs as a rail down the left edge, this wide.
 const DECK_RAIL = 76;
+// Steam Deck, the open player: the controls in a column this wide on the left, the cover,
+// lyrics or video in the rest. Across, the phone's stack left the lyrics three lines.
+const DECK_PLAYER_W = "40%";
 // The compact player sliding open or shut, by hand or by itself.
 const PLAYER_SLIDE = "0.42s cubic-bezier(0.4,0,0.2,1)";
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
@@ -3092,11 +3095,22 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
   // the output device (where the sound is going, switchable here) and the queue and ⋯ menu.
   if (compact && expanded && !fullscreen) {
     return (
-      <div ref={barRef} style={{ padding: "4px 22px 12px", display: "flex", flexDirection: "column" }}>
+      <div ref={barRef} style={{ padding: IS_DECK ? "0 32px" : "4px 22px 12px", display: "flex", flexDirection: "column" }}>
+        {/* Steam Deck: the column has the height the phone's row does not, so with the lyrics or
+            the video on the right the cover stands large above the title. With the cover on the
+            right it stays there alone. */}
+        {IS_DECK && (showLyrics || showVideoView) && track?.thumbnail && (
+          <img key={track.videoId} src={thumb(hiResThumb(track.thumbnail, 512))} alt=""
+            // As high as the column leaves after the head (64) and the rows below (~300), in
+            // zoomed pixels: vh does not shrink with the UI zoom, so 100vh is divided by it.
+            style={{ width: "min(100%, calc(100vh / var(--ui-zoom, 1) - 364px))", aspectRatio: "1", alignSelf: "center", marginBottom: 20,
+              borderRadius: "var(--r-lg)", objectFit: "cover",
+              animation: anim ? "coverPop 0.4s cubic-bezier(0.34,1.56,0.64,1)" : "none" }} />
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           {/* The big cover is gone while the lyrics or the video fill the view: a small one
               comes in beside the title instead, so the song is still recognisable at a glance. */}
-          {(showLyrics || showVideoView) && track?.thumbnail && (
+          {!IS_DECK && (showLyrics || showVideoView) && track?.thumbnail && (
             <img key={track.videoId} src={thumb(track.thumbnail)} alt=""
               style={{ width: 48, height: 48, borderRadius: "var(--r-md)", objectFit: "cover", flexShrink: 0,
                 animation: anim ? "coverPop 0.4s cubic-bezier(0.34,1.56,0.64,1)" : "none" }} />
@@ -5960,6 +5974,7 @@ export default function App() {
   // The Steam Deck's game mode is compact at any width: read from a sofa, worked with a pad.
   const compact = (IS_DECK || appW < COMPACT_BELOW || (IS_TOUCH && appH < 500)) && !fullscreen;
   const rail = IS_DECK && compact ? DECK_RAIL : 0;
+  const deckSplit = IS_DECK && compact && overlayOpen;
   // Together is a view of its own only in the compact layout (its tab); the wide layout keeps
   // it in the sidebar, so a window grown past the compact width goes home from there.
   useEffect(() => { if (!compact && !fullscreen && view === "together") setView("home"); }, [compact, fullscreen, view]);
@@ -7380,6 +7395,8 @@ export default function App() {
             // Compact: above the open player, whose background runs on behind the controls.
             // Above a phone's gesture bar (0 elsewhere).
             ...(fullscreen ? {} : { position: "fixed", left: overlayOpen ? 0 : rail, right: 0, bottom: "var(--safe-bottom-z)", zIndex: compact ? 101 : 100 }),
+            // Steam Deck: the open player's controls as the left column, centred in its height.
+            ...(deckSplit ? { top: TITLEBAR_H + 8, right: "auto", width: DECK_PLAYER_W, display: "flex", flexDirection: "column", justifyContent: "center" } : {}),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             // A phone's sideways video has controls of its own (MobileVideoChrome).
             opacity: settingsOpen || videoAcross ? 0 : 1,
@@ -7580,7 +7597,9 @@ export default function App() {
             // the full width, below the head (64px), and the lyrics run underneath it.
             const stackVideo = compact && videoSplitActive;
             // The panes end above the controls, which sit above a phone's gesture bar.
-            const paneBottom = compact && !fullscreen ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0;
+            const paneBottom = compact && !fullscreen && !deckSplit ? `calc(${playerBarH}px + var(--safe-bottom-z))` : 0;
+            // Steam Deck: the panes beside the controls' column rather than above them.
+            const deckPaneW = `calc(100% - ${DECK_PLAYER_W})`;
             const videoH = Math.round(appW * 9 / 16);
             const coverPct = `${(splitRatio * 100).toFixed(2)}%`;
             const lyricsPct = `${((1 - splitRatio) * 100).toFixed(2)}%`;
@@ -7599,7 +7618,7 @@ export default function App() {
             return (<>
               <div ref={splitLyricsRef} style={{
                 position: "absolute", top: stackVideo ? videoH : 0, bottom: paneBottom, right: 0,
-                width: anySplitActive && !stackVideo ? lyricsPct : "100%",
+                width: deckSplit ? deckPaneW : anySplitActive && !stackVideo ? lyricsPct : "100%",
                 opacity: showVideoView ? (videoSplitActive ? 1 : 0) : (coverSplitActive ? 1 : (showLyrics ? 1 : 0)),
                 transition: paneTransition,
                 pointerEvents: showVideoView ? (videoSplitActive ? "all" : "none") : ((coverSplitActive || showLyrics) ? "all" : "none"),
@@ -7610,8 +7629,8 @@ export default function App() {
                 // insetInlineStart so the pane starts at the same edge the split ratio is
                 // measured from. No divider line: the two panes share one ambient background and
                 // the line only cut through it. The drag handle below still shows its bar on hover.
-                position: "absolute", top: compact ? "var(--safe-top-z)" : 0, bottom: paneBottom, insetInlineStart: 0,
-                width: coverSplitActive ? coverPct : "100%",
+                position: "absolute", top: compact ? "var(--safe-top-z)" : 0, bottom: paneBottom, insetInlineStart: deckSplit ? DECK_PLAYER_W : 0,
+                width: deckSplit ? deckPaneW : coverSplitActive ? coverPct : "100%",
                 // Compact: a finger on the cover drags the player or swipes the song, never pans.
                 touchAction: compact ? "none" : undefined,
                 opacity: showVideoView ? 0 : (coverSplitActive ? 1 : (showLyrics ? 0 : 1)),
