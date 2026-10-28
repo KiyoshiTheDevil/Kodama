@@ -1855,6 +1855,7 @@ def browser_login_start():
     profile = profile_dir(cmd, _base_dir, "login-browser")
     args = cmd + [f"--remote-debugging-port={port}", f"--user-data-dir={profile}",
                   "--no-first-run", "--no-default-browser-check", "--window-size=520,760",
+                  "--password-store=basic",  # as browser_launch.py: game mode has no keyring
                   f"--app={_LOGIN_URL}"]
     try:
         proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

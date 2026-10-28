@@ -83,6 +83,9 @@ def main():
     cmd = browser + [
         f"--app={URL}", f"--user-data-dir={profile}",
         "--no-first-run", "--no-default-browser-check",
+        # Not the desktop's keyring: game mode has none, and a profile sealed with KWallet in desktop
+        # mode then stops at a "could not unlock your key store" dialog.
+        "--password-store=basic",
         # The player resumes and moves on to the next song without a click in between.
         "--autoplay-policy=no-user-gesture-required",
         "--class=Kodama",  # the window's name for the taskbar on Linux
