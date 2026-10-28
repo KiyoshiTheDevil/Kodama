@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { groupCorners } from "./corners.js";
+import { IS_BROWSER } from "../platform.js";
 
 // Resolves per document, so this is the main window in the main window and the tool window
 // in each tool window — which is what lets one set of controls serve all of them.
@@ -95,8 +96,8 @@ const GlyphClose = () => <svg {...GLYPH}><path d="M1 1l8 8M9 1l-8 8" /></svg>;
  * the import/export and undo/redo groups — which is what the hover reveals.
  */
 export function WindowControls(props) {
-  // Android has no window to minimise, maximise or close.
-  if (window.KodamaAndroid) return null;
+  // Android has no window to minimise, maximise or close, and in a browser the browser owns it.
+  if (window.KodamaAndroid || IS_BROWSER) return null;
   return <DesktopWindowControls {...props} />;
 }
 
