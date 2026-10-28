@@ -1,3 +1,4 @@
+import "./browser-shim.js"; // first: stands in for Tauri when Kodama runs in a plain browser
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
