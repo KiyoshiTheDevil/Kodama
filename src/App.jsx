@@ -72,7 +72,7 @@ import { isOffline } from "./offline.js";
 import { mediaSourceUrl, needsWebEq, wireWebEq } from "./equalizer/web-eq.js";
 import PhoneEqualizer from "./equalizer/PhoneEqualizer.jsx";
 import { EqualizerLayer } from "./equalizer/Equalizer.jsx";
-import { WEB_AUDIO } from "./platform.js";
+import { IS_BROWSER, WEB_AUDIO } from "./platform.js";
 import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill, ProgressPill } from "./ui/download-island.jsx";
 import { useIslandItems } from "./ui/island-store.js";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
@@ -3275,8 +3275,7 @@ function LoginBtn({ onClick, children, secondary, disabled }) {
   return (
     <Button
       fullWidth
-      variant={secondary ? "secondary" : "solid"}
-      color={secondary ? "default" : "accent"}
+      variant={secondary ? "secondary" : "primary"}
       isDisabled={disabled}
       className="font-semibold"
       onPress={onClick}
@@ -3289,6 +3288,10 @@ function LoginBtn({ onClick, children, secondary, disabled }) {
 function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
   const [step, setStep] = useState("start"); // start | waiting | success | failed | local-create
   const [failure, setFailure] = useState("");
+  // Browser: the sign-in window is the backend's Chromium, and finishing is a press in here.
+  const [browserHint, setBrowserHint] = useState("");
+  const [browserBusy, setBrowserBusy] = useState(false);
+  const browserProfile = useRef("");
   const [localName, setLocalName] = useState("");
   const [localLoading, setLocalLoading] = useState(false);
   const t = useLang();
@@ -3334,6 +3337,19 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
       setStep("waiting");
       return;
     }
+    if (IS_BROWSER) {
+      const r = await fetch(`${API}/auth/browser-login/start`, { method: "POST" }).catch(() => null);
+      const d = await r?.json().catch(() => ({}));
+      if (!r?.ok) {
+        setFailure(d?.error === "no_browser" ? t("loginBrowserMissing") : d?.error || "");
+        setStep("failed");
+        return;
+      }
+      browserProfile.current = name;
+      setBrowserHint("");
+      setStep("waiting");
+      return;
+    }
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("open_login_window", {
@@ -3347,8 +3363,29 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
     }
   };
 
+  // Browser: read the window's cookies now. Not signed in yet keeps the window and says so.
+  const finishBrowserLogin = async () => {
+    setBrowserBusy(true);
+    const r = await fetch(`${API}/auth/browser-login/finish`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile_name: browserProfile.current }),
+    }).catch(() => null);
+    const d = await r?.json().catch(() => ({}));
+    setBrowserBusy(false);
+    if (r?.ok) { setStep("success"); setTimeout(() => onSuccess(), 1000); return; }
+    if (d?.error === "not_signed_in") { setBrowserHint(t("loginBrowserNotYet")); return; }
+    if (d?.error === "no_window") { setBrowserHint(""); setStep("start"); return; }
+    setFailure(d?.error || "");
+    setStep("failed");
+  };
+
   const cancelLogin = async () => {
     if (window.KodamaAndroid) { window.KodamaAndroid.closeLogin(); setStep("start"); return; }
+    if (IS_BROWSER) {
+      fetch(`${API}/auth/browser-login/cancel`, { method: "POST" }).catch(() => {});
+      setStep("start");
+      return;
+    }
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("close_login_window");
@@ -3479,6 +3516,14 @@ function LoginScreen({ onSuccess, onCancel, forcedProfileName }) {
             <div style={{ fontSize: "var(--t12)", color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 24 }}>
               {t("loginWaitingDesc")}
             </div>
+            {IS_BROWSER && <>
+              <div style={{ fontSize: "var(--t11)", color: browserHint ? "var(--status-warning)" : "var(--text-muted)", lineHeight: 1.5, marginTop: -12, marginBottom: 16 }}>
+                {browserHint || t("loginSwitchAccountHint")}
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Btn onClick={finishBrowserLogin} disabled={browserBusy}>{t("loginUseThisAccount")}</Btn>
+              </div>
+            </>}
             <Btn onClick={cancelLogin} secondary>{t("cancel")}</Btn>
           </div>
         )}

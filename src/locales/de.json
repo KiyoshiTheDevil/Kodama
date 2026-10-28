@@ -500,6 +500,8 @@
   "loginWaitingDesc": "Melde dich im geöffneten Fenster bei YouTube Music an und klicke dann auf „Dieses Konto verwenden“, um abzuschließen.",
   "loginUseThisAccount": "Dieses Konto verwenden",
   "loginSwitchAccountHint": "Brand-Account? Wechsle zuerst über dein Profilbild dorthin und bestätige dann.",
+  "loginBrowserNotYet": "Noch nicht angemeldet. Melde dich im Fenster an, bis YouTube Music offen ist.",
+  "loginBrowserMissing": "Kein Chromium gefunden. Installiere Chromium oder Chrome, oder nenne den Pfad in KODAMA_BROWSER.",
   "oauthStepTitle": "Bei Google anmelden",
   "oauthInstruction": "Öffne die Google-Geräteseite und gib diesen Code ein, um Kodama den Zugriff auf dein YouTube-Music-Konto zu erlauben:",
   "openGoogleBtn": "Google-Seite öffnen",

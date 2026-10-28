@@ -1688,14 +1688,19 @@ def setup_auth():
 def cookie_login():
     """Empfängt Cookies direkt aus dem eingebetteten Browser-Fenster."""
     data = request.json or {}
-    cookie_str = data.get("cookie", "")
-    user_agent = data.get("user_agent", "Mozilla/5.0")
-    profile_name = data.get("profile_name", "default")
+    body, status = _cookie_login(data.get("cookie", ""), data.get("user_agent", "Mozilla/5.0"),
+                                 data.get("profile_name", "default"), data.get("delegated_session_id") or "")
+    return jsonify(body), status
+
+
+def _cookie_login(cookie_str, user_agent, profile_name, delegated):
+    """The sign-in itself, shared by the login windows (above) and the browser's (below).
+    Returns the answer's body and status."""
     # Brand-account id captured from the login WebView's ytcfg (DELEGATED_SESSION_ID).
     # Empty for the default (non-brand) account. The native side sends it separately, but
     # also defensively strip any KODAMA_* helper cookies out of the auth cookie string and
     # recover the id from KODAMA_DSID if the body didn't carry it.
-    delegated = (data.get("delegated_session_id") or "").strip()
+    delegated = delegated.strip()
     if cookie_str:
         kept = []
         for part in cookie_str.split(";"):
@@ -1707,13 +1712,13 @@ def cookie_login():
         cookie_str = "; ".join(kept)
 
     if not cookie_str:
-        return jsonify({"error": "Keine Cookies"}), 400
+        return {"error": "Keine Cookies"}, 400
 
     # Check for required auth cookies
     required = ["SAPISID", "SSID", "HSID"]
     has_auth = any(c in cookie_str for c in required)
     if not has_auth:
-        return jsonify({"error": "Keine Auth-Cookies gefunden. Bitte erst einloggen."}), 400
+        return {"error": "Keine Auth-Cookies gefunden. Bitte erst einloggen."}, 400
 
     # Extract SAPISID for authorization header
     import hashlib, time
@@ -1784,12 +1789,153 @@ def cookie_login():
         # Clear the "adding account" flag so validate returns valid
         global _adding_account
         _adding_account = False
-        return jsonify({"ok": True, "profile": profile_name})
+        return {"ok": True, "profile": profile_name}, 200
     except Exception as e:
         _logging.error(f"[login] cookie-login profile={profile_name} FAILED: {e}")
         if os.path.exists(path):
             os.remove(path)
-        return jsonify({"error": f"Login fehlgeschlagen: {str(e)}"}), 500
+        return {"error": f"Login fehlgeschlagen: {str(e)}"}, 500
+
+
+# ── Sign-in from a browser (Kodama in Chromium's app mode, the Linux route) ─────────────────
+# A page cannot read Google's cookies, and there is no login window of Kodama's own to read
+# them from. So the backend starts a Chromium of its own for the sign-in, with a profile of its
+# own and the DevTools port open. Nothing touches the Google pages while the user signs in:
+# the cookies are read once, when "Use this account" is pressed in Kodama, and the window is
+# closed after.
+_LOGIN_BROWSER = {"proc": None, "port": 0}
+_LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
+
+
+def _find_chromium():
+    """A Chromium to sign in with: KODAMA_BROWSER if set, else the usual names and places."""
+    import shutil, subprocess
+    own = os.environ.get("KODAMA_BROWSER", "").strip()
+    if own:
+        return own.split()
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"):
+        found = shutil.which(name)
+        if found:
+            return [found]
+    if sys.platform == "win32":
+        for root in (os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", ""), os.environ.get("LOCALAPPDATA", "")):
+            for rel in ("Google\\Chrome\\Application\\chrome.exe", "BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+                        "Vivaldi\\Application\\vivaldi.exe", "Microsoft\\Edge\\Application\\msedge.exe"):
+                p = os.path.join(root, rel)
+                if root and os.path.exists(p):
+                    return [p]
+    if sys.platform == "darwin":
+        p = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if os.path.exists(p):
+            return [p]
+    # SteamOS and other immutable systems install browsers as Flatpaks.
+    if shutil.which("flatpak"):
+        for app_id in ("org.chromium.Chromium", "com.google.Chrome"):
+            try:
+                if subprocess.run(["flatpak", "info", app_id], capture_output=True, timeout=5).returncode == 0:
+                    return ["flatpak", "run", app_id]
+            except Exception:
+                pass
+    return None
+
+
+def _cdp(ws_url, method, params=None):
+    """One DevTools call over its websocket."""
+    from websockets.sync.client import connect
+    with connect(ws_url, max_size=None, open_timeout=5) as ws:
+        ws.send(json.dumps({"id": 1, "method": method, "params": params or {}}))
+        while True:
+            msg = json.loads(ws.recv(timeout=10))
+            if msg.get("id") == 1:
+                if "error" in msg:
+                    raise RuntimeError(msg["error"].get("message", "devtools error"))
+                return msg.get("result", {})
+
+
+def _close_login_browser():
+    proc, port = _LOGIN_BROWSER["proc"], _LOGIN_BROWSER["port"]
+    _LOGIN_BROWSER.update(proc=None, port=0)
+    if port:
+        try:
+            ver = requests.get(f"http://127.0.0.1:{port}/json/version", timeout=2).json()
+            _cdp(ver["webSocketDebuggerUrl"], "Browser.close")
+        except Exception:
+            pass
+    if proc and proc.poll() is None:
+        try:
+            proc.wait(timeout=3)
+        except Exception:
+            proc.kill()
+
+
+@app.route("/auth/browser-login/start", methods=["POST"])
+def browser_login_start():
+    import socket, subprocess
+    cmd = _find_chromium()
+    if not cmd:
+        return jsonify({"error": "no_browser"}), 404
+    _close_login_browser()
+    with socket.socket() as s:  # a free port for DevTools
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    # A profile of its own: Chromium opens no DevTools port on the user's default one, and the
+    # user's browsing has no business in Kodama's sign-in. Kept, so a second account can be
+    # added without signing in to Google again.
+    profile_dir = os.path.join(_base_dir, "login-browser")
+    os.makedirs(profile_dir, exist_ok=True)
+    args = cmd + [f"--remote-debugging-port={port}", f"--user-data-dir={profile_dir}",
+                  "--no-first-run", "--no-default-browser-check", "--window-size=520,760",
+                  f"--app={_LOGIN_URL}"]
+    try:
+        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        return jsonify({"error": f"browser: {e}"}), 500
+    _LOGIN_BROWSER.update(proc=proc, port=port)
+    _logging.info(f"[login] browser sign-in started: {cmd[0]} port={port}")
+    return jsonify({"ok": True})
+
+
+@app.route("/auth/browser-login/finish", methods=["POST"])
+def browser_login_finish():
+    profile_name = (request.json or {}).get("profile_name", "default")
+    port = _LOGIN_BROWSER["port"]
+    if not port:
+        return jsonify({"error": "no_window"}), 409
+    try:
+        ver = requests.get(f"http://127.0.0.1:{port}/json/version", timeout=3).json()
+    except Exception:
+        _LOGIN_BROWSER.update(proc=None, port=0)
+        return jsonify({"error": "no_window"}), 409
+    try:
+        cookies = _cdp(ver["webSocketDebuggerUrl"], "Storage.getCookies").get("cookies", [])
+    except Exception as e:
+        return jsonify({"error": f"devtools: {e}"}), 500
+    # What music.youtube.com would be sent: its own cookies and those of .youtube.com.
+    jar = [c for c in cookies if c.get("domain", "").lstrip(".") in ("youtube.com", "music.youtube.com")]
+    if not any(c.get("name") == "SAPISID" for c in jar):
+        return jsonify({"error": "not_signed_in"}), 400
+    cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in jar)
+    # The brand account chosen in the window, read from the page as login_init.js does on desktop.
+    delegated = ""
+    try:
+        pages = requests.get(f"http://127.0.0.1:{port}/json/list", timeout=3).json()
+        page = next((p for p in pages if p.get("type") == "page" and "music.youtube.com" in p.get("url", "")), None)
+        if page:
+            res = _cdp(page["webSocketDebuggerUrl"], "Runtime.evaluate", {
+                "expression": "(window.ytcfg && ytcfg.get('DELEGATED_SESSION_ID')) || ''", "returnByValue": True})
+            delegated = str(res.get("result", {}).get("value") or "")
+    except Exception:
+        pass
+    body, status = _cookie_login(cookie_str, ver.get("User-Agent", "Mozilla/5.0"), profile_name, delegated)
+    if status == 200:
+        _close_login_browser()
+    return jsonify(body), status
+
+
+@app.route("/auth/browser-login/cancel", methods=["POST"])
+def browser_login_cancel():
+    _close_login_browser()
+    return jsonify({"ok": True})
 
 @app.route("/auth/logout", methods=["POST"])
 def logout():
