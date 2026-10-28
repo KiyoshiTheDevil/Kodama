@@ -507,7 +507,9 @@ def _ensure_node_in_path():
     # Search in multiple locations: the exe's directory and its parent.
     # In PyInstaller onefile mode sys.executable is the original .exe; in dev it's the Python interpreter.
     exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-    candidates = [exe_dir]
+    # Our own copy first (RUNTIME_DIR, defined further down): where an adopted or fetched Node
+    # lives, and the only one there is on Linux outside a package.
+    candidates = [os.path.join(_base_dir, "runtime"), exe_dir]
     parent = os.path.dirname(exe_dir)
     if parent and parent != exe_dir:
         candidates.append(parent)
@@ -3129,7 +3131,14 @@ def _node_download():
         arch = "arm64" if _platform.machine() in ("arm64", "aarch64") else "x64"
         name = f"node-{_NODE_PIN}-darwin-{arch}.tar.gz"
         return (f"https://nodejs.org/dist/{_NODE_PIN}/{name}", "tar", name)
-    # Linux is built from source and brings its own node; nothing to fetch.
+    if sys.platform.startswith("linux") and not _ANDROID:
+        # Kodama in a browser (browser_launch.py) has no installer to bring one; SteamOS has no
+        # Node at all.
+        import platform as _platform
+        arch = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64"}.get(_platform.machine().lower())
+        if arch:
+            name = f"node-{_NODE_PIN}-linux-{arch}.tar.gz"
+            return (f"https://nodejs.org/dist/{_NODE_PIN}/{name}", "tar", name)
     return (None, None, None)
 
 def _expected_node_sha(name):
@@ -3404,6 +3413,10 @@ def _prepare_runtime():
     if not _find_node22():
         _heal_node()
     node, potdir = _find_node22(), _find_pot_server_dir()
+    # yt-dlp's plain paths look for Node on PATH, which was settled at startup without this one.
+    import shutil
+    if node and not shutil.which("node"):
+        os.environ["PATH"] = os.path.dirname(node) + os.pathsep + os.environ.get("PATH", "")
     if (node, potdir) == (_NODE22, _POT_SERVER_DIR):
         return
     _NODE22, _POT_SERVER_DIR = node, potdir
