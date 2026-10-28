@@ -72,7 +72,7 @@ import { isOffline } from "./offline.js";
 import { mediaSourceUrl, needsWebEq, wireWebEq } from "./equalizer/web-eq.js";
 import PhoneEqualizer from "./equalizer/PhoneEqualizer.jsx";
 import { EqualizerLayer } from "./equalizer/Equalizer.jsx";
-import { IS_BROWSER, WEB_AUDIO } from "./platform.js";
+import { IS_BROWSER, IS_DECK, WEB_AUDIO } from "./platform.js";
 import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill, ProgressPill } from "./ui/download-island.jsx";
 import { useIslandItems } from "./ui/island-store.js";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
@@ -595,6 +595,8 @@ class IpcAudio {
 // sidebar's account actions (rendered into `slotRef` by the sidebar itself), the window buttons.
 // Every round button in it is 32px, the window buttons 32px high, so the row reads as one.
 const TITLEBAR_H = 56;
+// Steam Deck: the compact layout's tabs as a rail down the left edge, this wide.
+const DECK_RAIL = 76;
 // The compact player sliding open or shut, by hand or by itself.
 const PLAYER_SLIDE = "0.42s cubic-bezier(0.4,0,0.2,1)";
 // In px, not w-8: the root font size here is 14px, which makes w-8 28px.
@@ -5937,7 +5939,9 @@ export default function App() {
   const [hideUserHandle, setHideUserHandle] = usePersistedState("kiyoshi-hide-handle", false);
   const [uiZoom, setUiZoom] = useState(() => {
     const saved = parseFloat(localStorage.getItem("kiyoshi-ui-zoom"));
-    return ZOOM_STEPS.includes(saved) ? saved : 1.0;
+    // Steam Deck: a 7" screen read from arm's length, where 100% is too small to hit with the
+    // trackpad. Only the default; a zoom picked in the settings stays.
+    return ZOOM_STEPS.includes(saved) ? saved : IS_DECK ? 1.5 : 1.0;
   });
   // Compact layout below 700px of window width, counted after zoom (so a high zoom switches
   // sooner): no sidebar, a tab bar at the bottom, a mini player card above it. Not in
@@ -5953,7 +5957,9 @@ export default function App() {
   }, [uiZoom]);
   // A phone turned sideways is wide but short: on a touch screen, under 500px of height is
   // compact too (a tablet across, ~800px high, keeps the full layout).
-  const compact = (appW < COMPACT_BELOW || (IS_TOUCH && appH < 500)) && !fullscreen;
+  // The Steam Deck's game mode is compact at any width: read from a sofa, worked with a pad.
+  const compact = (IS_DECK || appW < COMPACT_BELOW || (IS_TOUCH && appH < 500)) && !fullscreen;
+  const rail = IS_DECK && compact ? DECK_RAIL : 0;
   // Together is a view of its own only in the compact layout (its tab); the wide layout keeps
   // it in the sidebar, so a window grown past the compact width goes home from there.
   useEffect(() => { if (!compact && !fullscreen && view === "together") setView("home"); }, [compact, fullscreen, view]);
@@ -7257,7 +7263,7 @@ export default function App() {
             // Compact: the queue covers the content instead of sitting beside it.
             margin: queueOpen && !compact
               ? `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px ${queueWidth + 16}px 0 4px`
-              : `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px 0 0 ${compact ? 0 : 4}px`,
+              : `${IS_MAC ? 16 : fullscreen ? 8 : TITLEBAR_H}px 0 0 ${compact ? rail : 4}px`,
             transition: queueResizing ? "none" : (animations ? "margin 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease" : "none"),
             opacity: (overlayOpen || settingsOpen || settingsClosing) ? 0 : 1,
             pointerEvents: (overlayOpen || settingsOpen || settingsClosing) ? "none" : "auto",
@@ -7280,6 +7286,11 @@ export default function App() {
             <div style={{ height: 97, flexShrink: 0, pointerEvents: "none" }} aria-hidden="true" />
           </ScrollShadowRoot>
           </div>{/* end clip container */}
+          {/* Steam Deck: the tabs down the left edge, beside the content and the mini player. */}
+          {rail > 0 && !overlayOpen && (
+            <CompactTabs vertical width={rail} top={TITLEBAR_H} view={["collection", "artist", "discography", "history", "downloads"].includes(view) ? "library" : view}
+              onNavigate={(v) => { setOverlayOpen(false); if (v === "search") setView("search"); else navigateTo(v); }} />
+          )}
           {/* Player + floating action bar wrapper — position:relative so the bar can float above the player without affecting layout */}
           <div style={{ position: "relative", flexShrink: 0 }}>
             {/* Multi-track selection action bar — position:absolute so it floats above the player without pushing the list up */}
@@ -7368,7 +7379,7 @@ export default function App() {
             // the content column keep their place and leave its measured height free below.
             // Compact: above the open player, whose background runs on behind the controls.
             // Above a phone's gesture bar (0 elsewhere).
-            ...(fullscreen ? {} : { position: "fixed", left: 0, right: 0, bottom: "var(--safe-bottom-z)", zIndex: compact ? 101 : 100 }),
+            ...(fullscreen ? {} : { position: "fixed", left: overlayOpen ? 0 : rail, right: 0, bottom: "var(--safe-bottom-z)", zIndex: compact ? 101 : 100 }),
             // Fullscreen: slide the bar down off-screen when hidden. Settings: plain fade.
             // A phone's sideways video has controls of its own (MobileVideoChrome).
             opacity: settingsOpen || videoAcross ? 0 : 1,
@@ -7443,7 +7454,7 @@ export default function App() {
             onAddToPlaylist={(tracks) => setAddToPlaylistFor({ tracks })}
           />
           {/* Compact: the destinations as tabs below the player, hidden while it is expanded. */}
-          {compact && !overlayOpen && (
+          {compact && !rail && !overlayOpen && (
             <CompactTabs view={["collection", "artist", "discography", "history", "downloads"].includes(view) ? "library" : view}
               onNavigate={(v) => { setOverlayOpen(false); if (v === "search") setView("search"); else navigateTo(v); }} />
           )}

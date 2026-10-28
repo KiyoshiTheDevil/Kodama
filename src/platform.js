@@ -9,3 +9,7 @@ export const IS_BROWSER = typeof window !== "undefined" && !!window.__KODAMA_BRO
 // Sound from the page's own <audio> rather than the Rust core: on the phone and in a browser.
 // The equaliser then runs as Web Audio (equalizer/web-eq.js).
 export const WEB_AUDIO = IS_ANDROID || IS_BROWSER;
+
+// The Steam Deck's game mode: browser_launch.py opens the page with ?deck there. The compact
+// layout across 1280x800, its tabs down the left edge.
+export const IS_DECK = IS_BROWSER && new URLSearchParams(window.location.search).has("deck");

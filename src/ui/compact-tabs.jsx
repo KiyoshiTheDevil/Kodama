@@ -13,7 +13,7 @@ import { haptic } from "../haptics.js";
 const TAB = "h-[44px] min-w-0 flex flex-row items-center justify-center gap-1.5 rounded-[var(--r-full)] "
   + "text-[length:var(--t13)] font-semibold px-0 transition-[flex-grow,background-color,color] duration-300";
 
-export function CompactTabs({ view, onNavigate }) {
+export function CompactTabs({ view, onNavigate, vertical = false, width = 76, top = 0 }) {
   const t = useLang();
   const r = useTogether();
   // Listening together is a tab like the others (src/together/TogetherView.jsx); in a room it
@@ -29,6 +29,25 @@ export function CompactTabs({ view, onNavigate }) {
   const tone = (on) => (on
     ? "bg-accent! text-[var(--accent-foreground)]!"
     : "bg-transparent! text-muted hover:text-primary");
+  // Steam Deck: a rail down the left edge (App's DECK_RAIL), icons only, the current one on
+  // the accent. Wider than the phone's capsule is high, for a thumb and a sofa's distance.
+  if (vertical) return (
+    <nav aria-label="Navigation" style={{
+      position: "fixed", left: 0, top, bottom: 0, width, zIndex: 102,
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 8, paddingTop: 12,
+    }}>
+      {tabs.map((tab) => {
+        const on = view === tab.id;
+        return (
+          <Button key={tab.id} variant="ghost" isIconOnly onPress={() => onNavigate(tab.id)}
+            aria-current={on ? "page" : undefined} aria-label={tab.label}
+            className={`w-[52px]! h-[52px]! rounded-[var(--r-full)]! transition-colors ${tone(on)}`}>
+            {tab.icon}
+          </Button>
+        );
+      })}
+    </nav>
+  );
   return (
     <nav aria-label="Navigation" style={{
       display: "flex", alignItems: "center", gap: 4, height: 54, padding: 4, margin: "2px 16px 10px",

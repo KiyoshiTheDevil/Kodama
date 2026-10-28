@@ -51,6 +51,7 @@ def start_backend(web_dir):
 def main():
     ap = argparse.ArgumentParser(description="Kodama in a browser")
     ap.add_argument("--fullscreen", action="store_true", help="open full screen (Steam Deck game mode)")
+    ap.add_argument("--deck", action="store_true", help="the Steam Deck layout even outside game mode")
     ap.add_argument("--web-dir", default=os.path.join(HERE, "..", "dist"), help="the built frontend (npm run build)")
     args = ap.parse_args()
 
@@ -79,9 +80,13 @@ def main():
             backend.terminate()
             sys.exit("The backend did not come up.")
 
+    # The Steam Deck's game mode runs under gamescope, which says so; the page then takes the
+    # compact layout with its tabs down the left edge (IS_DECK in src/platform.js).
+    deck = (args.deck or os.environ.get("XDG_CURRENT_DESKTOP", "").lower() == "gamescope"
+            or "GAMESCOPE_WAYLAND_DISPLAY" in os.environ)
     profile = profile_dir(browser, data_root(), "browser-app")
     cmd = browser + [
-        f"--app={URL}", f"--user-data-dir={profile}",
+        f"--app={URL}{'?deck=1' if deck else ''}", f"--user-data-dir={profile}",
         "--no-first-run", "--no-default-browser-check",
         # Not the desktop's keyring: game mode has none, and a profile sealed with KWallet in desktop
         # mode then stops at a "could not unlock your key store" dialog.
