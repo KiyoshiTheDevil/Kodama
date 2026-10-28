@@ -29,7 +29,8 @@ def find_chromium():
             return [p]
     # SteamOS and other immutable systems install browsers as Flatpaks.
     if shutil.which("flatpak"):
-        for app_id in ("org.chromium.Chromium", "com.google.Chrome"):
+        for app_id in ("org.chromium.Chromium", "com.google.Chrome", "com.brave.Browser",
+                       "com.vivaldi.Vivaldi", "com.microsoft.Edge"):
             try:
                 if subprocess.run(["flatpak", "info", app_id], capture_output=True, timeout=5).returncode == 0:
                     return ["flatpak", "run", app_id]
