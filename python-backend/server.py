@@ -1807,38 +1807,6 @@ _LOGIN_BROWSER = {"proc": None, "port": 0}
 _LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
 
 
-def _find_chromium():
-    """A Chromium to sign in with: KODAMA_BROWSER if set, else the usual names and places."""
-    import shutil, subprocess
-    own = os.environ.get("KODAMA_BROWSER", "").strip()
-    if own:
-        return own.split()
-    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"):
-        found = shutil.which(name)
-        if found:
-            return [found]
-    if sys.platform == "win32":
-        for root in (os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", ""), os.environ.get("LOCALAPPDATA", "")):
-            for rel in ("Google\\Chrome\\Application\\chrome.exe", "BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-                        "Vivaldi\\Application\\vivaldi.exe", "Microsoft\\Edge\\Application\\msedge.exe"):
-                p = os.path.join(root, rel)
-                if root and os.path.exists(p):
-                    return [p]
-    if sys.platform == "darwin":
-        p = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        if os.path.exists(p):
-            return [p]
-    # SteamOS and other immutable systems install browsers as Flatpaks.
-    if shutil.which("flatpak"):
-        for app_id in ("org.chromium.Chromium", "com.google.Chrome"):
-            try:
-                if subprocess.run(["flatpak", "info", app_id], capture_output=True, timeout=5).returncode == 0:
-                    return ["flatpak", "run", app_id]
-            except Exception:
-                pass
-    return None
-
-
 def _cdp(ws_url, method, params=None):
     """One DevTools call over its websocket."""
     from websockets.sync.client import connect
@@ -1871,7 +1839,8 @@ def _close_login_browser():
 @app.route("/auth/browser-login/start", methods=["POST"])
 def browser_login_start():
     import socket, subprocess
-    cmd = _find_chromium()
+    from chromium import find_chromium, profile_dir  # here, not at the top: Android ships without it
+    cmd = find_chromium()
     if not cmd:
         return jsonify({"error": "no_browser"}), 404
     _close_login_browser()
@@ -1881,9 +1850,8 @@ def browser_login_start():
     # A profile of its own: Chromium opens no DevTools port on the user's default one, and the
     # user's browsing has no business in Kodama's sign-in. Kept, so a second account can be
     # added without signing in to Google again.
-    profile_dir = os.path.join(_base_dir, "login-browser")
-    os.makedirs(profile_dir, exist_ok=True)
-    args = cmd + [f"--remote-debugging-port={port}", f"--user-data-dir={profile_dir}",
+    profile = profile_dir(cmd, _base_dir, "login-browser")
+    args = cmd + [f"--remote-debugging-port={port}", f"--user-data-dir={profile}",
                   "--no-first-run", "--no-default-browser-check", "--window-size=520,760",
                   f"--app={_LOGIN_URL}"]
     try:
@@ -8723,6 +8691,22 @@ def api_local_fonts():
     except Exception:
         pass
     return jsonify(sorted(families))
+
+
+# Kodama in a browser (browser_launch.py): the built frontend comes from here too, so the page
+# and the API share one origin. Only when the launcher names the folder; Tauri brings its own.
+_WEB_DIR = os.environ.get("KODAMA_WEB_DIR", "")
+if _WEB_DIR and os.path.isdir(_WEB_DIR):
+    from flask import send_from_directory
+
+    @app.route("/")
+    def web_index():
+        return send_from_directory(_WEB_DIR, "index.html")
+
+    @app.route("/<path:path>")
+    def web_file(path):
+        # The API's own routes are more specific and win; this sees only what none of them took.
+        return send_from_directory(_WEB_DIR, path)
 
 
 if __name__ == "__main__":
