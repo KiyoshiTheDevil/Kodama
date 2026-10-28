@@ -71,6 +71,8 @@ import { rememberOfflinePlaylist } from "./offline-collections.js";
 import { isOffline } from "./offline.js";
 import { mediaSourceUrl, needsWebEq, wireWebEq } from "./equalizer/web-eq.js";
 import PhoneEqualizer from "./equalizer/PhoneEqualizer.jsx";
+import { EqualizerLayer } from "./equalizer/Equalizer.jsx";
+import { WEB_AUDIO } from "./platform.js";
 import { DownloadIsland, DownloadSheet, batchFraction, OfflinePill, ProgressPill } from "./ui/download-island.jsx";
 import { useIslandItems } from "./ui/island-store.js";
 import { OutputDeviceChip } from "./ui/output-device.jsx";
@@ -1801,12 +1803,14 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     // urlCache, too, so a song downloaded after it was streamed plays from disk.
     try {
       const cr = await fetch(`${API}/song/cached/${videoId}`, { method: "HEAD" });
-      if (cr.ok) return IS_ANDROID ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
+      // A blob on the phone, whose web view refuses localhost media, and wherever the filters
+      // listen: from another origin they would hear silence.
+      if (cr.ok) return IS_ANDROID || (WEB_AUDIO && needsWebEq()) ? await cachedBlobUrl(videoId) : `${API}/song/cached/${videoId}`;
     } catch {}
     if (isOffline()) return null;
-    // Android with the equaliser in play: through the backend into Media Source, which the
-    // filters may read (web-eq.js). Never remembered: a Media Source plays once.
-    if (IS_ANDROID && needsWebEq()) return mediaSourceUrl(`${API}/audio-chunked/${videoId}`).url;
+    // Phone or browser with the equaliser in play: through the backend into Media Source, which
+    // the filters may read (web-eq.js). Never remembered: a Media Source plays once.
+    if (WEB_AUDIO && needsWebEq()) return mediaSourceUrl(`${API}/audio-chunked/${videoId}`).url;
     const cached = urlCacheGet(videoId);
     if (cached) return cached;
     const useRust = audioRef.current && audioRef.current._fallback === false;
@@ -1988,10 +1992,10 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
     return () => { cancelled = true; };
   }, [track]);
 
-  // Android: the equaliser switched on while a song plays straight from googlevideo, which the
-  // filters may not read. The song is fetched again the other way and picks up where it was.
+  // Phone or browser: the equaliser switched on while a song plays straight from googlevideo,
+  // which the filters may not read. The song is fetched again the other way and picks up where it was.
   useEffect(() => {
-    if (!IS_ANDROID) return;
+    if (!WEB_AUDIO) return;
     const onReroute = () => {
       const a = audioRef.current, el = a?._fallback;
       const tk = trackRef.current;
@@ -2032,7 +2036,7 @@ function Player({ track, setTrack, queue, setQueue, audioRef, isPlaying, setIsPl
       crossfadeActiveRef.current = false;
       crossfadePendingTrackRef.current = null;
       crossfadeFailedTrackRef.current = null;
-      if (IS_ANDROID && needsWebEq() && a._fallback) wireWebEq(a._fallback);
+      if (WEB_AUDIO && needsWebEq() && a._fallback) wireWebEq(a._fallback);
       a.src = streamUrl;
       a.volume = volCurve(volume);
       volumeRef.current = volume;
@@ -4044,7 +4048,7 @@ export default function App() {
   const [downloadSheetOpen, setDownloadSheetOpen] = useState(false); // compact: the downloads in detail
   // Jobs that want the title bar's pill on a phone (a playlist loading, say): the newest shows.
   const islandItems = useIslandItems();
-  // Android: the equaliser as a page of the app (equalizer/window.js sends the event).
+  // Phone and browser: the equaliser inside the app (equalizer/window.js sends the event).
   const [phoneEqOpen, setPhoneEqOpen] = useState(false);
   useEffect(() => {
     const open = () => setPhoneEqOpen(true);
@@ -7980,7 +7984,9 @@ export default function App() {
           />
         )}
 
-        {phoneEqOpen && <PhoneEqualizer onClose={() => setPhoneEqOpen(false)} />}
+        {phoneEqOpen && (compact
+          ? <PhoneEqualizer onClose={() => setPhoneEqOpen(false)} />
+          : <EqualizerLayer onClose={() => setPhoneEqOpen(false)} />)}
 
         {/* Compact: the title bar's pill opens the downloads as a sheet; the card below is the
             desktop's, which sat over the list on a phone. */}

@@ -1,7 +1,7 @@
 // Preset storage for the equaliser. Ten bands, octave spaced, matching audio/eq.rs — the two
 // lists have to agree, so the frequencies live here as the single place the UI reads them and
 // the Rust side keeps its own copy of the same numbers.
-import { IS_ANDROID } from "../platform.js";
+import { WEB_AUDIO } from "../platform.js";
 
 export const BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 export const RANGE_DB = 12;      // slider travel, matching the design's +12 / -12 scale
@@ -78,9 +78,9 @@ export function saveState(state) {
  * comes up with the saved curve rather than flat until the equaliser window is opened once.
  */
 export async function applyToCore(state) {
-  // Android has no audio core: the curve goes to the Web Audio filters (web-eq.js), loaded
-  // lazily, as it imports this file in turn.
-  if (IS_ANDROID) {
+  // No audio core on the phone or in a browser: the curve goes to the Web Audio filters
+  // (web-eq.js), loaded lazily, as it imports this file in turn.
+  if (WEB_AUDIO) {
     import("./web-eq.js").then((m) => m.setWebEq(state)).catch(() => {});
     return;
   }

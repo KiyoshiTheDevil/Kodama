@@ -1,5 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { IS_ANDROID } from "../platform.js";
+import { IS_ANDROID, IS_BROWSER } from "../platform.js";
 
 /**
  * Open the equaliser window, or focus it if it is already up. Shared by the player dropdown
@@ -10,9 +10,9 @@ import { IS_ANDROID } from "../platform.js";
  * which looks like a window that simply cannot be dragged.
  */
 export async function openEqualizerWindow() {
-  // Android has no second windows: the equaliser is a page of the app there (PhoneEqualizer),
-  // which App.jsx opens on this event.
-  if (IS_ANDROID) { window.dispatchEvent(new Event("kodama-open-eq")); return; }
+  // Android has no second windows, and a browser's would not share the page's sound: the
+  // equaliser opens inside the app there, which App.jsx does on this event.
+  if (IS_ANDROID || IS_BROWSER) { window.dispatchEvent(new Event("kodama-open-eq")); return; }
   try {
     const existing = await WebviewWindow.getByLabel("equalizer");
     if (existing) { await existing.setFocus(); return; }

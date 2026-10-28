@@ -12,6 +12,8 @@ import {
   BANDS, BUILTIN, RANGE_DB, applyToCore, isBuiltin, loadState, normalizePreset, saveState,
 } from "./presets.js";
 import { onPresetsChanged } from "../store/presets.js";
+import { createPortal } from "react-dom";
+import { useLang, useZoom } from "../context.jsx";
 
 const HDR_H = 52;
 // From the concept: a tall, narrow track with a lozenge thumb, and the whole column reading as
@@ -137,7 +139,7 @@ function Fader({ value, onChange, onCommit, label }) {
   );
 }
 
-export default function Equalizer({ t }) {
+export default function Equalizer({ t, onClose }) {
   const [state, setState] = useState(loadState);
   const [past, setPast] = useState([]);
   const [future, setFuture] = useState([]);
@@ -388,7 +390,13 @@ export default function Equalizer({ t }) {
           </span>
         </Tooltip>
 
-        <WindowControls />
+        {onClose ? (
+          <Tooltip text={t("close")}>
+            <Button variant="ghost" size="sm" isIconOnly className={`${HDR_ICON_BTN} ml-1.5`}
+              style={{ borderRadius: hdrCorners(false, false) }}
+              onPress={onClose} aria-label={t("close")}><X size={15} /></Button>
+          </Tooltip>
+        ) : <WindowControls />}
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -526,5 +534,27 @@ export default function Equalizer({ t }) {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * The equaliser over the app instead of in a window of its own: in a browser a second window
+ * would be a second page with its own sound, and the filters have to sit on the player's.
+ */
+export function EqualizerLayer({ onClose }) {
+  const t = useLang();
+  const zoom = useZoom();
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  // As PhoneEqualizer: on <body>, above the title bar, zoomed by hand since the UI zoom sits
+  // on the app's shell.
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 100000, zoom, background: "var(--bg-base)" }}>
+      <Equalizer t={t} onClose={onClose} />
+    </div>,
+    document.body,
   );
 }

@@ -1,5 +1,5 @@
-// The equaliser on Android. The desktop filters in the Rust audio core (src-tauri/src/audio/eq.rs);
-// the phone has no such core, its sound comes from the web view's <audio>. Here the same curve
+// The equaliser on Android and in a browser. The desktop filters in the Rust audio core
+// (src-tauri/src/audio/eq.rs); without that core the sound comes from the page's <audio>. Here the same curve
 // runs as Web Audio: a preamp and ten peaking filters at the same frequencies and Q.
 //
 // Web Audio may only filter sound it is allowed to read, and googlevideo sends no CORS headers,
@@ -74,14 +74,17 @@ export function resumeWebEq() {
  * bytes are fetched once the element opens the source, and appended as they come, so playback
  * starts before the song is all there.
  */
-export function mediaSourceUrl(src, type = 'audio/webm; codecs="opus"') {
+// googlevideo names the container only; Media Source wants the codec too. Android's streams
+// are Opus in WebM, the desktop backend's (yt-dlp) may be AAC in MP4.
+const CODECS = { "audio/webm": 'audio/webm; codecs="opus"', "audio/mp4": 'audio/mp4; codecs="mp4a.40.2"' };
+
+export function mediaSourceUrl(src) {
   const ms = new MediaSource();
   const url = URL.createObjectURL(ms);
   const abort = new AbortController();
   ms.addEventListener("sourceopen", async () => {
     URL.revokeObjectURL(url);
     let sb;
-    try { sb = ms.addSourceBuffer(type); } catch { return; }
     const append = (chunk) => new Promise((res, rej) => {
       sb.addEventListener("updateend", res, { once: true });
       sb.addEventListener("error", rej, { once: true });
@@ -90,6 +93,8 @@ export function mediaSourceUrl(src, type = 'audio/webm; codecs="opus"') {
     try {
       const r = await fetch(src, { signal: abort.signal });
       if (!r.ok) throw new Error(r.status);
+      const mime = (r.headers.get("Content-Type") || "audio/webm").split(";")[0].trim();
+      sb = ms.addSourceBuffer(CODECS[mime] || CODECS["audio/webm"]);
       const reader = r.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
