@@ -108,3 +108,6 @@ tools/
 
 # Source recordings/screenshots for the landing page (web versions live in docs/shots/)
 raw-media/
+
+# Sign-in browser profile of the dev backend: holds Google cookies.
+python-backend/login-browser/
