@@ -1909,6 +1909,69 @@ def browser_login_cancel():
     return jsonify({"ok": True})
 
 
+# The session keeper for Kodama in a browser. On the desktop a hidden WebView reloads
+# music.youtube.com every 20 minutes so Google's own scripts rotate the *SIDTS cookies, which
+# plain HTTP cannot (window.rs, rotate_session_cookies); without that a login lasts an hour or
+# two. Here the sign-in browser's profile holds the same Google session, so a headless run of
+# it does the same job: load the page, wait as the WebView does, read the cookies and hand them
+# to /auth/refresh-cookies like the WebView's.
+_KEEPER_LOCK = threading.Lock()
+
+@app.route("/auth/browser-keeper/rotate", methods=["POST"])
+def browser_keeper_rotate():
+    import socket, subprocess
+    from chromium import find_chromium, profile_dir  # here, not at the top: Android ships without it
+    if _LOGIN_BROWSER["port"]:
+        return jsonify({"error": "login_open"}), 409  # the sign-in window has the profile
+    if not _KEEPER_LOCK.acquire(blocking=False):
+        return jsonify({"error": "busy"}), 409
+    proc, ws = None, None
+    try:
+        cmd = find_chromium()
+        if not cmd:
+            return jsonify({"error": "no_browser"}), 404
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        profile = profile_dir(cmd, _base_dir, "login-browser")
+        proc = subprocess.Popen(cmd + [
+            "--headless=new", f"--remote-debugging-port={port}", f"--user-data-dir={profile}",
+            "--no-first-run", "--no-default-browser-check", "--password-store=basic", "--mute-audio",
+            "https://music.youtube.com/",
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(60):
+            try:
+                ws = requests.get(f"http://127.0.0.1:{port}/json/version", timeout=1).json()["webSocketDebuggerUrl"]
+                break
+            except Exception:
+                time.sleep(0.25)
+        if not ws:
+            return jsonify({"error": "no_devtools"}), 500
+        time.sleep(9)  # as the WebView keeper: the page's scripts do the rotating
+        cookies = _cdp(ws, "Storage.getCookies").get("cookies", [])
+        jar = [c for c in cookies if c.get("domain", "").lstrip(".") in ("youtube.com", "music.youtube.com")]
+        if not any(c.get("name") == "SAPISID" for c in jar):
+            return jsonify({"error": "not_signed_in"}), 400
+        cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in jar)
+        r = requests.post("http://127.0.0.1:9847/auth/refresh-cookies", json={"cookie": cookie_str}, timeout=30)
+        _logging.info(f"[cookies] browser keeper rotated: {r.status_code}")
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        _logging.warning(f"[cookies] browser keeper failed: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if ws:
+            try:
+                _cdp(ws, "Browser.close")
+            except Exception:
+                pass
+        if proc:
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                proc.kill()
+        _KEEPER_LOCK.release()
+
 @app.route("/auth/logout", methods=["POST"])
 def logout():
     """Logs out the active Google profile: removes its auth cookies (the .json

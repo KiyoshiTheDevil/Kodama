@@ -6340,17 +6340,25 @@ export default function App() {
     if (!currentProfile) return;
     let interval = null, firstTimer = null, cancelled = false;
     (async () => {
-      let invoke;
-      try { ({ invoke } = await import("@tauri-apps/api/core")); } catch { return; }
-      try { await invoke("ensure_session_keeper", { profileName: currentProfile }); }
-      catch { return; }
+      // In a browser the backend keeps the session with a headless run of the sign-in browser
+      // (/auth/browser-keeper/rotate); there is no WebView of Kodama's own to do it.
+      let rotateNow;
+      if (IS_BROWSER) {
+        rotateNow = () => fetch(`${API}/auth/browser-keeper/rotate`, { method: "POST" });
+      } else {
+        let invoke;
+        try { ({ invoke } = await import("@tauri-apps/api/core")); } catch { return; }
+        try { await invoke("ensure_session_keeper", { profileName: currentProfile }); }
+        catch { return; }
+        rotateNow = () => invoke("rotate_session_cookies", { profileName: currentProfile });
+      }
       if (cancelled) return;
       // Ask how it went afterwards. A rotation that brought the session back should be visible
       // immediately rather than at the next minute's poll, and fetchProfiles is the one place
       // that notices the recovery - it closes the warning and reloads the page the dead session
       // left empty. Keeping that judgement in one place is also what stops a repair at startup
       // from reloading the page twice, once here and again on the first poll.
-      const rotate = () => invoke("rotate_session_cookies", { profileName: currentProfile })
+      const rotate = () => rotateNow()
         .catch(() => {})
         .finally(() => { if (!cancelled) fetchProfiles(); });
       // Rotate right at startup rather than after a grace period. A session that has gone stale
@@ -6364,7 +6372,7 @@ export default function App() {
       cancelled = true;
       if (interval) clearInterval(interval);
       if (firstTimer) clearTimeout(firstTimer);
-      import("@tauri-apps/api/core").then(({ invoke }) => invoke("stop_session_keeper")).catch(() => {});
+      if (!IS_BROWSER) import("@tauri-apps/api/core").then(({ invoke }) => invoke("stop_session_keeper")).catch(() => {});
     };
   }, [currentProfile, fetchProfiles]);
 

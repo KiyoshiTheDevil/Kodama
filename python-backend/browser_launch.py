@@ -98,7 +98,11 @@ def main():
     if args.fullscreen:
         cmd.append("--start-fullscreen")
     opened = time.time()
-    subprocess.run(cmd)
+    try:
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        # Steam ends a non-Steam game this way; the backend still goes down with the window.
+        pass
 
     # A Chromium already running on that profile hands the window over and returns at once; the
     # backend then still has a window to serve.
