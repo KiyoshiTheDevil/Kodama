@@ -1908,6 +1908,7 @@ def browser_login_cancel():
     _close_login_browser()
     return jsonify({"ok": True})
 
+
 @app.route("/auth/logout", methods=["POST"])
 def logout():
     """Logs out the active Google profile: removes its auth cookies (the .json
@@ -3491,11 +3492,23 @@ def _android_stream_url(video_id):
         print(f"[newpipe] {video_id}: {e}", flush=True)
         return None
 
+# A brake for when YouTube throttles us (HTTP 429). yt-dlp only warns about the 429 and then
+# fails with "Requested format is not available", which the ladder below takes for a per-client
+# problem and retries some twenty ways - per song, and per range request when nothing remembered
+# the failure. On the Steam Deck that came to a hundred extractions in two minutes, which kept the
+# throttle going. Two different songs failing outright within two minutes is the sign: then
+# nothing is extracted for a while, and the answer comes at once.
+_STREAM_FAILS = collections.deque(maxlen=4)  # (time, video_id) of whole-ladder failures
+_STREAM_COOLDOWN = {"until": 0.0}
+_STREAM_COOLDOWN_S = 90
+
 @app.route("/stream/<video_id>")
 def stream_url(video_id):
     global _LAST_STREAM_ERROR
     last_err = None
     _t_total = time.time()
+    if not _ANDROID and _t_total < _STREAM_COOLDOWN["until"]:
+        return jsonify({"error": "cooldown", "retryIn": int(_STREAM_COOLDOWN["until"] - _t_total)}), 503
 
     if _ANDROID:
         url = _android_stream_url(video_id)
@@ -3575,6 +3588,15 @@ def stream_url(video_id):
     unavailable = _is_unavailable(err_str)
     _LAST_STREAM_ERROR = {"videoId": video_id, "error": err_str[:400], "at": int(time.time())}
     _logging.error(f"[stream] {video_id}: {type(last_err).__name__}: {err_str}")
+    # A song that is simply gone or Premium-only says nothing about the connection.
+    if not premium and not unavailable:
+        now = time.time()
+        _STREAM_FAILS.append((now, video_id))
+        recent = {v for t, v in _STREAM_FAILS if now - t < 120}
+        if len(recent) >= 2:
+            _STREAM_COOLDOWN["until"] = now + _STREAM_COOLDOWN_S
+            _STREAM_FAILS.clear()
+            _logging.warning(f"[stream] {len(recent)} songs failed within two minutes, pausing extraction for {_STREAM_COOLDOWN_S}s")
     return jsonify({"error": err_str, "premium_only": premium, "unavailable": unavailable}), 500
 
 
@@ -3647,24 +3669,33 @@ def stream_prepare(video_id):
 # downloading it whole first, while keeping playback in the app process (OBS-capturable).
 # The resolved googlevideo URL is cached per video (it's expensive to extract and the Rust
 # source makes several range requests per song).
-_audio_stream_url_cache = {}  # video_id -> (url, expiry_ts)
+_audio_stream_url_cache = {}  # video_id -> (url, expiry_ts); url None = failed, not again until expiry
+_audio_resolve_locks = collections.defaultdict(threading.Lock)
 
 def _resolve_audio_url(video_id):
     import requests as req
-    now = time.time()
     ent = _audio_stream_url_cache.get(video_id)
-    if ent and ent[1] > now:
+    if ent and ent[1] > time.time():
         return ent[0]
-    try:
-        d = req.get(f"http://127.0.0.1:9847/stream/{video_id}", timeout=60).json()
-    except Exception:
-        return None
-    if d.get("premium_only"):
-        return "premium_only"
-    url = d.get("url")
-    if url:
-        _audio_stream_url_cache[video_id] = (url, now + 5 * 3600)
-    return url
+    # One resolution per song at a time: a player's range requests arrive together, and each
+    # used to start its own twenty-rung ladder. The others wait and take its answer.
+    with _audio_resolve_locks[video_id]:
+        now = time.time()
+        ent = _audio_stream_url_cache.get(video_id)
+        if ent and ent[1] > now:
+            return ent[0]
+        try:
+            d = req.get(f"http://127.0.0.1:9847/stream/{video_id}", timeout=60).json()
+        except Exception:
+            d = {}
+        if d.get("premium_only"):
+            return "premium_only"
+        url = d.get("url")
+        # A failure is remembered for a minute (but not the brake's quick "cooldown", which
+        # lifts by itself), so a retry storm meets the memory instead of YouTube.
+        if url or d.get("error") != "cooldown":
+            _audio_stream_url_cache[video_id] = (url, now + (5 * 3600 if url else 60))
+        return url
 
 @app.route("/audio-stream/<video_id>")
 def audio_stream(video_id):
