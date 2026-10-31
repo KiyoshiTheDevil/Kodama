@@ -3124,15 +3124,19 @@ def _is_unavailable(err_str):
 # before, so this can never make extraction worse than it was.
 _MIN_NODE_MAJOR = 22
 
-def _node_major(node_path):
+def _node_version(node_path):
+    """(major, minor, patch) of a Node executable, or (0, 0, 0)."""
     import subprocess, re
     try:
         out = subprocess.run([node_path, "--version"], capture_output=True, text=True,
                              timeout=5).stdout.strip()
-        m = re.match(r"v?(\d+)", out)
-        return int(m.group(1)) if m else 0
+        m = re.match(r"v?(\d+)\.(\d+)\.(\d+)", out)
+        return tuple(int(g) for g in m.groups()) if m else (0, 0, 0)
     except Exception:
-        return 0
+        return (0, 0, 0)
+
+def _node_major(node_path):
+    return _node_version(node_path)[0]
 
 # Where the Node runtime and the PO-token generator live once they are ours rather than the
 # installer's: inside the app's own data directory, next to the profiles and caches.
@@ -3184,7 +3188,8 @@ def _find_pot_server_dir():
 # The Node version the installer ships. Kept in step with the download step in
 # .github/workflows/release.yml - if that moves, this moves with it, or a self-heal would
 # fetch a different runtime than a fresh install gets.
-_NODE_PIN = "v22.18.0"
+# 22.23.4 is the first 22.x with the fixed Brotli decoder (CVE-2026-111497, "Node2Shell").
+_NODE_PIN = "v22.23.4"
 _node_heal_done = False
 
 def _node_download():
@@ -3219,7 +3224,10 @@ def _expected_node_sha(name):
         _logging.warning("[runtime] could not read node checksums: %s", e)
     return None
 
-def _heal_node():
+def _pin_version():
+    return tuple(int(x) for x in _NODE_PIN.lstrip("v").split("."))
+
+def _heal_node(replace=False):
     """Fetch the Node runtime when there is none.
 
     The installer normally brings it and _adopt_runtime_assets takes a copy. This is for the
@@ -3243,7 +3251,10 @@ def _heal_node():
         _logging.warning("[runtime] no checksum for %s - not fetching node", name)
         return None
     dst = os.path.join(RUNTIME_DIR, _node_name())
-    _logging.info("[runtime] no node anywhere, fetching %s", url)
+    if replace:
+        _logging.info("[runtime] our node is older than %s, fetching %s", _NODE_PIN, url)
+    else:
+        _logging.info("[runtime] no node anywhere, fetching %s", url)
     try:
         os.makedirs(RUNTIME_DIR, exist_ok=True)
         h = hashlib.sha256()
@@ -3272,7 +3283,18 @@ def _heal_node():
             os.remove(tmp_path)
             tmp_path = extracted
         os.chmod(tmp_path, 0o755)
-        os.replace(tmp_path, dst)
+        try:
+            os.replace(tmp_path, dst)
+        except OSError as e:
+            # Windows: the old node is running the PO-token server. Stage it, and
+            # _apply_staged_runtime() swaps it in at the next start, before node runs.
+            incoming = dst + ".incoming"
+            if tmp_path != incoming:
+                _remove_path(incoming)
+                os.replace(tmp_path, incoming)
+            _stage_record("node", incoming)
+            _logging.info("[runtime] node is in use, %s staged for the next start (%s)", _NODE_PIN, e)
+            return None
         _logging.info("[runtime] node placed at %s", dst)
         return dst
     except Exception as e:
@@ -3321,6 +3343,20 @@ def _same_content(a, b):
         return _content_digest(a) == _content_digest(b)
     except OSError:
         return False
+
+def _stage_record(key, path):
+    """Note in source.json that `path` (an .incoming) is to be put in place at the next start."""
+    import json as _json
+    record_path = os.path.join(RUNTIME_DIR, "source.json")
+    try:
+        with open(record_path) as f:
+            record = _json.load(f)
+    except Exception:
+        record = {}
+    st = os.stat(path)
+    record[key + "_staged"] = {"size": st.st_size, "mtime": int(st.st_mtime)}
+    with open(record_path, "w") as f:
+        _json.dump(record, f)
 
 def _apply_staged_runtime():
     """Put copies staged by the last run in place, before anything runs from RUNTIME_DIR.
@@ -3477,6 +3513,13 @@ def _prepare_runtime():
     _adopt_runtime_assets()
     if not _find_node22():
         _heal_node()
+    else:
+        # The updater ships without node, so a copy taken from an older installer stays here
+        # for good unless we replace it ourselves. Only our own copy: the bundled one moves
+        # with the installer, a system node is the user's.
+        own = os.path.join(RUNTIME_DIR, _node_name())
+        if os.path.isfile(own) and _node_version(own) < _pin_version():
+            _heal_node(replace=True)
     node, potdir = _find_node22(), _find_pot_server_dir()
     # yt-dlp's plain paths look for Node on PATH, which was settled at startup without this one.
     import shutil

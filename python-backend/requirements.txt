@@ -2,6 +2,9 @@ ytmusicapi==1.12.2
 flask
 flask-cors
 requests
+# Pinned past CVE-2026-111497 (Brotli decoder). requests/urllib3 and yt-dlp use it on their own
+# whenever it is installed, so it is listed to make sure the fixed one is.
+brotli>=1.2.1
 yt-dlp
 # EJS challenge-solver scripts (signature / n-sig) — required for the web_music
 # client used by the PO-token path. Ships the JS the bundled node runtime runs.

@@ -69,7 +69,7 @@ jobs:
         run: |
           # v22+ required: yt-dlp EJS (signature/n-sig solving for the web_music PO-token path)
           # needs Node >= 22. This is the runtime node the sidecar spawns.
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.18.0/win-x64/node.exe" -OutFile "src-tauri/resources/node.exe"
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.23.4/win-x64/node.exe" -OutFile "src-tauri/resources/node.exe"
       - name: Build PO-token generator (bgutil, Windows)
         shell: bash
         run: |
@@ -194,9 +194,9 @@ jobs:
       - name: Download node (macOS arm64)
         run: |
           # v22+ runtime node for the yt-dlp EJS + bgutil PO-token path (macOS had none before).
-          curl -sL "https://nodejs.org/dist/v22.18.0/node-v22.18.0-darwin-arm64.tar.gz" -o node.tar.gz
+          curl -sL "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz" -o node.tar.gz
           tar -xzf node.tar.gz
-          cp node-v22.18.0-darwin-arm64/bin/node src-tauri/resources/node
+          cp node-v22.23.4-darwin-arm64/bin/node src-tauri/resources/node
           chmod +x src-tauri/resources/node
       - name: Build PO-token generator (bgutil, macOS)
         run: |
