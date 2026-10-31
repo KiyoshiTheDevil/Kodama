@@ -10,6 +10,13 @@ All notable changes to Kodama (formerly Kiyoshi Music) are documented here.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.43] - 2026-10-31
+
+Security:
+- The bundled Node runtime is updated to 22.23.4, which fixes CVE-2026-111497 (Node2Shell) in its Brotli decoder
+- Existing installs replace their older copy of Node on their own, at the latest on the next start
+- The backend's Brotli library is updated to 1.2.1 for the same flaw
+
 ## [1.0.0-alpha.42] - 2026-10-13
 
 Changes:
