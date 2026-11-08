@@ -6,34 +6,31 @@
        before the stylesheet, and without this it was the browser's own dark grey, a flash on
        every page change. -->
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0f1a14">
-  <style>html{background:#0f1a14;color-scheme:dark}</style>
+  <meta name="theme-color" content="#000000">
+  <style>html{background:#000;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kodama: Privacy Policy</title>
   <meta name="description" content="What Kodama sends, to whom, and what it keeps.">
-  <link rel="stylesheet" href="style.css">
-  <!-- The font in before the first paint, so a page change does not show the fallback first. -->
-  <link rel="preload" href="s/MiSansLatin-Regular.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="s/MiSansLatin-Semibold.ttf" as="font" type="font/ttf" crossorigin>
-  <script type="module" src="js/site.js"></script>
-  <script type="module" src="js/spirit.js" blocking="render"></script>
+  <link rel="stylesheet" href="landing.css">
+  <link rel="preload" href="s/Onest-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="s/Onest-Bold.ttf" as="font" type="font/ttf" crossorigin>
 </head>
 <body>
-  <div class="wrap">
-    <header class="top">
-      <a class="logo" href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
-      <div class="hdr-right">
-        <nav class="links">
-          <a href="store/">Store</a>
-          <a href="versions.html">Changelog</a>
-          <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-          <span class="ai-notice" tabindex="0">
-            AI notice
-            <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
-          </span>
-        </nav>
-      </div>
-    </header>
+  <div class="glow" aria-hidden="true"></div>
+
+  <header class="top">
+    <a href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
+    <nav class="links">
+      <a href="versions.html">Changelog</a>
+      <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+      <span class="ai-notice" tabindex="0">
+        AI notice
+        <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
+      </span>
+    </nav>
+  </header>
+
+  <main class="page">
 
     <div class="vhead">
       <h1>Privacy Policy</h1>
@@ -116,19 +113,11 @@
       <h2>Changes</h2>
       <p>If this policy changes, the new version is published on this page with a new date. The full history is on GitHub.</p>
     </div>
-  </div>
+  </main>
 
-  <footer>
-    <div class="wrap">
-      <span>Kodama, an independent project. Not affiliated with YouTube or Google.</span>
-      <span class="flinks">
-        <a href="./">Home</a>
-        <a href="store/">Store</a>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
-        <a href="terms.html">Terms</a>
-        <a href="privacy.html">Privacy</a>
-      </span>
-    </div>
+  <footer class="foot">
+    An independent project, not affiliated with YouTube or Google. ·
+    <a href="./">Home</a> · <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a>
   </footer>
 </body>
 </html>

@@ -1,0 +1,25 @@
+{
+  "milestones": {
+    "count": 5,
+    "current": 1,
+    "progress": 0.6,
+    "eta": "December 2026"
+  },
+  "stages": ["Research", "Planning", "In development", "Testing", "Working", "Testing II", "Done"],
+  "platforms": [
+    { "name": "Windows", "stage": "In development" },
+    { "name": "Android", "stage": "In development" },
+    { "name": "macOS", "stage": "Research" },
+    {
+      "name": "Linux",
+      "stage": "Planning",
+      "children": [
+        { "name": "SteamOS", "stage": "Planning" },
+        { "name": "Fedora", "stage": "Research" },
+        { "name": "CachyOS", "stage": "Research" },
+        { "name": "Linux Mint", "stage": "Research" },
+        { "name": "Bazzite", "stage": "Research" }
+      ]
+    }
+  ]
+}

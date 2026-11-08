@@ -1,0 +1,179 @@
+/* The landing page while the new client is being built: black, Onest, colour only in the eyes
+   and the bars. Its own stylesheet, so the other pages (style.css) stay as they are. */
+@font-face { font-family:'Onest'; src:url('s/Onest-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
+@font-face { font-family:'Onest'; src:url('s/Onest-Medium.ttf') format('truetype'); font-weight:500; font-display:swap; }
+@font-face { font-family:'Onest'; src:url('s/Onest-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
+:root {
+  --bg:#000; --s1:#141414; --s2:#1c1c1c;
+  --t1:rgba(255,255,255,.886); --t2:rgba(255,255,255,.544); --t3:rgba(255,255,255,.373);
+  --line:rgba(255,255,255,.082); --fill:rgba(255,255,255,.055); --fill2:rgba(255,255,255,.093);
+  --ac:#9be36d; --ac-2:#7cc251;
+  color-scheme:dark;
+}
+* { box-sizing:border-box; }
+/* clip, not hidden: the glow is wider than a phone, and must not widen the page there. */
+html { background:var(--bg); overflow-x:clip; }
+body {
+  margin:0; min-height:100vh; min-height:100svh; display:flex; flex-direction:column;
+  font-family:'Onest',-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--t1); line-height:1.45;
+  background:var(--bg); overflow-x:clip; position:relative;
+}
+a { color:inherit; text-decoration:none; }
+
+/* The glow from above, behind the eyes. */
+.glow {
+  position:absolute; left:50%; top:-260px; width:min(1100px, 160vw); height:760px; transform:translateX(-50%);
+  background:radial-gradient(closest-side, rgba(155,227,109,.16), rgba(155,227,109,.04) 60%, transparent);
+  filter:blur(30px); pointer-events:none;
+}
+
+.top { display:flex; justify-content:space-between; align-items:center; padding:24px clamp(16px, 4vw, 56px); position:relative; z-index:2; }
+.top img { height:24px; display:block; filter:grayscale(1) brightness(2.2); }
+.links { display:flex; gap:6px; }
+.links a { padding:8px 14px; border-radius:999px; font-size:14px; color:var(--t2); background:var(--fill); transition:background .17s, color .17s; }
+.links a:hover { background:var(--fill2); color:var(--t1); }
+.links { align-items:center; }
+.links a.on { background:var(--t1); color:#000; }
+/* AI notice: small, honest disclosure; hover/focus shows the full statement. Same size as the
+   links next to it, told apart by its orange tint instead of a solid orange block. */
+.ai-notice { position:relative; display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:500; color:#ffb066;
+  background:rgba(255,157,66,.13); border-radius:999px; padding:8px 14px; cursor:default; transition:background .17s; }
+.ai-notice:hover, .ai-notice:focus-visible { background:rgba(255,157,66,.22); outline:none; }
+.ai-notice-tip { position:absolute; top:calc(100% + 10px); right:0; width:300px; z-index:20; background:var(--s2);
+  border-radius:16px; padding:14px 16px; font-size:13.5px; font-weight:400; line-height:1.55;
+  color:var(--t1); box-shadow:0 20px 50px rgba(0,0,0,.6); display:none; text-align:left; }
+.ai-notice:hover .ai-notice-tip, .ai-notice:focus-visible .ai-notice-tip { display:block; }
+
+main { position:relative; z-index:1; width:min(820px, 100% - 32px); margin:34px auto 0; text-align:center; }
+.eyes { display:block; margin:0 auto 22px; width:110px; height:110px; filter:drop-shadow(0 0 18px rgba(155,227,109,.7)); }
+.eyes rect { fill:var(--ac); transform-box:fill-box; transform-origin:center; animation:blink 5s infinite; }
+.eyes .look { transition:transform .25s ease-out; }     /* follows the pointer a little (landing.js) */
+@keyframes blink { 0%, 94%, 100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
+h1 { font-size:clamp(30px, 5.4vw, 56px); font-weight:700; margin:0 0 44px; letter-spacing:-.02em; line-height:1.1; }
+
+/* Milestones: one segment each, the current one striped and partly filled. */
+.ms { display:flex; gap:8px; text-align:left; }
+.sg { flex:1; min-width:0; }
+.sg .b { height:8px; border-radius:4px; background:var(--fill2); overflow:hidden; }
+.sg .b i { display:block; height:100%; background:var(--ac); }
+/* The current one fills up when the page opens, then its stripes keep walking slowly. */
+.sg.now .b i {
+  background:linear-gradient(-45deg, var(--ac) 25%, var(--ac-2) 25% 50%, var(--ac) 50% 75%, var(--ac-2) 75%);
+  background-size:20px 20px; animation:stripes 1.6s linear infinite;
+  transition:width 1.1s cubic-bezier(.22,1,.36,1) .25s;
+}
+@keyframes stripes { to { background-position:20px 0; } }
+.sg .t { display:block; margin-top:8px; font-size:13px; color:var(--t3); }
+.sg.done .t { color:var(--t2); }
+.sg.now .t { color:var(--ac); font-weight:500; }
+.sg .eta { display:block; font-size:12px; color:var(--t3); margin-top:1px; }
+
+/* Platforms: a bar per platform across the stages. */
+.card { background:var(--s1); border-radius:22px; padding:8px 22px; margin-top:26px; text-align:left; }
+.hd, .pr { display:grid; grid-template-columns:104px 1fr 104px; align-items:center; gap:16px; }
+.hd { padding:14px 0 4px; }
+.hd .sc { position:relative; height:14px; font-size:11px; color:var(--t3); }
+.hd .sc span { position:absolute; top:0; transform:translateX(-50%); white-space:nowrap; }
+.hd .sc span:first-child { transform:none; }
+.hd .sc span:last-child { transform:translateX(-100%); }
+.pr { padding:9px 0; font-size:15px; font-weight:500; border-top:1px solid var(--line); }
+.pr .s { font-size:12.5px; font-weight:400; text-align:right; }
+.pb { position:relative; display:block; height:8px; border-radius:4px; background:var(--fill2); overflow:hidden; }
+.pb i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+.pb u { position:absolute; top:0; bottom:0; width:2px; background:var(--s1); }
+button.pr { width:100%; background:none; border:0; border-top:1px solid var(--line); color:inherit; font:inherit; font-size:15px; font-weight:500; text-align:left; cursor:pointer; }
+.head .n { display:flex; align-items:center; gap:6px; }
+.head .n svg { width:14px; height:14px; color:var(--t3); transform:rotate(-90deg); transition:transform .2s; }
+.grp.open .head .n svg { transform:none; }
+.subs { display:none; }
+.grp.open .subs { display:block; }
+.sub { border-top:0; padding:5px 0; font-size:13.5px; font-weight:400; }
+.sub .n { color:var(--t2); padding:2px 0 2px 14px; margin-left:5px; border-left:1px solid var(--line); }
+.sub .pb { height:5px; }
+
+/* Kodama itself, like the mini player in the app, kept at the bottom of the window. */
+.island {
+  position:sticky; bottom:24px; z-index:3; margin:auto auto 24px; width:min(760px, 100% - 32px);
+  display:flex; align-items:center; gap:16px; padding:12px 12px 12px 14px; border-radius:28px;
+  background:var(--s1);
+}
+.spacer { height:56px; }
+.island .art { width:52px; height:52px; flex:none; border-radius:14px; background:var(--s2); display:grid; place-items:center; }
+.island .tx { flex:1; min-width:0; }
+.island b { display:block; font-size:16px; font-weight:700; }
+.island .st { font-size:13px; color:var(--t2); }
+.island .go { display:flex; align-items:center; gap:8px; height:52px; padding:0 22px; border-radius:999px; background:#fff; color:#000; font-weight:500; font-size:15px; white-space:nowrap; transition:transform .17s; }
+.island .more { height:52px; padding:0 18px; border-radius:999px; background:var(--fill2); display:grid; place-items:center; font-size:14px; white-space:nowrap; transition:background .17s; }
+.island .go:hover { transform:scale(1.03); }
+.island .more:hover { background:rgba(255,255,255,.14); }
+.ic { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+
+.foot { position:relative; z-index:1; text-align:center; font-size:12px; color:var(--t3); padding:0 16px 20px; }
+.foot a { color:var(--t2); }
+.foot a:hover { color:var(--t1); }
+
+/* ── Changelog, Terms, Privacy ──────────────────────────────────────── */
+.page { position:relative; z-index:1; width:min(780px, 100% - 32px); margin:24px auto 0; flex:1; text-align:left; }
+.vhead { padding:10px 0 26px; }
+.vhead h1 { font-size:clamp(30px, 4.6vw, 48px); font-weight:700; letter-spacing:-.02em; margin:0 0 6px; }
+.vhead .sub { color:var(--t2); margin:0; }
+.legal, .rel { background:var(--s1); border-radius:22px; }
+.legal { color:var(--t2); font-size:15px; line-height:1.65; padding:28px 32px; margin-bottom:56px; }
+.legal h2 { color:var(--t1); font-size:19px; font-weight:700; margin:34px 0 10px; }
+.legal h2:first-of-type { margin-top:18px; }
+.legal h3 { color:var(--t1); font-size:15.5px; font-weight:500; margin:24px 0 6px; }
+.legal p { margin:0 0 12px; }
+.legal ul { margin:0 0 14px; padding-left:22px; }
+.legal li { margin:4px 0; }
+.legal strong { color:var(--t1); font-weight:500; }
+.legal a, .rel-body a { color:var(--ac); }
+.legal a:hover, .rel-body a:hover { text-decoration:underline; }
+.legal code, .rel-body code { font-size:.9em; background:var(--fill2); padding:1px 5px; border-radius:5px; }
+.legal .updated { color:var(--t3); font-size:13px; margin:0 0 18px; }
+.releases { display:flex; flex-direction:column; gap:12px; margin-bottom:56px; }
+.releases > .sub { color:var(--t2); }
+.rel { padding:22px 24px; }
+.rel.latest { box-shadow:inset 0 0 0 1px rgba(155,227,109,.35); }
+.rel-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.rel-ver { font-size:20px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px; }
+.rel-badge { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#000; background:var(--ac); border-radius:99px; padding:3px 9px; }
+.rel-date { color:var(--t3); font-size:13px; }
+.rel-body { color:var(--t2); font-size:14px; margin-top:12px; }
+.rel-body h2, .rel-body h3, .rel-body h4 { color:var(--t1); font-size:14px; font-weight:500; margin:14px 0 6px; }
+.rel-body ul { margin:6px 0; padding-left:20px; }
+.rel-body li { margin:3px 0; }
+.rel-body p { margin:6px 0; }
+.rel-body strong { color:var(--t1); font-weight:500; }
+.rel-dl { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.rel-dl a { font-size:13px; font-weight:500; padding:9px 16px; border-radius:99px; background:var(--fill2); transition:background .17s; }
+.rel-dl a:hover { background:rgba(255,255,255,.14); }
+.rel.latest .rel-dl a.win { background:#fff; color:#000; }
+.mac-install { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.mac-install code { display:block; font-size:12.5px; color:var(--t1); background:var(--fill2); border-radius:12px; padding:9px 14px; white-space:nowrap; overflow-x:auto; max-width:100%; }
+.mac-install .mac-note { margin:0; font-size:12px; color:var(--t3); max-width:440px; }
+
+@media (max-width:700px) {
+  .legal { padding:20px; }
+  .links { gap:4px; }
+  .links a { padding:7px 11px; font-size:13px; }
+  .ai-notice { padding:7px 10px; }
+  .ai-notice-tip { width:min(260px, calc(100vw - 32px)); }
+  main { margin-top:16px; }
+  .eyes { width:84px; height:84px; }
+  h1 { margin-bottom:32px; }
+  .ms { gap:5px; }
+  .sg .t { font-size:11px; }
+  .sg .t .w { display:none; }          /* "Milestone 1" becomes "1" */
+  .sg.now { flex:2.4; }                /* room for the ETA on one line */
+  .sg .eta { white-space:nowrap; font-size:11px; }
+  .card { padding:6px 14px; }
+  .hd { display:none; }                /* no room for the stage names; the stage stands on the right */
+  .hd, .pr { grid-template-columns:78px 1fr 86px; gap:10px; }
+  .pr, button.pr { font-size:14px; }
+  .pr .s { font-size:11.5px; }
+  .island { flex-wrap:wrap; gap:10px 12px; border-radius:24px; }
+  .island .tx { flex-basis:calc(100% - 64px); }
+  .island .go { flex:1; justify-content:center; height:46px; }
+  .island .more { height:46px; }
+}
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }

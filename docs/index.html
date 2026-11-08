@@ -2,212 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- The page colour before anything else loads: the very first frame of a new page is drawn
-       before the stylesheet, and without this it was the browser's own dark grey, a flash on
-       every page change. -->
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0f1a14">
-  <style>html{background:#0f1a14;color-scheme:dark}</style>
+  <meta name="theme-color" content="#000000">
+  <style>html{background:#000;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kodama: A desktop player for YouTube Music</title>
-  <meta name="description" content="Kodama is a desktop music player for YouTube Music with synced lyrics, an OBS overlay, community lyrics and deep personalization. Free, for Windows & macOS.">
-  <link rel="stylesheet" href="style.css">
-  <!-- The font in before the first paint, so a page change does not show the fallback first. -->
-  <link rel="preload" href="s/MiSansLatin-Regular.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="s/MiSansLatin-Semibold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="s/MiSansLatin-Heavy.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="s/MiSansLatin-Light.ttf" as="font" type="font/ttf" crossorigin>
-  <script type="module" src="js/site.js"></script>
-  <script type="module" src="js/spirit.js" blocking="render"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script type="module" src="js/spotlights.js"></script>
+  <title>Kodama</title>
+  <meta name="description" content="Something new is in the works. Kodama, a music player for YouTube Music: development status and downloads.">
+  <link rel="stylesheet" href="landing.css">
+  <link rel="preload" href="s/Onest-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="s/Onest-Bold.ttf" as="font" type="font/ttf" crossorigin>
 </head>
-<body class="landing">
-  <!-- The forest behind the first screen: tall trunks at the sides, crowns above the top edge,
-       light falling through the middle. Behind everything, fading out further down. -->
-  <div class="forest" aria-hidden="true">
-    <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">
-      <defs>
-        <linearGradient id="fr-ray" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be36d" stop-opacity=".16"/><stop offset=".75" stop-color="#9be36d" stop-opacity="0"/></linearGradient>
-      </defs>
-      <g class="fr-rays">
-        <path class="fr-ray" d="M640 -10 L800 -10 L620 1000 L380 1000 Z" fill="url(#fr-ray)"/>
-        <path class="fr-ray r2" d="M880 -10 L960 -10 L900 1000 L760 1000 Z" fill="url(#fr-ray)"/>
-        <path class="fr-ray r3" d="M1040 -10 L1090 -10 L1160 1000 L1060 1000 Z" fill="url(#fr-ray)"/>
-      </g>
-      <g class="fr-back" fill="#14271b"><rect x="70" width="22" height="1000" rx="7"/><rect x="150" width="14" height="1000" rx="4"/><rect x="250" width="26" height="1000" rx="8"/><rect x="330" width="12" height="1000" rx="4"/><rect x="1250" width="14" height="1000" rx="4"/><rect x="1330" width="28" height="1000" rx="9"/><rect x="1440" width="16" height="1000" rx="5"/><rect x="1530" width="24" height="1000" rx="8"/><g fill="#162d1f"><circle cx="80" cy="40" r="110"/><circle cx="165" cy="20" r="80"/><circle cx="255" cy="50" r="120"/><circle cx="335" cy="0" r="70"/><circle cx="1255" cy="10" r="80"/><circle cx="1340" cy="40" r="120"/><circle cx="1445" cy="0" r="90"/><circle cx="1535" cy="30" r="110"/></g></g>
-      <g class="fr-front" fill="#112218"><rect x="0" width="64" height="1000" rx="21"/><rect x="110" width="40" height="1000" rx="13"/><rect x="205" width="30" height="1000" rx="10"/><rect x="1395" width="34" height="1000" rx="11"/><rect x="1480" width="46" height="1000" rx="15"/><rect x="1565" width="70" height="1000" rx="23"/><g fill="#15291c"><circle cx="30" cy="10" r="150"/><circle cx="130" cy="-20" r="120"/><circle cx="220" cy="30" r="100"/><circle cx="1410" cy="20" r="110"/><circle cx="1500" cy="-10" r="140"/><circle cx="1590" cy="30" r="150"/></g></g>
-    </svg>
-  </div>
-  <div class="wrap">
-    <header class="top">
-      <a class="logo" href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
-      <div class="hdr-right">
-        <span class="hstats" id="stats" hidden>
-          <span id="statMauBox"><b id="statMau">–</b> active this month</span>
-          <span id="statSep">·</span>
-          <span id="statDlBox"><b id="statDl">–</b> downloads</span>
-        </span>
-        <nav class="links">
-          <a href="store/">Store</a>
-          <a href="versions.html">Changelog</a>
-          <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-          <span class="ai-notice" tabindex="0">
-            AI notice
-            <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
-          </span>
-        </nav>
-      </div>
-    </header>
+<body>
+  <div class="glow" aria-hidden="true"></div>
 
-    <section class="hero">
-      <div>
-        <h1>A desktop player for <span class="grad glass-text" data-t="YouTube Music">YouTube Music</span></h1>
-        <p class="tagline">Synced lyrics, personalization, and more.</p>
-        <!-- One download that names the visitor's system and the version, joined to GitHub.
-             Filled in below from the latest release; without it, it still leads to Releases. -->
-        <div class="dl-pair">
-          <a class="dl-main" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">
-            <span class="dl-ic" id="dlIc"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg></span>
-            <span><b id="dlTitle">Download Kodama</b><small id="dlSub">Free · Open alpha</small></span>
-          </a>
-          <a class="dl-gh" href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener" title="View on GitHub" aria-label="View on GitHub">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
-          </a>
-        </div>
-        <div class="dl-alt" id="dlAlt">Windows &amp; macOS · <a href="versions.html">All versions</a></div>
-      </div>
-      <div class="stage">
-        <div class="device">
-          <picture>
-            <source srcset="shots/home.webp" type="image/webp">
-            <img class="shot" src="shots/home.png" alt="Kodama, home view" width="1920" height="1048" loading="eager">
-          </picture>
-        </div>
-        <kodama-spirit class="hero-spirit" pose="listen" size="118" follow></kodama-spirit>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="feat-head">
-        <!-- Starts under the heading, looking down at what follows; scrolling (or a click on it)
-             carries it up onto it. -->
-        <button type="button" class="feat-mover" aria-label="Scroll to the features">
-          <kodama-spirit class="feat-spirit" pose="idle" size="64" follow></kodama-spirit>
-          <svg class="feat-hint" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <h2>Look! <span class="grad">Features!</span></h2>
-      </div>
-      <div class="spots">
-        <div class="spot">
-          <div class="spot-text"><h3>Synced lyrics</h3><p>Line, word- and syllable-level synchronized lyrics, with translations and romaji for Japanese songs.</p></div>
-          <div class="spot-vis"><svg data-scene="lyrics" viewBox="0 0 420 220" role="img" aria-label="A spirit with headphones next to lyrics that light up word by word"></svg></div>
-        </div>
-        <div class="spot rev">
-          <div class="spot-text"><h3>Overlay editor <a class="soon" href="https://ofuda.kiyoshi.dev/" target="_blank" rel="noopener">Moving to Ofuda</a></h3><p>Put your now-playing track on stream, and design it yourself: layers, colours from the cover, shaders and live audio levels. The editor is moving out of Kodama into its own app, <a class="inline" href="https://ofuda.kiyoshi.dev/" target="_blank" rel="noopener">Ofuda</a>, which works with any music player.</p></div>
-          <div class="spot-vis"><svg data-scene="overlay" viewBox="0 0 440 270" role="img" aria-label="A now-playing widget built from layers in the overlay editor, then shown on a stream"></svg></div>
-        </div>
-        <div class="spot">
-          <div class="spot-text"><h3>Listen together</h3><p>Start a room, send the link, and your friends hear the same song at the same moment. You decide who can add songs.</p></div>
-          <div class="spot-vis"><svg data-scene="together" viewBox="0 0 420 240" role="img" aria-label="Spirits on a bench listening to the same song, a third one joins"></svg></div>
-        </div>
-      </div>
-
-      <p class="sub more">A full-screen now-playing view with a real-time audio visualizer.</p>
-      <div class="showcase">
-        <video class="scv" autoplay muted loop playsinline poster="shots/loop-poster.jpg" aria-label="Kodama, audio visualizer in motion">
-          <source src="shots/loop.mp4" type="video/mp4">
-        </video>
-        <img class="scv-static" src="shots/loop-poster.jpg" alt="Kodama, audio visualizer">
-      </div>
-      <a class="song-credit" href="https://kodama.kiyoshi.dev/s/?cENYLTXTOQ4"><b>最低界隈 - Saitei Kaiwai</b> by <b>tuki.</b></a>
-
-      <div class="bento">
-        <div class="tile"><h3>Audio visualizer</h3><p>A reactive, fully customizable visualizer with savable presets.</p></div>
-        <div class="tile"><h3>Remote control</h3><p>Control playback from your phone over your local network.</p></div>
-        <div class="tile"><h3>Personalization</h3><p>Dynamic accent colors drawn from the cover art, themes, and swappable app icons.</p></div>
-        <div class="tile"><h3>And even more stuff!</h3><p>Offline downloads, Discord Rich Presence, and Last.fm scrobbling.</p>
-          <kodama-spirit pose="sleep" size="58"></kodama-spirit></div>
-      </div>
-
-      <a class="store-teaser" href="store/">
-        <kodama-spirit pose="idle" size="64" follow></kodama-spirit>
-        <div><h3>Store</h3><p>Themes, visualizer and equalizer presets, overlay designs and extensions.</p></div>
-        <span class="btn secondary small">Open the store</span>
-      </a>
-    </section>
-  </div>
-
-  <footer>
-    <div class="wrap">
-      <span>Kodama, an independent project. Not affiliated with YouTube or Google.</span>
-      <span class="flinks">
-        <a href="store/">Store</a>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">Releases</a>
-        <a href="terms.html">Terms</a>
-        <a href="privacy.html">Privacy</a>
+  <header class="top">
+    <a href="./"><img src="s/Kodama-Logo-Full.svg" alt="Kodama"></a>
+    <nav class="links">
+      <a href="versions.html">Changelog</a>
+      <a href="https://github.com/KiyoshiTheDevil/Kodama" target="_blank" rel="noopener">GitHub</a>
+      <span class="ai-notice" tabindex="0">
+        AI notice
+        <span class="ai-notice-tip" role="tooltip">This app has been created with an LLM called Claude Code. If you're against the usage of LLMs or AI in any capacity, this app won't be for you. I hope you understand.</span>
       </span>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Only the eyes of the spirit, in the dark. -->
+    <svg class="eyes" viewBox="30 0 48 48" aria-hidden="true">
+      <g class="look"><rect x="46.72" y="16.09" width="5.98" height="12" rx="2.99"/><rect x="55.69" y="16.09" width="5.98" height="12" rx="2.99"/></g>
+    </svg>
+    <h1>Something new is in the works.</h1>
+
+    <!-- Filled from status.json (milestones, platforms). -->
+    <div class="ms" id="milestones"></div>
+    <div class="card" id="platforms" hidden></div>
+  </main>
+
+  <div class="spacer"></div>
+
+  <!-- Kodama as it is today: numbers and the download, like the mini player in the app. -->
+  <div class="island">
+    <div class="art" aria-hidden="true">
+      <svg width="30" height="30" viewBox="30 0 48 48" fill="#eaeaea">
+        <path fill-rule="evenodd" d="M53.7854 1.08728C66.388 1.08752 76.6039 11.3469 76.6039 24.0004C76.603 37.4721 65.0822 48.036 51.7195 46.8168L46.8465 46.3716C44.7842 46.1832 42.7057 46.2948 40.675 46.7025C35.0252 47.8371 30.0422 42.8361 31.1713 37.1634C31.5775 35.1243 31.6886 33.0351 31.501 30.9642L31.0604 26.0746C29.8456 12.6573 40.3668 1.08728 53.7854 1.08728Z M53.6949 7.08729C43.6016 7.08729 35.7467 15.8971 36.8613 25.9691L37.2727 29.6781C37.5942 32.5833 37.283 35.5242 36.3623 38.2971C35.7077 40.2708 37.58 42.1485 39.5458 41.4906C42.307 40.5666 45.2349 40.254 48.1274 40.5765L51.8246 40.9896C61.8555 42.108 70.6276 34.2246 70.6279 24.0912C70.6279 14.7011 63.0471 7.08801 53.6949 7.08729Z"/>
+        <rect x="46.72" y="16.09" width="5.98" height="12" rx="2.99"/><rect x="55.69" y="16.09" width="5.98" height="12" rx="2.99"/>
+      </svg>
     </div>
+    <div class="tx"><b>Kodama</b><span class="st" id="stats">Windows and macOS</span></div>
+    <a class="go" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg><span id="dlLabel">Download</span>
+    </a>
+    <a class="more" href="versions.html">All versions</a>
+  </div>
+
+  <footer class="foot">
+    An independent project, not affiliated with YouTube or Google. ·
+    <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a>
   </footer>
-  <script>
-  (function(){
-    var STATS_URL = 'https://kodama-stats.kiyoshidesign.workers.dev';
-    var ua = navigator.userAgent;
-    var OS = /Android|iPhone|iPad/i.test(ua) ? 'other' : /Mac/i.test(ua) ? 'mac' : /Win/i.test(ua) ? 'win' : 'other';
-    var ICONS = {
-      win: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.5v7H3zM11 4.4 21 3v8.5H11zM3 12.5h7v7L3 18.5zM11 12.5h10V21l-10-1.4z"/></svg>',
-      mac: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.8-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.5-1-2.5-3.9zM14 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"/></svg>'
-    };
-    if (OS === 'win' || OS === 'mac') {
-      document.getElementById('dlTitle').textContent = 'Download for ' + (OS === 'mac' ? 'macOS' : 'Windows');
-      document.getElementById('dlIc').innerHTML = ICONS[OS];
-    }
-    var REPO = 'KiyoshiTheDevil/Kodama';
-    function human(n){ if(n>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'M'; if(n>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'k'; return String(n); }
-    var box = document.getElementById('stats');
-    function reveal(){ if (box && box.hidden) box.hidden = false; }
-    function countUp(el, target){
-      var t0 = performance.now(), dur = 900;
-      (function step(t){ var p = Math.min(1,(t-t0)/dur); el.textContent = human(Math.round((1-Math.pow(1-p,3))*target)); if (p<1) requestAnimationFrame(step); })(performance.now());
-    }
-    function syncSep(){
-      var sep = document.getElementById('statSep'); if (!sep) return;
-      var mv = document.getElementById('statMauBox').style.display !== 'none';
-      var dv = document.getElementById('statDlBox').style.display !== 'none';
-      sep.style.display = (mv && dv) ? '' : 'none';
-    }
-    function fill(boxId, numId, val){
-      var b = document.getElementById(boxId);
-      if (val == null || val <= 0){ if (b) b.style.display = 'none'; }
-      else { reveal(); countUp(document.getElementById(numId), val); }
-      syncSep();
-    }
-    fetch(STATS_URL + '/count').then(function(r){ return r.json(); })
-      .then(function(d){ fill('statMauBox','statMau', d && d.mau); })
-      .catch(function(){ fill('statMauBox','statMau', 0); });
-    fetch('https://api.github.com/repos/' + REPO + '/releases').then(function(r){ return r.json(); })
-      .then(function(rs){
-        rs = rs || [];
-        var t = 0; rs.forEach(function(rel){ (rel.assets||[]).forEach(function(a){ t += a.download_count||0; }); });
-        fill('statDlBox','statDl', t);
-        // Latest published release -> version label + OS-aware direct download.
-        var latest = null; for (var i=0;i<rs.length;i++){ if (!rs[i].draft){ latest = rs[i]; break; } }
-        if (!latest) return;
-        var assets = latest.assets || [];
-        function pick(re){ for (var j=0;j<assets.length;j++){ if (re.test(assets[j].name)) return assets[j].browser_download_url; } return null; }
-        var win = pick(/setup\.exe$|\.exe$/i), mac = pick(/\.dmg$/i);
-        var url = OS === 'mac' ? mac : OS === 'win' ? win : null;
-        var btn = document.getElementById('dlBtn');
-        if (btn && url){ btn.href = url; btn.removeAttribute('target'); } // direct download
-        document.getElementById('dlSub').textContent = latest.tag_name + ' · Free';
-        // The other system, one click away.
-        var other = OS === 'mac' ? ['Windows', win] : OS === 'win' ? ['macOS', mac] : null;
-        var alt = document.getElementById('dlAlt');
-        if (other && other[1]) alt.innerHTML = 'Also for <a href="' + other[1] + '">' + other[0] + '</a> · <a href="versions.html">All versions</a>';
-      })
-      .catch(function(){ fill('statDlBox','statDl', 0); });
-  })();
-  </script>
+
+  <script src="js/landing.js"></script>
 </body>
 </html>
