@@ -90,6 +90,46 @@
     document.documentElement.addEventListener("pointerleave", function () { look.style.transform = ""; });
   }
 
+  // ── A reaction when the eyes are clicked ─────────────────────────────
+  // It escalates: one click makes it happy (^^ and a hop), quick clicks startle it, after a few it
+  // gets dizzy (spirals, wobbling), and after more it looks unimpressed for a moment.
+  var eyes = document.querySelector(".eyes");
+  var busy = null, streak = 0, last = 0, motion = null;
+  var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // The body's movement per reaction; each starts from the pose the previous one was in.
+  var MOVES = {
+    happy: { ms: 700, easing: "cubic-bezier(.3,.7,.4,1)", frames: [
+      { transform: "translateY(-14px) scale(.96,1.05)", offset: .35 }, { transform: "translateY(0) scale(1.05,.95)", offset: .7 }, { transform: "none" }] },
+    startle: { ms: 600, easing: "cubic-bezier(.2,.9,.3,1.4)", frames: [
+      { transform: "translateY(-6px) scale(.9,1.12)", offset: .3 }, { transform: "none" }] },
+    dizzy: { ms: 1500, easing: "ease-in-out", frames: [
+      { transform: "rotate(-9deg)", offset: .2 }, { transform: "rotate(7deg)", offset: .4 }, { transform: "rotate(-5deg)", offset: .6 },
+      { transform: "rotate(3deg)", offset: .8 }, { transform: "none" }] },
+    squint: { ms: 350, easing: "ease-out", frames: [{ transform: "none" }] }
+  };
+  function react(kind, ms) {
+    eyes.classList.remove("r-happy", "r-startle", "r-dizzy", "r-squint");
+    eyes.classList.add("r-" + kind);
+    clearTimeout(busy);
+    busy = setTimeout(function () { eyes.classList.remove("r-" + kind); }, ms);
+    if (calm || !eyes.animate) return;
+    var from = getComputedStyle(eyes).transform;   // mid-hop or mid-wobble: carry on from there
+    if (motion) motion.cancel();
+    var m = MOVES[kind];
+    motion = eyes.animate([{ transform: from === "none" ? "none" : from }].concat(m.frames), { duration: m.ms, easing: m.easing });
+  }
+  // Quick clicks would select the heading under the eyes.
+  if (eyes) eyes.addEventListener("mousedown", function (e) { e.preventDefault(); });
+  if (eyes) eyes.addEventListener("click", function () {
+    var now = Date.now();
+    streak = now - last < 900 ? streak + 1 : 1;
+    last = now;
+    if (streak >= 7) { react("squint", 2200); streak = 0; }
+    else if (streak >= 4) react("dizzy", 1500);
+    else if (streak >= 2) react("startle", 700);
+    else react("happy", 900);
+  });
+
   // ── Numbers and download ─────────────────────────────────────────────
   var STATS_URL = "https://kodama-stats.kiyoshidesign.workers.dev";
   var REPO = "KiyoshiTheDevil/Kodama";

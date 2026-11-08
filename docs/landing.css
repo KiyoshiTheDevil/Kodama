@@ -48,6 +48,28 @@ main { position:relative; z-index:1; width:min(820px, 100% - 32px); margin:34px 
 .eyes { display:block; margin:0 auto 22px; width:110px; height:110px; filter:drop-shadow(0 0 18px rgba(155,227,109,.7)); }
 .eyes rect { fill:var(--ac); transform-box:fill-box; transform-origin:center; animation:blink 5s infinite; }
 .eyes .look { transition:transform .25s ease-out; }     /* follows the pointer a little (landing.js) */
+
+/* Reactions to a click (landing.js). One pair of eyes shows at a time; switching pairs is a short
+   cross-fade where the old pair closes like a lid and the new one opens, so a reaction can follow
+   another mid-way without a jump. The body's hop or wobble is animated from the script, starting
+   wherever the last one left off. No selection: quick clicks would otherwise select the heading. */
+.eyes { cursor:pointer; overflow:visible; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+  transition:filter .35s ease-out; }
+.eyes .happy, .eyes .squint, .eyes .spiral { fill:none; stroke:var(--ac); stroke-linecap:round; stroke-linejoin:round; }
+.eyes .happy, .eyes .squint { stroke-width:2.8; }
+.eyes .spiral { stroke-width:1.15; }
+.eyes .open, .eyes .happy, .eyes .squint, .eyes .sp {
+  transform-box:fill-box; transform-origin:center;
+  transition:opacity .16s ease-out, transform .26s cubic-bezier(.3,1.5,.5,1);
+}
+.eyes .happy, .eyes .squint { opacity:0; transform:scaleY(.15); }
+.eyes .sp { opacity:0; transform:scale(.4); }
+.eyes.r-happy .open, .eyes.r-squint .open, .eyes.r-dizzy .open { opacity:0; transform:scaleY(.15); }
+.eyes.r-happy .happy, .eyes.r-squint .squint { opacity:1; transform:none; }
+.eyes.r-dizzy .sp { opacity:1; transform:none; }
+/* startle: the open eyes go wide and the glow flares */
+.eyes.r-startle .open { transform:scale(1.22,1.32); }
+.eyes.r-startle { filter:drop-shadow(0 0 30px rgba(155,227,109,1)); }
 @keyframes blink { 0%, 94%, 100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
 h1 { font-size:clamp(30px, 5.4vw, 56px); font-weight:700; margin:0 0 44px; letter-spacing:-.02em; line-height:1.1; }
 
