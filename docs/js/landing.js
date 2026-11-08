@@ -92,7 +92,8 @@
 
   // ── A reaction when the eyes are clicked ─────────────────────────────
   // It escalates: one click makes it happy (^^ and a hop), quick clicks startle it, after a few it
-  // gets dizzy (spirals, wobbling), and after more it looks unimpressed for a moment.
+  // gets dizzy (spirals, wobbling), then looks unimpressed, and if the clicking goes on it gets
+  // angry (red slanted eyes, a shake) and ignores clicks until it has calmed down.
   var eyes = document.querySelector(".eyes");
   var busy = null, streak = 0, last = 0, motion = null;
   var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -105,26 +106,78 @@
     dizzy: { ms: 1500, easing: "ease-in-out", frames: [
       { transform: "rotate(-9deg)", offset: .2 }, { transform: "rotate(7deg)", offset: .4 }, { transform: "rotate(-5deg)", offset: .6 },
       { transform: "rotate(3deg)", offset: .8 }, { transform: "none" }] },
-    squint: { ms: 350, easing: "ease-out", frames: [{ transform: "none" }] }
+    squint: { ms: 350, easing: "ease-out", frames: [{ transform: "none" }] },
+    angry: { ms: 900, easing: "linear", frames: [
+      { transform: "translateX(-5px) scale(1.04)", offset: .08 }, { transform: "translateX(5px) scale(1.06)", offset: .18 },
+      { transform: "translateX(-5px) scale(1.06)", offset: .28 }, { transform: "translateX(4px) scale(1.05)", offset: .38 },
+      { transform: "translateX(-3px) scale(1.04)", offset: .48 }, { transform: "translateX(2px) scale(1.02)", offset: .58 },
+      { transform: "none", offset: .7 }, { transform: "none" }] },
+    // a small huff now and then while it stays angry
+    huff: { ms: 500, easing: "ease-out", frames: [
+      { transform: "translateY(-3px) scale(1.07)", offset: .25 }, { transform: "translateX(-3px) scale(1.04)", offset: .5 },
+      { transform: "translateX(2px)", offset: .75 }, { transform: "none" }] },
+    // one deep breath: in (rises, fills up), hold, out
+    calm: { ms: 3000, easing: "ease-in-out", frames: [
+      { transform: "translateY(-6px) scale(1.08,1.12)", offset: .42 }, { transform: "translateY(-6px) scale(1.08,1.12)", offset: .55 },
+      { transform: "none" }] }
   };
-  function react(kind, ms) {
-    eyes.classList.remove("r-happy", "r-startle", "r-dizzy", "r-squint");
-    eyes.classList.add("r-" + kind);
-    clearTimeout(busy);
-    busy = setTimeout(function () { eyes.classList.remove("r-" + kind); }, ms);
+  var ANGRY_MS = 6000, CALM_MS = 3000;
+  var angryUntil = 0, huffs = null, page = document.querySelector("main");
+  function shakePage(px) {
+    if (calm || !page.animate) return;
+    page.animate([
+      { transform: "none" }, { transform: "translate(" + -px + "px, 2px)" }, { transform: "translate(" + px * .85 + "px, -2px)" },
+      { transform: "translate(" + -px * .7 + "px, 1px)" }, { transform: "translate(" + px * .4 + "px, -1px)" }, { transform: "none" }],
+      { duration: 450, easing: "ease-out" });
+  }
+  function move(kind) {
     if (calm || !eyes.animate) return;
     var from = getComputedStyle(eyes).transform;   // mid-hop or mid-wobble: carry on from there
     if (motion) motion.cancel();
     var m = MOVES[kind];
     motion = eyes.animate([{ transform: from === "none" ? "none" : from }].concat(m.frames), { duration: m.ms, easing: m.easing });
   }
+  function face(kind) {
+    eyes.classList.remove("r-happy", "r-startle", "r-dizzy", "r-squint", "r-angry", "r-calm");
+    eyes.classList.add("r-" + kind);
+  }
+  // Angry: the page turns red with it (body.rage) and shakes, it huffs now and then, then it
+  // closes its eyes, takes a deep breath while the red drains away, and is back to normal.
+  function rage() {
+    angryUntil = Date.now() + ANGRY_MS + CALM_MS;
+    clearTimeout(busy);
+    document.body.classList.remove("calming");
+    document.body.classList.add("rage");
+    face("angry"); move("angry"); shakePage(7);
+    huffs = setInterval(function () { move("huff"); shakePage(3); }, 1700);
+    busy = setTimeout(function () {
+      clearInterval(huffs);
+      document.body.classList.add("calming");
+      document.body.classList.remove("rage");
+      face("calm"); move("calm");
+      busy = setTimeout(function () {
+        eyes.classList.remove("r-calm");
+        document.body.classList.remove("calming");
+      }, CALM_MS);
+    }, ANGRY_MS);
+  }
+  function react(kind, ms) {
+    if (kind === "angry") return rage();
+    face(kind);
+    clearTimeout(busy);
+    busy = setTimeout(function () { eyes.classList.remove("r-" + kind); }, ms);
+    move(kind);
+  }
   // Quick clicks would select the heading under the eyes.
   if (eyes) eyes.addEventListener("mousedown", function (e) { e.preventDefault(); });
   if (eyes) eyes.addEventListener("click", function () {
     var now = Date.now();
+    // While angry it ignores further clicks; once it has calmed down, it starts over.
+    if (now < angryUntil) return;
     streak = now - last < 900 ? streak + 1 : 1;
     last = now;
-    if (streak >= 7) { react("squint", 2200); streak = 0; }
+    if (streak >= 11) { react("angry"); streak = 0; }
+    else if (streak >= 7) react("squint", 2200);
     else if (streak >= 4) react("dizzy", 1500);
     else if (streak >= 2) react("startle", 700);
     else react("happy", 900);

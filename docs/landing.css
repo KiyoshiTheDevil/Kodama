@@ -58,7 +58,33 @@ main { position:relative; z-index:1; width:min(820px, 100% - 32px); margin:34px 
 .eyes .happy, .eyes .squint, .eyes .spiral { fill:none; stroke:var(--ac); stroke-linecap:round; stroke-linejoin:round; }
 .eyes .happy, .eyes .squint { stroke-width:2.8; }
 .eyes .spiral { stroke-width:1.15; }
-.eyes .open, .eyes .happy, .eyes .squint, .eyes .sp {
+.eyes .angry { fill:#ff5a4f; stroke:#ff5a4f; stroke-width:.8; stroke-linejoin:round; opacity:0; transform:scaleY(.15); }
+.eyes.r-angry .open { opacity:0; transform:scaleY(.15); }
+.eyes.r-angry .angry { opacity:1; transform:none; }
+.eyes.r-angry { filter:drop-shadow(0 0 22px rgba(255,90,79,.95)); }
+.eyes .calm { fill:none; stroke:var(--ac); stroke-width:2.8; stroke-linecap:round; opacity:0; transform:scaleY(.15); }
+.eyes.r-calm .open { opacity:0; transform:scaleY(.15); }
+.eyes.r-calm .calm { opacity:1; transform:none; }
+.eyes .vein { opacity:0; transform:scale(.3) rotate(-30deg); }
+.eyes .vein .pulse { fill:none; stroke:#ff5a4f; stroke-width:1.5; stroke-linecap:round; transform-box:fill-box; transform-origin:center; }
+.eyes.r-angry .vein { opacity:1; transform:none; }
+.eyes.r-angry .vein .pulse { animation:vein .42s ease-in-out infinite alternate; }
+@keyframes vein { from { transform:scale(.88); } to { transform:scale(1.18); } }
+
+/* While it is angry the page turns red with it: the accent (milestone bar), the glow from above
+   and the platform bars; then everything fades back. --ac is registered so it can transition. */
+@property --ac { syntax:'<color>'; inherits:true; initial-value:#9be36d; }
+@property --ac-2 { syntax:'<color>'; inherits:true; initial-value:#7cc251; }
+body { transition:--ac .6s ease, --ac-2 .6s ease; }
+body.rage { --ac:#ff5a4f; --ac-2:#d94338; transition-duration:.15s; }
+.glow::after { content:""; position:absolute; inset:0; opacity:0; transition:opacity .7s ease;
+  background:radial-gradient(closest-side, rgba(255,70,60,.24), rgba(255,70,60,.06) 60%, transparent); }
+body.rage .glow::after { opacity:1; transition-duration:.15s; }
+#platforms { transition:filter .7s ease; }
+body.rage #platforms { filter:hue-rotate(-105deg) saturate(1.6); transition-duration:.15s; }
+/* Calming down: the red drains away slowly while it breathes. */
+body.calming, body.calming .glow::after, body.calming #platforms { transition-duration:2.4s; }
+.eyes .open, .eyes .happy, .eyes .squint, .eyes .sp, .eyes .angry, .eyes .vein, .eyes .calm {
   transform-box:fill-box; transform-origin:center;
   transition:opacity .16s ease-out, transform .26s cubic-bezier(.3,1.5,.5,1);
 }
