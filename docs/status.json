@@ -2,8 +2,8 @@
   "milestones": {
     "count": 5,
     "current": 1,
-    "progress": 0.6,
-    "eta": "December 2026"
+    "progress": 0.8,
+    "eta": "November 2026"
   },
   "stages": ["Research", "Planning", "In development", "Testing", "Working", "Testing II", "Done"],
   "platforms": [
@@ -14,11 +14,11 @@
       "name": "Linux",
       "stage": "Planning",
       "children": [
-        { "name": "SteamOS", "stage": "Planning" },
-        { "name": "Fedora", "stage": "Research" },
-        { "name": "CachyOS", "stage": "Research" },
+        { "name": "SteamOS", "stage": "In development" },
+        { "name": "Fedora", "stage": "Testing" },
+        { "name": "CachyOS", "stage": "Planning" },
         { "name": "Linux Mint", "stage": "Research" },
-        { "name": "Bazzite", "stage": "Research" }
+        { "name": "Bazzite", "stage": "Planning" }
       ]
     }
   ]
