@@ -13,7 +13,7 @@
   [![Crowdin](https://img.shields.io/badge/translate-Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=white)](https://crowdin.com/project/kiyoshi-music)
   [![License](https://img.shields.io/badge/license-AGPL_v3-3da639?style=for-the-badge)](LICENSE)
 
-  <p><a href="https://kodama.kiyoshi.dev"><b>kodama.kiyoshi.dev</b></a> · <a href="https://kodama.kiyoshi.dev/store/">Store</a> · <a href="https://discord.gg/PzSsPF7KW">Discord</a></p>
+  <p><a href="https://kodama.kiyoshi.dev"><b>kodama.kiyoshi.dev</b></a> · <a href="https://kodama.kiyoshi.dev/store/">Store</a> · <a href="https://discord.gg/7vZV3Z3NB4">Discord</a></p>
 </div>
 
 <p align="center">
@@ -54,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/KiyoshiTheDevil/Kodama/master/insta
 
 ## Bugs and ideas
 
-Please send bug reports and suggestions on the [Discord server](https://discord.gg/PzSsPF7KW). It's easier for me to keep track of them there than on GitHub, and you can chat about the project too. There's also a bug report button inside the app.
+Please send bug reports and suggestions on the [Discord server](https://discord.gg/7vZV3Z3NB4). It's easier for me to keep track of them there than on GitHub, and you can chat about the project too. There's also a bug report button inside the app.
 
 **I no longer actively check issues here on GitHub.**
 
