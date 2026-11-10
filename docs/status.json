@@ -16,7 +16,7 @@
       "children": [
         { "name": "SteamOS", "stage": "In development" },
         { "name": "Fedora", "stage": "Testing" },
-        { "name": "Linux Mint", "stage": "Research" },
+        { "name": "Linux Mint", "stage": "Research" }
       ]
     }
   ]
