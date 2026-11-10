@@ -8,7 +8,15 @@
   "stages": ["Research", "Planning", "In development", "Testing", "Working", "Testing II", "Done"],
   "platforms": [
     { "name": "Windows", "stage": "In development" },
-    { "name": "Android", "stage": "In development" },
+    { 
+      "name": "Android",
+      "stage": "In development",
+      "children": [
+        { "name": "High-End", "stage": "Testing" },
+        { "name": "Mid-range", "stage": "Testing" },
+        { "name": "Low-end", "stage": "Research" },
+      ]
+    }
     { "name": "macOS", "stage": "Research" },
     {
       "name": "Linux",
