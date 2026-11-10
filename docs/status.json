@@ -7,8 +7,8 @@
   },
   "stages": ["Research", "Planning", "In development", "Testing", "Working", "Testing II", "Done"],
   "platforms": [
-    { "name": "Windows", "stage": "In development" },
-    { "name": "Android", "stage": "In development" },
+    { "name": "Windows", "stage": "Testing" },
+    { "name": "Android", "stage": "Testing" },
     { "name": "macOS", "stage": "Research" },
     {
       "name": "Linux",
@@ -16,9 +16,7 @@
       "children": [
         { "name": "SteamOS", "stage": "In development" },
         { "name": "Fedora", "stage": "Testing" },
-        { "name": "CachyOS", "stage": "Planning" },
         { "name": "Linux Mint", "stage": "Research" },
-        { "name": "Bazzite", "stage": "Planning" }
       ]
     }
   ]
