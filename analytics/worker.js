@@ -26,6 +26,11 @@
  *   POST /ping    body: { d, m, v?, os?, l? }   d = daily token, m = monthly token,
  *                 v = app version, os = platform, l = language. The country is taken from
  *                 Cloudflare's own request metadata, not from the body.
+ *   POST /next/ping  body: { v, p, l, pt, pf, lt, lf }   Kodama Next (2.x), opt-in, once a day.
+ *                 NO token and no country: Next counts no users, only shares. v = version,
+ *                 p = platform (windows, macos, android, linux-<distribution>), l = system language,
+ *                 pt/pf = plays and failed plays, lt/lf = lyrics lookups and ones that found none,
+ *                 each since that install's last ping.
  *   GET  /count                        -> { day, dau, month, mau }
  *   GET  /badge                        -> shields.io endpoint JSON (active users)
  *   GET  /badge?metric=mau             -> shields.io endpoint JSON (monthly)
@@ -74,6 +79,10 @@ const OS_OK = new Set(["windows", "macos", "linux"]);
 // to /ping. It is also why it works for every installation already out there, including the
 // ones too old to send os or lang at all.
 const CC_OK = /^[A-Z]{2}$/;
+// Kodama Next's platforms: the three desktops, Android, and Linux with its distribution's id.
+const NEXT_PLATFORM = /^(windows|macos|android|linux(-[a-z0-9]{1,24})?)$/;
+// A day's tallies from one install: whole numbers, and none absurd (a typo or a forged ping).
+const tally = (x) => (Number.isInteger(x) && x >= 0 && x <= 100000 ? x : 0);
 function dim(value, allowed) {
   const v = typeof value === "string" ? value : "";
   if (allowed) return allowed.has(v) ? v : "other";
@@ -311,6 +320,26 @@ export default {
     }
 
     // ── POST /store/install ─────────────────────────────────────────────────
+    // ── POST /next/ping (Kodama Next) ─────────────────────────────────────────
+    // Five writes per ping: the day's ping count (the total the shares are taken of), version,
+    // platform, language, and the error tallies, summed into one record per day.
+    if (url.pathname === "/next/ping" && request.method === "POST") {
+      let b = {};
+      try { b = (await request.json()) || {}; } catch { /* ignore malformed */ }
+      const day = todayUTC();
+      await incr(env, `next:pings:${day}`);
+      await incr(env, `next:ver:${day}:${dim(b.v)}`);
+      const p = typeof b.p === "string" && NEXT_PLATFORM.test(b.p) ? b.p : "other";
+      await incr(env, `next:plat:${day}:${p}`);
+      await incr(env, `next:lang:${day}:${typeof b.l === "string" && /^[a-z]{2,3}$/.test(b.l) ? b.l : "other"}`);
+      const errKey = `next:err:${day}`;
+      let sums = {};
+      try { sums = JSON.parse((await env.STATS.get(errKey)) || "{}"); } catch { sums = {}; }
+      for (const f of ["pt", "pf", "lt", "lf"]) sums[f] = (sums[f] || 0) + tally(b[f]);
+      await env.STATS.put(errKey, JSON.stringify(sums), { metadata: sums });
+      return json({ ok: true });
+    }
+
     if (url.pathname === "/store/install" && request.method === "POST") {
       let id;
       try { id = (await request.json()).id; } catch { /* ignore malformed */ }
