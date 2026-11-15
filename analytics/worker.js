@@ -27,7 +27,8 @@
  *                 v = app version, os = platform, l = language. The country is taken from
  *                 Cloudflare's own request metadata, not from the body.
  *   POST /next/ping  body: { v, p, l, pt, pf, lt, lf }   Kodama Next (2.x), opt-in, once a day.
- *                 NO token and no country: Next counts no users, only shares. v = version,
+ *                 NO token: Next counts no users, only shares. The country comes from Cloudflare,
+ *                 as for /ping. v = version,
  *                 p = platform (windows, macos, android, linux-<distribution>), l = system language,
  *                 pt/pf = plays and failed plays, lt/lf = lyrics lookups and ones that found none,
  *                 each since that install's last ping.
@@ -321,8 +322,8 @@ export default {
 
     // ── POST /store/install ─────────────────────────────────────────────────
     // ── POST /next/ping (Kodama Next) ─────────────────────────────────────────
-    // Five writes per ping: the day's ping count (the total the shares are taken of), version,
-    // platform, language, and the error tallies, summed into one record per day.
+    // Six writes per ping: the day's ping count (the total the shares are taken of), version,
+    // platform, language, country, and the error tallies, summed into one record per day.
     if (url.pathname === "/next/ping" && request.method === "POST") {
       let b = {};
       try { b = (await request.json()) || {}; } catch { /* ignore malformed */ }
@@ -332,6 +333,9 @@ export default {
       const p = typeof b.p === "string" && NEXT_PLATFORM.test(b.p) ? b.p : "other";
       await incr(env, `next:plat:${day}:${p}`);
       await incr(env, `next:lang:${day}:${typeof b.l === "string" && /^[a-z]{2,3}$/.test(b.l) ? b.l : "other"}`);
+      // From Cloudflare, never from the body, the same way /ping does it.
+      const cc = request.cf && request.cf.country;
+      await incr(env, `next:geo:${day}:${CC_OK.test(cc || "") ? cc : "other"}`);
       const errKey = `next:err:${day}`;
       let sums = {};
       try { sums = JSON.parse((await env.STATS.get(errKey)) || "{}"); } catch { sums = {}; }
