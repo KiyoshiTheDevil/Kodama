@@ -2,7 +2,7 @@
   "milestones": {
     "count": 5,
     "current": 1,
-    "progress": 0.8,
+    "progress": 0.9,
     "eta": "November 2026"
   },
   "stages": ["Research", "Planning", "In development", "Testing", "Working", "Testing II", "Done"],
