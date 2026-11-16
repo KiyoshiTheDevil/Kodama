@@ -9,14 +9,14 @@
   "platforms": [
     { "name": "Windows", "stage": "Testing" },
     { "name": "Android", "stage": "Testing" },
-    { "name": "macOS", "stage": "Research" },
+    { "name": "macOS", "stage": "Planning" },
     {
       "name": "Linux",
-      "stage": "Planning",
+      "stage": "Testing",
       "children": [
-        { "name": "SteamOS", "stage": "In development" },
+        { "name": "SteamOS", "stage": "Testing" },
         { "name": "Fedora", "stage": "Testing" },
-        { "name": "Linux Mint", "stage": "Research" }
+        { "name": "Linux Mint", "stage": "Planning" }
       ]
     }
   ]
