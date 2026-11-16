@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "notes": {
+    "en": ["The first milestone of Kodama Next"],
+    "de": ["Der erste Meilenstein von Kodama Next"]
+  },
+  "downloads": {
+    "windows": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.0/Kodama-Next-0.1.0-Setup.exe",
+    "android": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.0/Kodama-Pocket-0.1.0.apk",
+    "linux": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.0/kodama-next-0.1.0-linux-x64.tar.gz"
+  }
+}
