@@ -245,3 +245,23 @@
     if (r) apply(r);
   });
 })();
+
+// Kodama Next's downloads, from next/latest.json (the same file the app asks for updates): this
+// device's first and in the accent, the version and its notes beside them.
+(function () {
+  var ua = navigator.userAgent;
+  var os = /Android/i.test(ua) ? "android" : /Windows/i.test(ua) ? "windows" : /Linux|X11|CrOS/i.test(ua) ? "linux" : "windows";
+  var names = { windows: "Windows", android: "Android", linux: "Linux" };
+  var icon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>';
+  fetch("next/latest.json", { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (rel) {
+    var box = document.getElementById("nextDl");
+    if (!box || !rel.downloads) return;
+    var order = ["windows", "android", "linux"].filter(function (k) { return rel.downloads[k]; })
+      .sort(function (a, b) { return (b === os) - (a === os); });
+    box.innerHTML = order.map(function (k, i) {
+      return '<a class="' + (i === 0 ? "main" : "") + '" href="' + rel.downloads[k] + '">' + icon + names[k] + "</a>";
+    }).join("");
+    document.getElementById("nextVer").textContent = rel.version;
+    document.getElementById("nextNotes").href = "https://github.com/KiyoshiTheDevil/Kodama/releases/tag/next-v" + rel.version;
+  }).catch(function () {});
+})();

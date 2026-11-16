@@ -7,7 +7,7 @@
   <style>html{background:#000;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kodama</title>
-  <meta name="description" content="Something new is in the works. Kodama, a music player for YouTube Music: development status and downloads.">
+  <meta name="description" content="Kodama Next, the new Kodama for YouTube Music: downloads for Windows, Android and Linux, and where it is going.">
   <link rel="stylesheet" href="landing.css">
   <link rel="preload" href="s/Onest-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="s/Onest-Bold.ttf" as="font" type="font/ttf" crossorigin>
@@ -46,8 +46,17 @@
         <g class="sp"><path class="spiral" d="M59.38 22.09 L59.44 22.10 L59.48 22.14 L59.51 22.20 L59.52 22.27 L59.50 22.35 L59.45 22.42 L59.37 22.49 L59.27 22.53 L59.15 22.55 L59.01 22.53 L58.88 22.47 L58.76 22.37 L58.65 22.23 L58.58 22.06 L58.55 21.87 L58.58 21.66 L58.65 21.45 L58.78 21.26 L58.96 21.09 L59.18 20.97 L59.44 20.90 L59.73 20.89 L60.01 20.94 L60.29 21.07 L60.55 21.27 L60.75 21.54 L60.90 21.85 L60.97 22.20 L60.96 22.57 L60.86 22.94 L60.67 23.29 L60.40 23.60 L60.05 23.84 L59.65 24.01 L59.21 24.08 L58.75 24.04 L58.29 23.90 L57.88 23.65 L57.52 23.30 L57.24 22.87 L57.06 22.37 L57.00 21.84 L57.06 21.29 L57.26 20.76 L57.57 20.28 L57.99 19.87 L58.51 19.56 L59.09 19.37 L59.72 19.32 L60.35 19.41 L60.96 19.65 L61.51 20.03 L61.97 20.54 L62.30 21.14 L62.50 21.82 L62.54 22.53 L62.41 23.25 L62.12 23.94 L61.67 24.55 L61.09 25.05 L60.40 25.41 L59.63 25.61 L58.82 25.63 L58.01 25.47 L57.26 25.12 L56.59 24.60 L56.04 23.94 L55.66 23.16 L55.46 22.30 L55.45 21.40 L55.66 20.51 L56.06 19.68"><animateTransform attributeName="transform" type="rotate" from="0 59.38 22.09" to="-360 59.38 22.09" dur=".75s" repeatCount="indefinite"/></path></g>
       </g>
     </svg>
-    <h1>Something new is in the works.</h1>
+    <!-- Kodama Next is out (2026-11-17, SiteDrafts A): its downloads, read from next/latest.json,
+         this device's first; the version small under them. -->
+    <span class="tag">Milestone 1 is out</span>
+    <h1>Kodama Next</h1>
+    <p class="lead">The new Kodama for YouTube Music, rebuilt from the ground up. Early, and getting better with every milestone.</p>
+    <div class="next-dl" id="nextDl">
+      <a class="main" href="https://github.com/KiyoshiTheDevil/Kodama/releases/tag/next-v0.1.0"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>Download</a>
+    </div>
+    <p class="next-meta">Version <span id="nextVer">0.1.0</span> · Windows, Android and Linux · <a id="nextNotes" href="https://github.com/KiyoshiTheDevil/Kodama/releases/tag/next-v0.1.0" target="_blank" rel="noopener">What is new</a></p>
 
+    <h2 class="next-h">What comes next</h2>
     <!-- Filled from status.json (milestones, platforms). -->
     <div class="ms" id="milestones"></div>
     <div class="card" id="platforms" hidden></div>
@@ -63,7 +72,7 @@
         <rect x="46.72" y="16.09" width="5.98" height="12" rx="2.99"/><rect x="55.69" y="16.09" width="5.98" height="12" rx="2.99"/>
       </svg>
     </div>
-    <div class="tx"><b>Kodama</b><span class="st" id="stats">Windows and macOS</span></div>
+    <div class="tx"><b>Kodama 1</b><span class="st" id="stats">Windows and macOS</span></div>
     <a class="go" id="dlBtn" href="https://github.com/KiyoshiTheDevil/Kodama/releases" target="_blank" rel="noopener">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg><span id="dlLabel">Download</span>
     </a>

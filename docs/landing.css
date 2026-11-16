@@ -99,6 +99,21 @@ body.calming, body.calming .glow::after, body.calming #platforms { transition-du
 @keyframes blink { 0%, 94%, 100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
 h1 { font-size:clamp(30px, 5.4vw, 56px); font-weight:700; margin:0 0 44px; letter-spacing:-.02em; line-height:1.1; }
 
+/* Kodama Next: what it is, its downloads (this device's first, in the accent), the version small. */
+.tag { display:inline-block; padding:4px 11px; border-radius:999px; background:rgba(155,227,109,.14); color:var(--ac);
+  font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; margin-bottom:16px; }
+main h1 + .lead { color:var(--t2); font-size:17px; margin:-28px auto 30px; max-width:560px; }
+.next-dl { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.next-dl a { display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:999px; font-size:15px; font-weight:600;
+  background:var(--fill2); color:var(--t1); transition:background .17s; }
+.next-dl a:hover { background:rgba(255,255,255,.14); }
+.next-dl a.main { background:var(--ac); color:#0b1a05; }
+.next-dl a.main:hover { background:#b0ef86; }
+.next-dl svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.next-meta { margin:12px 0 0; font-size:13px; color:var(--t3); }
+.next-meta a { color:var(--t2); text-decoration:underline; text-underline-offset:3px; }
+.next-h { font-size:22px; margin:72px 0 18px; letter-spacing:-.01em; }
+
 /* Milestones: one segment each, the current one striped and partly filled. */
 .ms { display:flex; gap:8px; text-align:left; }
 .sg { flex:1; min-width:0; }
@@ -223,5 +238,18 @@ button.pr { width:100%; background:none; border:0; border-top:1px solid var(--li
   .island .tx { flex-basis:calc(100% - 64px); }
   .island .go { flex:1; justify-content:center; height:46px; }
   .island .more { height:46px; }
+}
+/* A narrow phone: the logo and the three pills at the top had no room left between them (2026-11-17). */
+@media (max-width:440px) {
+  .top { padding:16px 12px; gap:10px; }
+  .top img { height:20px; }
+  .links { gap:4px; }
+  .links a, .ai-notice { padding:6px 10px; font-size:12.5px; }
+  .ai-notice-tip { width:min(300px, calc(100vw - 24px)); white-space:normal; }
+  .links a, .ai-notice { white-space:nowrap; }
+}
+@media (max-width:360px) {
+  .top img { height:17px; }
+  .links a, .ai-notice { padding:5px 8px; font-size:12px; }
 }
 @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
