@@ -91,7 +91,8 @@
     }
     load(1)
       .then(function(rs){
-        rs = (Array.isArray(rs) ? rs : []).filter(function(r){ return !r.draft; });
+        // Kodama 1.x only: Kodama Next's releases (next-v…) share the repository.
+        rs = (Array.isArray(rs) ? rs : []).filter(function(r){ return !r.draft && !/^next-/.test(r.tag_name || ''); });
         var box = document.getElementById('releases');
         if (!rs.length){ document.getElementById('relMsg').textContent = 'No releases yet.'; return; }
         box.innerHTML = '';

@@ -227,6 +227,9 @@
   }
   load(1).then(function (rs) {
     if (!Array.isArray(rs)) throw new Error("shape");
+    // Kodama Next's releases (next-v…) live in the same repository since 0.1.0 (2026-11-17): this
+    // island is Kodama 1.x's, its version, button and count are its own.
+    rs = rs.filter(function (rel) { return !/^next-/.test(rel.tag_name || ""); });
     var t = 0;
     rs.forEach(function (rel) { (rel.assets || []).forEach(function (a) { t += a.download_count || 0; }); });
     var latest = null;
