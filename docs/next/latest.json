@@ -1,34 +1,20 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "notes": {
     "en": [
-      "Full screen: controls, lyrics bar and pointer hide when the mouse rests; no light edges at the window's sides",
-      "Android: song info in the notification for music videos too",
-      "Discord status follows a new song right away",
-      "Downloads: progress ring on the Downloads tab; on a phone one line with the details in a sheet",
-      "Downloads: new Playlists tab, and a whole album, playlist or artist can be removed at once",
-      "Downloads: pick several songs to remove or queue (long press on a phone, Ctrl or Shift click on a PC)",
-      "Phone in landscape: menus scroll, the island shows its tabs beside the song, pages keep clear of the camera cut-out",
-      "Phone in landscape: playlists, albums and artists in two columns",
-      "Phone: search starts with the keyboard's search key",
-      "Linux: no warning about a missing FFmpeg at start"
+      "Linux: the sign-in window no longer stays black",
+      "Linux: the tray menu works (Plasma, and GNOME with the AppIndicator extension)",
+      "Linux: updates install themselves, the folder is replaced and Kodama Next starts again"
     ],
     "de": [
-      "Vollbild: Steuerung, Lyrics-Leiste und Mauszeiger verschwinden, wenn die Maus ruht; keine hellen Ränder mehr an den Fensterseiten",
-      "Android: Songinfos in der Benachrichtigung auch bei Musikvideos",
-      "Discord-Status folgt einem neuen Song sofort",
-      "Downloads: Fortschrittsring am Downloads-Tab; auf dem Handy eine Zeile, Details in einem Blatt",
-      "Downloads: neuer Playlists-Tab, ganze Alben, Playlists oder Künstler lassen sich auf einmal entfernen",
-      "Downloads: mehrere Songs auswählen, um sie zu entfernen oder einzureihen (am Handy lange drücken, am PC Strg- oder Umschalt-Klick)",
-      "Handy quer: Menüs scrollen, die Insel zeigt die Tabs neben dem Song, Seiten halten Abstand zur Kamera-Aussparung",
-      "Handy quer: Playlists, Alben und Künstler in zwei Spalten",
-      "Handy: Die Suche startet mit der Such-Taste der Tastatur",
-      "Linux: keine Warnung mehr über fehlendes FFmpeg beim Start"
+      "Linux: Das Anmeldefenster bleibt nicht mehr schwarz",
+      "Linux: Das Tray-Menü funktioniert (Plasma, und GNOME mit der AppIndicator-Erweiterung)",
+      "Linux: Updates installieren sich selbst, der Ordner wird ersetzt und Kodama Next startet neu"
     ]
   },
   "downloads": {
-    "windows": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.1/Kodama-Next-0.1.1-Setup.exe",
-    "android": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.1/Kodama-Pocket-0.1.1.apk",
-    "linux": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.1/kodama-next-0.1.1-linux-x64.tar.gz"
+    "windows": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.2/Kodama-Next-0.1.2-Setup.exe",
+    "android": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.2/Kodama-Pocket-0.1.2.apk",
+    "linux": "https://github.com/KiyoshiTheDevil/Kodama/releases/download/next-v0.1.2/kodama-next-0.1.2-linux-x64.tar.gz"
   }
 }
