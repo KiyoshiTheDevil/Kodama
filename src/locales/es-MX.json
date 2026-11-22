@@ -711,6 +711,7 @@
   "goOffline": "Desconectarme",
   "goOnline": "Conectarse",
   "offlineBanner": "Modo sin conexión — solo las canciones descargadas están disponibles",
+  "offlineNoDownloads": "Nada descargado todavía. Con una conexión, puedes guardar canciones, álbumes y listas de reproducción para la carretera.",
   "offlineComingSoon": "Modo sin conexión próximamente",
   "debug": "Depurado",
   "debugSysInfo": "Información de sistema",
